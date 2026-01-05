@@ -1,0 +1,5 @@
+# Downloaded tool binaries
+bin/
+build/
+tools/
+bld-build
