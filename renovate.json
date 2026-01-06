@@ -6,14 +6,18 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["\\.go$"],
+      "managerFilePatterns": [
+        "/\\.go$/"
+      ],
       "matchStrings": [
         "//\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)\\n\\s*(?:const\\s+)?(?:version|Version)\\s*(?:=|:=)\\s*[\"']?(?<currentValue>[^\"'\\s]+)[\"']?"
       ]
     },
     {
       "customType": "regex",
-      "fileMatch": ["requirements\\.txt$"],
+      "managerFilePatterns": [
+        "/requirements\\.txt$/"
+      ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)\\n(?<depNameShort>[^=]+)==(?<currentValue>[^\\s]+)"
       ]
