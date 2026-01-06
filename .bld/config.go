@@ -9,5 +9,7 @@ var Config = bld.Config{
 			".": {},
 		},
 	},
-	GitHub: &bld.GitHubConfig{},
+	GitHub: &bld.GitHubConfig{
+		SkipSync: true, // This is the bld repo itself, no need to sync
+	},
 }
