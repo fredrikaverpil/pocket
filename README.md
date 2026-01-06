@@ -1,6 +1,8 @@
 # bld
 
-> [!WARNING] Under heavy development. Breaking changes will occur.
+> [!WARNING]
+>
+> Under heavy development. Breaking changes will occur.
 
 A cross-platform build system for Go projects, powered by
 [goyek](https://github.com/goyek/goyek).
@@ -23,6 +25,7 @@ go run github.com/fredrikaverpil/bld/cmd/bld@latest init
 ```
 
 This creates:
+
 - `.bld/` - build module with config and tasks
 - `./bld` - wrapper script
 
@@ -76,6 +79,7 @@ bld.Config{
 ```
 
 Task skips in `GoModuleOptions` affect both local execution and CI:
+
 - If all modules skip format → no format job in CI workflow
 - `go-fmt` task only runs on modules where `SkipFormat: false`
 
@@ -120,7 +124,8 @@ your-project/
 
 ## Adding Custom Tasks
 
-Add tasks directly in `.bld/main.go`. Custom tasks are preserved when running `./bld update`.
+Add tasks directly in `.bld/main.go`. Custom tasks are preserved when running
+`./bld update`.
 
 ```go
 // .bld/main.go
@@ -212,7 +217,8 @@ func Run(ctx context.Context, args ...string) error {
 
 ## Windows
 
-The `./bld` wrapper script requires a bash-compatible shell. On Windows, use one of:
+The `./bld` wrapper script requires a bash-compatible shell. On Windows, use one
+of:
 
 - Git Bash (included with Git for Windows)
 - WSL (Windows Subsystem for Linux)
