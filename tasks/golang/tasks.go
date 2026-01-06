@@ -35,7 +35,7 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t := &Tasks{config: cfg}
 
 	t.Format = goyek.Define(goyek.Task{
-		Name:  "go-fmt",
+		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
 		Action: func(a *goyek.A) {
 			modules := cfg.GoModulesForFormat()

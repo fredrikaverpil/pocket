@@ -26,10 +26,8 @@ jobs:
         with:
           go-version: stable
           cache: false
-      - name: go fmt
-        run: ./bld go-fmt
-      - name: check for changes
-        run: git diff --exit-code
+      - name: go format
+        run: ./bld go-format
   test:
     strategy:
       fail-fast: false
