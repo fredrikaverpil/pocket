@@ -45,11 +45,47 @@ func FromConfig(cfg bld.Config) TemplateData {
 	data.SkipGoLint = len(data.GoModulesLint) == 0
 	data.SkipGoVulncheck = len(data.GoModulesVulncheck) == 0
 
+	// Extract Go versions from all configured modules
+	data.GoVersions = extractGoVersions(cfg)
+
 	if cfg.GitHub != nil {
-		data.GoVersions = cfg.GitHub.GoVersions
 		data.OSVersions = cfg.GitHub.OSVersions
 	}
 	return data
+}
+
+// extractGoVersions collects Go versions from all module go.mod files
+// and merges them with any extra versions from config.
+func extractGoVersions(cfg bld.Config) []string {
+	seen := make(map[string]bool)
+	var versions []string
+
+	// Extract versions from go.mod files
+	if cfg.Go != nil {
+		for path := range cfg.Go.Modules {
+			version, err := bld.ExtractGoVersion(path)
+			if err != nil {
+				// Skip modules where we can't extract version
+				continue
+			}
+			if !seen[version] {
+				seen[version] = true
+				versions = append(versions, version)
+			}
+		}
+	}
+
+	// Add extra versions from config
+	if cfg.GitHub != nil {
+		for _, v := range cfg.GitHub.ExtraGoVersions {
+			if !seen[v] {
+				seen[v] = true
+				versions = append(versions, v)
+			}
+		}
+	}
+
+	return versions
 }
 
 // Generate generates GitHub Actions workflows from templates.

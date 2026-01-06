@@ -65,9 +65,10 @@ bld.Config{
 
     // GitHub Actions configuration (nil = no GitHub workflows)
     GitHub: &bld.GitHubConfig{
-        // CI matrix (defaults shown)
-        GoVersions: []string{"stable"},
-        OSVersions: []string{"ubuntu-latest"},
+        // Go versions are automatically extracted from each module's go.mod.
+        // Add extra versions to test against (e.g., "stable", "oldstable", pre-releases).
+        ExtraGoVersions: []string{"stable"},
+        OSVersions:      []string{"ubuntu-latest"},  // default
 
         // Skip generic workflows
         SkipPR:      false,  // semantic PR validation

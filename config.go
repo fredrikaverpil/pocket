@@ -28,10 +28,10 @@ type GoModuleOptions struct {
 
 // GitHubConfig defines GitHub Actions workflow configuration.
 type GitHubConfig struct {
-	// GoVersions specifies Go versions to test against.
+	// ExtraGoVersions specifies additional Go versions to test against,
+	// beyond the versions extracted from go.mod files.
 	// Uses setup-go syntax: "stable", "oldstable", or specific versions like "1.22".
-	// Default: ["stable"]
-	GoVersions []string
+	ExtraGoVersions []string
 
 	// OSVersions specifies runner OS versions.
 	// Default: ["ubuntu-latest"]
@@ -48,9 +48,6 @@ type GitHubConfig struct {
 func (c Config) WithDefaults() Config {
 	if c.GitHub != nil {
 		gh := *c.GitHub
-		if len(gh.GoVersions) == 0 {
-			gh.GoVersions = []string{"stable"}
-		}
 		if len(gh.OSVersions) == 0 {
 			gh.OSVersions = []string{"ubuntu-latest"}
 		}

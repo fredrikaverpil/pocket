@@ -1,2 +1,4 @@
 github.com/goyek/goyek/v3 v3.0.1 h1:HU2wbAwKujmCnywxRD4GpPcEDjRWspngW8x7MJG9V7E=
 github.com/goyek/goyek/v3 v3.0.1/go.mod h1:+s6hMsSBkg3ph3o6ImXU5bY+azWRh3eKRwrhIqxuz0U=
+golang.org/x/mod v0.31.0 h1:HaW9xtz0+kOcWKwli0ZXy79Ix+UW/vOfmWI5QVd2tgI=
+golang.org/x/mod v0.31.0/go.mod h1:43JraMp9cGx1Rx3AqioxrbrhNsLl2l/iNAvuBkrezpg=
