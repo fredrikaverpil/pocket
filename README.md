@@ -216,6 +216,16 @@ func Run(ctx context.Context, args ...string) error {
 }
 ```
 
+## Project repo settings
+
+### Releases
+
+The GitHub release workflow requires the following repository settings:
+
+- Actions → General → Workflow Permissions:
+  - [x] **Read and write permissions**
+  - [x] **Allow GitHub Actions to create and approve pull requests**
+
 ## Windows
 
 The `./bld` wrapper script requires a bash-compatible shell. On Windows, use one
