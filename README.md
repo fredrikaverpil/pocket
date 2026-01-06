@@ -10,9 +10,11 @@ An opinonated, cross-platform, build system for git projects, powered by
 ## Features
 
 - **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
-- **Tool management**: Downloads and caches tools in `.bld/`
+- **Task management**: Defines tasks like `go-test`, `python-lint`...
+- **Tool management**: Downloads and caches tools in `.bld/`, which are used by
+  tasks
 - **CI workflow generation**: Generates GitHub Actions workflows from templates
-- **Simple invocation**: Just `go run ./.bld <task>`
+- **Simple invocation**: Just `./bld <task>` or `./bld -h` to list all tasks
 
 ## Bootstrap a new project
 
@@ -30,8 +32,9 @@ This creates:
 ### Run tasks
 
 ```bash
-./bld            # run all tasks (lint, format, test)
-./bld update     # generate CI workflows
+./bld            # run all tasks (generate, lint, format, test)
+./bld update     # update bld to latest version
+./bld generate   # regenerate shim and CI workflows
 ```
 
 Run `./bld -h` for a list of all possible tasks to run.
@@ -104,26 +107,21 @@ The GitHub release workflow requires the following repository settings:
 
 ### Adding Custom Tasks
 
-Add tasks directly in `.bld/main.go`. Custom tasks are preserved when running
-`./bld update`.
+Create additional `.go` files in `.bld/` (don't edit `main.go` - it's
+auto-generated).
 
 ```go
-// .bld/main.go
+// .bld/custom.go
 package main
 
 import (
     "os/exec"
 
     "github.com/fredrikaverpil/bld"
-    "github.com/fredrikaverpil/bld/tasks"
     "github.com/goyek/goyek/v3"
-    "github.com/goyek/x/boot"
 )
 
-// All built-in tasks are created based on Config.
-var t = tasks.New(Config)
-
-// Custom task example: add your own tasks alongside the built-in ones.
+// Custom task example
 var myGenerate = goyek.Define(goyek.Task{
     Name:  "my-generate",
     Usage: "run go generate",
@@ -135,14 +133,9 @@ var myGenerate = goyek.Define(goyek.Task{
         }
     },
 })
-
-func main() {
-    goyek.SetDefault(t.All)
-    boot.Main()
-}
 ```
 
-Run custom tasks with `./bld generate`.
+Run custom tasks with `./bld my-generate`.
 
 ### Adding Custom Tools
 
