@@ -25,4 +25,19 @@ else
     echo "Go $GO_VERSION installed to $GO_INSTALL_DIR"
 fi
 
-"$GO_CMD" run -C "$BLD_DIR" . "$@" -v
+# Insert -v before -- if present, otherwise append it
+args=()
+found_separator=false
+for arg in "$@"; do
+    if [[ "$arg" == "--" ]]; then
+        args+=("-v" "--")
+        found_separator=true
+    else
+        args+=("$arg")
+    fi
+done
+if [[ "$found_separator" == "false" ]]; then
+    args+=("-v")
+fi
+
+"$GO_CMD" run -C "$BLD_DIR" . "${args[@]}"
