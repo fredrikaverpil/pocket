@@ -124,6 +124,18 @@ func Generate(cfg bld.Config) error {
 		}
 	}
 
+	// Generate Markdown workflow if configured
+	if cfg.HasMarkdown() {
+		if err := generateFromTemplate(
+			"github/markdown/ci.yml.tmpl",
+			filepath.Join(outDir, "bld-markdown.yml"),
+			data,
+			funcMap,
+		); err != nil {
+			return err
+		}
+	}
+
 	// Generate generic workflows
 	generics := []struct {
 		tmpl string
