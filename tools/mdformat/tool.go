@@ -13,7 +13,6 @@ import (
 
 	"github.com/fredrikaverpil/bld"
 	"github.com/fredrikaverpil/bld/tools/uv"
-	"github.com/goyek/goyek/v3"
 )
 
 const name = "mdformat"
@@ -24,27 +23,17 @@ const pythonVersion = "3.13"
 //go:embed requirements.txt
 var requirements []byte
 
-// Prepare is a goyek task that installs mdformat via uv.
-// Hidden from task list (no Usage field).
-var Prepare = goyek.Define(goyek.Task{
-	Name: "mdformat:prepare",
-	Deps: goyek.Deps{uv.Prepare},
-	Action: func(a *goyek.A) {
-		if err := prepare(a.Context()); err != nil {
-			a.Fatal(err)
-		}
-	},
-})
-
 // Command returns an exec.Cmd for running mdformat.
-// Call Prepare first or use as a goyek Deps.
+// Prefer Run() which auto-prepares the tool.
 func Command(ctx context.Context, args ...string) *exec.Cmd {
 	return bld.Command(ctx, bld.FromBinDir(name), args...)
 }
 
-// Run executes mdformat with the given arguments.
-// Call Prepare first or use as a goyek Deps.
+// Run installs (if needed) and executes mdformat.
 func Run(ctx context.Context, args ...string) error {
+	if err := Prepare(ctx); err != nil {
+		return err
+	}
 	return Command(ctx, args...).Run()
 }
 
@@ -57,7 +46,8 @@ func versionHash() string {
 	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
-func prepare(ctx context.Context) error {
+// Prepare ensures mdformat is installed.
+func Prepare(ctx context.Context) error {
 	// Use hash-based versioning: .bld/tools/mdformat/<hash>/
 	venvDir := bld.FromToolsDir(name, versionHash())
 	binary := filepath.Join(venvDir, "bin", name)

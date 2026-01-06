@@ -10,7 +10,6 @@ import (
 
 	"github.com/fredrikaverpil/bld"
 	"github.com/fredrikaverpil/bld/tool"
-	"github.com/goyek/goyek/v3"
 )
 
 const name = "uv"
@@ -18,26 +17,17 @@ const name = "uv"
 // renovate: datasource=github-releases depName=astral-sh/uv
 const version = "0.7.13"
 
-// Prepare is a goyek task that downloads and installs uv.
-// Hidden from task list (no Usage field).
-var Prepare = goyek.Define(goyek.Task{
-	Name: "uv:prepare",
-	Action: func(a *goyek.A) {
-		if err := prepare(a.Context()); err != nil {
-			a.Fatal(err)
-		}
-	},
-})
-
 // Command returns an exec.Cmd for running uv.
-// Call Prepare first or use as a goyek Deps.
+// Prefer Run() which auto-prepares the tool.
 func Command(ctx context.Context, args ...string) *exec.Cmd {
 	return bld.Command(ctx, bld.FromBinDir(name), args...)
 }
 
-// Run executes uv with the given arguments.
-// Call Prepare first or use as a goyek Deps.
+// Run installs (if needed) and executes uv.
 func Run(ctx context.Context, args ...string) error {
+	if err := Prepare(ctx); err != nil {
+		return err
+	}
 	return Command(ctx, args...).Run()
 }
 
@@ -62,7 +52,8 @@ func PipInstallRequirements(ctx context.Context, venvPath, requirementsPath stri
 	return Run(ctx, "pip", "install", "--python", filepath.Join(venvPath, "bin", "python"), "-r", requirementsPath)
 }
 
-func prepare(ctx context.Context) error {
+// Prepare ensures uv is installed.
+func Prepare(ctx context.Context) error {
 	binDir := bld.FromToolsDir(name, version, "bin")
 	binary := filepath.Join(binDir, name)
 

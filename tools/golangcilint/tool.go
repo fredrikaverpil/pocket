@@ -12,7 +12,6 @@ import (
 
 	"github.com/fredrikaverpil/bld"
 	"github.com/fredrikaverpil/bld/tool"
-	"github.com/goyek/goyek/v3"
 )
 
 const name = "golangci-lint"
@@ -23,26 +22,17 @@ const version = "2.7.1"
 //go:embed golangci.yml
 var defaultConfig []byte
 
-// Prepare is a goyek task that downloads and installs golangci-lint.
-// Hidden from task list (no Usage field).
-var Prepare = goyek.Define(goyek.Task{
-	Name: "golangci-lint:prepare",
-	Action: func(a *goyek.A) {
-		if err := prepare(a.Context()); err != nil {
-			a.Fatal(err)
-		}
-	},
-})
-
 // Command returns an exec.Cmd for running golangci-lint.
-// Call Prepare first or use as a goyek Deps.
+// Prefer Run() which auto-prepares the tool.
 func Command(ctx context.Context, args ...string) *exec.Cmd {
 	return bld.Command(ctx, bld.FromBinDir(name), args...)
 }
 
-// Run executes golangci-lint with the given arguments.
-// Call Prepare first or use as a goyek Deps.
+// Run installs (if needed) and executes golangci-lint.
 func Run(ctx context.Context, args ...string) error {
+	if err := Prepare(ctx); err != nil {
+		return err
+	}
 	return Command(ctx, args...).Run()
 }
 
@@ -78,7 +68,8 @@ func ConfigPath() (string, error) {
 	return configPath, nil
 }
 
-func prepare(ctx context.Context) error {
+// Prepare ensures golangci-lint is installed.
+func Prepare(ctx context.Context) error {
 	binDir := bld.FromToolsDir(name, version, "bin")
 	binary := filepath.Join(binDir, name)
 

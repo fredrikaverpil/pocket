@@ -37,12 +37,14 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t.Format = goyek.Define(goyek.Task{
 		Name:  "go-fmt",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
-		Deps:  goyek.Deps{golangcilint.Prepare},
 		Action: func(a *goyek.A) {
 			modules := cfg.GoModulesForFormat()
 			if len(modules) == 0 {
 				a.Log("no modules configured for format")
 				return
+			}
+			if err := golangcilint.Prepare(a.Context()); err != nil {
+				a.Fatal(err)
 			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
@@ -80,12 +82,14 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t.Lint = goyek.Define(goyek.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
-		Deps:  goyek.Deps{golangcilint.Prepare},
 		Action: func(a *goyek.A) {
 			modules := cfg.GoModulesForLint()
 			if len(modules) == 0 {
 				a.Log("no modules configured for lint")
 				return
+			}
+			if err := golangcilint.Prepare(a.Context()); err != nil {
+				a.Fatal(err)
 			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
@@ -104,12 +108,14 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t.Vulncheck = goyek.Define(goyek.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",
-		Deps:  goyek.Deps{govulncheck.Prepare},
 		Action: func(a *goyek.A) {
 			modules := cfg.GoModulesForVulncheck()
 			if len(modules) == 0 {
 				a.Log("no modules configured for vulncheck")
 				return
+			}
+			if err := govulncheck.Prepare(a.Context()); err != nil {
+				a.Fatal(err)
 			}
 			for _, mod := range modules {
 				cmd := govulncheck.Command(a.Context(), "./...")

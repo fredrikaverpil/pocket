@@ -28,7 +28,6 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t.Format = goyek.Define(goyek.Task{
 		Name:  "md-fmt",
 		Usage: "format Markdown files",
-		Deps:  goyek.Deps{mdformat.Prepare},
 		Action: func(a *goyek.A) {
 			args := buildArgs(cfg.Markdown)
 			args = append(args, ".")
