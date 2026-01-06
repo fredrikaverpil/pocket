@@ -36,6 +36,18 @@ var update = goyek.Define(goyek.Task{
 	},
 })
 
+// Dogfood generates workflows using local bld code (for development)
+var dogfood = goyek.Define(goyek.Task{
+	Name:  "dogfood",
+	Usage: "generate CI workflows using local bld (for development)",
+	Action: func(a *goyek.A) {
+		if err := workflows.Generate(Config); err != nil {
+			a.Fatal(err)
+		}
+		a.Log("Generated workflows in .github/workflows/")
+	},
+})
+
 func main() {
 	goyek.SetDefault(tasks.All)
 	boot.Main()
