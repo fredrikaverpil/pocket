@@ -16,6 +16,9 @@ jobs:
         with:
           go-version: stable
 
+      - name: Build bld CLI
+        run: go build -o /tmp/bld-cli ./cmd/bld
+
       - name: Create test project
         run: |
           mkdir -p /tmp/test-project
@@ -25,7 +28,7 @@ jobs:
       - name: Run bld init
         run: |
           cd /tmp/test-project
-          go run ${{ github.workspace }}/cmd/bld init
+          /tmp/bld-cli init
 
       - name: Verify files created
         run: |
