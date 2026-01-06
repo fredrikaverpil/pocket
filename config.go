@@ -7,6 +7,9 @@ type Config struct {
 	// Python *PythonConfig  // future
 	// Lua    *LuaConfig     // future
 
+	// Documentation
+	Markdown *MarkdownConfig
+
 	// CI platforms
 	GitHub *GitHubConfig
 }
@@ -24,6 +27,19 @@ type GoModuleOptions struct {
 	SkipTest      bool
 	SkipLint      bool
 	SkipVulncheck bool
+}
+
+// MarkdownConfig defines Markdown formatting configuration.
+type MarkdownConfig struct {
+	// Wrap specifies line wrap width. Default: 80.
+	// Set to 0 for no wrapping, or -1 to keep existing wrapping.
+	Wrap int
+
+	// Number enables consecutive numbering for ordered lists.
+	Number bool
+
+	// Exclude specifies glob patterns to exclude from formatting.
+	Exclude []string
 }
 
 // GitHubConfig defines GitHub Actions workflow configuration.
@@ -46,6 +62,15 @@ type GitHubConfig struct {
 
 // WithDefaults returns a copy of the config with default values applied.
 func (c Config) WithDefaults() Config {
+	if c.Markdown != nil {
+		md := *c.Markdown
+		if md.Wrap == 0 {
+			md.Wrap = 80
+		}
+		// Always exclude .bld/ (build system internals)
+		md.Exclude = append(md.Exclude, ".bld/**")
+		c.Markdown = &md
+	}
 	if c.GitHub != nil {
 		gh := *c.GitHub
 		if len(gh.OSVersions) == 0 {
@@ -59,6 +84,11 @@ func (c Config) WithDefaults() Config {
 // HasGo returns true if the project has Go modules configured.
 func (c Config) HasGo() bool {
 	return c.Go != nil && len(c.Go.Modules) > 0
+}
+
+// HasMarkdown returns true if markdown formatting is configured.
+func (c Config) HasMarkdown() bool {
+	return c.Markdown != nil
 }
 
 // GoModulesForFormat returns module paths where format is not skipped.

@@ -5,26 +5,15 @@ import (
 	"os/exec"
 
 	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tasks/generate"
-	"github.com/fredrikaverpil/bld/tasks/golang"
+	"github.com/fredrikaverpil/bld/tasks"
 	"github.com/goyek/goyek/v3"
 	"github.com/goyek/x/boot"
 )
 
-// Register tasks
-var (
-	goTasks     = golang.NewTasks(Config)
-	generateAll = generate.Task(Config)
-)
+// All tasks are automatically created based on Config.
+var t = tasks.New(Config)
 
-// All runs all tasks
-var all = goyek.Define(goyek.Task{
-	Name:  "all",
-	Usage: "run all tasks",
-	Deps:  goyek.Deps{goTasks.All, generateAll},
-})
-
-// Update updates bld dependency
+// Update updates bld dependency.
 var _ = goyek.Define(goyek.Task{
 	Name:  "update",
 	Usage: "update bld dependency",
@@ -40,6 +29,6 @@ var _ = goyek.Define(goyek.Task{
 })
 
 func main() {
-	goyek.SetDefault(all)
+	goyek.SetDefault(t.All)
 	boot.Main()
 }

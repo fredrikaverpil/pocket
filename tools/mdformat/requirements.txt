@@ -1,0 +1,6 @@
+# renovate: datasource=pypi depName=mdformat
+mdformat==1.0.0
+# renovate: datasource=pypi depName=mdformat-gfm
+mdformat-gfm==1.0.0
+# renovate: datasource=pypi depName=mdformat-admon
+mdformat-admon==2.1.1

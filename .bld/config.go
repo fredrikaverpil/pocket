@@ -9,6 +9,10 @@ var Config = bld.Config{
 			".": {},
 		},
 	},
+	Markdown: &bld.MarkdownConfig{
+		Wrap:   80,
+		Number: true,
+	},
 	GitHub: &bld.GitHubConfig{
 		SkipSync: true, // This is the bld repo itself, no need to sync
 	},
