@@ -3,6 +3,7 @@ package shim
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -26,22 +27,22 @@ func TestCalculateBldDir(t *testing.T) {
 		{
 			name:    "single depth",
 			context: "tests",
-			want:    filepath.Join("..", ".bld"),
+			want:    "../.bld",
 		},
 		{
-			name:    "two levels deep",
-			context: filepath.Join("tests", "integration"),
-			want:    filepath.Join("..", "..", ".bld"),
+			name:    "two levels deep with forward slashes",
+			context: "tests/integration",
+			want:    "../../.bld",
 		},
 		{
 			name:    "three levels deep",
-			context: filepath.Join("a", "b", "c"),
-			want:    filepath.Join("..", "..", "..", ".bld"),
+			context: "a/b/c",
+			want:    "../../../.bld",
 		},
 		{
 			name:    "single directory with different name",
 			context: "submodule",
-			want:    filepath.Join("..", ".bld"),
+			want:    "../.bld",
 		},
 	}
 
@@ -51,6 +52,52 @@ func TestCalculateBldDir(t *testing.T) {
 			got := calculateBldDir(tt.context)
 			if got != tt.want {
 				t.Errorf("calculateBldDir(%q) = %q, want %q", tt.context, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCalculateBldDir_AlwaysUsesForwardSlashes(t *testing.T) {
+	t.Parallel()
+
+	// Test that output always uses forward slashes regardless of input format.
+	// This is important because the output is used in bash scripts.
+	tests := []struct {
+		name    string
+		context string
+		want    string
+	}{
+		{
+			name:    "backslash input single depth",
+			context: "tests\\subdir",
+			want:    "../../.bld",
+		},
+		{
+			name:    "backslash input multiple depth",
+			context: "a\\b\\c",
+			want:    "../../../.bld",
+		},
+		{
+			name:    "mixed slashes",
+			context: "a/b\\c",
+			want:    "../../../.bld",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := calculateBldDir(tt.context)
+			if got != tt.want {
+				t.Errorf("calculateBldDir(%q) = %q, want %q", tt.context, got, tt.want)
+			}
+			// Verify no backslashes in output.
+			if strings.Contains(got, "\\") {
+				t.Errorf(
+					"calculateBldDir(%q) = %q contains backslashes, should only use forward slashes",
+					tt.context,
+					got,
+				)
 			}
 		})
 	}
@@ -103,7 +150,7 @@ func TestGenerateWithRoot(t *testing.T) {
 			},
 			wantBldDirs: map[string]string{
 				"bld":                         ".bld",
-				filepath.Join("tests", "bld"): filepath.Join("..", ".bld"),
+				filepath.Join("tests", "bld"): "../.bld", // Always forward slashes for bash.
 			},
 		},
 		{
@@ -130,7 +177,7 @@ func TestGenerateWithRoot(t *testing.T) {
 			},
 			wantBldDirs: map[string]string{
 				"bld":                           ".bld",
-				filepath.Join("scripts", "bld"): filepath.Join("..", ".bld"),
+				filepath.Join("scripts", "bld"): "../.bld", // Always forward slashes for bash.
 			},
 		},
 		{
@@ -156,8 +203,8 @@ func TestGenerateWithRoot(t *testing.T) {
 			config: bld.Config{
 				Go: &bld.GoConfig{
 					Modules: map[string]bld.GoModuleOptions{
-						".":                          {},
-						filepath.Join("a", "b", "c"): {},
+						".":     {},
+						"a/b/c": {},
 					},
 				},
 			},
@@ -167,11 +214,11 @@ func TestGenerateWithRoot(t *testing.T) {
 			},
 			wantContexts: map[string]string{
 				"bld":                               ".",
-				filepath.Join("a", "b", "c", "bld"): filepath.Join("a", "b", "c"),
+				filepath.Join("a", "b", "c", "bld"): "a/b/c",
 			},
 			wantBldDirs: map[string]string{
 				"bld":                               ".bld",
-				filepath.Join("a", "b", "c", "bld"): filepath.Join("..", "..", "..", ".bld"),
+				filepath.Join("a", "b", "c", "bld"): "../../../.bld", // Always forward slashes for bash.
 			},
 		},
 		{
@@ -192,7 +239,7 @@ func TestGenerateWithRoot(t *testing.T) {
 			},
 			wantBldDirs: map[string]string{
 				"bld":                          ".bld",
-				filepath.Join("deploy", "bld"): filepath.Join("..", ".bld"),
+				filepath.Join("deploy", "bld"): "../.bld", // Always forward slashes for bash.
 			},
 		},
 	}
@@ -229,8 +276,8 @@ func TestGenerateWithRoot(t *testing.T) {
 					continue
 				}
 
-				// Verify executable permissions.
-				if info.Mode().Perm()&0o100 == 0 {
+				// Verify executable permissions (skip on Windows as it doesn't have Unix permissions).
+				if runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 					t.Errorf("shim %q is not executable", shimPath)
 				}
 

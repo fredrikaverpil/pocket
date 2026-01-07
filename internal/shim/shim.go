@@ -115,21 +115,23 @@ func generateShim(tmpl *template.Template, shimName, goVersion, context, rootDir
 
 // calculateBldDir returns the relative path from a context directory to .bld/.
 // For "." it returns ".bld", for "tests" it returns "../.bld", etc.
+// Always uses forward slashes since the output is used in bash scripts.
 func calculateBldDir(context string) string {
 	if context == "." {
 		return ".bld"
 	}
 
 	// Count the depth of the context path.
-	depth := strings.Count(context, string(filepath.Separator)) + 1
+	// Handle both forward and back slashes for cross-platform compatibility.
+	depth := strings.Count(context, "/") + strings.Count(context, "\\") + 1
 
 	// Build the relative path back to root, then to .bld.
-	// Allocate depth+1 for the ".." entries plus ".bld".
+	// Use forward slashes since this is for bash scripts.
 	parts := make([]string, depth+1)
 	for i := range depth {
 		parts[i] = ".."
 	}
 	parts[depth] = ".bld"
 
-	return filepath.Join(parts...)
+	return strings.Join(parts, "/")
 }

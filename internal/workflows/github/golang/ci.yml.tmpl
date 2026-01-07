@@ -42,6 +42,9 @@ jobs:
         os: {{ toJSON .OSVersions }}
         go: {{ toJSON .GoVersions }}
     runs-on: ${{ "{{" }} matrix.os {{ "}}" }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
