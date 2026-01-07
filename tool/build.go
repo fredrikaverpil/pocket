@@ -9,12 +9,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fredrikaverpil/bld"
+	"github.com/fredrikaverpil/pocket"
 )
 
 // GoInstall installs a Go binary using 'go install'.
-// The binary is installed to .bld/tools/go/<pkg>/<version>/<binary-name>
-// and symlinked to .bld/bin/<binary-name>.
+// The binary is installed to .pocket/tools/go/<pkg>/<version>/<binary-name>
+// and symlinked to .pocket/bin/<binary-name>.
 // Returns the path to the installed binary.
 func GoInstall(ctx context.Context, pkg, version string) (string, error) {
 	// Determine binary name from package path.
@@ -23,8 +23,8 @@ func GoInstall(ctx context.Context, pkg, version string) (string, error) {
 		binaryName += ".exe"
 	}
 
-	// Destination directory: .bld/tools/go/<pkg>/<version>/
-	toolDir := bld.FromToolsDir("go", pkg, version)
+	// Destination directory: .pocket/tools/go/<pkg>/<version>/
+	toolDir := pocket.FromToolsDir("go", pkg, version)
 	binaryPath := filepath.Join(toolDir, binaryName)
 
 	// Check if already installed.

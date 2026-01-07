@@ -1,12 +1,12 @@
 package main
 
-import "github.com/fredrikaverpil/bld"
+import "github.com/fredrikaverpil/pocket"
 
-var Config = bld.Config{
-	Go: &bld.GoConfig{
-		Modules: map[string]bld.GoModuleOptions{
+var Config = pocket.Config{
+	Go: &pocket.GoConfig{
+		Modules: map[string]pocket.GoModuleOptions{
 			".": {},
 		},
 	},
-	GitHub: &bld.GitHubConfig{},
+	GitHub: &pocket.GitHubConfig{},
 }

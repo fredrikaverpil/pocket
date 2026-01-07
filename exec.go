@@ -1,4 +1,4 @@
-package bld
+package pocket
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 )
 
 // Command creates an exec.Cmd with the working directory set to the git root
-// and PATH prepended with the .bld/bin directory.
+// and PATH prepended with the .pocket/bin directory.
 func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = GitRoot()

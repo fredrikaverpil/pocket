@@ -2,16 +2,16 @@
 package golang
 
 import (
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tools/golangcilint"
-	"github.com/fredrikaverpil/bld/tools/govulncheck"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tools/golangcilint"
+	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 	"github.com/goyek/goyek/v3"
 )
 
 // Tasks holds the goyek tasks for Go operations.
 // Create with NewTasks and register the tasks you need.
 type Tasks struct {
-	config bld.Config
+	config pocket.Config
 
 	// Format formats Go code using go fmt.
 	Format *goyek.DefinedTask
@@ -27,7 +27,7 @@ type Tasks struct {
 }
 
 // NewTasks creates Go tasks for the given config.
-func NewTasks(cfg bld.Config) *Tasks {
+func NewTasks(cfg pocket.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{config: cfg}
 
@@ -49,7 +49,7 @@ func NewTasks(cfg bld.Config) *Tasks {
 				if err != nil {
 					a.Fatalf("prepare golangci-lint: %v", err)
 				}
-				cmd.Dir = bld.FromGitRoot(mod)
+				cmd.Dir = pocket.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("golangci-lint fmt failed in %s: %v", mod, err)
 				}
@@ -67,8 +67,8 @@ func NewTasks(cfg bld.Config) *Tasks {
 				return
 			}
 			for _, mod := range modules {
-				cmd := bld.Command(a.Context(), "go", "test", "-v", "-race", "./...")
-				cmd.Dir = bld.FromGitRoot(mod)
+				cmd := pocket.Command(a.Context(), "go", "test", "-v", "-race", "./...")
+				cmd.Dir = pocket.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("go test failed in %s: %v", mod, err)
 				}
@@ -101,7 +101,7 @@ func NewTasks(cfg bld.Config) *Tasks {
 				if err != nil {
 					a.Fatalf("prepare golangci-lint: %v", err)
 				}
-				cmd.Dir = bld.FromGitRoot(mod)
+				cmd.Dir = pocket.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("golangci-lint failed in %s: %v", mod, err)
 				}
@@ -123,7 +123,7 @@ func NewTasks(cfg bld.Config) *Tasks {
 				if err != nil {
 					a.Fatalf("prepare govulncheck: %v", err)
 				}
-				cmd.Dir = bld.FromGitRoot(mod)
+				cmd.Dir = pocket.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("govulncheck failed in %s: %v", mod, err)
 				}

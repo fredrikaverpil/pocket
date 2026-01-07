@@ -1,4 +1,4 @@
-// Package update provides the update task for updating bld dependencies.
+// Package update provides the update task for updating pocket dependencies.
 package update
 
 import (
@@ -6,23 +6,23 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/internal/scaffold"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/goyek/goyek/v3"
 )
 
-// Task returns a goyek task that updates bld and regenerates files.
-func Task(cfg bld.Config) *goyek.DefinedTask {
+// Task returns a goyek task that updates pocket and regenerates files.
+func Task(cfg pocket.Config) *goyek.DefinedTask {
 	return goyek.Define(goyek.Task{
 		Name:  "update",
-		Usage: "update bld dependency and regenerate files",
+		Usage: "update pocket dependency and regenerate files",
 		Action: func(a *goyek.A) {
-			bldDir := filepath.Join(bld.FromGitRoot(), bld.DirName)
+			pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 
-			// Update bld dependency
-			a.Log("Updating github.com/fredrikaverpil/bld@latest")
-			cmd := exec.CommandContext(a.Context(), "go", "get", "-u", "github.com/fredrikaverpil/bld@latest")
-			cmd.Dir = bldDir
+			// Update pocket dependency
+			a.Log("Updating github.com/fredrikaverpil/pocket@latest")
+			cmd := exec.CommandContext(a.Context(), "go", "get", "-u", "github.com/fredrikaverpil/pocket@latest")
+			cmd.Dir = pocketDir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
@@ -32,7 +32,7 @@ func Task(cfg bld.Config) *goyek.DefinedTask {
 			// Run go mod tidy
 			a.Log("Running go mod tidy")
 			cmd = exec.CommandContext(a.Context(), "go", "mod", "tidy")
-			cmd.Dir = bldDir
+			cmd.Dir = pocketDir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {

@@ -1,4 +1,4 @@
-package bld
+package pocket
 
 import (
 	"fmt"

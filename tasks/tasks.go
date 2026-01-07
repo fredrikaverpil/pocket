@@ -1,15 +1,15 @@
-// Package tasks provides the unified task entry point for bld.
+// Package tasks provides the unified task entry point for pocket.
 // It automatically creates tasks based on the provided Config.
 package tasks
 
 import (
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tasks/generate"
-	"github.com/fredrikaverpil/bld/tasks/gitdiff"
-	"github.com/fredrikaverpil/bld/tasks/golang"
-	"github.com/fredrikaverpil/bld/tasks/lua"
-	"github.com/fredrikaverpil/bld/tasks/markdown"
-	"github.com/fredrikaverpil/bld/tasks/update"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tasks/generate"
+	"github.com/fredrikaverpil/pocket/tasks/gitdiff"
+	"github.com/fredrikaverpil/pocket/tasks/golang"
+	"github.com/fredrikaverpil/pocket/tasks/lua"
+	"github.com/fredrikaverpil/pocket/tasks/markdown"
+	"github.com/fredrikaverpil/pocket/tasks/update"
 	"github.com/goyek/goyek/v3"
 )
 
@@ -30,7 +30,7 @@ type Tasks struct {
 	// Generate regenerates all generated files.
 	Generate *goyek.DefinedTask
 
-	// Update updates bld and regenerates files.
+	// Update updates pocket and regenerates files.
 	Update *goyek.DefinedTask
 
 	// GitDiff fails if there are uncommitted changes.
@@ -43,7 +43,7 @@ type Tasks struct {
 // New creates tasks based on the provided Config.
 // Tasks are only created for configured languages/features.
 // The config should already be filtered for the current context via Config.ForContext().
-func New(cfg bld.Config) *Tasks {
+func New(cfg pocket.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{}
 
@@ -109,7 +109,7 @@ func New(cfg bld.Config) *Tasks {
 	if !cfg.SkipGitDiff {
 		allTask.Action = func(a *goyek.A) {
 			// Run git diff after all deps complete.
-			cmd := bld.Command(a.Context(), "git", "diff", "--exit-code")
+			cmd := pocket.Command(a.Context(), "git", "diff", "--exit-code")
 			if err := cmd.Run(); err != nil {
 				a.Fatal("uncommitted changes detected; please commit or stage your changes")
 			}

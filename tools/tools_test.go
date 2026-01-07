@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fredrikaverpil/bld/tools/golangcilint"
-	"github.com/fredrikaverpil/bld/tools/govulncheck"
-	"github.com/fredrikaverpil/bld/tools/mdformat"
-	"github.com/fredrikaverpil/bld/tools/stylua"
-	"github.com/fredrikaverpil/bld/tools/uv"
+	"github.com/fredrikaverpil/pocket/tools/golangcilint"
+	"github.com/fredrikaverpil/pocket/tools/govulncheck"
+	"github.com/fredrikaverpil/pocket/tools/mdformat"
+	"github.com/fredrikaverpil/pocket/tools/stylua"
+	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
 var tools = []struct {

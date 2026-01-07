@@ -2,13 +2,13 @@
 package generate
 
 import (
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/internal/scaffold"
+	pocket "github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/goyek/goyek/v3"
 )
 
 // Task returns a goyek task that regenerates all generated files.
-func Task(cfg bld.Config) *goyek.DefinedTask {
+func Task(cfg pocket.Config) *goyek.DefinedTask {
 	return goyek.Define(goyek.Task{
 		Name:  "generate",
 		Usage: "regenerate all generated files (main.go, shim)",
@@ -16,7 +16,7 @@ func Task(cfg bld.Config) *goyek.DefinedTask {
 			if err := scaffold.GenerateAll(&cfg); err != nil {
 				a.Fatal(err)
 			}
-			a.Log("Generated .bld/main.go and shim")
+			a.Log("Generated .pocket/main.go and shim")
 		},
 	})
 }

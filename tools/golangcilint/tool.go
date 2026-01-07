@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tool"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tool"
 )
 
 const name = "golangci-lint"
@@ -27,7 +27,7 @@ func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	if err := Prepare(ctx); err != nil {
 		return nil, err
 	}
-	return bld.Command(ctx, bld.FromBinDir(bld.BinaryName(name)), args...), nil
+	return pocket.Command(ctx, pocket.FromBinDir(pocket.BinaryName(name)), args...), nil
 }
 
 // Run installs (if needed) and executes golangci-lint.
@@ -44,19 +44,19 @@ func Run(ctx context.Context, args ...string) error {
 // to the bundled default config.
 func ConfigPath() (string, error) {
 	// Check for user config in repo root
-	repoConfig := bld.FromGitRoot(".golangci.yml")
+	repoConfig := pocket.FromGitRoot(".golangci.yml")
 	if _, err := os.Stat(repoConfig); err == nil {
 		return repoConfig, nil
 	}
 
 	// Also check for .golangci.yaml
-	repoConfigYaml := bld.FromGitRoot(".golangci.yaml")
+	repoConfigYaml := pocket.FromGitRoot(".golangci.yaml")
 	if _, err := os.Stat(repoConfigYaml); err == nil {
 		return repoConfigYaml, nil
 	}
 
-	// Write bundled config to .bld/tools/golangci-lint/golangci.yml
-	configDir := bld.FromToolsDir(name)
+	// Write bundled config to .pocket/tools/golangci-lint/golangci.yml
+	configDir := pocket.FromToolsDir(name)
 	configPath := filepath.Join(configDir, "golangci.yml")
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -73,7 +73,7 @@ func ConfigPath() (string, error) {
 
 // Prepare ensures golangci-lint is installed.
 func Prepare(ctx context.Context) error {
-	binDir := bld.FromToolsDir(name, version, "bin")
+	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := name
 	if runtime.GOOS == "windows" {
 		binaryName = name + ".exe"

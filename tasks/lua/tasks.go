@@ -2,21 +2,21 @@
 package lua
 
 import (
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tools/stylua"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tools/stylua"
 	"github.com/goyek/goyek/v3"
 )
 
 // Tasks holds the goyek tasks for Lua operations.
 type Tasks struct {
-	config bld.Config
+	config pocket.Config
 
 	// Format formats Lua files using stylua.
 	Format *goyek.DefinedTask
 }
 
 // NewTasks creates Lua tasks for the given config.
-func NewTasks(cfg bld.Config) *Tasks {
+func NewTasks(cfg pocket.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{config: cfg}
 

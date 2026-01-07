@@ -1,4 +1,4 @@
-// Package scaffold provides generation of .bld/ scaffold files.
+// Package scaffold provides generation of .pocket/ scaffold files.
 package scaffold
 
 import (
@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/internal/shim"
+	pocket "github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
 //go:embed main.go.tmpl
@@ -23,16 +23,16 @@ var GitignoreTemplate []byte
 // GenerateAll regenerates all generated files.
 // Creates one-time files (config.go, .gitignore) if they don't exist.
 // Always regenerates main.go and shim.
-func GenerateAll(cfg *bld.Config) error {
-	bldDir := filepath.Join(bld.FromGitRoot(), bld.DirName)
+func GenerateAll(cfg *pocket.Config) error {
+	pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 
-	// Ensure .bld/ exists
-	if err := os.MkdirAll(bldDir, 0o755); err != nil {
-		return fmt.Errorf("creating .bld/: %w", err)
+	// Ensure .pocket/ exists
+	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
+		return fmt.Errorf("creating .pocket/: %w", err)
 	}
 
 	// Create config.go if not exists (user-editable, never overwritten)
-	configPath := filepath.Join(bldDir, "config.go")
+	configPath := filepath.Join(pocketDir, "config.go")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := os.WriteFile(configPath, ConfigTemplate, 0o644); err != nil {
 			return fmt.Errorf("writing config.go: %w", err)
@@ -40,7 +40,7 @@ func GenerateAll(cfg *bld.Config) error {
 	}
 
 	// Create .gitignore if not exists
-	gitignorePath := filepath.Join(bldDir, ".gitignore")
+	gitignorePath := filepath.Join(pocketDir, ".gitignore")
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
 		if err := os.WriteFile(gitignorePath, GitignoreTemplate, 0o644); err != nil {
 			return fmt.Errorf("writing .gitignore: %w", err)
@@ -54,7 +54,7 @@ func GenerateAll(cfg *bld.Config) error {
 
 	// Always regenerate shim(s).
 	// Use provided config or a minimal default for initial scaffold.
-	shimCfg := bld.Config{}
+	shimCfg := pocket.Config{}
 	if cfg != nil {
 		shimCfg = *cfg
 	}
@@ -65,11 +65,11 @@ func GenerateAll(cfg *bld.Config) error {
 	return nil
 }
 
-// GenerateMain creates or updates .bld/main.go from the template.
+// GenerateMain creates or updates .pocket/main.go from the template.
 func GenerateMain() error {
-	mainPath := filepath.Join(bld.FromGitRoot(), bld.DirName, "main.go")
+	mainPath := filepath.Join(pocket.FromGitRoot(), pocket.DirName, "main.go")
 	if err := os.WriteFile(mainPath, MainTemplate, 0o644); err != nil {
-		return fmt.Errorf("writing .bld/main.go: %w", err)
+		return fmt.Errorf("writing .pocket/main.go: %w", err)
 	}
 	return nil
 }

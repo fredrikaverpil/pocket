@@ -22,9 +22,9 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: show help
-        run: ./bld -h
-      - name: bld
-        run: ./bld
+        run: ./pok -h
+      - name: pocket
+        run: ./pok
 
   test-cmd:
     name: Test CMD shim
@@ -39,9 +39,9 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: show help
-        run: bld.cmd -h
+        run: pok.cmd -h
       - name: Run go-test
-        run: bld.cmd
+        run: pok.cmd
 
   test-powershell:
     name: Test PowerShell shim
@@ -56,6 +56,6 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: show help
-        run: .\bld.ps1 -h
+        run: .\pok.ps1 -h
       - name: Run go-test
-        run: .\bld.ps1
+        run: .\pok.ps1

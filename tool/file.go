@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fredrikaverpil/bld"
+	"github.com/fredrikaverpil/pocket"
 )
 
 // Opt is an option for FromRemote and FromLocal.
@@ -66,7 +66,7 @@ func WithSkipIfFileExists(path string) Opt {
 	}
 }
 
-// WithSymlink creates a symlink to the binary in .bld/bin.
+// WithSymlink creates a symlink to the binary in .pocket/bin.
 func WithSymlink(binaryPath string) Opt {
 	return func(o *options) {
 		o.symlinkBinary = binaryPath
@@ -147,7 +147,7 @@ func FromRemote(ctx context.Context, url string, opts ...Opt) error {
 		return fmt.Errorf("download %s: status %d", url, resp.StatusCode)
 	}
 
-	tmpFile, err := os.CreateTemp("", "bld-download-*")
+	tmpFile, err := os.CreateTemp("", "pocket-download-*")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
@@ -405,11 +405,11 @@ func copyFile(src, dst string) error {
 	return out.Chmod(0o755)
 }
 
-// CreateSymlink creates a symlink in .bld/bin pointing to the given binary.
+// CreateSymlink creates a symlink in .pocket/bin pointing to the given binary.
 // On Windows, it copies the file instead since symlinks require admin privileges.
 // Returns the path to the symlink (or copy on Windows).
 func CreateSymlink(binaryPath string) (string, error) {
-	binDir := bld.FromBinDir()
+	binDir := pocket.FromBinDir()
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return "", fmt.Errorf("create bin dir: %w", err)
 	}

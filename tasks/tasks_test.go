@@ -3,8 +3,8 @@ package tasks_test
 import (
 	"testing"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tasks"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tasks"
 	"github.com/goyek/goyek/v3"
 )
 
@@ -46,7 +46,7 @@ func TestNew_CustomTasks(t *testing.T) {
 		Usage: "a custom task for testing",
 	}
 
-	cfg := bld.Config{
+	cfg := pocket.Config{
 		Custom: map[string][]goyek.Task{
 			".": {customTask},
 		},
@@ -78,7 +78,7 @@ func TestNew_CustomTasks(t *testing.T) {
 }
 
 func TestNew_MultipleCustomTasks(t *testing.T) {
-	cfg := bld.Config{
+	cfg := pocket.Config{
 		Custom: map[string][]goyek.Task{
 			".": {
 				{Name: "deploy", Usage: "deploy the app"},
@@ -112,15 +112,15 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 func TestNew_GoTasksConfigDriven(t *testing.T) {
 	tests := []struct {
 		name          string
-		cfg           bld.Config
+		cfg           pocket.Config
 		wantInDeps    []string
 		wantNotInDeps []string
 	}{
 		{
 			name: "all Go tasks enabled",
-			cfg: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			cfg: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
@@ -130,9 +130,9 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 		},
 		{
 			name: "skip format excludes go-format from deps",
-			cfg: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			cfg: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {SkipFormat: true},
 					},
 				},
@@ -142,9 +142,9 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 		},
 		{
 			name: "skip all excludes all Go tasks from deps",
-			cfg: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			cfg: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {
 							SkipFormat:    true,
 							SkipLint:      true,
@@ -159,9 +159,9 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 		},
 		{
 			name: "multiple modules with mixed skips",
-			cfg: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			cfg: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".":      {SkipFormat: true, SkipLint: true, SkipTest: true, SkipVulncheck: true},
 						"subdir": {}, // This module has all tasks enabled.
 					},
@@ -202,14 +202,14 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 func TestNew_LuaTasksConfigDriven(t *testing.T) {
 	tests := []struct {
 		name          string
-		cfg           bld.Config
+		cfg           pocket.Config
 		wantLuaFormat bool
 	}{
 		{
 			name: "lua format enabled",
-			cfg: bld.Config{
-				Lua: &bld.LuaConfig{
-					Modules: map[string]bld.LuaModuleOptions{
+			cfg: pocket.Config{
+				Lua: &pocket.LuaConfig{
+					Modules: map[string]pocket.LuaModuleOptions{
 						".": {},
 					},
 				},
@@ -218,9 +218,9 @@ func TestNew_LuaTasksConfigDriven(t *testing.T) {
 		},
 		{
 			name: "lua format skipped",
-			cfg: bld.Config{
-				Lua: &bld.LuaConfig{
-					Modules: map[string]bld.LuaModuleOptions{
+			cfg: pocket.Config{
+				Lua: &pocket.LuaConfig{
+					Modules: map[string]pocket.LuaModuleOptions{
 						".": {SkipFormat: true},
 					},
 				},
@@ -254,14 +254,14 @@ func TestNew_LuaTasksConfigDriven(t *testing.T) {
 func TestNew_MarkdownTasksConfigDriven(t *testing.T) {
 	tests := []struct {
 		name         string
-		cfg          bld.Config
+		cfg          pocket.Config
 		wantMdFormat bool
 	}{
 		{
 			name: "markdown format enabled",
-			cfg: bld.Config{
-				Markdown: &bld.MarkdownConfig{
-					Modules: map[string]bld.MarkdownModuleOptions{
+			cfg: pocket.Config{
+				Markdown: &pocket.MarkdownConfig{
+					Modules: map[string]pocket.MarkdownModuleOptions{
 						".": {},
 					},
 				},
@@ -270,9 +270,9 @@ func TestNew_MarkdownTasksConfigDriven(t *testing.T) {
 		},
 		{
 			name: "markdown format skipped",
-			cfg: bld.Config{
-				Markdown: &bld.MarkdownConfig{
-					Modules: map[string]bld.MarkdownModuleOptions{
+			cfg: pocket.Config{
+				Markdown: &pocket.MarkdownConfig{
+					Modules: map[string]pocket.MarkdownModuleOptions{
 						".": {SkipFormat: true},
 					},
 				},
@@ -305,7 +305,7 @@ func TestNew_MarkdownTasksConfigDriven(t *testing.T) {
 
 func TestNew_GenerateAlwaysInDeps(t *testing.T) {
 	// Even with empty config, generate should be in deps.
-	result := tasks.New(bld.Config{})
+	result := tasks.New(pocket.Config{})
 	defer undefineTasks(result)
 
 	allDeps := result.All.Deps()
@@ -323,7 +323,7 @@ func TestNew_GenerateAlwaysInDeps(t *testing.T) {
 }
 
 func TestNew_NoEcosystemsConfigured(t *testing.T) {
-	result := tasks.New(bld.Config{})
+	result := tasks.New(pocket.Config{})
 	defer undefineTasks(result)
 
 	// Should have Generate, All, Update, GitDiff defined.

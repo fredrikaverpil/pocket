@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fredrikaverpil/bld"
+	"github.com/fredrikaverpil/pocket"
 	"github.com/goyek/goyek/v3"
 )
 
-func TestCalculateBldDir(t *testing.T) {
+func TestCalculatePocketDir(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -22,27 +22,27 @@ func TestCalculateBldDir(t *testing.T) {
 		{
 			name:    "root context",
 			context: ".",
-			want:    ".bld",
+			want:    ".pocket",
 		},
 		{
 			name:    "single depth",
 			context: "tests",
-			want:    "../.bld",
+			want:    "../.pocket",
 		},
 		{
 			name:    "two levels deep with forward slashes",
 			context: "tests/integration",
-			want:    "../../.bld",
+			want:    "../../.pocket",
 		},
 		{
 			name:    "three levels deep",
 			context: "a/b/c",
-			want:    "../../../.bld",
+			want:    "../../../.pocket",
 		},
 		{
 			name:    "single directory with different name",
 			context: "submodule",
-			want:    "../.bld",
+			want:    "../.pocket",
 		},
 	}
 
@@ -50,15 +50,15 @@ func TestCalculateBldDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			// Use forward slash separator (Posix).
-			got := calculateBldDir(tt.context, "/")
+			got := calculatePocketDir(tt.context, "/")
 			if got != tt.want {
-				t.Errorf("calculateBldDir(%q, \"/\") = %q, want %q", tt.context, got, tt.want)
+				t.Errorf("calculatePocketDir(%q, \"/\") = %q, want %q", tt.context, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestCalculateBldDir_PathSeparators(t *testing.T) {
+func TestCalculatePocketDir_PathSeparators(t *testing.T) {
 	t.Parallel()
 
 	// Test that output uses the correct path separator based on the parameter.
@@ -72,46 +72,46 @@ func TestCalculateBldDir_PathSeparators(t *testing.T) {
 			name:    "forward slash separator",
 			context: "tests",
 			pathSep: "/",
-			want:    "../.bld",
+			want:    "../.pocket",
 		},
 		{
 			name:    "backslash separator",
 			context: "tests",
 			pathSep: "\\",
-			want:    "..\\.bld",
+			want:    "..\\.pocket",
 		},
 		{
 			name:    "forward slash separator deep",
 			context: "a/b/c",
 			pathSep: "/",
-			want:    "../../../.bld",
+			want:    "../../../.pocket",
 		},
 		{
 			name:    "backslash separator deep",
 			context: "a/b/c",
 			pathSep: "\\",
-			want:    "..\\..\\..\\.bld",
+			want:    "..\\..\\..\\.pocket",
 		},
 		{
 			name:    "mixed input slashes with forward output",
 			context: "a/b\\c",
 			pathSep: "/",
-			want:    "../../../.bld",
+			want:    "../../../.pocket",
 		},
 		{
 			name:    "mixed input slashes with backslash output",
 			context: "a/b\\c",
 			pathSep: "\\",
-			want:    "..\\..\\..\\.bld",
+			want:    "..\\..\\..\\.pocket",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := calculateBldDir(tt.context, tt.pathSep)
+			got := calculatePocketDir(tt.context, tt.pathSep)
 			if got != tt.want {
-				t.Errorf("calculateBldDir(%q, %q) = %q, want %q", tt.context, tt.pathSep, got, tt.want)
+				t.Errorf("calculatePocketDir(%q, %q) = %q, want %q", tt.context, tt.pathSep, got, tt.want)
 			}
 		})
 	}
@@ -121,88 +121,88 @@ func TestGenerateWithRoot(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		config       bld.Config
-		wantShims    []string          // Relative paths to expected shim files.
-		wantContexts map[string]string // Map of shim path to expected BLD_CONTEXT value.
-		wantBldDirs  map[string]string // Map of shim path to expected BLD_DIR value.
+		name           string
+		config         pocket.Config
+		wantShims      []string          // Relative paths to expected shim files.
+		wantContexts   map[string]string // Map of shim path to expected POK_CONTEXT value.
+		wantPocketDirs map[string]string // Map of shim path to expected POK_DIR value.
 	}{
 		{
 			name: "root only config",
-			config: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			config: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
 			},
-			wantShims: []string{"bld"},
+			wantShims: []string{"pok"},
 			wantContexts: map[string]string{
-				"bld": ".",
+				"pok": ".",
 			},
-			wantBldDirs: map[string]string{
-				"bld": ".bld",
+			wantPocketDirs: map[string]string{
+				"pok": ".pocket",
 			},
 		},
 		{
 			name: "root and submodule",
-			config: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			config: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".":     {},
 						"tests": {SkipLint: true},
 					},
 				},
 			},
 			wantShims: []string{
-				"bld",
-				filepath.Join("tests", "bld"),
+				"pok",
+				filepath.Join("tests", "pok"),
 			},
 			wantContexts: map[string]string{
-				"bld":                         ".",
-				filepath.Join("tests", "bld"): "tests",
+				"pok":                         ".",
+				filepath.Join("tests", "pok"): "tests",
 			},
-			wantBldDirs: map[string]string{
-				"bld":                         ".bld",
-				filepath.Join("tests", "bld"): "../.bld", // Always forward slashes for bash.
+			wantPocketDirs: map[string]string{
+				"pok":                         ".pocket",
+				filepath.Join("tests", "pok"): "../.pocket", // Always forward slashes for bash.
 			},
 		},
 		{
 			name: "multiple language configs",
-			config: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			config: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
-				Lua: &bld.LuaConfig{
-					Modules: map[string]bld.LuaModuleOptions{
+				Lua: &pocket.LuaConfig{
+					Modules: map[string]pocket.LuaModuleOptions{
 						"scripts": {},
 					},
 				},
 			},
 			wantShims: []string{
-				"bld",
-				filepath.Join("scripts", "bld"),
+				"pok",
+				filepath.Join("scripts", "pok"),
 			},
 			wantContexts: map[string]string{
-				"bld":                           ".",
-				filepath.Join("scripts", "bld"): "scripts",
+				"pok":                           ".",
+				filepath.Join("scripts", "pok"): "scripts",
 			},
-			wantBldDirs: map[string]string{
-				"bld":                           ".bld",
-				filepath.Join("scripts", "bld"): "../.bld", // Always forward slashes for bash.
+			wantPocketDirs: map[string]string{
+				"pok":                           ".pocket",
+				filepath.Join("scripts", "pok"): "../.pocket", // Always forward slashes for bash.
 			},
 		},
 		{
 			name: "custom shim name",
-			config: bld.Config{
-				Shim: &bld.ShimConfig{
+			config: pocket.Config{
+				Shim: &pocket.ShimConfig{
 					Name:  "build",
 					Posix: true,
 				},
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
@@ -211,144 +211,144 @@ func TestGenerateWithRoot(t *testing.T) {
 			wantContexts: map[string]string{
 				"build": ".",
 			},
-			wantBldDirs: map[string]string{
-				"build": ".bld",
+			wantPocketDirs: map[string]string{
+				"build": ".pocket",
 			},
 		},
 		{
 			name: "deeply nested context",
-			config: bld.Config{
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+			config: pocket.Config{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".":     {},
 						"a/b/c": {},
 					},
 				},
 			},
 			wantShims: []string{
-				"bld",
-				filepath.Join("a", "b", "c", "bld"),
+				"pok",
+				filepath.Join("a", "b", "c", "pok"),
 			},
 			wantContexts: map[string]string{
-				"bld":                               ".",
-				filepath.Join("a", "b", "c", "bld"): "a/b/c",
+				"pok":                               ".",
+				filepath.Join("a", "b", "c", "pok"): "a/b/c",
 			},
-			wantBldDirs: map[string]string{
-				"bld":                               ".bld",
-				filepath.Join("a", "b", "c", "bld"): "../../../.bld", // Always forward slashes for bash.
+			wantPocketDirs: map[string]string{
+				"pok":                               ".pocket",
+				filepath.Join("a", "b", "c", "pok"): "../../../.pocket", // Always forward slashes for bash.
 			},
 		},
 		{
 			name: "custom tasks context",
-			config: bld.Config{
+			config: pocket.Config{
 				Custom: map[string][]goyek.Task{
 					".":      nil, // Root custom tasks.
 					"deploy": nil, // Custom tasks in deploy folder.
 				},
 			},
 			wantShims: []string{
-				"bld",
-				filepath.Join("deploy", "bld"),
+				"pok",
+				filepath.Join("deploy", "pok"),
 			},
 			wantContexts: map[string]string{
-				"bld":                          ".",
-				filepath.Join("deploy", "bld"): "deploy",
+				"pok":                          ".",
+				filepath.Join("deploy", "pok"): "deploy",
 			},
-			wantBldDirs: map[string]string{
-				"bld":                          ".bld",
-				filepath.Join("deploy", "bld"): "../.bld", // Always forward slashes for bash.
+			wantPocketDirs: map[string]string{
+				"pok":                          ".pocket",
+				filepath.Join("deploy", "pok"): "../.pocket", // Always forward slashes for bash.
 			},
 		},
 		{
 			name: "windows shim enabled",
-			config: bld.Config{
-				Shim: &bld.ShimConfig{
+			config: pocket.Config{
+				Shim: &pocket.ShimConfig{
 					Posix:   true,
 					Windows: true,
 				},
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
 			},
-			wantShims: []string{"bld", "bld.cmd"},
+			wantShims: []string{"pok", "pok.cmd"},
 			wantContexts: map[string]string{
-				"bld":     ".",
-				"bld.cmd": ".",
+				"pok":     ".",
+				"pok.cmd": ".",
 			},
-			wantBldDirs: map[string]string{
-				"bld":     ".bld",
-				"bld.cmd": ".bld",
+			wantPocketDirs: map[string]string{
+				"pok":     ".pocket",
+				"pok.cmd": ".pocket",
 			},
 		},
 		{
 			name: "powershell shim enabled",
-			config: bld.Config{
-				Shim: &bld.ShimConfig{
+			config: pocket.Config{
+				Shim: &pocket.ShimConfig{
 					Posix:      true,
 					PowerShell: true,
 				},
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
 			},
-			wantShims: []string{"bld", "bld.ps1"},
+			wantShims: []string{"pok", "pok.ps1"},
 			wantContexts: map[string]string{
-				"bld":     ".",
-				"bld.ps1": ".",
+				"pok":     ".",
+				"pok.ps1": ".",
 			},
-			wantBldDirs: map[string]string{
-				"bld":     ".bld",
-				"bld.ps1": ".bld",
+			wantPocketDirs: map[string]string{
+				"pok":     ".pocket",
+				"pok.ps1": ".pocket",
 			},
 		},
 		{
 			name: "all shim types enabled",
-			config: bld.Config{
-				Shim: &bld.ShimConfig{
+			config: pocket.Config{
+				Shim: &pocket.ShimConfig{
 					Posix:      true,
 					Windows:    true,
 					PowerShell: true,
 				},
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
 			},
-			wantShims: []string{"bld", "bld.cmd", "bld.ps1"},
+			wantShims: []string{"pok", "pok.cmd", "pok.ps1"},
 			wantContexts: map[string]string{
-				"bld":     ".",
-				"bld.cmd": ".",
-				"bld.ps1": ".",
+				"pok":     ".",
+				"pok.cmd": ".",
+				"pok.ps1": ".",
 			},
-			wantBldDirs: map[string]string{
-				"bld":     ".bld",
-				"bld.cmd": ".bld",
-				"bld.ps1": ".bld",
+			wantPocketDirs: map[string]string{
+				"pok":     ".pocket",
+				"pok.cmd": ".pocket",
+				"pok.ps1": ".pocket",
 			},
 		},
 		{
 			name: "windows only - no posix",
-			config: bld.Config{
-				Shim: &bld.ShimConfig{
+			config: pocket.Config{
+				Shim: &pocket.ShimConfig{
 					Windows: true,
 				},
-				Go: &bld.GoConfig{
-					Modules: map[string]bld.GoModuleOptions{
+				Go: &pocket.GoConfig{
+					Modules: map[string]pocket.GoModuleOptions{
 						".": {},
 					},
 				},
 			},
-			wantShims: []string{"bld.cmd"},
+			wantShims: []string{"pok.cmd"},
 			wantContexts: map[string]string{
-				"bld.cmd": ".",
+				"pok.cmd": ".",
 			},
-			wantBldDirs: map[string]string{
-				"bld.cmd": ".bld",
+			wantPocketDirs: map[string]string{
+				"pok.cmd": ".pocket",
 			},
 		},
 	}
@@ -360,14 +360,14 @@ func TestGenerateWithRoot(t *testing.T) {
 			// Create a temporary directory for testing.
 			tmpDir := t.TempDir()
 
-			// Create the .bld directory with a minimal go.mod.
-			bldDir := filepath.Join(tmpDir, ".bld")
-			if err := os.MkdirAll(bldDir, 0o755); err != nil {
-				t.Fatalf("creating .bld directory: %v", err)
+			// Create the .pocket directory with a minimal go.mod.
+			pocketDir := filepath.Join(tmpDir, ".pocket")
+			if err := os.MkdirAll(pocketDir, 0o755); err != nil {
+				t.Fatalf("creating .pocket directory: %v", err)
 			}
 
-			goMod := "module bld\n\ngo 1.25.5\n"
-			if err := os.WriteFile(filepath.Join(bldDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+			goMod := "module pocket\n\ngo 1.25.5\n"
+			if err := os.WriteFile(filepath.Join(pocketDir, "go.mod"), []byte(goMod), 0o644); err != nil {
 				t.Fatalf("writing go.mod: %v", err)
 			}
 
@@ -404,37 +404,37 @@ func TestGenerateWithRoot(t *testing.T) {
 				isCmd := strings.HasSuffix(shimPath, ".cmd")
 				isPs1 := strings.HasSuffix(shimPath, ".ps1")
 
-				// Verify BLD_CONTEXT.
+				// Verify POK_CONTEXT.
 				if wantContext, ok := tt.wantContexts[shimPath]; ok {
 					var found bool
 					switch {
 					case isBash:
-						found = strings.Contains(contentStr, `BLD_CONTEXT="`+wantContext+`"`)
+						found = strings.Contains(contentStr, `POK_CONTEXT="`+wantContext+`"`)
 					case isCmd:
-						found = strings.Contains(contentStr, `set "BLD_CONTEXT=`+wantContext+`"`)
+						found = strings.Contains(contentStr, `set "POK_CONTEXT=`+wantContext+`"`)
 					case isPs1:
-						found = strings.Contains(contentStr, `$BldContext = "`+wantContext+`"`)
+						found = strings.Contains(contentStr, `$PocketContext = "`+wantContext+`"`)
 					}
 					if !found {
-						t.Errorf("shim %q: expected BLD_CONTEXT=%q not found in content", shimPath, wantContext)
+						t.Errorf("shim %q: expected POK_CONTEXT=%q not found in content", shimPath, wantContext)
 					}
 				}
 
-				// Verify BLD_DIR.
-				if wantBldDir, ok := tt.wantBldDirs[shimPath]; ok {
+				// Verify POK_DIR.
+				if wantPocketDir, ok := tt.wantPocketDirs[shimPath]; ok {
 					var found bool
 					// Windows shims use backslashes in paths.
-					windowsBldDir := strings.ReplaceAll(wantBldDir, "/", "\\")
+					windowsPocketDir := strings.ReplaceAll(wantPocketDir, "/", "\\")
 					switch {
 					case isBash:
-						found = strings.Contains(contentStr, `BLD_DIR="`+wantBldDir+`"`)
+						found = strings.Contains(contentStr, `POK_DIR="`+wantPocketDir+`"`)
 					case isCmd:
-						found = strings.Contains(contentStr, `set "BLD_DIR=`+windowsBldDir+`"`)
+						found = strings.Contains(contentStr, `set "POK_DIR=`+windowsPocketDir+`"`)
 					case isPs1:
-						found = strings.Contains(contentStr, `$BldDir = "`+windowsBldDir+`"`)
+						found = strings.Contains(contentStr, `$PocketDir = "`+windowsPocketDir+`"`)
 					}
 					if !found {
-						t.Errorf("shim %q: expected BLD_DIR=%q not found in content", shimPath, wantBldDir)
+						t.Errorf("shim %q: expected POK_DIR=%q not found in content", shimPath, wantPocketDir)
 					}
 				}
 
@@ -455,15 +455,15 @@ func TestGenerateWithRoot_MissingGoMod(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	// Create .bld directory without go.mod.
-	bldDir := filepath.Join(tmpDir, ".bld")
-	if err := os.MkdirAll(bldDir, 0o755); err != nil {
-		t.Fatalf("creating .bld directory: %v", err)
+	// Create .pocket directory without go.mod.
+	pocketDir := filepath.Join(tmpDir, ".pocket")
+	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
+		t.Fatalf("creating .pocket directory: %v", err)
 	}
 
-	config := bld.Config{
-		Go: &bld.GoConfig{
-			Modules: map[string]bld.GoModuleOptions{
+	config := pocket.Config{
+		Go: &pocket.GoConfig{
+			Modules: map[string]pocket.GoModuleOptions{
 				".": {},
 			},
 		},
@@ -483,20 +483,20 @@ func TestGenerateWithRoot_MissingGoDirective(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	// Create .bld directory with go.mod that has no go directive.
-	bldDir := filepath.Join(tmpDir, ".bld")
-	if err := os.MkdirAll(bldDir, 0o755); err != nil {
-		t.Fatalf("creating .bld directory: %v", err)
+	// Create .pocket directory with go.mod that has no go directive.
+	pocketDir := filepath.Join(tmpDir, ".pocket")
+	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
+		t.Fatalf("creating .pocket directory: %v", err)
 	}
 
-	goMod := "module bld\n\nrequire example.com/foo v1.0.0\n"
-	if err := os.WriteFile(filepath.Join(bldDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+	goMod := "module pocket\n\nrequire example.com/foo v1.0.0\n"
+	if err := os.WriteFile(filepath.Join(pocketDir, "go.mod"), []byte(goMod), 0o644); err != nil {
 		t.Fatalf("writing go.mod: %v", err)
 	}
 
-	config := bld.Config{
-		Go: &bld.GoConfig{
-			Modules: map[string]bld.GoModuleOptions{
+	config := pocket.Config{
+		Go: &pocket.GoConfig{
+			Modules: map[string]pocket.GoModuleOptions{
 				".": {},
 			},
 		},

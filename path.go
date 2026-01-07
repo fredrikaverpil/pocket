@@ -1,5 +1,5 @@
-// Package bld provides core utilities for the bld build system.
-package bld
+// Package pocket provides core utilities for the pocket build system.
+package pocket
 
 import (
 	"os"
@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// DirName is the name of the bld directory.
-	DirName = ".bld"
+	// DirName is the name of the pocket directory.
+	DirName = ".pocket"
 	// ToolsDirName is the name of the tools subdirectory.
 	ToolsDirName = "tools"
 	// BinDirName is the name of the bin subdirectory (for symlinks).
@@ -28,7 +28,7 @@ func GitRoot() string {
 		var err error
 		gitRoot, err = findGitRoot()
 		if err != nil {
-			panic("bld: unable to find git root: " + err.Error())
+			panic("pocket: unable to find git root: " + err.Error())
 		}
 	})
 	return gitRoot
@@ -56,20 +56,20 @@ func FromGitRoot(elem ...string) string {
 	return filepath.Join(append([]string{GitRoot()}, elem...)...)
 }
 
-// FromBldDir returns a path relative to the .bld directory.
-func FromBldDir(elem ...string) string {
+// FromPocketDir returns a path relative to the .pocket directory.
+func FromPocketDir(elem ...string) string {
 	return FromGitRoot(append([]string{DirName}, elem...)...)
 }
 
-// FromToolsDir returns a path relative to the .bld/tools directory.
+// FromToolsDir returns a path relative to the .pocket/tools directory.
 func FromToolsDir(elem ...string) string {
-	return FromBldDir(append([]string{ToolsDirName}, elem...)...)
+	return FromPocketDir(append([]string{ToolsDirName}, elem...)...)
 }
 
-// FromBinDir returns a path relative to the .bld/bin directory.
+// FromBinDir returns a path relative to the .pocket/bin directory.
 // If no elements are provided, returns the bin directory itself.
 func FromBinDir(elem ...string) string {
-	return FromBldDir(append([]string{BinDirName}, elem...)...)
+	return FromPocketDir(append([]string{BinDirName}, elem...)...)
 }
 
 // BinaryName returns the binary name with the correct extension for the current OS.

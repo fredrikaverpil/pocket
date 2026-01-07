@@ -2,21 +2,21 @@
 package markdown
 
 import (
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tools/mdformat"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tools/mdformat"
 	"github.com/goyek/goyek/v3"
 )
 
 // Tasks holds the goyek tasks for Markdown operations.
 type Tasks struct {
-	config bld.Config
+	config pocket.Config
 
 	// Format formats Markdown files using mdformat.
 	Format *goyek.DefinedTask
 }
 
 // NewTasks creates Markdown tasks for the given config.
-func NewTasks(cfg bld.Config) *Tasks {
+func NewTasks(cfg pocket.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{config: cfg}
 

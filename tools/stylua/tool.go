@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tool"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tool"
 )
 
 const name = "stylua"
@@ -27,7 +27,7 @@ func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	if err := Prepare(ctx); err != nil {
 		return nil, err
 	}
-	return bld.Command(ctx, bld.FromBinDir(bld.BinaryName(name)), args...), nil
+	return pocket.Command(ctx, pocket.FromBinDir(pocket.BinaryName(name)), args...), nil
 }
 
 // Run installs (if needed) and executes stylua.
@@ -44,13 +44,13 @@ func Run(ctx context.Context, args ...string) error {
 // to the bundled default config.
 func ConfigPath() (string, error) {
 	// Check for user config in repo root
-	repoConfig := bld.FromGitRoot("stylua.toml")
+	repoConfig := pocket.FromGitRoot("stylua.toml")
 	if _, err := os.Stat(repoConfig); err == nil {
 		return repoConfig, nil
 	}
 
-	// Write bundled config to .bld/tools/stylua/stylua.toml
-	configDir := bld.FromToolsDir(name)
+	// Write bundled config to .pocket/tools/stylua/stylua.toml
+	configDir := pocket.FromToolsDir(name)
 	configPath := filepath.Join(configDir, "stylua.toml")
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -67,7 +67,7 @@ func ConfigPath() (string, error) {
 
 // Prepare ensures stylua is installed.
 func Prepare(ctx context.Context) error {
-	binDir := bld.FromToolsDir(name, version, "bin")
+	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := name
 	if runtime.GOOS == "windows" {
 		binaryName = name + ".exe"

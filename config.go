@@ -1,4 +1,4 @@
-package bld
+package pocket
 
 import (
 	"sort"
@@ -6,10 +6,10 @@ import (
 	"github.com/goyek/goyek/v3"
 )
 
-// Config defines the configuration for a project using bld.
+// Config defines the configuration for a project using pocket.
 type Config struct {
 	// Shim controls shim script generation.
-	// By default, only Posix (./bld) is generated with name "bld".
+	// By default, only Posix (./pok) is generated with name "pok".
 	Shim *ShimConfig
 
 	// SkipGitDiff disables the git diff check at the end of the "all" task.
@@ -39,18 +39,18 @@ type Config struct {
 // ShimConfig controls shim script generation.
 type ShimConfig struct {
 	// Name is the base name of the generated shim scripts (without extension).
-	// Default: "bld"
+	// Default: "pok"
 	Name string
 
-	// Posix generates a bash script (./bld).
+	// Posix generates a bash script (./pok).
 	// This is enabled by default if ShimConfig is nil.
 	Posix bool
 
-	// Windows generates a batch file (bld.cmd).
+	// Windows generates a batch file (pok.cmd).
 	// The batch file requires Go to be installed and in PATH.
 	Windows bool
 
-	// PowerShell generates a PowerShell script (bld.ps1).
+	// PowerShell generates a PowerShell script (pok.ps1).
 	// The PowerShell script can auto-download Go if not found.
 	PowerShell bool
 }
@@ -103,7 +103,7 @@ func (c Config) WithDefaults() Config {
 	// Apply shim defaults.
 	shim := *c.Shim
 	if shim.Name == "" {
-		shim.Name = "bld"
+		shim.Name = "pok"
 	}
 	c.Shim = &shim
 

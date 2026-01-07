@@ -5,8 +5,8 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tool"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tool"
 )
 
 const name = "govulncheck"
@@ -19,7 +19,7 @@ func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	if err := Prepare(ctx); err != nil {
 		return nil, err
 	}
-	return bld.Command(ctx, bld.FromBinDir(bld.BinaryName(name)), args...), nil
+	return pocket.Command(ctx, pocket.FromBinDir(pocket.BinaryName(name)), args...), nil
 }
 
 // Run installs (if needed) and executes govulncheck.

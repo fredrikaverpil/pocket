@@ -2,7 +2,7 @@
 package gitdiff
 
 import (
-	"github.com/fredrikaverpil/bld"
+	"github.com/fredrikaverpil/pocket"
 	"github.com/goyek/goyek/v3"
 )
 
@@ -14,7 +14,7 @@ func Task() *goyek.DefinedTask {
 		Name:  "git-diff",
 		Usage: "fail if there are uncommitted changes",
 		Action: func(a *goyek.A) {
-			cmd := bld.Command(a.Context(), "git", "diff", "--exit-code")
+			cmd := pocket.Command(a.Context(), "git", "diff", "--exit-code")
 			if err := cmd.Run(); err != nil {
 				a.Fatal("uncommitted changes detected; please commit or stage your changes")
 			}

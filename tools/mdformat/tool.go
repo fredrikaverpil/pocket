@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/fredrikaverpil/bld"
-	"github.com/fredrikaverpil/bld/tool"
-	"github.com/fredrikaverpil/bld/tools/uv"
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tool"
+	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
 const name = "mdformat"
@@ -30,7 +30,7 @@ func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	if err := Prepare(ctx); err != nil {
 		return nil, err
 	}
-	return bld.Command(ctx, bld.FromBinDir(bld.BinaryName(name)), args...), nil
+	return pocket.Command(ctx, pocket.FromBinDir(pocket.BinaryName(name)), args...), nil
 }
 
 // Run installs (if needed) and executes mdformat.
@@ -53,8 +53,8 @@ func versionHash() string {
 
 // Prepare ensures mdformat is installed.
 func Prepare(ctx context.Context) error {
-	// Use hash-based versioning: .bld/tools/mdformat/<hash>/
-	venvDir := bld.FromToolsDir(name, versionHash())
+	// Use hash-based versioning: .pocket/tools/mdformat/<hash>/
+	venvDir := pocket.FromToolsDir(name, versionHash())
 
 	// On Windows, venv uses Scripts/ instead of bin/, and .exe extension.
 	var binary string
@@ -87,7 +87,7 @@ func Prepare(ctx context.Context) error {
 		return err
 	}
 
-	// Create symlink (or copy on Windows) to .bld/bin/.
+	// Create symlink (or copy on Windows) to .pocket/bin/.
 	_, err := tool.CreateSymlink(binary)
 	return err
 }

@@ -1,6 +1,6 @@
-# bld
+# pocket
 
-An opinonated, cross-platform, build system for git projects, powered by
+An opinonated build system platform, powered by
 [goyek](https://github.com/goyek/goyek).
 
 > [!WARNING]
@@ -11,32 +11,32 @@ An opinonated, cross-platform, build system for git projects, powered by
 
 - **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
 - **Task management**: Defines tasks like `go-test`, `go-lint`...
-- **Tool management**: Downloads and caches tools in `.bld/`, which are used by
-  tasks
-- **Simple invocation**: Just `./bld <task>` or `./bld -h` to list all tasks
+- **Tool management**: Downloads and caches tools in `.pocket/`, which are used
+  by tasks
+- **Simple invocation**: Just `./pok <task>` or `./pok -h` to list all tasks
 
 ## Bootstrap a new project
 
 Run the init command in your project root (must have a `go.mod`):
 
 ```bash
-go run github.com/fredrikaverpil/bld/cmd/bld@latest init
+go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
 ```
 
 This creates:
 
-- `.bld/` - build module with config and tasks
-- `./bld` - wrapper script (or `bld.cmd`/`bld.ps1` on Windows)
+- `.pocket/` - build module with config and tasks
+- `./pok` - wrapper script (or `pok.cmd`/`pok.ps1` on Windows)
 
 ### Run tasks
 
 ```bash
-./bld            # run all tasks (generate, lint, format, test)
-./bld update     # update bld to latest version
-./bld generate   # regenerate shim
+./pok            # run all tasks (generate, lint, format, test)
+./pok update     # update pocket to latest version
+./pok generate   # regenerate shim
 ```
 
-Run `./bld -h` for a list of all possible tasks to run.
+Run `./pok -h` for a list of all possible tasks to run.
 
 ### Shell alias (optional)
 
@@ -44,18 +44,18 @@ For even shorter commands, add an alias to your shell profile:
 
 ```bash
 # ~/.bashrc or ~/.zshrc
-alias bld='./bld'
+alias pok='./pok'
 ```
 
-Then run tasks with just `bld <task>`.
+Then run tasks with just `pok <task>`.
 
 ### Configuration
 
 ```go
-bld.Config{
+pocket.Config{
     // Go configuration (nil = no Go tasks)
-    Go: &bld.GoConfig{
-        Modules: map[string]bld.GoModuleOptions{
+    Go: &pocket.GoConfig{
+        Modules: map[string]pocket.GoModuleOptions{
             ".":          {},                         // all tasks enabled
             "subdir/lib": {SkipFormat: true},         // skip format for this module
             "generated":  {SkipLint: true},           // skip lint for generated code
@@ -72,30 +72,30 @@ Task skips in `GoModuleOptions` control which tasks run on each module:
 
 ```
 your-project/
-├── .bld/
+├── .pocket/
 │   ├── main.go      # generated (do not edit)
 │   ├── config.go    # project config (edit this)
 │   └── go.mod
-├── bld              # wrapper script (platform-specific)
+├── pok              # wrapper script (platform-specific)
 └── ...
 ```
 
 ### Custom Tasks
 
-Add your own tasks in `.bld/config.go`:
+Add your own tasks in `.pocket/config.go`:
 
 ```go
 import (
-    "github.com/fredrikaverpil/bld"
+    "github.com/fredrikaverpil/pocket"
     "github.com/goyek/goyek/v3"
 )
 
-var Config = bld.Config{
-    Go: &bld.GoConfig{...},
+var Config = pocket.Config{
+    Go: &pocket.GoConfig{...},
 
     // Custom tasks per folder
     Custom: map[string][]goyek.Task{
-        ".": {  // available from root ./bld
+        ".": {  // available from root ./pok
             {
                 Name:  "deploy",
                 Usage: "deploy to production",
@@ -109,7 +109,7 @@ var Config = bld.Config{
 }
 ```
 
-Custom tasks appear in `./bld -h` and run as part of `./bld all`.
+Custom tasks appear in `./pok -h` and run as part of `./pok all`.
 
 For multi-module projects, you can define context-specific tasks that only
 appear when running the shim from that folder:
@@ -117,7 +117,7 @@ appear when running the shim from that folder:
 ```go
 Custom: map[string][]goyek.Task{
     ".":            {rootTask},
-    "services/api": {apiTask},  // only in ./services/api/bld
+    "services/api": {apiTask},  // only in ./services/api/pok
 }
 ```
 
@@ -126,49 +126,50 @@ like dependencies, parallel execution, and error handling.
 
 ### Windows Support
 
-When bootstrapping, bld automatically detects your platform:
+When bootstrapping, pocket automatically detects your platform:
 
-- **Unix/macOS/WSL**: Creates `./bld` (Posix bash script)
-- **Windows**: Creates `bld.cmd` and `bld.ps1`
+- **Unix/macOS/WSL**: Creates `./pok` (Posix bash script)
+- **Windows**: Creates `pok.cmd` and `pok.ps1`
 
-To add additional shim types after bootstrapping, update your `.bld/config.go`:
+To add additional shim types after bootstrapping, update your
+`.pocket/config.go`:
 
 ```go
-var Config = bld.Config{
-    Shim: &bld.ShimConfig{
-        Name:       "bld",  // base name (default: "bld")
-        Posix:      true,   // ./bld (bash) - default
-        Windows:    true,   // bld.cmd (requires Go in PATH)
-        PowerShell: true,   // bld.ps1 (can auto-download Go)
+var Config = pocket.Config{
+    Shim: &pocket.ShimConfig{
+        Name:       "pok",  // base name (default: "pok")
+        Posix:      true,   // ./pok (bash) - default
+        Windows:    true,   // pok.cmd (requires Go in PATH)
+        PowerShell: true,   // pok.ps1 (can auto-download Go)
     },
     // ... rest of config
 }
 ```
 
-After updating the config, run `./bld generate` to create the Windows shims.
+After updating the config, run `./pok generate` to create the Windows shims.
 
 **Shim types:**
 
 | Shim          | File      | Go Auto-Download | Notes                        |
 | ------------- | --------- | ---------------- | ---------------------------- |
-| Posix         | `./bld`   | Yes              | Works with bash, Git Bash    |
-| Windows (CMD) | `bld.cmd` | No               | Requires Go in PATH          |
-| PowerShell    | `bld.ps1` | Yes              | Full-featured Windows option |
+| Posix         | `./pok`   | Yes              | Works with bash, Git Bash    |
+| Windows (CMD) | `pok.cmd` | No               | Requires Go in PATH          |
+| PowerShell    | `pok.ps1` | Yes              | Full-featured Windows option |
 
 **Using the shims on Windows:**
 
 ```batch
 rem CMD
-bld.cmd go-test
+pok.cmd go-test
 
 rem PowerShell
-.\bld.ps1 go-test
+.\pok.ps1 go-test
 ```
 
 **Alternative approaches:**
 
-- Git Bash (included with Git for Windows) - use `./bld` directly
-- WSL (Windows Subsystem for Linux) - use `./bld` directly
+- Git Bash (included with Git for Windows) - use `./pok` directly
+- WSL (Windows Subsystem for Linux) - use `./pok` directly
 
 ## Adding a New Ecosystem
 
@@ -191,7 +192,7 @@ To add support for a new language/ecosystem (e.g., Python, Lua):
 
 ### Tools
 
-- Binaries downloaded to `.bld/tools/` and symlinked to `.bld/bin/`
+- Binaries downloaded to `.pocket/tools/` and symlinked to `.pocket/bin/`
 - Examples: golangci-lint, govulncheck, mdformat, uv
 - Have versions, download URLs, Renovate comments
 - Expose `Prepare()`, `Command()`, `Run()` functions

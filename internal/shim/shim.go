@@ -1,4 +1,4 @@
-// Package shim provides generation of the ./bld wrapper scripts.
+// Package shim provides generation of the ./pok wrapper scripts.
 package shim
 
 import (
@@ -10,22 +10,22 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/fredrikaverpil/bld"
+	pocket "github.com/fredrikaverpil/pocket"
 )
 
-//go:embed bld.sh.tmpl
+//go:embed pok.sh.tmpl
 var posixTemplate string
 
-//go:embed bld.cmd.tmpl
+//go:embed pok.cmd.tmpl
 var windowsTemplate string
 
-//go:embed bld.ps1.tmpl
+//go:embed pok.ps1.tmpl
 var powershellTemplate string
 
 // shimData holds the template data for generating a shim.
 type shimData struct {
 	GoVersion string
-	BldDir    string
+	PocketDir string
 	Context   string
 }
 
@@ -39,16 +39,16 @@ type shimType struct {
 
 // Generate creates or updates wrapper scripts for all contexts.
 // It generates shims at the root and one in each unique module directory.
-func Generate(cfg bld.Config) error {
-	return GenerateWithRoot(cfg, bld.GitRoot())
+func Generate(cfg pocket.Config) error {
+	return GenerateWithRoot(cfg, pocket.GitRoot())
 }
 
 // GenerateWithRoot creates or updates wrapper scripts for all contexts
 // using the specified root directory. This is useful for testing.
-func GenerateWithRoot(cfg bld.Config, rootDir string) error {
+func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 	cfg = cfg.WithDefaults()
 
-	goVersion, err := extractGoVersionFromDir(filepath.Join(rootDir, bld.DirName))
+	goVersion, err := extractGoVersionFromDir(filepath.Join(rootDir, pocket.DirName))
 	if err != nil {
 		return fmt.Errorf("reading Go version: %w", err)
 	}
@@ -122,12 +122,12 @@ func extractGoVersionFromDir(dir string) (string, error) {
 
 // generateShim creates a single shim for the given context.
 func generateShim(tmpl *template.Template, shimName, extension, pathSep, goVersion, context, rootDir string) error {
-	// Calculate the relative path from the shim location to .bld/.
-	bldDir := calculateBldDir(context, pathSep)
+	// Calculate the relative path from the shim location to .pocket/.
+	pocketDir := calculatePocketDir(context, pathSep)
 
 	data := shimData{
 		GoVersion: goVersion,
-		BldDir:    bldDir,
+		PocketDir: pocketDir,
 		Context:   context,
 	}
 
@@ -159,24 +159,24 @@ func generateShim(tmpl *template.Template, shimName, extension, pathSep, goVersi
 	return nil
 }
 
-// calculateBldDir returns the relative path from a context directory to .bld/.
-// For "." it returns ".bld", for "tests" it returns "../.bld", etc.
+// calculatePocketDir returns the relative path from a context directory to .pocket/.
+// For "." it returns ".pocket", for "tests" it returns "../.pocket", etc.
 // Uses the provided path separator for the output.
-func calculateBldDir(context, pathSep string) string {
+func calculatePocketDir(context, pathSep string) string {
 	if context == "." {
-		return ".bld"
+		return ".pocket"
 	}
 
 	// Count the depth of the context path.
 	// Handle both forward and back slashes for cross-platform compatibility.
 	depth := strings.Count(context, "/") + strings.Count(context, "\\") + 1
 
-	// Build the relative path back to root, then to .bld.
+	// Build the relative path back to root, then to .pocket.
 	parts := make([]string, depth+1)
 	for i := range depth {
 		parts[i] = ".."
 	}
-	parts[depth] = ".bld"
+	parts[depth] = ".pocket"
 
 	return strings.Join(parts, pathSep)
 }

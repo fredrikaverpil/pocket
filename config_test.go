@@ -1,4 +1,4 @@
-package bld
+package pocket
 
 import (
 	"reflect"
@@ -320,7 +320,7 @@ func TestConfig_WithDefaults(t *testing.T) {
 		{
 			name:         "empty config gets default shim name",
 			config:       Config{},
-			wantShimName: "bld",
+			wantShimName: "pok",
 		},
 		{
 			name: "custom shim name is preserved",
