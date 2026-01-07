@@ -4,6 +4,10 @@ import "sort"
 
 // Config defines the configuration for a project using bld.
 type Config struct {
+	// ShimName is the name of the generated shim scripts.
+	// Default: "bld"
+	ShimName string
+
 	// Language configurations
 	Go  *GoConfig
 	Lua *LuaConfig
@@ -74,6 +78,9 @@ type GitHubConfig struct {
 
 // WithDefaults returns a copy of the config with default values applied.
 func (c Config) WithDefaults() Config {
+	if c.ShimName == "" {
+		c.ShimName = "bld"
+	}
 	if c.GitHub != nil {
 		gh := *c.GitHub
 		if len(gh.OSVersions) == 0 {
@@ -222,7 +229,8 @@ func (c Config) ForContext(context string) Config {
 	}
 
 	filtered := Config{
-		GitHub: c.GitHub, // Always preserve GitHub config.
+		ShimName: c.ShimName, // Preserve shim name.
+		GitHub:   c.GitHub,   // Always preserve GitHub config.
 	}
 
 	// Filter Go modules.

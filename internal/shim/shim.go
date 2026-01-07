@@ -23,9 +23,11 @@ type shimData struct {
 	Context   string
 }
 
-// Generate creates or updates bld wrapper scripts for all contexts.
+// Generate creates or updates wrapper scripts for all contexts.
 // It generates a shim at the root and one in each unique module directory.
 func Generate(cfg bld.Config) error {
+	cfg = cfg.WithDefaults()
+
 	goVersion, err := bld.ExtractGoVersion(bld.DirName)
 	if err != nil {
 		return fmt.Errorf("reading Go version: %w", err)
@@ -38,7 +40,7 @@ func Generate(cfg bld.Config) error {
 
 	// Generate shims for all unique module paths.
 	for _, context := range cfg.UniqueModulePaths() {
-		if err := generateShim(tmpl, goVersion, context); err != nil {
+		if err := generateShim(tmpl, cfg.ShimName, goVersion, context); err != nil {
 			return fmt.Errorf("generating shim for context %q: %w", context, err)
 		}
 	}
@@ -47,7 +49,7 @@ func Generate(cfg bld.Config) error {
 }
 
 // generateShim creates a single shim for the given context.
-func generateShim(tmpl *template.Template, goVersion, context string) error {
+func generateShim(tmpl *template.Template, shimName, goVersion, context string) error {
 	// Calculate the relative path from the shim location to .bld/.
 	bldDir := calculateBldDir(context)
 
@@ -65,14 +67,14 @@ func generateShim(tmpl *template.Template, goVersion, context string) error {
 	// Determine the shim path.
 	var shimPath string
 	if context == "." {
-		shimPath = bld.FromGitRoot("bld")
+		shimPath = bld.FromGitRoot(shimName)
 	} else {
 		// Ensure the directory exists.
 		dir := bld.FromGitRoot(context)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", context, err)
 		}
-		shimPath = filepath.Join(dir, "bld")
+		shimPath = filepath.Join(dir, shimName)
 	}
 
 	if err := os.WriteFile(shimPath, buf.Bytes(), 0o755); err != nil {
