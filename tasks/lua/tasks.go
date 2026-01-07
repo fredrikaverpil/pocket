@@ -24,7 +24,7 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t := &Tasks{config: cfg}
 
 	t.Format = goyek.Define(goyek.Task{
-		Name:  "lua-fmt",
+		Name:  "lua-format",
 		Usage: "format Lua files",
 		Action: func(a *goyek.A) {
 			if err := stylua.Run(a.Context(), "."); err != nil {

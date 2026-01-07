@@ -9,6 +9,7 @@ var Config = bld.Config{
 			".": {},
 		},
 	},
+	Lua: &bld.LuaConfig{},
 	Markdown: &bld.MarkdownConfig{
 		Wrap:   80,
 		Number: true,

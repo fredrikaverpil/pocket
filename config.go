@@ -3,9 +3,8 @@ package bld
 // Config defines the configuration for a project using bld.
 type Config struct {
 	// Language configurations
-	Go *GoConfig
-	// Python *PythonConfig  // future
-	// Lua    *LuaConfig     // future
+	Go  *GoConfig
+	Lua *LuaConfig
 
 	// Documentation
 	Markdown *MarkdownConfig
@@ -41,6 +40,9 @@ type MarkdownConfig struct {
 	// Exclude specifies glob patterns to exclude from formatting.
 	Exclude []string
 }
+
+// LuaConfig defines Lua formatting configuration.
+type LuaConfig struct{}
 
 // GitHubConfig defines GitHub Actions workflow configuration.
 type GitHubConfig struct {
@@ -89,6 +91,11 @@ func (c Config) HasGo() bool {
 // HasMarkdown returns true if markdown formatting is configured.
 func (c Config) HasMarkdown() bool {
 	return c.Markdown != nil
+}
+
+// HasLua returns true if lua formatting is configured.
+func (c Config) HasLua() bool {
+	return c.Lua != nil
 }
 
 // GoModulesForFormat returns module paths where format is not skipped.
