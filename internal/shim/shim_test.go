@@ -48,9 +48,9 @@ func TestCalculateBldDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := CalculateBldDir(tt.context)
+			got := calculateBldDir(tt.context)
 			if got != tt.want {
-				t.Errorf("CalculateBldDir(%q) = %q, want %q", tt.context, got, tt.want)
+				t.Errorf("calculateBldDir(%q) = %q, want %q", tt.context, got, tt.want)
 			}
 		})
 	}

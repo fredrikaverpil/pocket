@@ -80,7 +80,7 @@ func extractGoVersionFromDir(dir string) (string, error) {
 // generateShim creates a single shim for the given context.
 func generateShim(tmpl *template.Template, shimName, goVersion, context, rootDir string) error {
 	// Calculate the relative path from the shim location to .bld/.
-	bldDir := CalculateBldDir(context)
+	bldDir := calculateBldDir(context)
 
 	data := shimData{
 		GoVersion: goVersion,
@@ -113,9 +113,9 @@ func generateShim(tmpl *template.Template, shimName, goVersion, context, rootDir
 	return nil
 }
 
-// CalculateBldDir returns the relative path from a context directory to .bld/.
+// calculateBldDir returns the relative path from a context directory to .bld/.
 // For "." it returns ".bld", for "tests" it returns "../.bld", etc.
-func CalculateBldDir(context string) string {
+func calculateBldDir(context string) string {
 	if context == "." {
 		return ".bld"
 	}
