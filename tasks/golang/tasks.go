@@ -48,7 +48,10 @@ func NewTasks(cfg bld.Config) *Tasks {
 				a.Fatalf("get golangci-lint config: %v", err)
 			}
 			for _, mod := range modules {
-				cmd := golangcilint.Command(a.Context(), "fmt", "-c", configPath, "./...")
+				cmd, err := golangcilint.Command(a.Context(), "fmt", "-c", configPath, "./...")
+				if err != nil {
+					a.Fatalf("prepare golangci-lint: %v", err)
+				}
 				cmd.Dir = bld.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("golangci-lint fmt failed in %s: %v", mod, err)
@@ -85,15 +88,22 @@ func NewTasks(cfg bld.Config) *Tasks {
 				a.Log("no modules configured for lint")
 				return
 			}
-			if err := golangcilint.Prepare(a.Context()); err != nil {
-				a.Fatal(err)
-			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
 				a.Fatalf("get golangci-lint config: %v", err)
 			}
 			for _, mod := range modules {
-				cmd := golangcilint.Command(a.Context(), "run", "--allow-parallel-runners", "-c", configPath, "./...")
+				cmd, err := golangcilint.Command(
+					a.Context(),
+					"run",
+					"--allow-parallel-runners",
+					"-c",
+					configPath,
+					"./...",
+				)
+				if err != nil {
+					a.Fatalf("prepare golangci-lint: %v", err)
+				}
 				cmd.Dir = bld.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("golangci-lint failed in %s: %v", mod, err)
@@ -111,11 +121,11 @@ func NewTasks(cfg bld.Config) *Tasks {
 				a.Log("no modules configured for vulncheck")
 				return
 			}
-			if err := govulncheck.Prepare(a.Context()); err != nil {
-				a.Fatal(err)
-			}
 			for _, mod := range modules {
-				cmd := govulncheck.Command(a.Context(), "./...")
+				cmd, err := govulncheck.Command(a.Context(), "./...")
+				if err != nil {
+					a.Fatalf("prepare govulncheck: %v", err)
+				}
 				cmd.Dir = bld.FromGitRoot(mod)
 				if err := cmd.Run(); err != nil {
 					a.Errorf("govulncheck failed in %s: %v", mod, err)

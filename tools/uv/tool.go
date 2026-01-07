@@ -17,18 +17,21 @@ const name = "uv"
 // renovate: datasource=github-releases depName=astral-sh/uv
 const version = "0.7.13"
 
-// Command returns an exec.Cmd for running uv.
-// Prefer Run() which auto-prepares the tool.
-func Command(ctx context.Context, args ...string) *exec.Cmd {
-	return bld.Command(ctx, bld.FromBinDir(name), args...)
+// Command prepares the tool and returns an exec.Cmd for running uv.
+func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	if err := Prepare(ctx); err != nil {
+		return nil, err
+	}
+	return bld.Command(ctx, bld.FromBinDir(name), args...), nil
 }
 
 // Run installs (if needed) and executes uv.
 func Run(ctx context.Context, args ...string) error {
-	if err := Prepare(ctx); err != nil {
+	cmd, err := Command(ctx, args...)
+	if err != nil {
 		return err
 	}
-	return Command(ctx, args...).Run()
+	return cmd.Run()
 }
 
 // CreateVenv creates a Python virtual environment at the specified path.

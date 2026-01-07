@@ -23,18 +23,21 @@ const pythonVersion = "3.13"
 //go:embed requirements.txt
 var requirements []byte
 
-// Command returns an exec.Cmd for running mdformat.
-// Prefer Run() which auto-prepares the tool.
-func Command(ctx context.Context, args ...string) *exec.Cmd {
-	return bld.Command(ctx, bld.FromBinDir(name), args...)
+// Command prepares the tool and returns an exec.Cmd for running mdformat.
+func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	if err := Prepare(ctx); err != nil {
+		return nil, err
+	}
+	return bld.Command(ctx, bld.FromBinDir(name), args...), nil
 }
 
 // Run installs (if needed) and executes mdformat.
 func Run(ctx context.Context, args ...string) error {
-	if err := Prepare(ctx); err != nil {
+	cmd, err := Command(ctx, args...)
+	if err != nil {
 		return err
 	}
-	return Command(ctx, args...).Run()
+	return cmd.Run()
 }
 
 // versionHash creates a unique hash based on requirements and Python version.

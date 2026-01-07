@@ -22,18 +22,21 @@ const version = "2.3.1"
 //go:embed stylua.toml
 var defaultConfig []byte
 
-// Command returns an exec.Cmd for running stylua.
-// Prefer Run() which auto-prepares the tool.
-func Command(ctx context.Context, args ...string) *exec.Cmd {
-	return bld.Command(ctx, bld.FromBinDir(name), args...)
+// Command prepares the tool and returns an exec.Cmd for running stylua.
+func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	if err := Prepare(ctx); err != nil {
+		return nil, err
+	}
+	return bld.Command(ctx, bld.FromBinDir(name), args...), nil
 }
 
 // Run installs (if needed) and executes stylua.
 func Run(ctx context.Context, args ...string) error {
-	if err := Prepare(ctx); err != nil {
+	cmd, err := Command(ctx, args...)
+	if err != nil {
 		return err
 	}
-	return Command(ctx, args...).Run()
+	return cmd.Run()
 }
 
 // ConfigPath returns the path to the stylua config file.

@@ -32,9 +32,6 @@ func NewTasks(cfg bld.Config) *Tasks {
 				a.Log("no modules configured for format")
 				return
 			}
-			if err := mdformat.Prepare(a.Context()); err != nil {
-				a.Fatal(err)
-			}
 			for _, mod := range modules {
 				if err := mdformat.Run(a.Context(), mod); err != nil {
 					a.Errorf("mdformat format failed in %s: %v", mod, err)

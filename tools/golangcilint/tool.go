@@ -22,18 +22,21 @@ const version = "2.7.1"
 //go:embed golangci.yml
 var defaultConfig []byte
 
-// Command returns an exec.Cmd for running golangci-lint.
-// Prefer Run() which auto-prepares the tool.
-func Command(ctx context.Context, args ...string) *exec.Cmd {
-	return bld.Command(ctx, bld.FromBinDir(name), args...)
+// Command prepares the tool and returns an exec.Cmd for running golangci-lint.
+func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	if err := Prepare(ctx); err != nil {
+		return nil, err
+	}
+	return bld.Command(ctx, bld.FromBinDir(name), args...), nil
 }
 
 // Run installs (if needed) and executes golangci-lint.
 func Run(ctx context.Context, args ...string) error {
-	if err := Prepare(ctx); err != nil {
+	cmd, err := Command(ctx, args...)
+	if err != nil {
 		return err
 	}
-	return Command(ctx, args...).Run()
+	return cmd.Run()
 }
 
 // ConfigPath returns the path to the golangci-lint config file.
