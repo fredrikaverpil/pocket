@@ -2,8 +2,6 @@
 package markdown
 
 import (
-	"strconv"
-
 	"github.com/fredrikaverpil/bld"
 	"github.com/fredrikaverpil/bld/tools/mdformat"
 	"github.com/goyek/goyek/v3"
@@ -26,13 +24,21 @@ func NewTasks(cfg bld.Config) *Tasks {
 	t := &Tasks{config: cfg}
 
 	t.Format = goyek.Define(goyek.Task{
-		Name:  "md-fmt",
+		Name:  "md-format",
 		Usage: "format Markdown files",
 		Action: func(a *goyek.A) {
-			args := buildArgs(cfg.Markdown)
-			args = append(args, ".")
-			if err := mdformat.Run(a.Context(), args...); err != nil {
+			modules := cfg.MarkdownModulesForFormat()
+			if len(modules) == 0 {
+				a.Log("no modules configured for format")
+				return
+			}
+			if err := mdformat.Prepare(a.Context()); err != nil {
 				a.Fatal(err)
+			}
+			for _, mod := range modules {
+				if err := mdformat.Run(a.Context(), mod); err != nil {
+					a.Errorf("mdformat format failed in %s: %v", mod, err)
+				}
 			}
 		},
 	})
@@ -44,30 +50,4 @@ func NewTasks(cfg bld.Config) *Tasks {
 	})
 
 	return t
-}
-
-func buildArgs(cfg *bld.MarkdownConfig) []string {
-	args := make([]string, 0, 4+len(cfg.Exclude)*2) //nolint:mnd
-
-	// Wrap setting
-	switch cfg.Wrap {
-	case -1:
-		args = append(args, "--wrap", "keep")
-	case 0:
-		args = append(args, "--wrap", "no")
-	default:
-		args = append(args, "--wrap", strconv.Itoa(cfg.Wrap))
-	}
-
-	// Number ordered lists
-	if cfg.Number {
-		args = append(args, "--number")
-	}
-
-	// Exclude patterns (requires mdformat 1.0.0+)
-	for _, pattern := range cfg.Exclude {
-		args = append(args, "--exclude", pattern)
-	}
-
-	return args
 }

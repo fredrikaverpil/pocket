@@ -17,6 +17,6 @@ jobs:
           go-version: stable
           cache: false
       - name: md fmt
-        run: ./bld md-fmt
+        run: ./bld md-format
       - name: check for changes
         run: git diff --exit-code

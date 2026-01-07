@@ -43,9 +43,6 @@ func NewTasks(cfg bld.Config) *Tasks {
 				a.Log("no modules configured for format")
 				return
 			}
-			if err := golangcilint.Prepare(a.Context()); err != nil {
-				a.Fatal(err)
-			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
 				a.Fatalf("get golangci-lint config: %v", err)

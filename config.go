@@ -28,21 +28,29 @@ type GoModuleOptions struct {
 	SkipVulncheck bool
 }
 
-// MarkdownConfig defines Markdown formatting configuration.
+// MarkdownConfig defines Markdown project configuration.
 type MarkdownConfig struct {
-	// Wrap specifies line wrap width. Default: 80.
-	// Set to 0 for no wrapping, or -1 to keep existing wrapping.
-	Wrap int
-
-	// Number enables consecutive numbering for ordered lists.
-	Number bool
-
-	// Exclude specifies glob patterns to exclude from formatting.
-	Exclude []string
+	// Modules maps folder paths to their options.
+	// Use "." for the root module.
+	Modules map[string]MarkdownModuleOptions
 }
 
-// LuaConfig defines Lua formatting configuration.
-type LuaConfig struct{}
+// MarkdownModuleOptions defines options for a Markdown module.
+type MarkdownModuleOptions struct {
+	SkipFormat bool
+}
+
+// LuaConfig defines Lua project configuration.
+type LuaConfig struct {
+	// Modules maps folder paths to their options.
+	// Use "." for the root module.
+	Modules map[string]LuaModuleOptions
+}
+
+// LuaModuleOptions defines options for a Lua module.
+type LuaModuleOptions struct {
+	SkipFormat bool
+}
 
 // GitHubConfig defines GitHub Actions workflow configuration.
 type GitHubConfig struct {
@@ -64,15 +72,6 @@ type GitHubConfig struct {
 
 // WithDefaults returns a copy of the config with default values applied.
 func (c Config) WithDefaults() Config {
-	if c.Markdown != nil {
-		md := *c.Markdown
-		if md.Wrap == 0 {
-			md.Wrap = 80
-		}
-		// Always exclude .bld/ (build system internals)
-		md.Exclude = append(md.Exclude, ".bld/**")
-		c.Markdown = &md
-	}
 	if c.GitHub != nil {
 		gh := *c.GitHub
 		if len(gh.OSVersions) == 0 {
@@ -90,12 +89,40 @@ func (c Config) HasGo() bool {
 
 // HasMarkdown returns true if markdown formatting is configured.
 func (c Config) HasMarkdown() bool {
-	return c.Markdown != nil
+	return c.Markdown != nil && len(c.Markdown.Modules) > 0
 }
 
 // HasLua returns true if lua formatting is configured.
 func (c Config) HasLua() bool {
-	return c.Lua != nil
+	return c.Lua != nil && len(c.Lua.Modules) > 0
+}
+
+// MarkdownModulesForFormat returns module paths where format is not skipped.
+func (c Config) MarkdownModulesForFormat() []string {
+	if c.Markdown == nil {
+		return nil
+	}
+	var paths []string
+	for path, opts := range c.Markdown.Modules {
+		if !opts.SkipFormat {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+// LuaModulesForFormat returns module paths where format is not skipped.
+func (c Config) LuaModulesForFormat() []string {
+	if c.Lua == nil {
+		return nil
+	}
+	var paths []string
+	for path, opts := range c.Lua.Modules {
+		if !opts.SkipFormat {
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }
 
 // GoModulesForFormat returns module paths where format is not skipped.

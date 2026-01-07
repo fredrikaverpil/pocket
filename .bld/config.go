@@ -9,10 +9,15 @@ var Config = bld.Config{
 			".": {},
 		},
 	},
-	Lua: &bld.LuaConfig{},
+	Lua: &bld.LuaConfig{
+		Modules: map[string]bld.LuaModuleOptions{
+			".": {},
+		},
+	},
 	Markdown: &bld.MarkdownConfig{
-		Wrap:   80,
-		Number: true,
+		Modules: map[string]bld.MarkdownModuleOptions{
+			".": {},
+		},
 	},
 	GitHub: &bld.GitHubConfig{
 		SkipSync: true, // This is the bld repo itself, no need to sync
