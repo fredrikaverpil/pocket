@@ -2,7 +2,6 @@ package main
 
 import "github.com/fredrikaverpil/pocket"
 
-// Config defines the build configuration for this project.
 var Config = pocket.Config{
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
