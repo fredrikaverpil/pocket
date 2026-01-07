@@ -89,13 +89,57 @@ Task skips in `GoModuleOptions` affect both local execution and CI:
 ```
 your-project/
 ├── .bld/
-│   ├── main.go      # task definitions
-│   ├── config.go    # project config
+│   ├── main.go      # generated (do not edit)
+│   ├── config.go    # project config (edit this)
 │   └── go.mod
 ├── .github/workflows/
 │   └── bld-*.yml    # generated
 └── ...
 ```
+
+### Custom Tasks
+
+Add your own tasks in `.bld/config.go`:
+
+```go
+import (
+    "github.com/fredrikaverpil/bld"
+    "github.com/goyek/goyek/v3"
+)
+
+var Config = bld.Config{
+    Go: &bld.GoConfig{...},
+
+    // Custom tasks per folder
+    Custom: map[string][]goyek.Task{
+        ".": {  // available from root ./bld
+            {
+                Name:  "deploy",
+                Usage: "deploy to production",
+                Action: func(a *goyek.A) {
+                    a.Log("Deploying...")
+                    // your logic here
+                },
+            },
+        },
+    },
+}
+```
+
+Custom tasks appear in `./bld -h` and run as part of `./bld all`.
+
+For multi-module projects, you can define context-specific tasks that only
+appear when running the shim from that folder:
+
+```go
+Custom: map[string][]goyek.Task{
+    ".":            {rootTask},
+    "services/api": {apiTask},  // only in ./services/api/bld
+}
+```
+
+See [goyek documentation](https://github.com/goyek/goyek) for more task options
+like dependencies, parallel execution, and error handling.
 
 ### Releases
 

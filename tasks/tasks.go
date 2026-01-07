@@ -31,15 +31,19 @@ type Tasks struct {
 
 	// Update updates bld and regenerates files.
 	Update *goyek.DefinedTask
+
+	// Custom holds custom tasks registered for this context.
+	Custom []*goyek.DefinedTask
 }
 
 // New creates tasks based on the provided Config.
 // Tasks are only created for configured languages/features.
+// The config should already be filtered for the current context via Config.ForContext().
 func New(cfg bld.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{}
 
-	// Generate runs first - other tasks may need generated files
+	// Generate runs first - other tasks may need generated files.
 	t.Generate = generate.Task(cfg)
 
 	// Update is standalone (not part of "all")
@@ -72,7 +76,14 @@ func New(cfg bld.Config) *Tasks {
 	//     deps = append(deps, t.Python.All)
 	// }
 
-	// Create the "all" task that runs everything
+	// Define custom tasks from config and add them to deps.
+	for _, task := range cfg.CustomTasks() {
+		defined := goyek.Define(task)
+		t.Custom = append(t.Custom, defined)
+		deps = append(deps, defined)
+	}
+
+	// Create the "all" task that runs everything.
 	t.All = goyek.Define(goyek.Task{
 		Name:  "all",
 		Usage: "run all tasks",

@@ -1,6 +1,10 @@
 package bld
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/goyek/goyek/v3"
+)
 
 // Config defines the configuration for a project using bld.
 type Config struct {
@@ -17,6 +21,17 @@ type Config struct {
 
 	// CI platforms
 	GitHub *GitHubConfig
+
+	// Custom maps folder paths to custom goyek tasks.
+	// Use "." for the root context.
+	// Tasks are included in the "all" task and shown in help output.
+	//
+	// Example:
+	//
+	//	Custom: map[string][]goyek.Task{
+	//	    ".": {{Name: "deploy", Usage: "deploy the app", Action: deployAction}},
+	//	},
+	Custom map[string][]goyek.Task
 }
 
 // GoConfig defines Go project configuration.
@@ -104,6 +119,16 @@ func (c Config) HasMarkdown() bool {
 // HasLua returns true if lua formatting is configured.
 func (c Config) HasLua() bool {
 	return c.Lua != nil && len(c.Lua.Modules) > 0
+}
+
+// CustomTasks returns all custom tasks from the config.
+// For a filtered config (via ForContext), this returns only the tasks for that context.
+func (c Config) CustomTasks() []goyek.Task {
+	var tasks []goyek.Task
+	for _, contextTasks := range c.Custom {
+		tasks = append(tasks, contextTasks...)
+	}
+	return tasks
 }
 
 // MarkdownModulesForFormat returns module paths where format is not skipped.
@@ -211,6 +236,9 @@ func (c Config) UniqueModulePaths() []string {
 			seen[path] = true
 		}
 	}
+	for path := range c.Custom {
+		seen[path] = true
+	}
 
 	paths := make([]string, 0, len(seen))
 	for path := range seen {
@@ -263,6 +291,13 @@ func (c Config) ForContext(context string) Config {
 					context: opts,
 				},
 			}
+		}
+	}
+
+	// Filter custom tasks.
+	if tasks, ok := c.Custom[context]; ok {
+		filtered.Custom = map[string][]goyek.Task{
+			context: tasks,
 		}
 	}
 
