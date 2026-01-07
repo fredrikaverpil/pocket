@@ -106,8 +106,8 @@ func getVersionFromModfile(modfile, pkg string) (string, error) {
 	}
 
 	// Simple parsing - look for the package in require blocks
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, pkg) || strings.Contains(line, pkg+" ") {
 			fields := strings.Fields(line)

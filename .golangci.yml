@@ -6,7 +6,7 @@ run:
   relative-path-mode: gitroot
 
 issues:
-  fix: false
+  fix: true
 
 linters:
   default: none
@@ -29,6 +29,7 @@ linters:
     - gochecknoinits
     - gocritic
     - godot
+    - modernize
     - gomoddirectives
     - gomodguard
     - goprintffuncname
