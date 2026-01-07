@@ -26,9 +26,15 @@ type shimData struct {
 // Generate creates or updates wrapper scripts for all contexts.
 // It generates a shim at the root and one in each unique module directory.
 func Generate(cfg bld.Config) error {
+	return GenerateWithRoot(cfg, bld.GitRoot())
+}
+
+// GenerateWithRoot creates or updates wrapper scripts for all contexts
+// using the specified root directory. This is useful for testing.
+func GenerateWithRoot(cfg bld.Config, rootDir string) error {
 	cfg = cfg.WithDefaults()
 
-	goVersion, err := bld.ExtractGoVersion(bld.DirName)
+	goVersion, err := extractGoVersionFromDir(filepath.Join(rootDir, bld.DirName))
 	if err != nil {
 		return fmt.Errorf("reading Go version: %w", err)
 	}
@@ -40,7 +46,7 @@ func Generate(cfg bld.Config) error {
 
 	// Generate shims for all unique module paths.
 	for _, context := range cfg.UniqueModulePaths() {
-		if err := generateShim(tmpl, cfg.ShimName, goVersion, context); err != nil {
+		if err := generateShim(tmpl, cfg.ShimName, goVersion, context, rootDir); err != nil {
 			return fmt.Errorf("generating shim for context %q: %w", context, err)
 		}
 	}
@@ -48,10 +54,33 @@ func Generate(cfg bld.Config) error {
 	return nil
 }
 
+// extractGoVersionFromDir reads a go.mod file from the given directory
+// and returns the Go version specified in the "go" directive.
+func extractGoVersionFromDir(dir string) (string, error) {
+	gomodPath := filepath.Join(dir, "go.mod")
+	data, err := os.ReadFile(gomodPath)
+	if err != nil {
+		return "", fmt.Errorf("read go.mod: %w", err)
+	}
+
+	// Parse the go directive from the file.
+	// Look for a line starting with "go " followed by the version.
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(line, "go "); ok {
+			version := after
+			return strings.TrimSpace(version), nil
+		}
+	}
+
+	return "", fmt.Errorf("no go directive in %s", gomodPath)
+}
+
 // generateShim creates a single shim for the given context.
-func generateShim(tmpl *template.Template, shimName, goVersion, context string) error {
+func generateShim(tmpl *template.Template, shimName, goVersion, context, rootDir string) error {
 	// Calculate the relative path from the shim location to .bld/.
-	bldDir := calculateBldDir(context)
+	bldDir := CalculateBldDir(context)
 
 	data := shimData{
 		GoVersion: goVersion,
@@ -67,10 +96,10 @@ func generateShim(tmpl *template.Template, shimName, goVersion, context string) 
 	// Determine the shim path.
 	var shimPath string
 	if context == "." {
-		shimPath = bld.FromGitRoot(shimName)
+		shimPath = filepath.Join(rootDir, shimName)
 	} else {
 		// Ensure the directory exists.
-		dir := bld.FromGitRoot(context)
+		dir := filepath.Join(rootDir, context)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", context, err)
 		}
@@ -84,9 +113,9 @@ func generateShim(tmpl *template.Template, shimName, goVersion, context string) 
 	return nil
 }
 
-// calculateBldDir returns the relative path from a context directory to .bld/.
+// CalculateBldDir returns the relative path from a context directory to .bld/.
 // For "." it returns ".bld", for "tests" it returns "../.bld", etc.
-func calculateBldDir(context string) string {
+func CalculateBldDir(context string) string {
 	if context == "." {
 		return ".bld"
 	}
