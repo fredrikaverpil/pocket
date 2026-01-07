@@ -146,7 +146,7 @@ func TestConfig_ForContext(t *testing.T) {
 	t.Parallel()
 
 	baseConfig := Config{
-		Shim: &ShimConfig{Name: "mybld", Posix: true},
+		Shim: &ShimConfig{Name: "mypok", Posix: true},
 		Go: &GoConfig{
 			Modules: map[string]GoModuleOptions{
 				".":     {SkipFormat: false},
@@ -332,9 +332,9 @@ func TestConfig_WithDefaults(t *testing.T) {
 		{
 			name: "all custom values are preserved",
 			config: Config{
-				Shim: &ShimConfig{Name: "mybld", Posix: true},
+				Shim: &ShimConfig{Name: "mypok", Posix: true},
 			},
-			wantShimName: "mybld",
+			wantShimName: "mypok",
 		},
 	}
 
