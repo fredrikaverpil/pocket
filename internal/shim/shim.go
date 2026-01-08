@@ -3,6 +3,7 @@ package shim
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -24,9 +25,10 @@ var powershellTemplate string
 
 // shimData holds the template data for generating a shim.
 type shimData struct {
-	GoVersion string
-	PocketDir string
-	Context   string
+	GoVersion   string
+	PocketDir   string
+	Context     string
+	GoChecksums GoChecksums // SHA256 checksums keyed by "os-arch"
 }
 
 // shimType represents a type of shim to generate.
@@ -51,6 +53,12 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 	goVersion, err := extractGoVersionFromDir(filepath.Join(rootDir, pocket.DirName))
 	if err != nil {
 		return fmt.Errorf("reading Go version: %w", err)
+	}
+
+	// Fetch checksums for Go downloads.
+	checksums, err := FetchGoChecksums(context.Background(), goVersion)
+	if err != nil {
+		return fmt.Errorf("fetching Go checksums: %w", err)
 	}
 
 	// Determine which shim types to generate.
@@ -88,7 +96,8 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 		}
 
 		for _, context := range pocket.AllModulePaths(cfg) {
-			if err := generateShim(tmpl, cfg.Shim.Name, st.extension, st.pathSep, goVersion, context, rootDir); err != nil {
+			err := generateShim(tmpl, cfg.Shim.Name, st.extension, st.pathSep, goVersion, checksums, context, rootDir)
+			if err != nil {
 				return fmt.Errorf("generating %s shim for context %q: %w", st.name, context, err)
 			}
 		}
@@ -121,14 +130,20 @@ func extractGoVersionFromDir(dir string) (string, error) {
 }
 
 // generateShim creates a single shim for the given context.
-func generateShim(tmpl *template.Template, shimName, extension, pathSep, goVersion, context, rootDir string) error {
+func generateShim(
+	tmpl *template.Template,
+	shimName, extension, pathSep, goVersion string,
+	checksums GoChecksums,
+	context, rootDir string,
+) error {
 	// Calculate the relative path from the shim location to .pocket/.
 	pocketDir := calculatePocketDir(context, pathSep)
 
 	data := shimData{
-		GoVersion: goVersion,
-		PocketDir: pocketDir,
-		Context:   context,
+		GoVersion:   goVersion,
+		PocketDir:   pocketDir,
+		Context:     context,
+		GoChecksums: checksums,
 	}
 
 	var buf bytes.Buffer
