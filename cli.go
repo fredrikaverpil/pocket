@@ -117,21 +117,29 @@ func printHelp(tasks []*Task, defaultTask *Task) {
 	fmt.Println("  -h         show help (use -h <task> for task help)")
 	fmt.Println("  -v         verbose output")
 	fmt.Println()
-	fmt.Println("Tasks:")
 
-	// Sort tasks by name, excluding hidden ones.
-	var visible []*Task
+	// Separate visible tasks into regular and builtin.
+	var regular, builtin []*Task
 	for _, t := range tasks {
-		if !t.Hidden {
-			visible = append(visible, t)
+		if t.Hidden {
+			continue
+		}
+		if t.Builtin {
+			builtin = append(builtin, t)
+		} else {
+			regular = append(regular, t)
 		}
 	}
-	sort.Slice(visible, func(i, j int) bool {
-		return visible[i].Name < visible[j].Name
+	sort.Slice(regular, func(i, j int) bool {
+		return regular[i].Name < regular[j].Name
+	})
+	sort.Slice(builtin, func(i, j int) bool {
+		return builtin[i].Name < builtin[j].Name
 	})
 
+	fmt.Println("Tasks:")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, t := range visible {
+	for _, t := range regular {
 		defaultMark := ""
 		if defaultTask != nil && t.Name == defaultTask.Name {
 			defaultMark = " (default)"
@@ -139,6 +147,16 @@ func printHelp(tasks []*Task, defaultTask *Task) {
 		fmt.Fprintf(w, "  %s\t%s%s\n", t.Name, t.Usage, defaultMark)
 	}
 	w.Flush()
+
+	if len(builtin) > 0 {
+		fmt.Println()
+		fmt.Println("Builtin tasks:")
+		w = tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, t := range builtin {
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
+		}
+		w.Flush()
+	}
 }
 
 // printTaskHelp prints help for a specific task.

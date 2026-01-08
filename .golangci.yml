@@ -22,9 +22,7 @@ linters:
     - errname
     - errorlint
     - exptostd
-    # gochecknoglobals is disabled for this project.
-    # goyek requires package-level task variables: var Task = goyek.Define(...)
-    # This is fundamental to how goyek works and cannot be avoided.
+    # NOTE: pocket relies on global variables
     # - gochecknoglobals
     - gochecknoinits
     - gocritic

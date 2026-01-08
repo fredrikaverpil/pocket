@@ -12,8 +12,9 @@ import (
 // Task returns a task that regenerates all generated files.
 func Task(cfg pocket.Config) *pocket.Task {
 	return &pocket.Task{
-		Name:  "generate",
-		Usage: "regenerate all generated files (main.go, shim)",
+		Name:    "generate",
+		Usage:   "regenerate all generated files (main.go, shim)",
+		Builtin: true,
 		Action: func(ctx context.Context, _ map[string]string) error {
 			if err := scaffold.GenerateAll(&cfg); err != nil {
 				return err

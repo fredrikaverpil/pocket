@@ -18,11 +18,12 @@ type ArgDef struct {
 
 // Task represents a runnable task.
 type Task struct {
-	Name   string
-	Usage  string
-	Args   []ArgDef // declared arguments this task accepts
-	Action func(ctx context.Context, args map[string]string) error
-	Hidden bool
+	Name    string
+	Usage   string
+	Args    []ArgDef // declared arguments this task accepts
+	Action  func(ctx context.Context, args map[string]string) error
+	Hidden  bool
+	Builtin bool // true for core tasks like generate, update, git-diff
 
 	// once ensures the task runs exactly once per execution.
 	once sync.Once

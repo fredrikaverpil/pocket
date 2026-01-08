@@ -15,8 +15,9 @@ import (
 // Task returns a task that updates pocket and regenerates files.
 func Task(cfg pocket.Config) *pocket.Task {
 	return &pocket.Task{
-		Name:  "update",
-		Usage: "update pocket dependency and regenerate files",
+		Name:    "update",
+		Usage:   "update pocket dependency and regenerate files",
+		Builtin: true,
 		Action: func(ctx context.Context, _ map[string]string) error {
 			pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 			verbose := pocket.IsVerbose(ctx)

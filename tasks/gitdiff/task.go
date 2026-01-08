@@ -13,8 +13,9 @@ import (
 // or formatted files have been committed.
 func Task() *pocket.Task {
 	return &pocket.Task{
-		Name:  "git-diff",
-		Usage: "fail if there are uncommitted changes",
+		Name:    "git-diff",
+		Usage:   "fail if there are uncommitted changes",
+		Builtin: true,
 		Action: func(ctx context.Context, _ map[string]string) error {
 			cmd := pocket.Command(ctx, "git", "diff", "--exit-code")
 			if err := cmd.Run(); err != nil {
