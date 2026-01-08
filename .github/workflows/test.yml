@@ -27,7 +27,7 @@ jobs:
         run: ./pok
 
   test-cmd:
-    name: Test CMD shim
+    name: test-cmd
     runs-on: windows-latest
     defaults:
       run:
@@ -44,7 +44,7 @@ jobs:
         run: pok.cmd
 
   test-powershell:
-    name: Test PowerShell shim
+    name: test-powershell
     runs-on: windows-latest
     defaults:
       run:
