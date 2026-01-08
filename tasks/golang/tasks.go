@@ -10,10 +10,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 )
 
-// NewTaskGroup creates a Go task group with format, lint, test, and vulncheck tasks.
+// Tasks returns a Runnable that executes all Go tasks in order.
 // Tasks auto-detect Go modules by finding go.mod files.
-func NewTaskGroup() *pocket.TaskGroup {
-	return pocket.NewTaskGroup("go",
+func Tasks() pocket.Runnable {
+	return pocket.Serial(
 		FormatTask(),
 		LintTask(),
 		TestTask(),

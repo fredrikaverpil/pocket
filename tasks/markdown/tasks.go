@@ -9,10 +9,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/mdformat"
 )
 
-// NewTaskGroup creates a Markdown task group with format task.
+// Tasks returns a Runnable that executes all Markdown tasks.
 // Runs from repository root since markdown files are typically scattered.
-func NewTaskGroup() *pocket.TaskGroup {
-	return pocket.NewTaskGroup("markdown",
+func Tasks() pocket.Runnable {
+	return pocket.Serial(
 		FormatTask(),
 	)
 }

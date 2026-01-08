@@ -10,13 +10,11 @@ import (
 )
 
 var Config = pocket.Config{
-	TaskGroups: []*pocket.TaskGroup{
-		golang.NewTaskGroup(),
-		markdown.NewTaskGroup(),
-	},
-	Tasks: []*pocket.Task{
+	Run: pocket.Serial(
+		golang.Tasks(),
+		markdown.Tasks(),
 		greetTask,
-	},
+	),
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
 		Windows:    true,

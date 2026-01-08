@@ -66,8 +66,9 @@ func (t *Task) SetArgs(args map[string]string) {
 	maps.Copy(t.args, args)
 }
 
-// run executes the task's action exactly once.
-func (t *Task) run(ctx context.Context) error {
+// Run executes the task's action exactly once.
+// Implements the Runnable interface.
+func (t *Task) Run(ctx context.Context) error {
 	t.once.Do(func() {
 		if t.Action == nil {
 			return
@@ -81,6 +82,11 @@ func (t *Task) run(ctx context.Context) error {
 		t.err = t.Action(ctx, t.args)
 	})
 	return t.err
+}
+
+// Tasks returns this task as a slice (implements Runnable interface).
+func (t *Task) Tasks() []*Task {
+	return []*Task{t}
 }
 
 // Deps runs the given tasks in parallel and waits for all to complete.
@@ -97,7 +103,7 @@ func Deps(ctx context.Context, tasks ...*Task) error {
 			continue
 		}
 		g.Go(func() error {
-			return task.run(ctx)
+			return task.Run(ctx)
 		})
 	}
 	return g.Wait()
@@ -111,7 +117,7 @@ func SerialDeps(ctx context.Context, tasks ...*Task) error {
 		if task == nil {
 			continue
 		}
-		if err := task.run(ctx); err != nil {
+		if err := task.Run(ctx); err != nil {
 			return err
 		}
 	}

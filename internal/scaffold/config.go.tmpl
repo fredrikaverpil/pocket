@@ -2,6 +2,22 @@ package main
 
 import (
 	"github.com/fredrikaverpil/pocket"
+	// Uncomment to enable task groups:
+	// "github.com/fredrikaverpil/pocket/tasks/golang"
+	// "github.com/fredrikaverpil/pocket/tasks/markdown"
+	// "github.com/fredrikaverpil/pocket/tasks/python"
 )
 
-var Config = pocket.Config{}
+var Config = pocket.Config{
+	// Run defines the execution tree.
+	// Use pocket.Serial() and pocket.Parallel() to control order.
+	//
+	// Example:
+	//   Run: pocket.Serial(
+	//       golang.Tasks(),
+	//       pocket.Parallel(
+	//           python.Tasks(),
+	//           markdown.Tasks(),
+	//       ),
+	//   ),
+}

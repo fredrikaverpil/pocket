@@ -2,24 +2,20 @@ package pocket
 
 // Config defines the configuration for a project using pocket.
 type Config struct {
-	// TaskGroups contains task groups (e.g., Go, Lua, Markdown) to enable.
+	// Run defines the execution tree for tasks.
+	// Use Serial() and Parallel() to control execution order.
 	//
 	// Example:
 	//
-	//	TaskGroups: []*pocket.TaskGroup{
-	//	    golang.NewTaskGroup(),
-	//	    markdown.NewTaskGroup(),
-	//	},
-	TaskGroups []*TaskGroup
-
-	// Tasks contains custom standalone tasks.
-	//
-	// Example:
-	//
-	//	Tasks: []*pocket.Task{
-	//	    {Name: "deploy", Usage: "deploy the app", Action: deployAction},
-	//	},
-	Tasks []*Task
+	//	Run: pocket.Serial(
+	//	    golang.Tasks(),           // run Go tasks first
+	//	    pocket.Parallel(          // then these in parallel
+	//	        python.Tasks(),
+	//	        markdown.Tasks(),
+	//	    ),
+	//	    myCustomTask,             // then custom task
+	//	),
+	Run Runnable
 
 	// Shim controls shim script generation.
 	// By default, only Posix (./pok) is generated with name "pok".

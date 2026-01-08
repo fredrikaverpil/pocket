@@ -9,10 +9,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
-// NewTaskGroup creates a Lua task group with format task.
+// Tasks returns a Runnable that executes all Lua tasks.
 // Runs from repository root since Lua files are typically scattered.
-func NewTaskGroup() *pocket.TaskGroup {
-	return pocket.NewTaskGroup("lua",
+func Tasks() pocket.Runnable {
+	return pocket.Serial(
 		FormatTask(),
 	)
 }

@@ -102,7 +102,7 @@ func run(tasks []*Task, defaultTask *Task) int {
 	ctx = WithVerbose(ctx, *verbose)
 
 	// Run the task.
-	if err := Run(ctx, taskToRun); err != nil {
+	if err := taskToRun.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "task %s failed: %v\n", taskToRun.Name, err)
 		return 1
 	}

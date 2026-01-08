@@ -10,10 +10,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/ruff"
 )
 
-// NewTaskGroup creates a Python task group with format, lint, and typecheck tasks.
+// Tasks returns a Runnable that executes all Python tasks in order.
 // Tasks auto-detect Python projects by finding pyproject.toml, setup.py, or setup.cfg.
-func NewTaskGroup() *pocket.TaskGroup {
-	return pocket.NewTaskGroup("python",
+func Tasks() pocket.Runnable {
+	return pocket.Serial(
 		FormatTask(),
 		LintTask(),
 		TypecheckTask(),
