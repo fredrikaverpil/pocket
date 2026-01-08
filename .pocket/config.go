@@ -8,16 +8,8 @@ import (
 
 var Config = pocket.Config{
 	TaskGroups: []pocket.TaskGroup{
-		golang.New(golang.Config{
-			Modules: map[string]golang.Options{
-				".": {},
-			},
-		}),
-		markdown.New(markdown.Config{
-			Modules: map[string]markdown.Options{
-				".": {},
-			},
-		}),
+		golang.Auto(),
+		markdown.Auto(),
 	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,

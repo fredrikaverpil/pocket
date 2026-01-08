@@ -51,14 +51,43 @@ Then run tasks with just `pok <task>`.
 
 ### Configuration
 
-Edit `.pocket/config.go` to configure task groups:
+Edit `.pocket/config.go` to configure task groups.
+
+**Auto-detection (recommended):**
 
 ```go
 import (
     "github.com/fredrikaverpil/pocket"
     "github.com/fredrikaverpil/pocket/tasks/golang"
+    "github.com/fredrikaverpil/pocket/tasks/python"
+    "github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
+var Config = pocket.Config{
+    TaskGroups: []pocket.TaskGroup{
+        golang.Auto(),   // auto-detects go.mod files
+        python.Auto(),   // auto-detects pyproject.toml, setup.py, setup.cfg
+        markdown.Auto(), // formats markdown from root
+    },
+}
+```
+
+**Auto-detection with options:**
+
+```go
+golang.Auto(golang.AutoConfig{
+    // Default options for all detected modules
+    Options: golang.Options{Skip: []string{"vulncheck"}},
+    // Override specific paths
+    Overrides: map[string]golang.Options{
+        ".pocket": {Only: []string{"format"}},
+    },
+})
+```
+
+**Explicit configuration:**
+
+```go
 var Config = pocket.Config{
     TaskGroups: []pocket.TaskGroup{
         golang.New(golang.Config{
@@ -114,6 +143,47 @@ Tasks: map[string][]goyek.Task{
 ```
 
 See [goyek documentation](https://github.com/goyek/goyek) for more task options.
+
+### Multi-Module Projects and Context Awareness
+
+Pocket automatically generates shims in each module directory, making tasks
+context-aware. When you run `./pok` from a subdirectory, only tasks relevant to
+that module are executed.
+
+**Example project structure:**
+
+```
+myproject/
+├── .pocket/           # build configuration
+├── pok                # root shim
+├── go.mod             # root Go module
+├── services/
+│   └── api/
+│       ├── pok        # auto-generated shim for this module
+│       └── go.mod     # separate Go module
+└── libs/
+    └── common/
+        ├── pok        # auto-generated shim for this module
+        └── go.mod     # separate Go module
+```
+
+**How it works:**
+
+1. `./pok generate` creates shims in all detected module directories
+1. Each shim knows its "context" (relative path from repo root)
+1. Running `./pok` from a subdirectory filters tasks to that module only
+
+```bash
+# From repo root - runs tasks on ALL modules
+./pok go-test
+
+# From services/api/ - runs tasks only on that module
+cd services/api
+./pok go-test
+```
+
+This enables focused workflows in large monorepos while keeping a single
+configuration in `.pocket/config.go`.
 
 ### Windows Support
 
