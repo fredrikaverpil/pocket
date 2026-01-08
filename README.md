@@ -43,14 +43,16 @@ This creates:
 ### Run tasks
 
 ```bash
-./pok            # run all tasks (generate, lint, format, test)
+./pok -h         # list all tasks
+./pok            # run all tasks
 ./pok update     # update pocket to latest version
 ./pok generate   # regenerate shim
 ```
 
-Run `./pok -h` for a list of all possible tasks to run.
-
-Add task groups or tasks in `.pocket/config.go` as desired. More on that below.
+> [!NOTE]
+>
+> Pocket comes with no useful tasks preconfigured. You have to explicitly define
+> them in `.pocket/config.go` as desired. More on that below.
 
 > [!TIP]
 >
