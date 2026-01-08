@@ -1,7 +1,6 @@
 # pocket
 
-An opinionated build system platform for Go projects, powered by
-[goyek](https://github.com/goyek/goyek).
+An opinionated build/task system platform.
 
 > [!TIP]
 >
