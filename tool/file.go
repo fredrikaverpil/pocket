@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/internal/scaffold"
 )
 
 // Opt is an option for FromRemote and FromLocal.
@@ -412,6 +413,11 @@ func CreateSymlink(binaryPath string) (string, error) {
 	binDir := pocket.FromBinDir()
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return "", fmt.Errorf("create bin dir: %w", err)
+	}
+
+	// Ensure tools/go.mod exists to prevent go mod tidy issues
+	if err := scaffold.GenerateToolsGoMod(); err != nil {
+		return "", err
 	}
 
 	name := filepath.Base(binaryPath)

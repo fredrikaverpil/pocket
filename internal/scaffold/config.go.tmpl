@@ -2,13 +2,6 @@ package main
 
 import (
 	"github.com/fredrikaverpil/pocket"
-	"github.com/fredrikaverpil/pocket/tasks/golang"
 )
 
-var Config = pocket.Config{
-	TaskGroups: []pocket.TaskGroup{
-		golang.New(map[string]golang.Options{
-			".": {},
-		}),
-	},
-}
+var Config = pocket.Config{}

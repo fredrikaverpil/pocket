@@ -2,10 +2,13 @@
 package scaffold
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"text/template"
 
 	pocket "github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/internal/shim"
@@ -19,6 +22,9 @@ var ConfigTemplate []byte
 
 //go:embed gitignore.tmpl
 var GitignoreTemplate []byte
+
+//go:embed tools_go.mod.tmpl
+var toolsGoModTemplate string
 
 // GenerateAll regenerates all generated files.
 // Creates one-time files (config.go, .gitignore) if they don't exist.
@@ -52,6 +58,14 @@ func GenerateAll(cfg *pocket.Config) error {
 		return err
 	}
 
+	// Generate tools/go.mod if tools directory exists (prevents go mod tidy issues)
+	toolsDir := pocket.FromToolsDir()
+	if _, err := os.Stat(toolsDir); err == nil {
+		if err := GenerateToolsGoMod(); err != nil {
+			return err
+		}
+	}
+
 	// Always regenerate shim(s).
 	// Use provided config or a minimal default for initial scaffold.
 	shimCfg := pocket.Config{}
@@ -72,4 +86,58 @@ func GenerateMain() error {
 		return fmt.Errorf("writing .pocket/main.go: %w", err)
 	}
 	return nil
+}
+
+// GenerateToolsGoMod creates .pocket/tools/go.mod if it doesn't exist.
+// This prevents `go mod tidy` in .pocket/ from scanning downloaded tools
+// (like Go SDK test files) which contain relative imports that break module mode.
+func GenerateToolsGoMod() error {
+	toolsDir := pocket.FromToolsDir()
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		return fmt.Errorf("creating tools dir: %w", err)
+	}
+
+	goModPath := filepath.Join(toolsDir, "go.mod")
+	if _, err := os.Stat(goModPath); err == nil {
+		return nil // Already exists
+	}
+
+	// Read Go version from .pocket/go.mod
+	goVersion, err := extractGoVersion(pocket.FromPocketDir())
+	if err != nil {
+		return err
+	}
+
+	tmpl, err := template.New("tools_go.mod").Parse(toolsGoModTemplate)
+	if err != nil {
+		return fmt.Errorf("parsing tools go.mod template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, map[string]string{"GoVersion": goVersion}); err != nil {
+		return fmt.Errorf("executing tools go.mod template: %w", err)
+	}
+
+	if err := os.WriteFile(goModPath, buf.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("writing tools/go.mod: %w", err)
+	}
+	return nil
+}
+
+// extractGoVersion reads the Go version from go.mod in the given directory.
+func extractGoVersion(dir string) (string, error) {
+	gomodPath := filepath.Join(dir, "go.mod")
+	data, err := os.ReadFile(gomodPath)
+	if err != nil {
+		return "", fmt.Errorf("read go.mod: %w", err)
+	}
+
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(line, "go "); ok {
+			return strings.TrimSpace(after), nil
+		}
+	}
+	return "", fmt.Errorf("no go directive in %s", gomodPath)
 }

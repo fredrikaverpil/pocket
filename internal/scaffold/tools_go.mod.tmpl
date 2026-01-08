@@ -1,0 +1,7 @@
+// This file prevents go mod tidy from scanning downloaded tools.
+// Downloaded tools (like Go SDK) contain test files with relative imports
+// that break module mode.
+
+module pocket-tools
+
+go {{.GoVersion}}

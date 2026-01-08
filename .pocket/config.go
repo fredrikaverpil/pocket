@@ -11,13 +11,8 @@ import (
 
 var Config = pocket.Config{
 	TaskGroups: []pocket.TaskGroup{
-		golang.New(map[string]golang.Options{
-			".": {},
-			// Note: .pocket is excluded because its tools/ dir confuses go tools
-		}),
-		markdown.New(map[string]markdown.Options{
-			".": {},
-		}),
+		golang.Auto(),
+		markdown.Auto(),
 	},
 	Tasks: map[string][]*pocket.Task{
 		".": {greetTask},
