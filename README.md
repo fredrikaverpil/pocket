@@ -133,7 +133,7 @@ var Config = pocket.Config{
     TaskGroups: []pocket.TaskGroup{
         golang.New(map[string]golang.Options{
             ".":          {},                            // all tasks enabled
-            "subdir/lib": {Skip: []string{"go-format"}}, // skip format for this module
+            "projects/proj1": {Skip: []string{"go-format"}}, // skip format for this Go module
         }),
     },
 }
