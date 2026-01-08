@@ -39,7 +39,7 @@ func TestDetectByFile(t *testing.T) {
 		{
 			name: "multiple marker files",
 			files: map[string]string{
-				"pyproject.toml": "[project]",
+				"pyproject.toml":  "[project]",
 				"legacy/setup.py": "from setuptools import setup",
 			},
 			markers:   []string{"pyproject.toml", "setup.py"},
@@ -129,9 +129,9 @@ func TestAutoTaskGroup_Integration(t *testing.T) {
 
 	// Create test directory structure with go.mod files.
 	files := map[string]string{
-		"go.mod":            "module example\n\ngo 1.21",
+		"go.mod":              "module example\n\ngo 1.21",
 		"services/api/go.mod": "module example/services/api\n\ngo 1.21",
-		"libs/common/go.mod": "module example/libs/common\n\ngo 1.21",
+		"libs/common/go.mod":  "module example/libs/common\n\ngo 1.21",
 	}
 
 	for path, content := range files {
@@ -230,7 +230,7 @@ func TestDetectByExtension(t *testing.T) {
 		{
 			name: "lua files in multiple directories",
 			files: map[string]string{
-				"init.lua":        "-- lua",
+				"init.lua":         "-- lua",
 				"scripts/util.lua": "-- lua",
 			},
 			extensions: []string{".lua"},
@@ -248,7 +248,7 @@ func TestDetectByExtension(t *testing.T) {
 		{
 			name: "skips hidden directories",
 			files: map[string]string{
-				"init.lua":        "-- lua",
+				"init.lua":         "-- lua",
 				".config/init.lua": "-- lua",
 			},
 			extensions: []string{".lua"},

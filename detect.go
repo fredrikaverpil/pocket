@@ -21,9 +21,9 @@ func DetectByFile(filenames ...string) []string {
 		targets[f] = true
 	}
 
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // Skip errors.
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil //nolint:nilerr // Intentionally continue walking when directory is inaccessible.
 		}
 
 		// Skip hidden directories and .pocket.
@@ -37,9 +37,7 @@ func DetectByFile(filenames ...string) []string {
 		// Check for target file.
 		if !d.IsDir() && targets[d.Name()] {
 			rel, err := filepath.Rel(root, filepath.Dir(path))
-			if err != nil {
-				return nil
-			}
+			Must(err) // Should never fail - both paths from same WalkDir.
 			if rel == "" {
 				rel = "."
 			}
@@ -66,9 +64,9 @@ func DetectByExtension(extensions ...string) []string {
 	root := GitRoot()
 	seen := make(map[string]bool)
 
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // Skip errors.
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil //nolint:nilerr // Intentionally continue walking when directory is inaccessible.
 		}
 
 		// Skip hidden directories and common vendor directories.
@@ -84,9 +82,7 @@ func DetectByExtension(extensions ...string) []string {
 			for _, ext := range extensions {
 				if strings.HasSuffix(d.Name(), ext) {
 					rel, err := filepath.Rel(root, filepath.Dir(path))
-					if err != nil {
-						return nil
-					}
+					Must(err) // Should never fail - both paths from same WalkDir.
 					if rel == "" {
 						rel = "."
 					}
