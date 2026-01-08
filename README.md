@@ -260,7 +260,7 @@ Config (project)
 
 - Project-level configuration
 - Defines which task groups to use, custom tasks, and shim settings
-- Lives in `.pocket/config.go`
+- Lives in [`.pocket/config.go`](.pocket/config.go)
 
 ### Task Group
 
