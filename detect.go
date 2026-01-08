@@ -43,6 +43,8 @@ func DetectByFile(filenames ...string) []string {
 			if rel == "" {
 				rel = "."
 			}
+			// Normalize to forward slashes for cross-platform consistency.
+			rel = filepath.ToSlash(rel)
 			seen[rel] = true
 		}
 		return nil
@@ -88,6 +90,8 @@ func DetectByExtension(extensions ...string) []string {
 					if rel == "" {
 						rel = "."
 					}
+					// Normalize to forward slashes for cross-platform consistency.
+					rel = filepath.ToSlash(rel)
 					seen[rel] = true
 					break
 				}
