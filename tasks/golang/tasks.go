@@ -53,8 +53,8 @@ type VulncheckOptions struct {
 	// placeholder for future options
 }
 
-// Package defines the Go task package.
-var Package = pocket.TaskPackage[Options]{
+// Group defines the Go task group.
+var Group = pocket.TaskGroupDef[Options]{
 	Name:   "go",
 	Detect: func() []string { return pocket.DetectByFile("go.mod") },
 	Tasks: []pocket.TaskDef[Options]{
@@ -69,12 +69,12 @@ var Package = pocket.TaskPackage[Options]{
 // The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
 func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(defaults, opts...)
+	return Group.Auto(defaults, opts...)
 }
 
 // New creates a Go task group with explicit module configuration.
 func New(modules map[string]Options) pocket.TaskGroup {
-	return Package.New(modules)
+	return Group.New(modules)
 }
 
 // FormatTask returns a task that formats Go code using golangci-lint fmt.

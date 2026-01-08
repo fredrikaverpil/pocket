@@ -6,9 +6,14 @@ type TaskGroup interface {
 	// Name returns the task group identifier (e.g., "go", "lua", "markdown").
 	Name() string
 
-	// Modules returns the module configuration for this task group.
+	// DetectModules returns paths where this task group could apply.
+	// Used by Auto() to discover modules. Implementers define the detection logic,
+	// typically using helpers like DetectByFile() or DetectByExtension().
+	DetectModules() []string
+
+	// ModuleConfigs returns the module configuration for this task group.
 	// The map keys are context paths (e.g., ".", "tests", "services/api").
-	Modules() map[string]ModuleConfig
+	ModuleConfigs() map[string]ModuleConfig
 
 	// Tasks returns the tasks provided by this task group.
 	// The returned slice should include individual tasks plus an orchestrator
@@ -33,7 +38,7 @@ type ModuleConfig interface {
 
 // ModulesFor returns module paths where the given task should run for a task group.
 func ModulesFor(tg TaskGroup, task string) []string {
-	modules := tg.Modules()
+	modules := tg.ModuleConfigs()
 	if modules == nil {
 		return nil
 	}
@@ -50,7 +55,7 @@ func ModulesFor(tg TaskGroup, task string) []string {
 func AllTaskGroupModulePaths(taskGroups []TaskGroup) []string {
 	seen := make(map[string]bool)
 	for _, tg := range taskGroups {
-		for path := range tg.Modules() {
+		for path := range tg.ModuleConfigs() {
 			seen[path] = true
 		}
 	}
@@ -69,7 +74,7 @@ func AllModulePaths(cfg Config) []string {
 
 	// Add task group module paths.
 	for _, tg := range cfg.TaskGroups {
-		for path := range tg.Modules() {
+		for path := range tg.ModuleConfigs() {
 			seen[path] = true
 		}
 	}

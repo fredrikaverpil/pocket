@@ -5,7 +5,7 @@ import "regexp"
 // SkipOption configures skip behavior for Auto mode.
 type SkipOption func(*skipConfig)
 
-// skipConfig holds the skip configuration for a TaskPackage.
+// skipConfig holds the skip configuration for a TaskGroupDef.
 type skipConfig struct {
 	pathPatterns []*regexp.Regexp            // patterns to skip entirely
 	taskPatterns map[string][]*regexp.Regexp // task -> path patterns to skip

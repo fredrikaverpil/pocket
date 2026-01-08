@@ -29,8 +29,8 @@ type FormatOptions struct {
 	// placeholder for future options
 }
 
-// Package defines the Markdown task package.
-var Package = pocket.TaskPackage[Options]{
+// Group defines the Markdown task group.
+var Group = pocket.TaskGroupDef[Options]{
 	Name:   "markdown",
 	Detect: func() []string { return []string{"."} }, // Just use root for markdown.
 	Tasks: []pocket.TaskDef[Options]{
@@ -44,12 +44,12 @@ var Package = pocket.TaskPackage[Options]{
 // The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
 func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(defaults, opts...)
+	return Group.Auto(defaults, opts...)
 }
 
 // New creates a Markdown task group with explicit module configuration.
 func New(modules map[string]Options) pocket.TaskGroup {
-	return Package.New(modules)
+	return Group.New(modules)
 }
 
 // FormatTask returns a task that formats Markdown files using mdformat.

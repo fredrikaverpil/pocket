@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// TaskDef defines a task within a TaskPackage.
+// TaskDef defines a task within a TaskGroupDef.
 type TaskDef[O any] struct {
 	// Name is the full task name (e.g., "go-format", "go-lint").
 	Name string
@@ -13,24 +13,24 @@ type TaskDef[O any] struct {
 	Create func(modules map[string]O) *Task
 }
 
-// TaskPackage defines a collection of related tasks for a language/technology.
+// TaskGroupDef defines a collection of related tasks for a language/technology.
 // O is the options type (e.g., golang.Options) which must implement ModuleConfig.
-type TaskPackage[O ModuleConfig] struct {
+type TaskGroupDef[O ModuleConfig] struct {
 	// Name is the task group identifier (e.g., "go", "python").
 	Name string
 	// Detect returns paths where this task group applies (for Auto mode).
 	Detect func() []string
-	// Tasks defines the tasks in this package.
+	// Tasks defines the tasks in this group.
 	Tasks []TaskDef[O]
 }
 
 // Auto creates a TaskGroup that auto-detects modules using the Detect function.
 // The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
-func (p *TaskPackage[O]) Auto(defaults O, opts ...SkipOption) TaskGroup {
+func (g *TaskGroupDef[O]) Auto(defaults O, opts ...SkipOption) TaskGroup {
 	cfg := newSkipConfig(opts...)
 	return &autoTaskGroup[O]{
-		pkg:      p,
+		def:      g,
 		skipCfg:  cfg,
 		defaults: defaults,
 		detected: nil, // lazily populated
@@ -38,29 +38,30 @@ func (p *TaskPackage[O]) Auto(defaults O, opts ...SkipOption) TaskGroup {
 }
 
 // New creates a TaskGroup with explicit module configuration.
-func (p *TaskPackage[O]) New(modules map[string]O) TaskGroup {
+func (g *TaskGroupDef[O]) New(modules map[string]O) TaskGroup {
 	return &explicitTaskGroup[O]{
-		pkg:     p,
+		def:     g,
 		modules: modules,
 	}
 }
 
 // autoTaskGroup implements TaskGroup for auto-detected modules.
 type autoTaskGroup[O ModuleConfig] struct {
-	pkg      *TaskPackage[O]
+	def      *TaskGroupDef[O]
 	skipCfg  *skipConfig
 	defaults O            // default options for all detected modules
 	detected map[string]O // lazily populated
 }
 
-func (tg *autoTaskGroup[O]) Name() string { return tg.pkg.Name }
+func (tg *autoTaskGroup[O]) Name() string            { return tg.def.Name }
+func (tg *autoTaskGroup[O]) DetectModules() []string { return tg.def.Detect() }
 
 func (tg *autoTaskGroup[O]) doDetect() map[string]O {
 	if tg.detected != nil {
 		return tg.detected
 	}
 
-	paths := tg.pkg.Detect()
+	paths := tg.def.Detect()
 	modules := make(map[string]O, len(paths))
 	for _, p := range paths {
 		// Skip paths that match skip patterns
@@ -74,7 +75,7 @@ func (tg *autoTaskGroup[O]) doDetect() map[string]O {
 	return modules
 }
 
-func (tg *autoTaskGroup[O]) Modules() map[string]ModuleConfig {
+func (tg *autoTaskGroup[O]) ModuleConfigs() map[string]ModuleConfig {
 	detected := tg.doDetect()
 	modules := make(map[string]ModuleConfig, len(detected))
 	for path, opts := range detected {
@@ -87,14 +88,14 @@ func (tg *autoTaskGroup[O]) ForContext(ctx string) TaskGroup {
 	detected := tg.doDetect()
 	if ctx == "." {
 		return &explicitTaskGroup[O]{
-			pkg:     tg.pkg,
+			def:     tg.def,
 			modules: detected,
 			skipCfg: tg.skipCfg,
 		}
 	}
 	if opts, ok := detected[ctx]; ok {
 		return &explicitTaskGroup[O]{
-			pkg:     tg.pkg,
+			def:     tg.def,
 			modules: map[string]O{ctx: opts},
 			skipCfg: tg.skipCfg,
 		}
@@ -105,7 +106,7 @@ func (tg *autoTaskGroup[O]) ForContext(ctx string) TaskGroup {
 func (tg *autoTaskGroup[O]) Tasks(cfg Config) []*Task {
 	detected := tg.doDetect()
 	return (&explicitTaskGroup[O]{
-		pkg:     tg.pkg,
+		def:     tg.def,
 		modules: detected,
 		skipCfg: tg.skipCfg,
 	}).Tasks(cfg)
@@ -113,14 +114,15 @@ func (tg *autoTaskGroup[O]) Tasks(cfg Config) []*Task {
 
 // explicitTaskGroup implements TaskGroup for explicitly configured modules.
 type explicitTaskGroup[O ModuleConfig] struct {
-	pkg     *TaskPackage[O]
+	def     *TaskGroupDef[O]
 	modules map[string]O
 	skipCfg *skipConfig // may be nil for New() without skip options
 }
 
-func (tg *explicitTaskGroup[O]) Name() string { return tg.pkg.Name }
+func (tg *explicitTaskGroup[O]) Name() string            { return tg.def.Name }
+func (tg *explicitTaskGroup[O]) DetectModules() []string { return tg.def.Detect() }
 
-func (tg *explicitTaskGroup[O]) Modules() map[string]ModuleConfig {
+func (tg *explicitTaskGroup[O]) ModuleConfigs() map[string]ModuleConfig {
 	modules := make(map[string]ModuleConfig, len(tg.modules))
 	for path, opts := range tg.modules {
 		modules[path] = opts
@@ -134,7 +136,7 @@ func (tg *explicitTaskGroup[O]) ForContext(ctx string) TaskGroup {
 	}
 	if opts, ok := tg.modules[ctx]; ok {
 		return &explicitTaskGroup[O]{
-			pkg:     tg.pkg,
+			def:     tg.def,
 			modules: map[string]O{ctx: opts},
 			skipCfg: tg.skipCfg,
 		}
@@ -143,10 +145,10 @@ func (tg *explicitTaskGroup[O]) ForContext(ctx string) TaskGroup {
 }
 
 func (tg *explicitTaskGroup[O]) Tasks(_ Config) []*Task {
-	tasks := make([]*Task, 0, len(tg.pkg.Tasks)+1) // +1 for orchestrator
-	taskPtrs := make([]*Task, 0, len(tg.pkg.Tasks))
+	tasks := make([]*Task, 0, len(tg.def.Tasks)+1) // +1 for orchestrator
+	taskPtrs := make([]*Task, 0, len(tg.def.Tasks))
 
-	for _, def := range tg.pkg.Tasks {
+	for _, def := range tg.def.Tasks {
 		mods := tg.modulesFor(def.Name)
 		if len(mods) == 0 {
 			continue
@@ -163,8 +165,8 @@ func (tg *explicitTaskGroup[O]) Tasks(_ Config) []*Task {
 			hidden = false
 		}
 		allTask := &Task{
-			Name:   tg.pkg.Name + "-all",
-			Usage:  "run all " + tg.pkg.Name + " tasks",
+			Name:   tg.def.Name + "-all",
+			Usage:  "run all " + tg.def.Name + " tasks",
 			Hidden: hidden,
 			Action: func(ctx context.Context, _ map[string]string) error {
 				return SerialDeps(ctx, taskPtrs...)

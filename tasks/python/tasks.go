@@ -44,8 +44,8 @@ type TypecheckOptions struct {
 	// placeholder for future options
 }
 
-// Package defines the Python task package.
-var Package = pocket.TaskPackage[Options]{
+// Group defines the Python task group.
+var Group = pocket.TaskGroupDef[Options]{
 	Name:   "python",
 	Detect: func() []string { return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg") },
 	Tasks: []pocket.TaskDef[Options]{
@@ -60,12 +60,12 @@ var Package = pocket.TaskPackage[Options]{
 // The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
 func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(defaults, opts...)
+	return Group.Auto(defaults, opts...)
 }
 
 // New creates a Python task group with explicit module configuration.
 func New(modules map[string]Options) pocket.TaskGroup {
-	return Package.New(modules)
+	return Group.New(modules)
 }
 
 // FormatTask returns a task that formats Python files using ruff format.

@@ -459,7 +459,15 @@ type mockTaskGroup struct {
 
 func (tg *mockTaskGroup) Name() string { return tg.name }
 
-func (tg *mockTaskGroup) Modules() map[string]ModuleConfig {
+func (tg *mockTaskGroup) DetectModules() []string {
+	paths := make([]string, 0, len(tg.modules))
+	for k := range tg.modules {
+		paths = append(paths, k)
+	}
+	return paths
+}
+
+func (tg *mockTaskGroup) ModuleConfigs() map[string]ModuleConfig {
 	result := make(map[string]ModuleConfig, len(tg.modules))
 	for k, v := range tg.modules {
 		result[k] = v

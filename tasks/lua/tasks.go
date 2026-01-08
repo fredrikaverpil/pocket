@@ -30,8 +30,8 @@ type FormatOptions struct {
 	ConfigFile string
 }
 
-// Package defines the Lua task package.
-var Package = pocket.TaskPackage[Options]{
+// Group defines the Lua task group.
+var Group = pocket.TaskGroupDef[Options]{
 	Name:   "lua",
 	Detect: func() []string { return []string{"."} }, // Run from root.
 	Tasks: []pocket.TaskDef[Options]{
@@ -45,12 +45,12 @@ var Package = pocket.TaskPackage[Options]{
 // The defaults parameter specifies default options.
 // Skip patterns can be passed to exclude specific tasks.
 func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(defaults, opts...)
+	return Group.Auto(defaults, opts...)
 }
 
 // New creates a Lua task group with explicit module configuration.
 func New(modules map[string]Options) pocket.TaskGroup {
-	return Package.New(modules)
+	return Group.New(modules)
 }
 
 // FormatTask returns a task that formats Lua files using stylua.

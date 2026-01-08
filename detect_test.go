@@ -120,8 +120,8 @@ func TestDetectByFile(t *testing.T) {
 	}
 }
 
-func TestTaskPackage_Integration(t *testing.T) {
-	// Test that TaskPackage correctly feeds detected modules to the config.
+func TestTaskGroupDef_Integration(t *testing.T) {
+	// Test that TaskGroupDef correctly feeds detected modules to the config.
 	// Not parallel due to shared gitRoot variable.
 
 	tmpDir := t.TempDir()
@@ -148,8 +148,8 @@ func TestTaskPackage_Integration(t *testing.T) {
 	gitRoot = tmpDir
 	defer func() { gitRoot = origRoot }()
 
-	// Create a TaskPackage and use Auto() to create a task group.
-	pkg := TaskPackage[testOptions]{
+	// Create a TaskGroupDef and use Auto() to create a task group.
+	def := TaskGroupDef[testOptions]{
 		Name:   "test",
 		Detect: func() []string { return DetectByFile("go.mod") },
 		Tasks: []TaskDef[testOptions]{
@@ -158,10 +158,10 @@ func TestTaskPackage_Integration(t *testing.T) {
 			}},
 		},
 	}
-	tg := pkg.Auto(testOptions{})
+	tg := def.Auto(testOptions{})
 
 	// Verify modules are detected.
-	modules := tg.Modules()
+	modules := tg.ModuleConfigs()
 	if len(modules) != 3 {
 		t.Errorf("expected 3 modules, got %d: %v", len(modules), modules)
 	}
