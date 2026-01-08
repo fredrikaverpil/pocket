@@ -15,7 +15,6 @@ An opinionated build system platform for Go projects, powered by
 
 ## Features
 
-- **Zero dependencies**: The shim auto-installs Go if not found
 - **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
 - **Task management**: Defines tasks like `go-test`, `go-lint`...
 - **Tool management**: Downloads and caches tools in `.pocket/`
