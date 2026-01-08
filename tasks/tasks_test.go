@@ -29,8 +29,8 @@ func undefineTasks(t *tasks.Tasks) {
 	for _, task := range t.TaskGroupTasks {
 		goyek.Undefine(task)
 	}
-	for _, custom := range t.Custom {
-		goyek.Undefine(custom)
+	for _, task := range t.Tasks {
+		goyek.Undefine(task)
 	}
 }
 
@@ -50,11 +50,11 @@ func TestNew_CustomTasks(t *testing.T) {
 	defer undefineTasks(result)
 
 	// Verify custom task is registered.
-	if len(result.Custom) != 1 {
-		t.Fatalf("expected 1 custom task, got %d", len(result.Custom))
+	if len(result.Tasks) != 1 {
+		t.Fatalf("expected 1 custom task, got %d", len(result.Tasks))
 	}
-	if result.Custom[0].Name() != "my-custom-task" {
-		t.Errorf("expected custom task name 'my-custom-task', got %q", result.Custom[0].Name())
+	if result.Tasks[0].Name() != "my-custom-task" {
+		t.Errorf("expected custom task name 'my-custom-task', got %q", result.Tasks[0].Name())
 	}
 
 	// Verify custom task is in "all" dependencies.
@@ -84,8 +84,8 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 	result := tasks.New(cfg, ".")
 	defer undefineTasks(result)
 
-	if len(result.Custom) != 2 {
-		t.Fatalf("expected 2 custom tasks, got %d", len(result.Custom))
+	if len(result.Tasks) != 2 {
+		t.Fatalf("expected 2 custom tasks, got %d", len(result.Tasks))
 	}
 
 	// Verify both are in "all" dependencies.

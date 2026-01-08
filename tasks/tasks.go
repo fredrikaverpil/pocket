@@ -24,8 +24,8 @@ type Tasks struct {
 	// GitDiff fails if there are uncommitted changes.
 	GitDiff *goyek.DefinedTask
 
-	// Custom holds custom tasks registered for this context.
-	Custom []*goyek.DefinedTask
+	// Tasks holds standalone tasks registered for this context.
+	Tasks []*goyek.DefinedTask
 
 	// TaskGroupTasks holds all tasks from registered task groups.
 	TaskGroupTasks []*goyek.DefinedTask
@@ -58,10 +58,10 @@ func New(cfg pocket.Config, context string) *Tasks {
 		}
 	}
 
-	// Define custom tasks from filtered config and add them to deps.
+	// Define standalone tasks from filtered config and add them to deps.
 	for _, task := range filteredCfg.GetTasks() {
 		defined := goyek.Define(task)
-		t.Custom = append(t.Custom, defined)
+		t.Tasks = append(t.Tasks, defined)
 		deps = append(deps, defined)
 	}
 
