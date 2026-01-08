@@ -6,7 +6,8 @@ An opinionated build system platform for Go projects, powered by
 > [!TIP]
 >
 > Pocket is written in Go, but you don't need Go installed. The `./pok` shim
-> automatically downloads Go to `.pocket/` if needed.
+> (`pok.cmd` or `pk.ps1` on Windows) automatically downloads Go to `.pocket/` if
+> needed.
 
 > [!WARNING]
 >
