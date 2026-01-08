@@ -11,5 +11,5 @@ import (
 
 func main() {
 	t := tasks.New(Config)
-	pocket.Main(t.AllTasks(), t.All)
+	pocket.Main(t.AllTasks(), t.All, t.PathMappings())
 }

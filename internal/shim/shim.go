@@ -88,16 +88,26 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 		})
 	}
 
-	// Generate each shim type at root.
+	// Collect all module directories from the config.
+	var moduleDirs []string
+	if cfg.Run != nil {
+		moduleDirs = pocket.CollectModuleDirectories(cfg.Run)
+	} else {
+		moduleDirs = []string{"."}
+	}
+
+	// Generate each shim type at each module directory.
 	for _, st := range types {
 		tmpl, err := template.New(st.name).Parse(st.template)
 		if err != nil {
 			return fmt.Errorf("parsing %s template: %w", st.name, err)
 		}
 
-		err = generateShim(tmpl, cfg.Shim.Name, st.extension, st.pathSep, goVersion, checksums, rootDir)
-		if err != nil {
-			return fmt.Errorf("generating %s shim: %w", st.name, err)
+		for _, moduleDir := range moduleDirs {
+			err = generateShimAt(tmpl, cfg.Shim.Name, st.extension, goVersion, checksums, rootDir, moduleDir)
+			if err != nil {
+				return fmt.Errorf("generating %s shim at %s: %w", st.name, moduleDir, err)
+			}
 		}
 	}
 
@@ -127,17 +137,29 @@ func extractGoVersionFromDir(dir string) (string, error) {
 	return "", fmt.Errorf("no go directive in %s", gomodPath)
 }
 
-// generateShim creates a single shim at root.
-func generateShim(
+// generateShimAt creates a single shim at the specified module directory.
+// moduleDir is relative to rootDir (e.g., ".", "proj1", "services/api").
+func generateShimAt(
 	tmpl *template.Template,
-	shimName, extension, _, goVersion string,
+	shimName, extension, goVersion string,
 	checksums GoChecksums,
-	rootDir string,
+	rootDir, moduleDir string,
 ) error {
+	// Calculate relative path from moduleDir back to .pocket.
+	// For ".", pocketDir is ".pocket".
+	// For "proj1", pocketDir is "../.pocket".
+	// For "services/api", pocketDir is "../../.pocket".
+	pocketDir := ".pocket"
+	if moduleDir != "." {
+		// Count the depth and prepend "../" for each level.
+		depth := strings.Count(moduleDir, "/") + 1
+		pocketDir = strings.Repeat("../", depth) + ".pocket"
+	}
+
 	data := shimData{
 		GoVersion:   goVersion,
-		PocketDir:   ".pocket",
-		Context:     ".",
+		PocketDir:   pocketDir,
+		Context:     moduleDir,
 		GoChecksums: checksums,
 	}
 
@@ -146,7 +168,14 @@ func generateShim(
 		return fmt.Errorf("executing shim template: %w", err)
 	}
 
-	shimPath := filepath.Join(rootDir, shimName+extension)
+	// Create the shim at moduleDir within rootDir.
+	shimPath := filepath.Join(rootDir, moduleDir, shimName+extension)
+
+	// Ensure the directory exists.
+	if err := os.MkdirAll(filepath.Dir(shimPath), 0o755); err != nil {
+		return fmt.Errorf("creating directory: %w", err)
+	}
+
 	if err := os.WriteFile(shimPath, buf.Bytes(), 0o755); err != nil {
 		return fmt.Errorf("writing shim: %w", err)
 	}

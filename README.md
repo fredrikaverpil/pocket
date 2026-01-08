@@ -56,14 +56,14 @@ This creates:
 
 > [!NOTE]
 >
-> Pocket comes loaded with useful tasks and tools, but none enabled out of the
-> box. You have to explicitly define them in `.pocket/config.go` as desired, or
-> make your own. More on that below.
+> Pocket comes preloaded with useful tasks and tools, but none enabled out of
+> the box. You have to explicitly define them in `.pocket/config.go` as desired,
+> or make your own. More on that below.
 
 > [!TIP]
 >
-> **Shim customization:** If you don't like `./pok`, configure a different name
-> in `.pocket/config.go`:
+> **Shim customization:** If you don't like to type out "`./pok`", configure a
+> different name in `.pocket/config.go`:
 >
 > ```go
 > Shim: &pocket.ShimConfig{Name: "build"}  // creates ./build instead
@@ -74,9 +74,9 @@ This creates:
 
 ## Configuration
 
-Edit `.pocket/config.go` to configure task groups.
+Edit `.pocket/config.go` to configure tasks.
 
-**Auto-detection (recommended):**
+**Basic configuration with auto-detection:**
 
 ```go
 import (
@@ -87,72 +87,56 @@ import (
 )
 
 var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{
-        golang.Auto(golang.Options{}),     // auto-detects Go modules
-        python.Auto(python.Options{}),     // auto-detects Python projects
-        markdown.Auto(markdown.Options{}), // formats markdown from root
-    },
+    Run: pocket.Serial(
+        pocket.P(golang.Tasks()).Detect(),    // auto-detects Go modules (go.mod)
+        pocket.P(python.Tasks()).Detect(),    // auto-detects Python projects
+        pocket.P(markdown.Tasks()).Detect(),  // formats markdown from root
+    ),
 }
 ```
 
-**Auto-detection with default options:**
+**Path filtering with explicit paths:**
 
 ```go
 var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{
-        golang.Auto(golang.Options{
-            Lint: golang.LintOptions{ConfigFile: pocket.FromGitRoot(".golangci.yml")},
-        }),
-    },
+    Run: pocket.Serial(
+        // Only run Go tasks in specific directories
+        pocket.P(golang.Tasks()).In("proj1", "proj2"),
+
+        // Auto-detect but exclude certain directories
+        pocket.P(python.Tasks()).Detect().Except("vendor", `\.pocket`),
+
+        // Run markdown tasks only at root
+        pocket.P(markdown.Tasks()).In("."),
+    ),
 }
 ```
 
-**Auto-detection with skip patterns:**
+**Regex patterns for path matching:**
 
 ```go
 var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{
-        golang.Auto(
-            golang.Options{},
-            pocket.SkipPath(`\.pocket`),           // skip all tasks in .pocket/
-            pocket.SkipTask("go-vulncheck", `.*`), // skip vulncheck everywhere
+    Run: pocket.Serial(
+        // Match all services subdirectories
+        pocket.P(golang.Tasks()).Detect().In("services/.*"),
+
+        // Exclude test directories
+        pocket.P(python.Tasks()).Detect().Except(".*_test", "testdata"),
+    ),
+}
+```
+
+**Parallel execution:**
+
+```go
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        pocket.P(golang.Tasks()).Detect(),  // run first
+        pocket.Parallel(                     // then these in parallel
+            pocket.P(python.Tasks()).Detect(),
+            pocket.P(markdown.Tasks()).Detect(),
         ),
-    },
-}
-```
-
-> [!TIP]
->
-> Use `SkipPath` to exclude a folder from auto-detection, then add it explicitly
-> with `golang.New()` to define custom options for that folder.
-
-**Explicit configuration:**
-
-```go
-var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{
-        golang.New(map[string]golang.Options{
-            ".":          {},                            // all tasks enabled
-            "projects/proj1": {Skip: []string{"go-format"}}, // skip format for this Go module
-        }),
-    },
-}
-```
-
-**Task-specific options:**
-
-```go
-var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{
-        golang.New(map[string]golang.Options{
-            "proj1": {
-                Lint: golang.LintOptions{ConfigFile: pocket.FromGitRoot("proj1", ".golangci.yml")},
-            },
-            "proj2": {
-                Skip: []string{"go-test"}, // skip tests for this module
-            },
-        }),
-    },
+    ),
 }
 ```
 
@@ -166,29 +150,34 @@ import (
     "fmt"
 
     "github.com/fredrikaverpil/pocket"
+    "github.com/fredrikaverpil/pocket/tasks/golang"
 )
 
 var Config = pocket.Config{
-    TaskGroups: []pocket.TaskGroup{...},
+    Run: pocket.Serial(
+        pocket.P(golang.Tasks()).Detect(),
+        deployTask,  // custom task runs at root only (no P() wrapper)
+    ),
+}
 
-    // Custom tasks per module path
-    Tasks: map[string][]*pocket.Task{
-        ".": {  // available from root ./pok
-            {
-                Name:  "deploy",
-                Usage: "deploy to production",
-                Action: func(ctx context.Context, args map[string]string) error {
-                    fmt.Println("Deploying...")
-                    // your logic here
-                    return nil
-                },
-            },
-        },
+var deployTask = &pocket.Task{
+    Name:  "deploy",
+    Usage: "deploy to production",
+    Action: func(ctx context.Context, args map[string]string) error {
+        fmt.Println("Deploying...")
+        // your logic here
+        return nil
     },
 }
 ```
 
-Custom tasks appear in `./pok -h` and run as part of `./pok all`.
+Custom tasks appear in `./pok -h` and run as part of `./pok` (no args).
+
+> [!NOTE]
+>
+> Tasks without a `P()` wrapper are only visible when running from the git root.
+> Use `pocket.P(myTask).In("subdir")` to make a task visible in specific
+> directories.
 
 **Tasks with arguments:**
 
@@ -218,9 +207,11 @@ For multi-module projects, you can define context-specific tasks that only
 appear when running the shim from that folder:
 
 ```go
-Tasks: map[string][]*pocket.Task{
-    ".":            {rootTask},
-    "services/api": {apiTask},  // only visible from ./services/api/
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        rootTask,                              // visible at root only
+        pocket.P(apiTask).In("services/api"),  // visible in services/api/
+    ),
 }
 ```
 
@@ -312,41 +303,36 @@ Pocket has three levels of configuration:
 
 ```
 Config (project)
-  └── Task Group (curated collection of tasks)
-        └── Options (per-directory: task selection + task behavior)
-              └── Task (executable unit of work)
+  └── Runnable (execution tree: Serial, Parallel, Paths wrappers)
+        └── Task (executable unit of work)
 ```
 
 ### Config ([`config.go`](config.go))
 
 - Project-level configuration
-- Defines which task groups to use, custom tasks, and shim settings
+- Defines the execution tree via `Run`, shim settings, and options
 - Lives in [`.pocket/config.go`](.pocket/config.go)
 
-### Task Group
+### Runnable
 
-- Curated collection of related tasks for a language/purpose (e.g., `golang`,
-  `python`)
-- Created with `golang.New(map[string]golang.Options{...})` or
-  `golang.Auto(golang.Options{})`
-- Controls which directories tasks run on
+- Anything that can be executed: `Task`, `Serial()`, `Parallel()`, or `Paths`
+- `Serial(...)` runs children in order
+- `Parallel(...)` runs children concurrently
+- `P(runnable)` wraps a runnable with path filtering
 
-### Options
+### Paths (Path Filtering)
 
-- Per-directory configuration within a task group
-- **Task selection**: `Skip` controls which tasks to exclude (uses full task
-  names like `"go-lint"`, `"go-test"`)
-- **Task behavior**: `Lint`, `Test`, `Format` etc. customize how tasks run
-
-Examples: [`golang.Options`](tasks/golang/tasks.go),
-[`python.Options`](tasks/python/tasks.go),
-[`markdown.Options`](tasks/markdown/tasks.go)
+- Wraps a Runnable with directory-based visibility
+- `P(r).Detect()` - auto-detect directories (using `DefaultDetect()`)
+- `P(r).In("dir1", "dir2")` - explicit directories (supports regex)
+- `P(r).Except("vendor")` - exclude directories
+- Tasks without `P()` wrapper are only visible at git root
 
 ### Task
 
 - Executable unit of work: `go-format`, `go-lint`, `py-typecheck`...
-- Runs on one or more directories
-- Can be used standalone: `golang.LintTask(map[string]golang.Options{...})`
+- Has `Name`, `Usage`, optional `Args`, and `Action` function
+- Individual tasks: `golang.FormatTask()`, `golang.LintTask()`, etc.
 
 ## Convenience Functions
 

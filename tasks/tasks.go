@@ -27,6 +27,9 @@ type Tasks struct {
 
 	// UserTasks holds all tasks from Config.Run (for CLI registration).
 	UserTasks []*pocket.Task
+
+	// pathMappings maps task names to their Paths configuration.
+	pathMappings map[string]*pocket.Paths
 }
 
 // New creates tasks based on the provided Config.
@@ -44,14 +47,20 @@ func New(cfg pocket.Config) *Tasks {
 	t.GitDiff = gitdiff.Task()
 
 	// Extract all tasks from the execution tree for CLI registration.
+	// Also collect path mappings for cwd-based filtering.
 	if cfg.Run != nil {
 		t.UserTasks = cfg.Run.Tasks()
+		t.pathMappings = pocket.CollectPathMappings(cfg.Run)
+	} else {
+		t.pathMappings = make(map[string]*pocket.Paths)
 	}
 
 	// Create the "all" task that runs everything.
+	// Hidden because it's the default task (run when no task is specified).
 	t.All = &pocket.Task{
-		Name:  "all",
-		Usage: "run all tasks",
+		Name:   "all",
+		Usage:  "run all tasks",
+		Hidden: true,
 		Action: func(ctx context.Context, _ map[string]string) error {
 			// Generate first.
 			if err := t.Generate.Run(ctx); err != nil {
@@ -82,4 +91,10 @@ func (t *Tasks) AllTasks() []*pocket.Task {
 	tasks := []*pocket.Task{t.All, t.Generate, t.Update, t.GitDiff}
 	tasks = append(tasks, t.UserTasks...)
 	return tasks
+}
+
+// PathMappings returns the path mappings for cwd-based task filtering.
+// Tasks not in this map are only visible when running from the git root.
+func (t *Tasks) PathMappings() map[string]*pocket.Paths {
+	return t.pathMappings
 }

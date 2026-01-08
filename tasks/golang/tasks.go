@@ -10,15 +10,42 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 )
 
-// Tasks returns a Runnable that executes all Go tasks in order.
+// Tasks returns a Runnable that executes all Go tasks.
 // Tasks auto-detect Go modules by finding go.mod files.
+// Use pocket.P(golang.Tasks()).Detect() to enable path filtering.
 func Tasks() pocket.Runnable {
-	return pocket.Serial(
-		FormatTask(),
-		LintTask(),
-		TestTask(),
-		VulncheckTask(),
-	)
+	return &goTasks{
+		format:    FormatTask(),
+		lint:      LintTask(),
+		test:      TestTask(),
+		vulncheck: VulncheckTask(),
+	}
+}
+
+// goTasks is the Runnable for Go tasks that also implements Detectable.
+type goTasks struct {
+	format    *pocket.Task
+	lint      *pocket.Task
+	test      *pocket.Task
+	vulncheck *pocket.Task
+}
+
+// Run executes all Go tasks.
+func (g *goTasks) Run(ctx context.Context) error {
+	if err := pocket.SerialDeps(ctx, g.format, g.lint); err != nil {
+		return err
+	}
+	return pocket.Deps(ctx, g.test, g.vulncheck)
+}
+
+// Tasks returns all Go tasks.
+func (g *goTasks) Tasks() []*pocket.Task {
+	return []*pocket.Task{g.format, g.lint, g.test, g.vulncheck}
+}
+
+// DefaultDetect returns a function that detects Go module directories.
+func (g *goTasks) DefaultDetect() func() []string {
+	return detectModules
 }
 
 // detectModules returns directories containing go.mod files.

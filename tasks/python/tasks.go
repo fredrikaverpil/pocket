@@ -10,14 +10,41 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/ruff"
 )
 
-// Tasks returns a Runnable that executes all Python tasks in order.
+// Tasks returns a Runnable that executes all Python tasks.
 // Tasks auto-detect Python projects by finding pyproject.toml, setup.py, or setup.cfg.
+// Use pocket.P(python.Tasks()).Detect() to enable path filtering.
 func Tasks() pocket.Runnable {
-	return pocket.Serial(
-		FormatTask(),
-		LintTask(),
-		TypecheckTask(),
-	)
+	return &pyTasks{
+		format:    FormatTask(),
+		lint:      LintTask(),
+		typecheck: TypecheckTask(),
+	}
+}
+
+// pyTasks is the Runnable for Python tasks that also implements Detectable.
+type pyTasks struct {
+	format    *pocket.Task
+	lint      *pocket.Task
+	typecheck *pocket.Task
+}
+
+// Run executes all Python tasks.
+// Format runs first, then lint and typecheck run in parallel.
+func (p *pyTasks) Run(ctx context.Context) error {
+	if err := p.format.Run(ctx); err != nil {
+		return err
+	}
+	return pocket.Deps(ctx, p.lint, p.typecheck)
+}
+
+// Tasks returns all Python tasks.
+func (p *pyTasks) Tasks() []*pocket.Task {
+	return []*pocket.Task{p.format, p.lint, p.typecheck}
+}
+
+// DefaultDetect returns a function that detects Python project directories.
+func (p *pyTasks) DefaultDetect() func() []string {
+	return detectModules
 }
 
 // detectModules returns directories containing Python project files.

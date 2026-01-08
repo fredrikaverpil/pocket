@@ -39,6 +39,8 @@ type contextKey int
 const (
 	// verboseKey is the context key for verbose mode.
 	verboseKey contextKey = iota
+	// cwdKey is the context key for current working directory (relative to git root).
+	cwdKey
 )
 
 // WithVerbose returns a context with verbose mode set.
@@ -50,6 +52,21 @@ func WithVerbose(ctx context.Context, verbose bool) context.Context {
 func IsVerbose(ctx context.Context) bool {
 	v, _ := ctx.Value(verboseKey).(bool)
 	return v
+}
+
+// WithCwd returns a context with the current working directory set.
+// The cwd should be relative to git root.
+func WithCwd(ctx context.Context, cwd string) context.Context {
+	return context.WithValue(ctx, cwdKey, cwd)
+}
+
+// CwdFromContext returns the current working directory from context.
+// Returns "." if not set.
+func CwdFromContext(ctx context.Context) string {
+	if cwd, ok := ctx.Value(cwdKey).(string); ok {
+		return cwd
+	}
+	return "."
 }
 
 // SetArgs sets the arguments for this task execution.
