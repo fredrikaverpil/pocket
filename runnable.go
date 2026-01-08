@@ -32,6 +32,7 @@ type serial struct {
 
 // Serial creates a Runnable that executes children sequentially.
 // Execution stops on first error.
+// Use Serial(...).Run(ctx) inside Actions to run tasks sequentially.
 func Serial(children ...Runnable) Runnable {
 	return &serial{children: children}
 }
@@ -70,6 +71,7 @@ type parallel struct {
 
 // Parallel creates a Runnable that executes children concurrently.
 // Waits for all children to complete, returns first error encountered.
+// Use Parallel(...).Run(ctx) inside Actions to run tasks in parallel.
 func Parallel(children ...Runnable) Runnable {
 	return &parallel{children: children}
 }

@@ -217,7 +217,7 @@ type myTasks struct {
 }
 
 func (m *myTasks) Run(ctx context.Context) error {
-    return pocket.SerialDeps(ctx, m.format, m.lint)
+    return pocket.Serial(m.format, m.lint).Run(ctx)
 }
 
 func (m *myTasks) Tasks() []*pocket.Task {
@@ -494,10 +494,10 @@ pocket.DetectByExtension(".lua")     // finds dirs with .lua files
 
 ```go
 // Run tasks in parallel
-pocket.Deps(ctx, formatTask, lintTask)
+pocket.Parallel(formatTask, lintTask).Run(ctx)
 
 // Run tasks sequentially
-pocket.SerialDeps(ctx, formatTask, lintTask, testTask)
+pocket.Serial(formatTask, lintTask, testTask).Run(ctx)
 
 // Check verbose mode
 if pocket.IsVerbose(ctx) {

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"sync"
-
-	"golang.org/x/sync/errgroup"
 )
 
 // ArgDef defines an argument that a task accepts.
@@ -128,39 +126,4 @@ func (t *Task) Run(ctx context.Context) error {
 // Tasks returns this task as a slice (implements Runnable interface).
 func (t *Task) Tasks() []*Task {
 	return []*Task{t}
-}
-
-// Deps runs the given tasks in parallel and waits for all to complete.
-// Each task runs at most once regardless of how many times Deps is called.
-// If any task fails, Deps returns the first error encountered.
-func Deps(ctx context.Context, tasks ...*Task) error {
-	if len(tasks) == 0 {
-		return nil
-	}
-
-	g, ctx := errgroup.WithContext(ctx)
-	for _, task := range tasks {
-		if task == nil {
-			continue
-		}
-		g.Go(func() error {
-			return task.Run(ctx)
-		})
-	}
-	return g.Wait()
-}
-
-// SerialDeps runs the given tasks sequentially in order.
-// Each task runs at most once regardless of how many times SerialDeps is called.
-// If any task fails, SerialDeps returns immediately with the error.
-func SerialDeps(ctx context.Context, tasks ...*Task) error {
-	for _, task := range tasks {
-		if task == nil {
-			continue
-		}
-		if err := task.Run(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
 }

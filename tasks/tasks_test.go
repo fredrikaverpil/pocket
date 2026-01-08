@@ -157,7 +157,7 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	}
 }
 
-func TestDeps_ParallelExecution(t *testing.T) {
+func TestParallel_Execution(t *testing.T) {
 	var count atomic.Int32
 	task1 := &pocket.Task{
 		Name: "task1",
@@ -174,9 +174,9 @@ func TestDeps_ParallelExecution(t *testing.T) {
 		},
 	}
 
-	err := pocket.Deps(context.Background(), task1, task2)
+	err := pocket.Parallel(task1, task2).Run(context.Background())
 	if err != nil {
-		t.Fatalf("Deps failed: %v", err)
+		t.Fatalf("Parallel failed: %v", err)
 	}
 
 	if count.Load() != 2 {
@@ -184,7 +184,7 @@ func TestDeps_ParallelExecution(t *testing.T) {
 	}
 }
 
-func TestSerialDeps_SequentialExecution(t *testing.T) {
+func TestSerial_Execution(t *testing.T) {
 	var order []string
 	task1 := &pocket.Task{
 		Name: "task1",
@@ -201,9 +201,9 @@ func TestSerialDeps_SequentialExecution(t *testing.T) {
 		},
 	}
 
-	err := pocket.SerialDeps(context.Background(), task1, task2)
+	err := pocket.Serial(task1, task2).Run(context.Background())
 	if err != nil {
-		t.Fatalf("SerialDeps failed: %v", err)
+		t.Fatalf("Serial failed: %v", err)
 	}
 
 	if len(order) != 2 || order[0] != "task1" || order[1] != "task2" {

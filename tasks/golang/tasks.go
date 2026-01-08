@@ -55,10 +55,10 @@ type goTasks struct {
 
 // Run executes all Go tasks.
 func (g *goTasks) Run(ctx context.Context) error {
-	if err := pocket.SerialDeps(ctx, g.format, g.lint); err != nil {
+	if err := pocket.Serial(g.format, g.lint).Run(ctx); err != nil {
 		return err
 	}
-	return pocket.Deps(ctx, g.test, g.vulncheck)
+	return pocket.Parallel(g.test, g.vulncheck).Run(ctx)
 }
 
 // Tasks returns all Go tasks.

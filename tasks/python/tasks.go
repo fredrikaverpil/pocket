@@ -45,7 +45,7 @@ func (p *pyTasks) Run(ctx context.Context) error {
 	if err := p.format.Run(ctx); err != nil {
 		return err
 	}
-	return pocket.Deps(ctx, p.lint, p.typecheck)
+	return pocket.Parallel(p.lint, p.typecheck).Run(ctx)
 }
 
 // Tasks returns all Python tasks.
