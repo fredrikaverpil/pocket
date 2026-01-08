@@ -90,15 +90,26 @@ golang.Auto(golang.AutoConfig{
 ```go
 var Config = pocket.Config{
     TaskGroups: []pocket.TaskGroup{
-        golang.New(golang.Config{
-            Modules: map[string]golang.Options{
-                ".":          {},                           // all tasks enabled
-                "subdir/lib": {Skip: []string{"format"}},   // skip format for this module
-                "generated":  {Only: []string{"test"}},     // only run test for generated code
-            },
+        golang.New(map[string]golang.Options{
+            ".":          {},                           // all tasks enabled
+            "subdir/lib": {Skip: []string{"format"}},   // skip format for this module
+            "generated":  {Only: []string{"test"}},     // only run test for generated code
         }),
     },
 }
+```
+
+**Task-specific options:**
+
+```go
+golang.New(map[string]golang.Options{
+    "proj1": {
+        Lint: golang.LintOptions{ConfigFile: "proj1/.golangci.yml"},
+    },
+    "proj2": {
+        Skip: []string{"test"},  // skip tests for this module
+    },
+})
 ```
 
 ### Custom Tasks
@@ -229,26 +240,38 @@ rem PowerShell
 
 ## Terminology
 
-### Tools
+### Config (`pocket.Config`)
 
-- Binaries downloaded to `.pocket/tools/` and symlinked to `.pocket/bin/`
-- Examples: golangci-lint, govulncheck, mdformat, uv
-- Have versions, download URLs, Renovate comments
-- Expose `Prepare()`, `Command()`, `Run()` functions
-
-### Tasks (goyek tasks)
-
-- What users execute: `go-format`, `go-lint`, `lua-format`...
-- Use tools via their Go API
-- Defined in `tasks/`
+- Project-level configuration
+- Defines which task groups to use, custom tasks, and shim settings
+- Lives in `.pocket/config.go`
 
 ### Task Groups
 
-- Group related tasks for a language or purpose (e.g., `golang`, `lua`,
-  `markdown`)
-- Each task group owns its own `Config` and `Options` types
+- Curated collection of related tasks for a language or purpose (e.g.,
+  `golang`, `python`, `markdown`)
+- Created with `golang.New(map[string]golang.Options{...})` or `golang.Auto()`
 - Implement the `pocket.TaskGroup` interface
 - Configured in `pocket.Config.TaskGroups`
+
+### Options (`golang.Options`, `python.Options`, etc.)
+
+- Per-directory configuration for a task group
+- Controls which tasks run (`Skip`, `Only`)
+- Contains task-specific options (`Lint`, `Test`, `Format`, etc.)
+
+### Tasks
+
+- What users execute: `go-format`, `go-lint`, `py-typecheck`...
+- Each task runs on one or more directories
+- Can be used standalone: `golang.LintTask(map[string]golang.Options{...})`
+- Defined in `tasks/`
+
+### Tools (internal)
+
+- Binaries downloaded to `.pocket/tools/` and symlinked to `.pocket/bin/`
+- Examples: golangci-lint, govulncheck, mdformat, ruff
+- Used internally by tasks
 
 ## Acknowledgements
 

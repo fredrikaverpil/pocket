@@ -23,7 +23,7 @@ func Auto(cfg ...AutoConfig) pocket.TaskGroup {
 		config.Options,
 		config.Overrides,
 		func(modules map[string]Options) pocket.TaskGroup {
-			return &taskGroup{config: Config{Modules: modules}}
+			return &taskGroup{modules: modules}
 		},
 	)
 }

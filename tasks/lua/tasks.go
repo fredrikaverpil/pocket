@@ -11,20 +11,16 @@ import (
 
 const name = "lua"
 
-// Config defines the configuration for the Lua task group.
-type Config struct {
-	// Modules maps context paths to module options.
-	// The key is the path relative to the git root (use "." for root).
-	Modules map[string]Options
-}
-
-// Options defines options for a Lua module.
+// Options defines options for a Lua module within a task group.
 type Options struct {
 	// Skip lists task names to skip (e.g., "format").
 	Skip []string
 	// Only lists task names to run (empty = run all).
 	// If non-empty, only these tasks run (Skip is ignored).
 	Only []string
+
+	// Task-specific options
+	Format FormatOptions
 }
 
 // ShouldRun returns true if the given task should run based on Skip/Only options.
@@ -35,20 +31,26 @@ func (o Options) ShouldRun(task string) bool {
 	return !slices.Contains(o.Skip, task)
 }
 
-// New creates a Lua task group with the given configuration.
-func New(cfg Config) pocket.TaskGroup {
-	return &taskGroup{config: cfg}
+// FormatOptions defines options for the format task.
+type FormatOptions struct {
+	// ConfigFile overrides the default stylua config file.
+	ConfigFile string
+}
+
+// New creates a Lua task group with the given module configuration.
+func New(modules map[string]Options) pocket.TaskGroup {
+	return &taskGroup{modules: modules}
 }
 
 type taskGroup struct {
-	config Config
+	modules map[string]Options
 }
 
 func (tg *taskGroup) Name() string { return name }
 
 func (tg *taskGroup) Modules() map[string]pocket.ModuleConfig {
-	modules := make(map[string]pocket.ModuleConfig, len(tg.config.Modules))
-	for path, opts := range tg.config.Modules {
+	modules := make(map[string]pocket.ModuleConfig, len(tg.modules))
+	for path, opts := range tg.modules {
 		modules[path] = opts
 	}
 	return modules
@@ -58,10 +60,8 @@ func (tg *taskGroup) ForContext(context string) pocket.TaskGroup {
 	if context == "." {
 		return tg
 	}
-	if opts, ok := tg.config.Modules[context]; ok {
-		return &taskGroup{config: Config{
-			Modules: map[string]Options{context: opts},
-		}}
+	if opts, ok := tg.modules[context]; ok {
+		return &taskGroup{modules: map[string]Options{context: opts}}
 	}
 	return nil
 }
@@ -70,24 +70,40 @@ func (tg *taskGroup) Tasks(cfg pocket.Config) []*goyek.DefinedTask {
 	_ = cfg.WithDefaults()
 	var tasks []*goyek.DefinedTask
 
-	if modules := pocket.ModulesFor(tg, "format"); len(modules) > 0 {
-		tasks = append(tasks, goyek.Define(FormatTask(modules)))
+	if mods := tg.modulesFor("format"); len(mods) > 0 {
+		tasks = append(tasks, goyek.Define(FormatTask(mods)))
 	}
 
 	return tasks
 }
 
+// modulesFor returns modules with their task-specific options for a given task.
+func (tg *taskGroup) modulesFor(task string) map[string]Options {
+	result := make(map[string]Options)
+	for path, opts := range tg.modules {
+		if opts.ShouldRun(task) {
+			result[path] = opts
+		}
+	}
+	return result
+}
+
 // FormatTask returns a task that formats Lua files using stylua.
-func FormatTask(modules []string) goyek.Task {
+// The modules map specifies which directories to format and their options.
+func FormatTask(modules map[string]Options) goyek.Task {
 	return goyek.Task{
 		Name:  "lua-format",
 		Usage: "format Lua files",
 		Action: func(a *goyek.A) {
-			configPath, err := stylua.ConfigPath()
-			if err != nil {
-				a.Fatalf("get stylua config: %v", err)
-			}
-			for _, mod := range modules {
+			for mod, opts := range modules {
+				configPath := opts.Format.ConfigFile
+				if configPath == "" {
+					var err error
+					configPath, err = stylua.ConfigPath()
+					if err != nil {
+						a.Fatalf("get stylua config: %v", err)
+					}
+				}
 				if err := stylua.Run(a.Context(), "-f", configPath, mod); err != nil {
 					a.Errorf("stylua format failed in %s: %v", mod, err)
 				}

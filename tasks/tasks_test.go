@@ -112,41 +112,33 @@ func TestNew_GoTaskGroupConfigDriven(t *testing.T) {
 	}{
 		{
 			name: "all Go tasks enabled",
-			taskGroup: golang.New(golang.Config{
-				Modules: map[string]golang.Options{
-					".": {},
-				},
+			taskGroup: golang.New(map[string]golang.Options{
+				".": {},
 			}),
 			wantInDeps:    []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: nil,
 		},
 		{
 			name: "skip format excludes go-format from deps",
-			taskGroup: golang.New(golang.Config{
-				Modules: map[string]golang.Options{
-					".": {Skip: []string{"format"}},
-				},
+			taskGroup: golang.New(map[string]golang.Options{
+				".": {Skip: []string{"format"}},
 			}),
 			wantInDeps:    []string{"go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: []string{"go-format"},
 		},
 		{
 			name: "skip all excludes all Go tasks from deps",
-			taskGroup: golang.New(golang.Config{
-				Modules: map[string]golang.Options{
-					".": {Skip: []string{"format", "lint", "test", "vulncheck"}},
-				},
+			taskGroup: golang.New(map[string]golang.Options{
+				".": {Skip: []string{"format", "lint", "test", "vulncheck"}},
 			}),
 			wantInDeps:    []string{"generate"},
 			wantNotInDeps: []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 		},
 		{
 			name: "multiple modules with mixed skips",
-			taskGroup: golang.New(golang.Config{
-				Modules: map[string]golang.Options{
-					".":      {Skip: []string{"format", "lint", "test", "vulncheck"}},
-					"subdir": {}, // This module has all tasks enabled.
-				},
+			taskGroup: golang.New(map[string]golang.Options{
+				".":      {Skip: []string{"format", "lint", "test", "vulncheck"}},
+				"subdir": {}, // This module has all tasks enabled.
 			}),
 			wantInDeps:    []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: nil,
@@ -191,19 +183,15 @@ func TestNew_LuaTaskGroupConfigDriven(t *testing.T) {
 	}{
 		{
 			name: "lua format enabled",
-			taskGroup: lua.New(lua.Config{
-				Modules: map[string]lua.Options{
-					".": {},
-				},
+			taskGroup: lua.New(map[string]lua.Options{
+				".": {},
 			}),
 			wantLuaFormat: true,
 		},
 		{
 			name: "lua format skipped",
-			taskGroup: lua.New(lua.Config{
-				Modules: map[string]lua.Options{
-					".": {Skip: []string{"format"}},
-				},
+			taskGroup: lua.New(map[string]lua.Options{
+				".": {Skip: []string{"format"}},
 			}),
 			wantLuaFormat: false,
 		},
@@ -242,19 +230,15 @@ func TestNew_MarkdownTaskGroupConfigDriven(t *testing.T) {
 	}{
 		{
 			name: "markdown format enabled",
-			taskGroup: markdown.New(markdown.Config{
-				Modules: map[string]markdown.Options{
-					".": {},
-				},
+			taskGroup: markdown.New(map[string]markdown.Options{
+				".": {},
 			}),
 			wantMdFormat: true,
 		},
 		{
 			name: "markdown format skipped",
-			taskGroup: markdown.New(markdown.Config{
-				Modules: map[string]markdown.Options{
-					".": {Skip: []string{"format"}},
-				},
+			taskGroup: markdown.New(map[string]markdown.Options{
+				".": {Skip: []string{"format"}},
 			}),
 			wantMdFormat: false,
 		},
@@ -330,11 +314,9 @@ func TestNew_NoTaskGroupsRegistered(t *testing.T) {
 
 func TestNew_ContextFiltering(t *testing.T) {
 	// Create a task group with modules in different contexts.
-	goTaskGroup := golang.New(golang.Config{
-		Modules: map[string]golang.Options{
-			".":     {},
-			"tests": {},
-		},
+	goTaskGroup := golang.New(map[string]golang.Options{
+		".":     {},
+		"tests": {},
 	})
 
 	cfg := pocket.Config{
