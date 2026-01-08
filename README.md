@@ -50,8 +50,9 @@ This creates:
 
 > [!NOTE]
 >
-> Pocket comes with no useful tasks preconfigured. You have to explicitly define
-> them in `.pocket/config.go` as desired. More on that below.
+> Pocket comes loaded with useful tasks and tools, but none enabled out of the
+> box. You have to explicitly define them in `.pocket/config.go` as desired.
+> More on that below.
 
 > [!TIP]
 >
