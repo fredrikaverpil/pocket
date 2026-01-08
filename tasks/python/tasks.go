@@ -57,9 +57,10 @@ var Package = pocket.TaskPackage[Options]{
 
 // Auto creates a Python task group that auto-detects modules by finding
 // pyproject.toml, setup.py, or setup.cfg files.
+// The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
-func Auto(opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(opts...)
+func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
+	return Package.Auto(defaults, opts...)
 }
 
 // New creates a Python task group with explicit module configuration.

@@ -88,17 +88,26 @@ import (
 
 var Config = pocket.Config{
     TaskGroups: []pocket.TaskGroup{
-        golang.Auto(),   // auto-detects Go modules, runs linting/formatting/etc...
-        python.Auto(),   // auto-detects Python projects, runs linting/formatting/etc...
-        markdown.Auto(), // formats markdown from root
+        golang.Auto(golang.Options{}),     // auto-detects Go modules
+        python.Auto(python.Options{}),     // auto-detects Python projects
+        markdown.Auto(markdown.Options{}), // formats markdown from root
     },
 }
+```
+
+**Auto-detection with default options:**
+
+```go
+golang.Auto(golang.Options{
+    Lint: golang.LintOptions{ConfigFile: ".golangci.yml"},
+})
 ```
 
 **Auto-detection with skip patterns:**
 
 ```go
 golang.Auto(
+    golang.Options{},
     pocket.SkipPath(`\.pocket`),            // skip all tasks in .pocket/
     pocket.SkipTask("go-vulncheck", `.*`),  // skip vulncheck everywhere
 )
@@ -301,7 +310,8 @@ Config (project)
 
 - Curated collection of related tasks for a language/purpose (e.g., `golang`,
   `python`)
-- Created with `golang.New(map[string]golang.Options{...})` or `golang.Auto()`
+- Created with `golang.New(map[string]golang.Options{...})` or
+  `golang.Auto(golang.Options{})`
 - Controls which directories tasks run on
 
 ### Options
@@ -369,7 +379,7 @@ if pocket.IsVerbose(ctx) {
 **Skip options (for Auto mode):**
 
 ```go
-golang.Auto(
+golang.Auto(golang.Options{},
     pocket.SkipPath(`\.pocket`),           // skip all tasks for matching paths
     pocket.SkipTask("go-vulncheck", `.*`), // skip specific task for matching paths
     pocket.ShowAll(),                       // make go-all visible in help

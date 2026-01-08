@@ -41,9 +41,10 @@ var Package = pocket.TaskPackage[Options]{
 // Auto creates a Markdown task group that runs from the repository root.
 // Since markdown files are typically scattered throughout a project,
 // this defaults to running mdformat from root rather than detecting individual directories.
+// The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
-func Auto(opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(opts...)
+func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
+	return Package.Auto(defaults, opts...)
 }
 
 // New creates a Markdown task group with explicit module configuration.

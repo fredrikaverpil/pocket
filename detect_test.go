@@ -158,7 +158,7 @@ func TestTaskPackage_Integration(t *testing.T) {
 			}},
 		},
 	}
-	tg := pkg.Auto()
+	tg := pkg.Auto(testOptions{})
 
 	// Verify modules are detected.
 	modules := tg.Modules()

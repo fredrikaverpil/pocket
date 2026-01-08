@@ -40,9 +40,10 @@ var Package = pocket.TaskPackage[Options]{
 }
 
 // Auto creates a Lua task group that auto-detects modules by finding directories with .lua files.
+// The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
-func Auto(opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Package.Auto(opts...)
+func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
+	return Package.Auto(defaults, opts...)
 }
 
 // New creates a Lua task group with explicit module configuration.

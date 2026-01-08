@@ -25,12 +25,14 @@ type TaskPackage[O ModuleConfig] struct {
 }
 
 // Auto creates a TaskGroup that auto-detects modules using the Detect function.
+// The defaults parameter specifies default options for all detected modules.
 // Skip patterns can be passed to exclude paths or specific tasks.
-func (p *TaskPackage[O]) Auto(opts ...SkipOption) TaskGroup {
+func (p *TaskPackage[O]) Auto(defaults O, opts ...SkipOption) TaskGroup {
 	cfg := newSkipConfig(opts...)
 	return &autoTaskGroup[O]{
 		pkg:      p,
 		skipCfg:  cfg,
+		defaults: defaults,
 		detected: nil, // lazily populated
 	}
 }
@@ -47,6 +49,7 @@ func (p *TaskPackage[O]) New(modules map[string]O) TaskGroup {
 type autoTaskGroup[O ModuleConfig] struct {
 	pkg      *TaskPackage[O]
 	skipCfg  *skipConfig
+	defaults O            // default options for all detected modules
 	detected map[string]O // lazily populated
 }
 
@@ -59,13 +62,12 @@ func (tg *autoTaskGroup[O]) doDetect() map[string]O {
 
 	paths := tg.pkg.Detect()
 	modules := make(map[string]O, len(paths))
-	var zero O
 	for _, p := range paths {
 		// Skip paths that match skip patterns
 		if tg.skipCfg.shouldSkipPath(p) {
 			continue
 		}
-		modules[p] = zero
+		modules[p] = tg.defaults
 	}
 
 	tg.detected = modules
