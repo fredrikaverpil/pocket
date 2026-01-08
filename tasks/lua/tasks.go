@@ -9,12 +9,19 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
+// Options configures the Lua tasks.
+type Options struct{}
+
 // Tasks returns a Runnable that executes all Lua tasks.
 // Runs from repository root since Lua files are typically scattered.
 // Use pocket.AutoDetect(lua.Tasks()) to enable path filtering.
-func Tasks() pocket.Runnable {
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &luaTasks{
-		format: FormatTask(),
+		format: FormatTask(o),
 	}
 }
 
@@ -40,7 +47,7 @@ func (l *luaTasks) DefaultDetect() func() []string {
 }
 
 // FormatTask returns a task that formats Lua files using stylua.
-func FormatTask() *pocket.Task {
+func FormatTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "lua-format",
 		Usage: "format Lua files",

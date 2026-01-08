@@ -393,16 +393,33 @@ Available packages:
 - `tasks/markdown` - Markdown formatting (mdformat)
 - `tasks/lua` - Lua formatting (stylua)
 
+#### Configuring Built-in Tasks
+
+Each package accepts an optional `Options` struct to customize behavior:
+
+```go
+// Use custom golangci-lint config
+pocket.AutoDetect(golang.Tasks(golang.Options{
+    LintConfig: ".golangci.yml",
+}))
+
+// Use custom ruff config
+pocket.AutoDetect(python.Tasks(python.Options{
+    RuffConfig: "pyproject.toml",
+}))
+```
+
+Without options, sensible defaults are used (e.g., race detection enabled,
+pocket's bundled configs).
+
 > [!TIP]
 >
-> You can combine `AutoDetect()` with path filtering methods:
+> You can combine options with path filtering:
 >
 > ```go
-> // Exclude directories from auto-detection
-> pocket.AutoDetect(golang.Tasks()).Except("vendor", "testdata")
->
-> // Limit to specific subdirectories
-> pocket.AutoDetect(python.Tasks()).In("services/.*")
+> pocket.AutoDetect(golang.Tasks(golang.Options{
+>     LintConfig: ".golangci.yml",
+> })).Except("vendor", "testdata")
 > ```
 
 ## Terminology

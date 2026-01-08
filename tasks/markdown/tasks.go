@@ -9,12 +9,19 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/mdformat"
 )
 
+// Options configures the Markdown tasks.
+type Options struct{}
+
 // Tasks returns a Runnable that executes all Markdown tasks.
 // Runs from repository root since markdown files are typically scattered.
 // Use pocket.AutoDetect(markdown.Tasks()) to enable path filtering.
-func Tasks() pocket.Runnable {
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &mdTasks{
-		format: FormatTask(),
+		format: FormatTask(o),
 	}
 }
 
@@ -40,7 +47,7 @@ func (m *mdTasks) DefaultDetect() func() []string {
 }
 
 // FormatTask returns a task that formats Markdown files using mdformat.
-func FormatTask() *pocket.Task {
+func FormatTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "md-format",
 		Usage: "format Markdown files",

@@ -10,15 +10,38 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 )
 
+// Options configures the Go tasks.
+type Options struct {
+	// LintConfig is the path to golangci-lint config file.
+	// If empty, uses the default config from pocket.
+	LintConfig string
+
+	// TestRace enables race detection in tests.
+	// Default: true
+	TestRace *bool
+}
+
+// testRace returns the effective TestRace value (defaults to true).
+func (o Options) testRace() bool {
+	if o.TestRace == nil {
+		return true
+	}
+	return *o.TestRace
+}
+
 // Tasks returns a Runnable that executes all Go tasks.
 // Tasks auto-detect Go modules by finding go.mod files.
 // Use pocket.AutoDetect(golang.Tasks()) to enable path filtering.
-func Tasks() pocket.Runnable {
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &goTasks{
-		format:    FormatTask(),
-		lint:      LintTask(),
-		test:      TestTask(),
-		vulncheck: VulncheckTask(),
+		format:    FormatTask(o),
+		lint:      LintTask(o),
+		test:      TestTask(o),
+		vulncheck: VulncheckTask(o),
 	}
 }
 
@@ -54,17 +77,21 @@ func detectModules() []string {
 }
 
 // FormatTask returns a task that formats Go code using golangci-lint fmt.
-func FormatTask() *pocket.Task {
+func FormatTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
-		Action: func(ctx context.Context, opts *pocket.TaskOptions) error {
-			configPath, err := golangcilint.ConfigPath()
-			if err != nil {
-				return fmt.Errorf("get golangci-lint config: %w", err)
+		Action: func(ctx context.Context, taskOpts *pocket.TaskOptions) error {
+			configPath := opts.LintConfig
+			if configPath == "" {
+				var err error
+				configPath, err = golangcilint.ConfigPath()
+				if err != nil {
+					return fmt.Errorf("get golangci-lint config: %w", err)
+				}
 			}
 
-			for _, dir := range opts.Paths {
+			for _, dir := range taskOpts.Paths {
 				cmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare golangci-lint: %w", err)
@@ -80,17 +107,21 @@ func FormatTask() *pocket.Task {
 }
 
 // LintTask returns a task that runs golangci-lint.
-func LintTask() *pocket.Task {
+func LintTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
-		Action: func(ctx context.Context, opts *pocket.TaskOptions) error {
-			configPath, err := golangcilint.ConfigPath()
-			if err != nil {
-				return fmt.Errorf("get golangci-lint config: %w", err)
+		Action: func(ctx context.Context, taskOpts *pocket.TaskOptions) error {
+			configPath := opts.LintConfig
+			if configPath == "" {
+				var err error
+				configPath, err = golangcilint.ConfigPath()
+				if err != nil {
+					return fmt.Errorf("get golangci-lint config: %w", err)
+				}
 			}
 
-			for _, dir := range opts.Paths {
+			for _, dir := range taskOpts.Paths {
 				cmd, err := golangcilint.Command(ctx, "run", "--allow-parallel-runners", "-c", configPath, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare golangci-lint: %w", err)
@@ -106,17 +137,20 @@ func LintTask() *pocket.Task {
 }
 
 // TestTask returns a task that runs Go tests with race detection.
-func TestTask() *pocket.Task {
+func TestTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-test",
 		Usage: "run Go tests",
-		Action: func(ctx context.Context, opts *pocket.TaskOptions) error {
-			for _, dir := range opts.Paths {
+		Action: func(ctx context.Context, taskOpts *pocket.TaskOptions) error {
+			for _, dir := range taskOpts.Paths {
 				args := []string{"test"}
 				if pocket.IsVerbose(ctx) {
 					args = append(args, "-v")
 				}
-				args = append(args, "-race", "./...")
+				if opts.testRace() {
+					args = append(args, "-race")
+				}
+				args = append(args, "./...")
 
 				cmd := pocket.Command(ctx, "go", args...)
 				cmd.Dir = pocket.FromGitRoot(dir)
@@ -130,12 +164,12 @@ func TestTask() *pocket.Task {
 }
 
 // VulncheckTask returns a task that runs govulncheck.
-func VulncheckTask() *pocket.Task {
+func VulncheckTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",
-		Action: func(ctx context.Context, opts *pocket.TaskOptions) error {
-			for _, dir := range opts.Paths {
+		Action: func(ctx context.Context, taskOpts *pocket.TaskOptions) error {
+			for _, dir := range taskOpts.Paths {
 				cmd, err := govulncheck.Command(ctx, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare govulncheck: %w", err)
