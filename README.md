@@ -51,15 +51,23 @@ Then run tasks with just `pok <task>`.
 
 ### Configuration
 
+Edit `.pocket/config.go` to configure task groups:
+
 ```go
-pocket.Config{
-    // Go configuration (nil = no Go tasks)
-    Go: &pocket.GoConfig{
-        Modules: map[string]pocket.GoModuleOptions{
-            ".":          {},                         // all tasks enabled
-            "subdir/lib": {SkipFormat: true},         // skip format for this module
-            "generated":  {SkipLint: true},           // skip lint for generated code
-        },
+import (
+    "github.com/fredrikaverpil/pocket"
+    "github.com/fredrikaverpil/pocket/tasks/golang"
+)
+
+var Config = pocket.Config{
+    TaskGroups: []pocket.TaskGroup{
+        golang.New(golang.Config{
+            Modules: map[string]golang.Options{
+                ".":          {},                           // all tasks enabled
+                "subdir/lib": {Skip: []string{"format"}},   // skip format for this module
+                "generated":  {Only: []string{"test"}},     // only run test for generated code
+            },
+        }),
     },
 }
 ```
@@ -75,10 +83,10 @@ import (
 )
 
 var Config = pocket.Config{
-    Go: &pocket.GoConfig{...},
+    TaskGroups: []pocket.TaskGroup{...},
 
-    // Custom tasks per folder
-    Custom: map[string][]goyek.Task{
+    // Custom tasks per module path
+    Tasks: map[string][]goyek.Task{
         ".": {  // available from root ./pok
             {
                 Name:  "deploy",
@@ -99,9 +107,9 @@ For multi-module projects, you can define context-specific tasks that only
 appear when running the shim from that folder:
 
 ```go
-Custom: map[string][]goyek.Task{
+Tasks: map[string][]goyek.Task{
     ".":            {rootTask},
-    "services/api": {apiTask},  // only in ./services/api/pok
+    "services/api": {apiTask},  // only visible from ./services/api/
 }
 ```
 
@@ -160,9 +168,16 @@ rem PowerShell
 
 ### Tasks (goyek tasks)
 
-- What users execute: `go-format`, `python-lint`...
+- What users execute: `go-format`, `go-lint`, `lua-format`...
 - Use tools via their Go API
 - Defined in `tasks/`
+
+### Task Groups
+
+- Group related tasks for a language or purpose (e.g., `golang`, `lua`, `markdown`)
+- Each task group owns its own `Config` and `Options` types
+- Implement the `pocket.TaskGroup` interface
+- Configured in `pocket.Config.TaskGroups`
 
 ## Acknowledgements
 

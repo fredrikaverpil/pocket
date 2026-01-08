@@ -1,26 +1,33 @@
 package main
 
-import "github.com/fredrikaverpil/pocket"
+import (
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tasks/golang"
+	"github.com/fredrikaverpil/pocket/tasks/lua"
+	"github.com/fredrikaverpil/pocket/tasks/markdown"
+)
 
 var Config = pocket.Config{
+	TaskGroups: []pocket.TaskGroup{
+		golang.New(golang.Config{
+			Modules: map[string]golang.Options{
+				".": {},
+			},
+		}),
+		lua.New(lua.Config{
+			Modules: map[string]lua.Options{
+				".": {},
+			},
+		}),
+		markdown.New(markdown.Config{
+			Modules: map[string]markdown.Options{
+				".": {},
+			},
+		}),
+	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
 		Windows:    true,
 		PowerShell: true,
-	},
-	Go: &pocket.GoConfig{
-		Modules: map[string]pocket.GoModuleOptions{
-			".": {},
-		},
-	},
-	Lua: &pocket.LuaConfig{
-		Modules: map[string]pocket.LuaModuleOptions{
-			".": {},
-		},
-	},
-	Markdown: &pocket.MarkdownConfig{
-		Modules: map[string]pocket.MarkdownModuleOptions{
-			".": {},
-		},
 	},
 }

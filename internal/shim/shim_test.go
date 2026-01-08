@@ -117,6 +117,37 @@ func TestCalculatePocketDir_PathSeparators(t *testing.T) {
 	}
 }
 
+// mockTaskGroup is a simple TaskGroup implementation for testing.
+type mockTaskGroup struct {
+	name    string
+	modules map[string]pocket.BaseModuleConfig
+}
+
+func (tg *mockTaskGroup) Name() string { return tg.name }
+
+func (tg *mockTaskGroup) Modules() map[string]pocket.ModuleConfig {
+	result := make(map[string]pocket.ModuleConfig, len(tg.modules))
+	for k, v := range tg.modules {
+		result[k] = v
+	}
+	return result
+}
+
+func (tg *mockTaskGroup) Tasks(_ pocket.Config) []*goyek.DefinedTask { return nil }
+
+func (tg *mockTaskGroup) ForContext(context string) pocket.TaskGroup {
+	if context == "." {
+		return tg
+	}
+	if opts, ok := tg.modules[context]; ok {
+		return &mockTaskGroup{
+			name:    tg.name,
+			modules: map[string]pocket.BaseModuleConfig{context: opts},
+		}
+	}
+	return nil
+}
+
 func TestGenerateWithRoot(t *testing.T) {
 	t.Parallel()
 
@@ -130,10 +161,8 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "root only config",
 			config: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
 				},
 			},
 			wantShims: []string{"pok"},
@@ -147,11 +176,11 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "root and submodule",
 			config: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{
 						".":     {},
-						"tests": {SkipLint: true},
-					},
+						"tests": {Skip: []string{"lint"}},
+					}},
 				},
 			},
 			wantShims: []string{
@@ -168,17 +197,11 @@ func TestGenerateWithRoot(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple language configs",
+			name: "multiple task group configs",
 			config: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
-				},
-				Lua: &pocket.LuaConfig{
-					Modules: map[string]pocket.LuaModuleOptions{
-						"scripts": {},
-					},
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+					&mockTaskGroup{name: "lua", modules: map[string]pocket.BaseModuleConfig{"scripts": {}}},
 				},
 			},
 			wantShims: []string{
@@ -197,14 +220,12 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "custom shim name",
 			config: pocket.Config{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+				},
 				Shim: &pocket.ShimConfig{
 					Name:  "build",
 					Posix: true,
-				},
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
 				},
 			},
 			wantShims: []string{"build"},
@@ -218,11 +239,11 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "deeply nested context",
 			config: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{
 						".":     {},
 						"a/b/c": {},
-					},
+					}},
 				},
 			},
 			wantShims: []string{
@@ -241,7 +262,7 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "custom tasks context",
 			config: pocket.Config{
-				Custom: map[string][]goyek.Task{
+				Tasks: map[string][]goyek.Task{
 					".":      nil, // Root custom tasks.
 					"deploy": nil, // Custom tasks in deploy folder.
 				},
@@ -262,14 +283,12 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "windows shim enabled",
 			config: pocket.Config{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+				},
 				Shim: &pocket.ShimConfig{
 					Posix:   true,
 					Windows: true,
-				},
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
 				},
 			},
 			wantShims: []string{"pok", "pok.cmd"},
@@ -285,14 +304,12 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "powershell shim enabled",
 			config: pocket.Config{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+				},
 				Shim: &pocket.ShimConfig{
 					Posix:      true,
 					PowerShell: true,
-				},
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
 				},
 			},
 			wantShims: []string{"pok", "pok.ps1"},
@@ -308,15 +325,13 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "all shim types enabled",
 			config: pocket.Config{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+				},
 				Shim: &pocket.ShimConfig{
 					Posix:      true,
 					Windows:    true,
 					PowerShell: true,
-				},
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
 				},
 			},
 			wantShims: []string{"pok", "pok.cmd", "pok.ps1"},
@@ -334,13 +349,11 @@ func TestGenerateWithRoot(t *testing.T) {
 		{
 			name: "windows only - no posix",
 			config: pocket.Config{
+				TaskGroups: []pocket.TaskGroup{
+					&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
+				},
 				Shim: &pocket.ShimConfig{
 					Windows: true,
-				},
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
 				},
 			},
 			wantShims: []string{"pok.cmd"},
@@ -462,10 +475,8 @@ func TestGenerateWithRoot_MissingGoMod(t *testing.T) {
 	}
 
 	config := pocket.Config{
-		Go: &pocket.GoConfig{
-			Modules: map[string]pocket.GoModuleOptions{
-				".": {},
-			},
+		TaskGroups: []pocket.TaskGroup{
+			&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
 		},
 	}
 
@@ -495,10 +506,8 @@ func TestGenerateWithRoot_MissingGoDirective(t *testing.T) {
 	}
 
 	config := pocket.Config{
-		Go: &pocket.GoConfig{
-			Modules: map[string]pocket.GoModuleOptions{
-				".": {},
-			},
+		TaskGroups: []pocket.TaskGroup{
+			&mockTaskGroup{name: "go", modules: map[string]pocket.BaseModuleConfig{".": {}}},
 		},
 	}
 

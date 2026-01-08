@@ -2,44 +2,97 @@
 package golang
 
 import (
+	"slices"
+
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 	"github.com/goyek/goyek/v3"
 )
 
-// Tasks holds the goyek tasks for Go operations.
-// Create with NewTasks and register the tasks you need.
-type Tasks struct {
-	config pocket.Config
+const name = "go"
 
-	// Format formats Go code using go fmt.
-	Format *goyek.DefinedTask
-
-	// Test runs Go tests.
-	Test *goyek.DefinedTask
-
-	// Lint runs golangci-lint.
-	Lint *goyek.DefinedTask
-
-	// Vulncheck runs govulncheck.
-	Vulncheck *goyek.DefinedTask
+// Config defines the configuration for the Go task group.
+type Config struct {
+	// Modules maps context paths to module options.
+	// The key is the path relative to the git root (use "." for root).
+	Modules map[string]Options
 }
 
-// NewTasks creates Go tasks for the given config.
-func NewTasks(cfg pocket.Config) *Tasks {
-	cfg = cfg.WithDefaults()
-	t := &Tasks{config: cfg}
+// Options defines options for a Go module.
+type Options struct {
+	// Skip lists task names to skip (e.g., "format", "lint", "test", "vulncheck").
+	Skip []string
+	// Only lists task names to run (empty = run all).
+	// If non-empty, only these tasks run (Skip is ignored).
+	Only []string
+}
 
-	t.Format = goyek.Define(goyek.Task{
+// ShouldRun returns true if the given task should run based on Skip/Only options.
+func (o Options) ShouldRun(task string) bool {
+	if len(o.Only) > 0 {
+		return slices.Contains(o.Only, task)
+	}
+	return !slices.Contains(o.Skip, task)
+}
+
+// New creates a Go task group with the given configuration.
+func New(cfg Config) pocket.TaskGroup {
+	return &taskGroup{config: cfg}
+}
+
+type taskGroup struct {
+	config Config
+}
+
+func (tg *taskGroup) Name() string { return name }
+
+func (tg *taskGroup) Modules() map[string]pocket.ModuleConfig {
+	modules := make(map[string]pocket.ModuleConfig, len(tg.config.Modules))
+	for path, opts := range tg.config.Modules {
+		modules[path] = opts
+	}
+	return modules
+}
+
+func (tg *taskGroup) ForContext(context string) pocket.TaskGroup {
+	if context == "." {
+		return tg
+	}
+	if opts, ok := tg.config.Modules[context]; ok {
+		return &taskGroup{config: Config{
+			Modules: map[string]Options{context: opts},
+		}}
+	}
+	return nil
+}
+
+func (tg *taskGroup) Tasks(cfg pocket.Config) []*goyek.DefinedTask {
+	_ = cfg.WithDefaults()
+	var tasks []*goyek.DefinedTask
+
+	if modules := pocket.ModulesFor(tg, "format"); len(modules) > 0 {
+		tasks = append(tasks, goyek.Define(FormatTask(modules)))
+	}
+	if modules := pocket.ModulesFor(tg, "test"); len(modules) > 0 {
+		tasks = append(tasks, goyek.Define(TestTask(modules)))
+	}
+	if modules := pocket.ModulesFor(tg, "lint"); len(modules) > 0 {
+		tasks = append(tasks, goyek.Define(LintTask(modules)))
+	}
+	if modules := pocket.ModulesFor(tg, "vulncheck"); len(modules) > 0 {
+		tasks = append(tasks, goyek.Define(VulncheckTask(modules)))
+	}
+
+	return tasks
+}
+
+// FormatTask returns a task that formats Go code using golangci-lint fmt.
+func FormatTask(modules []string) goyek.Task {
+	return goyek.Task{
 		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
 		Action: func(a *goyek.A) {
-			modules := cfg.GoModulesForFormat()
-			if len(modules) == 0 {
-				a.Log("no modules configured for format")
-				return
-			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
 				a.Fatalf("get golangci-lint config: %v", err)
@@ -55,17 +108,15 @@ func NewTasks(cfg pocket.Config) *Tasks {
 				}
 			}
 		},
-	})
+	}
+}
 
-	t.Test = goyek.Define(goyek.Task{
+// TestTask returns a task that runs Go tests with race detection.
+func TestTask(modules []string) goyek.Task {
+	return goyek.Task{
 		Name:  "go-test",
 		Usage: "run Go tests",
 		Action: func(a *goyek.A) {
-			modules := cfg.GoModulesForTest()
-			if len(modules) == 0 {
-				a.Log("no modules configured for test")
-				return
-			}
 			for _, mod := range modules {
 				cmd := pocket.Command(a.Context(), "go", "test", "-v", "-race", "./...")
 				cmd.Dir = pocket.FromGitRoot(mod)
@@ -74,17 +125,15 @@ func NewTasks(cfg pocket.Config) *Tasks {
 				}
 			}
 		},
-	})
+	}
+}
 
-	t.Lint = goyek.Define(goyek.Task{
+// LintTask returns a task that runs golangci-lint.
+func LintTask(modules []string) goyek.Task {
+	return goyek.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
 		Action: func(a *goyek.A) {
-			modules := cfg.GoModulesForLint()
-			if len(modules) == 0 {
-				a.Log("no modules configured for lint")
-				return
-			}
 			configPath, err := golangcilint.ConfigPath()
 			if err != nil {
 				a.Fatalf("get golangci-lint config: %v", err)
@@ -107,17 +156,15 @@ func NewTasks(cfg pocket.Config) *Tasks {
 				}
 			}
 		},
-	})
+	}
+}
 
-	t.Vulncheck = goyek.Define(goyek.Task{
+// VulncheckTask returns a task that runs govulncheck.
+func VulncheckTask(modules []string) goyek.Task {
+	return goyek.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",
 		Action: func(a *goyek.A) {
-			modules := cfg.GoModulesForVulncheck()
-			if len(modules) == 0 {
-				a.Log("no modules configured for vulncheck")
-				return
-			}
 			for _, mod := range modules {
 				cmd, err := govulncheck.Command(a.Context(), "./...")
 				if err != nil {
@@ -129,7 +176,5 @@ func NewTasks(cfg pocket.Config) *Tasks {
 				}
 			}
 		},
-	})
-
-	return t
+	}
 }

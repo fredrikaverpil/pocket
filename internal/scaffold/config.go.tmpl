@@ -1,12 +1,16 @@
 package main
 
-import "github.com/fredrikaverpil/pocket"
+import (
+	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tasks/golang"
+)
 
 var Config = pocket.Config{
-	Go: &pocket.GoConfig{
-		Modules: map[string]pocket.GoModuleOptions{
-			".": {},
-		},
+	TaskGroups: []pocket.TaskGroup{
+		golang.New(golang.Config{
+			Modules: map[string]golang.Options{
+				".": {},
+			},
+		}),
 	},
-	GitHub: &pocket.GitHubConfig{},
 }

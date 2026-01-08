@@ -5,6 +5,9 @@ import (
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tasks"
+	"github.com/fredrikaverpil/pocket/tasks/golang"
+	"github.com/fredrikaverpil/pocket/tasks/lua"
+	"github.com/fredrikaverpil/pocket/tasks/markdown"
 	"github.com/goyek/goyek/v3"
 )
 
@@ -23,17 +26,8 @@ func undefineTasks(t *tasks.Tasks) {
 	if t.GitDiff != nil {
 		goyek.Undefine(t.GitDiff)
 	}
-	if t.Go != nil {
-		goyek.Undefine(t.Go.Format)
-		goyek.Undefine(t.Go.Lint)
-		goyek.Undefine(t.Go.Test)
-		goyek.Undefine(t.Go.Vulncheck)
-	}
-	if t.Lua != nil {
-		goyek.Undefine(t.Lua.Format)
-	}
-	if t.Markdown != nil {
-		goyek.Undefine(t.Markdown.Format)
+	for _, task := range t.TaskGroupTasks {
+		goyek.Undefine(task)
 	}
 	for _, custom := range t.Custom {
 		goyek.Undefine(custom)
@@ -47,12 +41,12 @@ func TestNew_CustomTasks(t *testing.T) {
 	}
 
 	cfg := pocket.Config{
-		Custom: map[string][]goyek.Task{
+		Tasks: map[string][]goyek.Task{
 			".": {customTask},
 		},
 	}
 
-	result := tasks.New(cfg)
+	result := tasks.New(cfg, ".")
 	defer undefineTasks(result)
 
 	// Verify custom task is registered.
@@ -79,7 +73,7 @@ func TestNew_CustomTasks(t *testing.T) {
 
 func TestNew_MultipleCustomTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Custom: map[string][]goyek.Task{
+		Tasks: map[string][]goyek.Task{
 			".": {
 				{Name: "deploy", Usage: "deploy the app"},
 				{Name: "release", Usage: "create a release"},
@@ -87,7 +81,7 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 		},
 	}
 
-	result := tasks.New(cfg)
+	result := tasks.New(cfg, ".")
 	defer undefineTasks(result)
 
 	if len(result.Custom) != 2 {
@@ -109,64 +103,51 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 	}
 }
 
-func TestNew_GoTasksConfigDriven(t *testing.T) {
+func TestNew_GoTaskGroupConfigDriven(t *testing.T) {
 	tests := []struct {
 		name          string
-		cfg           pocket.Config
+		taskGroup     pocket.TaskGroup
 		wantInDeps    []string
 		wantNotInDeps []string
 	}{
 		{
 			name: "all Go tasks enabled",
-			cfg: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {},
-					},
+			taskGroup: golang.New(golang.Config{
+				Modules: map[string]golang.Options{
+					".": {},
 				},
-			},
+			}),
 			wantInDeps:    []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: nil,
 		},
 		{
 			name: "skip format excludes go-format from deps",
-			cfg: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {SkipFormat: true},
-					},
+			taskGroup: golang.New(golang.Config{
+				Modules: map[string]golang.Options{
+					".": {Skip: []string{"format"}},
 				},
-			},
+			}),
 			wantInDeps:    []string{"go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: []string{"go-format"},
 		},
 		{
 			name: "skip all excludes all Go tasks from deps",
-			cfg: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".": {
-							SkipFormat:    true,
-							SkipLint:      true,
-							SkipTest:      true,
-							SkipVulncheck: true,
-						},
-					},
+			taskGroup: golang.New(golang.Config{
+				Modules: map[string]golang.Options{
+					".": {Skip: []string{"format", "lint", "test", "vulncheck"}},
 				},
-			},
+			}),
 			wantInDeps:    []string{"generate"},
 			wantNotInDeps: []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 		},
 		{
 			name: "multiple modules with mixed skips",
-			cfg: pocket.Config{
-				Go: &pocket.GoConfig{
-					Modules: map[string]pocket.GoModuleOptions{
-						".":      {SkipFormat: true, SkipLint: true, SkipTest: true, SkipVulncheck: true},
-						"subdir": {}, // This module has all tasks enabled.
-					},
+			taskGroup: golang.New(golang.Config{
+				Modules: map[string]golang.Options{
+					".":      {Skip: []string{"format", "lint", "test", "vulncheck"}},
+					"subdir": {}, // This module has all tasks enabled.
 				},
-			},
+			}),
 			wantInDeps:    []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
 			wantNotInDeps: nil,
 		},
@@ -174,7 +155,10 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tasks.New(tt.cfg)
+			cfg := pocket.Config{
+				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
+			}
+			result := tasks.New(cfg, ".")
 			defer undefineTasks(result)
 
 			allDeps := result.All.Deps()
@@ -199,39 +183,38 @@ func TestNew_GoTasksConfigDriven(t *testing.T) {
 	}
 }
 
-func TestNew_LuaTasksConfigDriven(t *testing.T) {
+func TestNew_LuaTaskGroupConfigDriven(t *testing.T) {
 	tests := []struct {
 		name          string
-		cfg           pocket.Config
+		taskGroup     pocket.TaskGroup
 		wantLuaFormat bool
 	}{
 		{
 			name: "lua format enabled",
-			cfg: pocket.Config{
-				Lua: &pocket.LuaConfig{
-					Modules: map[string]pocket.LuaModuleOptions{
-						".": {},
-					},
+			taskGroup: lua.New(lua.Config{
+				Modules: map[string]lua.Options{
+					".": {},
 				},
-			},
+			}),
 			wantLuaFormat: true,
 		},
 		{
 			name: "lua format skipped",
-			cfg: pocket.Config{
-				Lua: &pocket.LuaConfig{
-					Modules: map[string]pocket.LuaModuleOptions{
-						".": {SkipFormat: true},
-					},
+			taskGroup: lua.New(lua.Config{
+				Modules: map[string]lua.Options{
+					".": {Skip: []string{"format"}},
 				},
-			},
+			}),
 			wantLuaFormat: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tasks.New(tt.cfg)
+			cfg := pocket.Config{
+				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
+			}
+			result := tasks.New(cfg, ".")
 			defer undefineTasks(result)
 
 			allDeps := result.All.Deps()
@@ -251,39 +234,38 @@ func TestNew_LuaTasksConfigDriven(t *testing.T) {
 	}
 }
 
-func TestNew_MarkdownTasksConfigDriven(t *testing.T) {
+func TestNew_MarkdownTaskGroupConfigDriven(t *testing.T) {
 	tests := []struct {
 		name         string
-		cfg          pocket.Config
+		taskGroup    pocket.TaskGroup
 		wantMdFormat bool
 	}{
 		{
 			name: "markdown format enabled",
-			cfg: pocket.Config{
-				Markdown: &pocket.MarkdownConfig{
-					Modules: map[string]pocket.MarkdownModuleOptions{
-						".": {},
-					},
+			taskGroup: markdown.New(markdown.Config{
+				Modules: map[string]markdown.Options{
+					".": {},
 				},
-			},
+			}),
 			wantMdFormat: true,
 		},
 		{
 			name: "markdown format skipped",
-			cfg: pocket.Config{
-				Markdown: &pocket.MarkdownConfig{
-					Modules: map[string]pocket.MarkdownModuleOptions{
-						".": {SkipFormat: true},
-					},
+			taskGroup: markdown.New(markdown.Config{
+				Modules: map[string]markdown.Options{
+					".": {Skip: []string{"format"}},
 				},
-			},
+			}),
 			wantMdFormat: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tasks.New(tt.cfg)
+			cfg := pocket.Config{
+				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
+			}
+			result := tasks.New(cfg, ".")
 			defer undefineTasks(result)
 
 			allDeps := result.All.Deps()
@@ -305,7 +287,7 @@ func TestNew_MarkdownTasksConfigDriven(t *testing.T) {
 
 func TestNew_GenerateAlwaysInDeps(t *testing.T) {
 	// Even with empty config, generate should be in deps.
-	result := tasks.New(pocket.Config{})
+	result := tasks.New(pocket.Config{}, ".")
 	defer undefineTasks(result)
 
 	allDeps := result.All.Deps()
@@ -322,8 +304,8 @@ func TestNew_GenerateAlwaysInDeps(t *testing.T) {
 	}
 }
 
-func TestNew_NoEcosystemsConfigured(t *testing.T) {
-	result := tasks.New(pocket.Config{})
+func TestNew_NoTaskGroupsRegistered(t *testing.T) {
+	result := tasks.New(pocket.Config{}, ".")
 	defer undefineTasks(result)
 
 	// Should have Generate, All, Update, GitDiff defined.
@@ -340,14 +322,88 @@ func TestNew_NoEcosystemsConfigured(t *testing.T) {
 		t.Error("GitDiff task should be defined")
 	}
 
-	// Ecosystem-specific task holders should be nil.
-	if result.Go != nil {
-		t.Error("Go tasks should be nil when not configured")
+	// No task group tasks should be registered.
+	if len(result.TaskGroupTasks) != 0 {
+		t.Errorf("expected 0 task group tasks, got %d", len(result.TaskGroupTasks))
 	}
-	if result.Lua != nil {
-		t.Error("Lua tasks should be nil when not configured")
+}
+
+func TestNew_ContextFiltering(t *testing.T) {
+	// Create a task group with modules in different contexts.
+	goTaskGroup := golang.New(golang.Config{
+		Modules: map[string]golang.Options{
+			".":     {},
+			"tests": {},
+		},
+	})
+
+	cfg := pocket.Config{
+		TaskGroups: []pocket.TaskGroup{goTaskGroup},
+		Tasks: map[string][]goyek.Task{
+			".":      {{Name: "root-task", Usage: "root only"}},
+			"tests":  {{Name: "tests-task", Usage: "tests only"}},
+			"deploy": {{Name: "deploy-task", Usage: "deploy only"}},
+		},
 	}
-	if result.Markdown != nil {
-		t.Error("Markdown tasks should be nil when not configured")
-	}
+
+	t.Run("root context includes all", func(t *testing.T) {
+		result := tasks.New(cfg, ".")
+		defer undefineTasks(result)
+
+		// Should include root custom task and all kit tasks.
+		allDeps := result.All.Deps()
+		names := make(map[string]bool)
+		for _, dep := range allDeps {
+			names[dep.Name()] = true
+		}
+
+		if !names["root-task"] {
+			t.Error("expected root-task in deps for root context")
+		}
+		// Task group tasks should be present.
+		if !names["go-format"] {
+			t.Error("expected go-format in deps for root context")
+		}
+	})
+
+	t.Run("tests context filters to tests only", func(t *testing.T) {
+		result := tasks.New(cfg, "tests")
+		defer undefineTasks(result)
+
+		allDeps := result.All.Deps()
+		names := make(map[string]bool)
+		for _, dep := range allDeps {
+			names[dep.Name()] = true
+		}
+
+		if !names["tests-task"] {
+			t.Error("expected tests-task in deps for tests context")
+		}
+		if names["root-task"] {
+			t.Error("did not expect root-task in deps for tests context")
+		}
+		// Task group should still have tasks since it has a "tests" module.
+		if !names["go-format"] {
+			t.Error("expected go-format in deps for tests context (task group has tests module)")
+		}
+	})
+
+	t.Run("deploy context has no task group tasks", func(t *testing.T) {
+		result := tasks.New(cfg, "deploy")
+		defer undefineTasks(result)
+
+		allDeps := result.All.Deps()
+		names := make(map[string]bool)
+		for _, dep := range allDeps {
+			names[dep.Name()] = true
+		}
+
+		if !names["deploy-task"] {
+			t.Error("expected deploy-task in deps for deploy context")
+		}
+		// Task group doesn't have a deploy module, so no task group tasks.
+		if names["go-format"] {
+			t.Error("did not expect go-format in deps for deploy context (task group has no deploy module)")
+		}
+	})
 }

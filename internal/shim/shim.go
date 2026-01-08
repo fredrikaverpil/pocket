@@ -87,7 +87,7 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 			return fmt.Errorf("parsing %s template: %w", st.name, err)
 		}
 
-		for _, context := range cfg.UniqueModulePaths() {
+		for _, context := range pocket.AllModulePaths(cfg) {
 			if err := generateShim(tmpl, cfg.Shim.Name, st.extension, st.pathSep, goVersion, context, rootDir); err != nil {
 				return fmt.Errorf("generating %s shim for context %q: %w", st.name, context, err)
 			}

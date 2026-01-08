@@ -7,7 +7,7 @@ import (
 	"github.com/goyek/goyek/v3"
 )
 
-func TestConfig_UniqueModulePaths(t *testing.T) {
+func TestConfig_TaskPaths(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -16,50 +16,14 @@ func TestConfig_UniqueModulePaths(t *testing.T) {
 		want   []string
 	}{
 		{
-			name:   "empty config always includes root",
+			name:   "empty config returns empty",
 			config: Config{},
-			want:   []string{"."},
+			want:   []string{},
 		},
 		{
-			name: "go modules only",
+			name: "tasks paths",
 			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {},
-						"tests": {},
-					},
-				},
-			},
-			want: []string{".", "tests"},
-		},
-		{
-			name: "lua modules only",
-			config: Config{
-				Lua: &LuaConfig{
-					Modules: map[string]LuaModuleOptions{
-						".":       {},
-						"scripts": {},
-					},
-				},
-			},
-			want: []string{".", "scripts"},
-		},
-		{
-			name: "markdown modules only",
-			config: Config{
-				Markdown: &MarkdownConfig{
-					Modules: map[string]MarkdownModuleOptions{
-						".":    {},
-						"docs": {},
-					},
-				},
-			},
-			want: []string{".", "docs"},
-		},
-		{
-			name: "custom tasks only",
-			config: Config{
-				Custom: map[string][]goyek.Task{
+				Tasks: map[string][]goyek.Task{
 					".":      nil,
 					"deploy": nil,
 				},
@@ -67,76 +31,24 @@ func TestConfig_UniqueModulePaths(t *testing.T) {
 			want: []string{".", "deploy"},
 		},
 		{
-			name: "multiple language configs with duplicates",
+			name: "nested tasks paths",
 			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {},
-						"tests": {},
-					},
-				},
-				Lua: &LuaConfig{
-					Modules: map[string]LuaModuleOptions{
-						".":       {},
-						"scripts": {},
-						"tests":   {}, // Duplicate with Go.
-					},
-				},
-				Markdown: &MarkdownConfig{
-					Modules: map[string]MarkdownModuleOptions{
-						".":    {},
-						"docs": {},
-					},
+				Tasks: map[string][]goyek.Task{
+					".":     nil,
+					"a/b":   nil,
+					"a/b/c": nil,
 				},
 			},
-			want: []string{".", "docs", "scripts", "tests"},
-		},
-		{
-			name: "all config types combined",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".": {},
-					},
-				},
-				Lua: &LuaConfig{
-					Modules: map[string]LuaModuleOptions{
-						"lua": {},
-					},
-				},
-				Markdown: &MarkdownConfig{
-					Modules: map[string]MarkdownModuleOptions{
-						"docs": {},
-					},
-				},
-				Custom: map[string][]goyek.Task{
-					"deploy": nil,
-				},
-			},
-			want: []string{".", "deploy", "docs", "lua"},
-		},
-		{
-			name: "nested paths",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {},
-						"a/b":   {},
-						"a/b/c": {},
-						"x":     {},
-					},
-				},
-			},
-			want: []string{".", "a/b", "a/b/c", "x"},
+			want: []string{".", "a/b", "a/b/c"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := tt.config.UniqueModulePaths()
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("UniqueModulePaths() = %v, want %v", got, tt.want)
+			got := tt.config.TaskPaths()
+			if !equalStringSlicesUnordered(got, tt.want) {
+				t.Errorf("TaskPaths() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -146,87 +58,39 @@ func TestConfig_ForContext(t *testing.T) {
 	t.Parallel()
 
 	baseConfig := Config{
-		Shim: &ShimConfig{Name: "mypok", Posix: true},
-		Go: &GoConfig{
-			Modules: map[string]GoModuleOptions{
-				".":     {SkipFormat: false},
-				"tests": {SkipLint: true},
-				"cmd":   {SkipTest: true},
-			},
-		},
-		Lua: &LuaConfig{
-			Modules: map[string]LuaModuleOptions{
-				".":       {},
-				"scripts": {SkipFormat: true},
-			},
-		},
-		Markdown: &MarkdownConfig{
-			Modules: map[string]MarkdownModuleOptions{
-				".":    {},
-				"docs": {},
-			},
-		},
-		Custom: map[string][]goyek.Task{
+		Shim:        &ShimConfig{Name: "mypok", Posix: true},
+		SkipGitDiff: true,
+		Tasks: map[string][]goyek.Task{
 			".":      nil,
 			"deploy": nil,
+			"tests":  nil,
 		},
 	}
 
 	tests := []struct {
-		name       string
-		context    string
-		wantHasGo  bool
-		wantHasLua bool
-		wantHasMd  bool
-		wantCustom bool
+		name      string
+		context   string
+		wantTasks bool
 	}{
 		{
-			name:       "root context returns full config",
-			context:    ".",
-			wantHasGo:  true,
-			wantHasLua: true,
-			wantHasMd:  true,
-			wantCustom: true,
+			name:      "root context returns full config",
+			context:   ".",
+			wantTasks: true,
 		},
 		{
-			name:       "tests context has only Go",
-			context:    "tests",
-			wantHasGo:  true,
-			wantHasLua: false,
-			wantHasMd:  false,
-			wantCustom: false,
+			name:      "deploy context has tasks",
+			context:   "deploy",
+			wantTasks: true,
 		},
 		{
-			name:       "scripts context has only Lua",
-			context:    "scripts",
-			wantHasGo:  false,
-			wantHasLua: true,
-			wantHasMd:  false,
-			wantCustom: false,
+			name:      "tests context has tasks",
+			context:   "tests",
+			wantTasks: true,
 		},
 		{
-			name:       "docs context has only Markdown",
-			context:    "docs",
-			wantHasGo:  false,
-			wantHasLua: false,
-			wantHasMd:  true,
-			wantCustom: false,
-		},
-		{
-			name:       "deploy context has only Custom",
-			context:    "deploy",
-			wantHasGo:  false,
-			wantHasLua: false,
-			wantHasMd:  false,
-			wantCustom: true,
-		},
-		{
-			name:       "non-existent context",
-			context:    "nonexistent",
-			wantHasGo:  false,
-			wantHasLua: false,
-			wantHasMd:  false,
-			wantCustom: false,
+			name:      "non-existent context",
+			context:   "nonexistent",
+			wantTasks: false,
 		},
 	}
 
@@ -244,68 +108,29 @@ func TestConfig_ForContext(t *testing.T) {
 				t.Errorf("ForContext(%q).Shim.Name = %q, want %q", tt.context, gotName, baseConfig.Shim.Name)
 			}
 
-			// Verify Go config.
-			if got.HasGo() != tt.wantHasGo {
-				t.Errorf("ForContext(%q).HasGo() = %v, want %v", tt.context, got.HasGo(), tt.wantHasGo)
+			// Verify SkipGitDiff is preserved.
+			if got.SkipGitDiff != baseConfig.SkipGitDiff {
+				t.Errorf(
+					"ForContext(%q).SkipGitDiff = %v, want %v",
+					tt.context,
+					got.SkipGitDiff,
+					baseConfig.SkipGitDiff,
+				)
 			}
 
-			// Verify Lua config.
-			if got.HasLua() != tt.wantHasLua {
-				t.Errorf("ForContext(%q).HasLua() = %v, want %v", tt.context, got.HasLua(), tt.wantHasLua)
+			// Verify Tasks config.
+			hasTasks := len(got.Tasks) > 0
+			if hasTasks != tt.wantTasks {
+				t.Errorf("ForContext(%q) has tasks = %v, want %v", tt.context, hasTasks, tt.wantTasks)
 			}
 
-			// Verify Markdown config.
-			if got.HasMarkdown() != tt.wantHasMd {
-				t.Errorf("ForContext(%q).HasMarkdown() = %v, want %v", tt.context, got.HasMarkdown(), tt.wantHasMd)
-			}
-
-			// Verify Custom config.
-			hasCustom := len(got.Custom) > 0
-			if hasCustom != tt.wantCustom {
-				t.Errorf("ForContext(%q) has custom = %v, want %v", tt.context, hasCustom, tt.wantCustom)
+			// For root context, verify all tasks are included.
+			if tt.context == "." {
+				if len(got.Tasks) != len(baseConfig.Tasks) {
+					t.Errorf("ForContext(.) tasks count = %d, want %d", len(got.Tasks), len(baseConfig.Tasks))
+				}
 			}
 		})
-	}
-}
-
-func TestConfig_ForContext_PreservesModuleOptions(t *testing.T) {
-	t.Parallel()
-
-	config := Config{
-		Go: &GoConfig{
-			Modules: map[string]GoModuleOptions{
-				"tests": {
-					SkipFormat:    true,
-					SkipTest:      false,
-					SkipLint:      true,
-					SkipVulncheck: false,
-				},
-			},
-		},
-	}
-
-	filtered := config.ForContext("tests")
-
-	if !filtered.HasGo() {
-		t.Fatal("ForContext(tests).HasGo() = false, want true")
-	}
-
-	opts, ok := filtered.Go.Modules["tests"]
-	if !ok {
-		t.Fatal("ForContext(tests).Go.Modules[tests] not found")
-	}
-
-	if !opts.SkipFormat {
-		t.Error("SkipFormat = false, want true")
-	}
-	if opts.SkipTest {
-		t.Error("SkipTest = true, want false")
-	}
-	if !opts.SkipLint {
-		t.Error("SkipLint = false, want true")
-	}
-	if opts.SkipVulncheck {
-		t.Error("SkipVulncheck = true, want false")
 	}
 }
 
@@ -316,11 +141,13 @@ func TestConfig_WithDefaults(t *testing.T) {
 		name         string
 		config       Config
 		wantShimName string
+		wantPosix    bool
 	}{
 		{
-			name:         "empty config gets default shim name",
+			name:         "empty config gets default shim name and posix",
 			config:       Config{},
 			wantShimName: "pok",
+			wantPosix:    true,
 		},
 		{
 			name: "custom shim name is preserved",
@@ -328,13 +155,15 @@ func TestConfig_WithDefaults(t *testing.T) {
 				Shim: &ShimConfig{Name: "build", Posix: true},
 			},
 			wantShimName: "build",
+			wantPosix:    true,
 		},
 		{
-			name: "all custom values are preserved",
+			name: "empty shim name gets default",
 			config: Config{
-				Shim: &ShimConfig{Name: "mypok", Posix: true},
+				Shim: &ShimConfig{Posix: true},
 			},
-			wantShimName: "mypok",
+			wantShimName: "pok",
+			wantPosix:    true,
 		},
 	}
 
@@ -343,46 +172,59 @@ func TestConfig_WithDefaults(t *testing.T) {
 			t.Parallel()
 			got := tt.config.WithDefaults()
 
-			if got.Shim == nil || got.Shim.Name != tt.wantShimName {
-				gotName := ""
-				if got.Shim != nil {
-					gotName = got.Shim.Name
-				}
-				t.Errorf("WithDefaults().Shim.Name = %q, want %q", gotName, tt.wantShimName)
+			if got.Shim == nil {
+				t.Fatal("WithDefaults().Shim is nil")
+			}
+			if got.Shim.Name != tt.wantShimName {
+				t.Errorf("WithDefaults().Shim.Name = %q, want %q", got.Shim.Name, tt.wantShimName)
 			}
 		})
 	}
 }
 
-func TestConfig_HasGo(t *testing.T) {
+func TestBaseModuleConfig_ShouldRun(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		config Config
-		want   bool
+		name string
+		opts BaseModuleConfig
+		task string
+		want bool
 	}{
 		{
-			name:   "nil Go config",
-			config: Config{},
-			want:   false,
+			name: "empty options runs all",
+			opts: BaseModuleConfig{},
+			task: "format",
+			want: true,
 		},
 		{
-			name: "empty Go modules",
-			config: Config{
-				Go: &GoConfig{},
-			},
+			name: "skip excludes task",
+			opts: BaseModuleConfig{Skip: []string{"format"}},
+			task: "format",
 			want: false,
 		},
 		{
-			name: "has Go modules",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".": {},
-					},
-				},
-			},
+			name: "skip allows other tasks",
+			opts: BaseModuleConfig{Skip: []string{"format"}},
+			task: "test",
+			want: true,
+		},
+		{
+			name: "only includes specified task",
+			opts: BaseModuleConfig{Only: []string{"format", "test"}},
+			task: "format",
+			want: true,
+		},
+		{
+			name: "only excludes unspecified task",
+			opts: BaseModuleConfig{Only: []string{"format", "test"}},
+			task: "lint",
+			want: false,
+		},
+		{
+			name: "only takes precedence over skip",
+			opts: BaseModuleConfig{Only: []string{"format"}, Skip: []string{"format"}},
+			task: "format",
 			want: true,
 		},
 	}
@@ -390,223 +232,11 @@ func TestConfig_HasGo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tt.config.HasGo(); got != tt.want {
-				t.Errorf("HasGo() = %v, want %v", got, tt.want)
+			got := tt.opts.ShouldRun(tt.task)
+			if got != tt.want {
+				t.Errorf("ShouldRun(%q) = %v, want %v", tt.task, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestConfig_HasLua(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		config Config
-		want   bool
-	}{
-		{
-			name:   "nil Lua config",
-			config: Config{},
-			want:   false,
-		},
-		{
-			name: "empty Lua modules",
-			config: Config{
-				Lua: &LuaConfig{},
-			},
-			want: false,
-		},
-		{
-			name: "has Lua modules",
-			config: Config{
-				Lua: &LuaConfig{
-					Modules: map[string]LuaModuleOptions{
-						".": {},
-					},
-				},
-			},
-			want: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := tt.config.HasLua(); got != tt.want {
-				t.Errorf("HasLua() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConfig_HasMarkdown(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		config Config
-		want   bool
-	}{
-		{
-			name:   "nil Markdown config",
-			config: Config{},
-			want:   false,
-		},
-		{
-			name: "empty Markdown modules",
-			config: Config{
-				Markdown: &MarkdownConfig{},
-			},
-			want: false,
-		},
-		{
-			name: "has Markdown modules",
-			config: Config{
-				Markdown: &MarkdownConfig{
-					Modules: map[string]MarkdownModuleOptions{
-						".": {},
-					},
-				},
-			},
-			want: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := tt.config.HasMarkdown(); got != tt.want {
-				t.Errorf("HasMarkdown() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConfig_GoModulesForFormat(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		config Config
-		want   []string
-	}{
-		{
-			name:   "nil Go config",
-			config: Config{},
-			want:   nil,
-		},
-		{
-			name: "all modules included",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {},
-						"tests": {},
-					},
-				},
-			},
-			want: []string{".", "tests"},
-		},
-		{
-			name: "some modules skipped",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {},
-						"tests": {SkipFormat: true},
-						"cmd":   {},
-					},
-				},
-			},
-			want: []string{".", "cmd"},
-		},
-		{
-			name: "all modules skipped",
-			config: Config{
-				Go: &GoConfig{
-					Modules: map[string]GoModuleOptions{
-						".":     {SkipFormat: true},
-						"tests": {SkipFormat: true},
-					},
-				},
-			},
-			want: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := tt.config.GoModulesForFormat()
-			// Sort for comparison since map iteration order is not guaranteed.
-			if !equalStringSlicesUnordered(got, tt.want) {
-				t.Errorf("GoModulesForFormat() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConfig_GoModulesForTest(t *testing.T) {
-	t.Parallel()
-
-	config := Config{
-		Go: &GoConfig{
-			Modules: map[string]GoModuleOptions{
-				".":     {},
-				"tests": {SkipTest: true},
-				"cmd":   {},
-			},
-		},
-	}
-
-	got := config.GoModulesForTest()
-	want := []string{".", "cmd"}
-
-	if !equalStringSlicesUnordered(got, want) {
-		t.Errorf("GoModulesForTest() = %v, want %v", got, want)
-	}
-}
-
-func TestConfig_GoModulesForLint(t *testing.T) {
-	t.Parallel()
-
-	config := Config{
-		Go: &GoConfig{
-			Modules: map[string]GoModuleOptions{
-				".":     {},
-				"tests": {SkipLint: true},
-				"cmd":   {},
-			},
-		},
-	}
-
-	got := config.GoModulesForLint()
-	want := []string{".", "cmd"}
-
-	if !equalStringSlicesUnordered(got, want) {
-		t.Errorf("GoModulesForLint() = %v, want %v", got, want)
-	}
-}
-
-func TestConfig_GoModulesForVulncheck(t *testing.T) {
-	t.Parallel()
-
-	config := Config{
-		Go: &GoConfig{
-			Modules: map[string]GoModuleOptions{
-				".":     {},
-				"tests": {SkipVulncheck: true},
-				"cmd":   {},
-			},
-		},
-	}
-
-	got := config.GoModulesForVulncheck()
-	want := []string{".", "cmd"}
-
-	if !equalStringSlicesUnordered(got, want) {
-		t.Errorf("GoModulesForVulncheck() = %v, want %v", got, want)
 	}
 }
 
@@ -629,4 +259,227 @@ func equalStringSlicesUnordered(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestAllModulePaths(t *testing.T) {
+	t.Parallel()
+
+	// Create a mock task group for testing.
+	mockTG := &mockTaskGroup{
+		name: "test",
+		modules: map[string]BaseModuleConfig{
+			".":     {},
+			"tests": {},
+		},
+	}
+
+	tests := []struct {
+		name string
+		cfg  Config
+		want []string
+	}{
+		{
+			name: "empty config returns root",
+			cfg:  Config{},
+			want: []string{"."},
+		},
+		{
+			name: "task group paths included",
+			cfg: Config{
+				TaskGroups: []TaskGroup{mockTG},
+			},
+			want: []string{".", "tests"},
+		},
+		{
+			name: "tasks paths included",
+			cfg: Config{
+				Tasks: map[string][]goyek.Task{
+					"deploy": nil,
+				},
+			},
+			want: []string{".", "deploy"},
+		},
+		{
+			name: "task group and tasks paths combined",
+			cfg: Config{
+				TaskGroups: []TaskGroup{mockTG},
+				Tasks: map[string][]goyek.Task{
+					"deploy": nil,
+				},
+			},
+			want: []string{".", "deploy", "tests"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := AllModulePaths(tt.cfg)
+			if !equalStringSlicesUnordered(got, tt.want) {
+				t.Errorf("AllModulePaths() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestModulesFor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		modules map[string]BaseModuleConfig
+		task    string
+		want    []string
+	}{
+		{
+			name:    "nil modules",
+			modules: nil,
+			task:    "format",
+			want:    nil,
+		},
+		{
+			name: "all modules included",
+			modules: map[string]BaseModuleConfig{
+				".":     {},
+				"tests": {},
+			},
+			task: "format",
+			want: []string{".", "tests"},
+		},
+		{
+			name: "some modules skipped",
+			modules: map[string]BaseModuleConfig{
+				".":     {},
+				"tests": {Skip: []string{"format"}},
+				"cmd":   {},
+			},
+			task: "format",
+			want: []string{".", "cmd"},
+		},
+		{
+			name: "all modules skipped",
+			modules: map[string]BaseModuleConfig{
+				".":     {Skip: []string{"format"}},
+				"tests": {Skip: []string{"format"}},
+			},
+			task: "format",
+			want: nil,
+		},
+		{
+			name: "only filter",
+			modules: map[string]BaseModuleConfig{
+				".":     {Only: []string{"test"}},
+				"tests": {Only: []string{"format", "test"}},
+			},
+			task: "format",
+			want: []string{"tests"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tg := &mockTaskGroup{name: "test", modules: tt.modules}
+			got := ModulesFor(tg, tt.task)
+			if !equalStringSlicesUnordered(got, tt.want) {
+				t.Errorf("ModulesFor(%q) = %v, want %v", tt.task, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterTaskGroupsForContext(t *testing.T) {
+	t.Parallel()
+
+	tg1 := &mockTaskGroup{
+		name: "tg1",
+		modules: map[string]BaseModuleConfig{
+			".":     {},
+			"tests": {},
+		},
+	}
+	tg2 := &mockTaskGroup{
+		name: "tg2",
+		modules: map[string]BaseModuleConfig{
+			".":       {},
+			"scripts": {},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		taskGroups  []TaskGroup
+		context     string
+		wantTGNames []string
+	}{
+		{
+			name:        "root returns all",
+			taskGroups:  []TaskGroup{tg1, tg2},
+			context:     ".",
+			wantTGNames: []string{"tg1", "tg2"},
+		},
+		{
+			name:        "tests returns only tg1",
+			taskGroups:  []TaskGroup{tg1, tg2},
+			context:     "tests",
+			wantTGNames: []string{"tg1"},
+		},
+		{
+			name:        "scripts returns only tg2",
+			taskGroups:  []TaskGroup{tg1, tg2},
+			context:     "scripts",
+			wantTGNames: []string{"tg2"},
+		},
+		{
+			name:        "nonexistent returns none",
+			taskGroups:  []TaskGroup{tg1, tg2},
+			context:     "nonexistent",
+			wantTGNames: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := FilterTaskGroupsForContext(tt.taskGroups, tt.context)
+			gotNames := make([]string, len(got))
+			for i, tg := range got {
+				gotNames[i] = tg.Name()
+			}
+			if !reflect.DeepEqual(gotNames, tt.wantTGNames) {
+				t.Errorf("FilterTaskGroupsForContext() names = %v, want %v", gotNames, tt.wantTGNames)
+			}
+		})
+	}
+}
+
+// mockTaskGroup is a simple TaskGroup implementation for testing.
+type mockTaskGroup struct {
+	name    string
+	modules map[string]BaseModuleConfig
+}
+
+func (tg *mockTaskGroup) Name() string { return tg.name }
+
+func (tg *mockTaskGroup) Modules() map[string]ModuleConfig {
+	result := make(map[string]ModuleConfig, len(tg.modules))
+	for k, v := range tg.modules {
+		result[k] = v
+	}
+	return result
+}
+
+func (tg *mockTaskGroup) Tasks(_ Config) []*goyek.DefinedTask { return nil }
+
+func (tg *mockTaskGroup) ForContext(context string) TaskGroup {
+	if context == "." {
+		return tg
+	}
+	if opts, ok := tg.modules[context]; ok {
+		return &mockTaskGroup{
+			name:    tg.name,
+			modules: map[string]BaseModuleConfig{context: opts},
+		}
+	}
+	return nil
 }
