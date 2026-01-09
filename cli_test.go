@@ -43,32 +43,138 @@ func TestPrintTaskHelp_WithArgs(t *testing.T) {
 	}
 }
 
-func TestParseKeyValue(t *testing.T) {
+func TestParseTaskArgs(t *testing.T) {
 	tests := []struct {
-		input   string
-		wantKey string
-		wantVal string
-		wantOK  bool
+		name        string
+		args        []string
+		wantArgs    map[string]string
+		wantHelp    bool
+		wantErr     bool
+		errContains string
 	}{
-		{"name=world", "name", "world", true},
-		{"count=10", "count", "10", true},
-		{"empty=", "empty", "", true},
-		{"with=equals=sign", "with", "equals=sign", true},
-		{"noequals", "", "", false},
+		{
+			name:     "empty args",
+			args:     []string{},
+			wantArgs: map[string]string{},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "-key=value format",
+			args:     []string{"-name=world"},
+			wantArgs: map[string]string{"name": "world"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "-key value format",
+			args:     []string{"-name", "world"},
+			wantArgs: map[string]string{"name": "world"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "multiple args with mixed formats",
+			args:     []string{"-name=Claude", "-count", "10"},
+			wantArgs: map[string]string{"name": "Claude", "count": "10"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "value with equals sign",
+			args:     []string{"-filter=key=value"},
+			wantArgs: map[string]string{"filter": "key=value"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "empty value",
+			args:     []string{"-empty="},
+			wantArgs: map[string]string{"empty": ""},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "value with spaces",
+			args:     []string{"-msg=hello world"},
+			wantArgs: map[string]string{"msg": "hello world"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "value with spaces using space separator",
+			args:     []string{"-msg", "hello world"},
+			wantArgs: map[string]string{"msg": "hello world"},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "help flag",
+			args:     []string{"-h"},
+			wantArgs: nil,
+			wantHelp: true,
+			wantErr:  false,
+		},
+		{
+			name:     "help flag after args",
+			args:     []string{"-name=world", "-h"},
+			wantArgs: nil,
+			wantHelp: true,
+			wantErr:  false,
+		},
+		{
+			name:        "missing dash prefix",
+			args:        []string{"name=world"},
+			wantArgs:    nil,
+			wantHelp:    false,
+			wantErr:     true,
+			errContains: "expected -key=value or -key value",
+		},
+		{
+			name:        "missing value for space format",
+			args:        []string{"-name"},
+			wantArgs:    nil,
+			wantHelp:    false,
+			wantErr:     true,
+			errContains: "missing value for argument -name",
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			key, val, ok := strings.Cut(tt.input, "=")
-			if ok != tt.wantOK {
-				t.Errorf("Cut(%q): got ok=%v, want %v", tt.input, ok, tt.wantOK)
-			}
-			if ok {
-				if key != tt.wantKey {
-					t.Errorf("Cut(%q): got key=%q, want %q", tt.input, key, tt.wantKey)
+		t.Run(tt.name, func(t *testing.T) {
+			gotArgs, gotHelp, err := parseTaskArgs(tt.args)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("parseTaskArgs(%v): expected error containing %q, got nil", tt.args, tt.errContains)
+				} else if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("parseTaskArgs(%v): error %q does not contain %q", tt.args, err.Error(), tt.errContains)
 				}
-				if val != tt.wantVal {
-					t.Errorf("Cut(%q): got val=%q, want %q", tt.input, val, tt.wantVal)
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseTaskArgs(%v): unexpected error: %v", tt.args, err)
+				return
+			}
+
+			if gotHelp != tt.wantHelp {
+				t.Errorf("parseTaskArgs(%v): got help=%v, want %v", tt.args, gotHelp, tt.wantHelp)
+			}
+
+			if tt.wantHelp {
+				return
+			}
+
+			if len(gotArgs) != len(tt.wantArgs) {
+				t.Errorf("parseTaskArgs(%v): got %d args, want %d", tt.args, len(gotArgs), len(tt.wantArgs))
+			}
+
+			for k, wantV := range tt.wantArgs {
+				if gotV, ok := gotArgs[k]; !ok {
+					t.Errorf("parseTaskArgs(%v): missing key %q", tt.args, k)
+				} else if gotV != wantV {
+					t.Errorf("parseTaskArgs(%v): key %q = %q, want %q", tt.args, k, gotV, wantV)
 				}
 			}
 		})

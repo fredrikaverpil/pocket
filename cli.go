@@ -83,15 +83,17 @@ func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) 
 		}
 		taskToRun = t
 
-		// Remaining args are key=value pairs.
-		taskArgs = make(map[string]string)
-		for _, arg := range args[1:] {
-			key, value, ok := strings.Cut(arg, "=")
-			if !ok {
-				fmt.Fprintf(os.Stderr, "invalid argument %q: expected key=value format\n", arg)
-				return 1
-			}
-			taskArgs[key] = value
+		// Parse remaining args as -key=value or -key value pairs.
+		var helpRequested bool
+		var err error
+		taskArgs, helpRequested, err = parseTaskArgs(args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			return 1
+		}
+		if helpRequested {
+			printTaskHelp(taskToRun)
+			return 0
 		}
 	}
 
@@ -166,10 +168,10 @@ func isTaskVisibleIn(taskName, cwd string, pathMappings map[string]*PathFilter) 
 
 // printHelp prints the help message with available tasks.
 func printHelp(tasks []*Task, defaultTask *Task) {
-	fmt.Println("Usage: pok [flags] <task> [args...]")
+	fmt.Println("Usage: pok [flags] <task> [-key=value ...]")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  -h         show help (use -h <task> for task help)")
+	fmt.Println("  -h         show help (use -h <task> or <task> -h for task help)")
 	fmt.Println("  -v         verbose output")
 	fmt.Println()
 
@@ -236,7 +238,39 @@ func printTaskHelp(t *Task) {
 
 	fmt.Printf("\nExample:\n  pok %s", t.Name)
 	for _, arg := range t.Args {
-		fmt.Printf(" %s=<value>", arg.Name)
+		fmt.Printf(" -%s=<value>", arg.Name)
 	}
 	fmt.Println()
+}
+
+// parseTaskArgs parses task arguments from command line args.
+// It supports two formats: -key=value and -key value.
+// Returns:
+//   - parsed args map
+//   - helpRequested: true if -h was found in args
+//   - error: if parsing fails
+func parseTaskArgs(args []string) (map[string]string, bool, error) {
+	taskArgs := make(map[string]string)
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "-h" {
+			return nil, true, nil
+		}
+		if !strings.HasPrefix(arg, "-") {
+			return nil, false, fmt.Errorf("invalid argument %q: expected -key=value or -key value format", arg)
+		}
+		key := strings.TrimPrefix(arg, "-")
+		if k, v, ok := strings.Cut(key, "="); ok {
+			// -key=value format
+			taskArgs[k] = v
+		} else {
+			// -key value format
+			if i+1 >= len(args) {
+				return nil, false, fmt.Errorf("missing value for argument -%s", key)
+			}
+			i++
+			taskArgs[key] = args[i]
+		}
+	}
+	return taskArgs, false, nil
 }

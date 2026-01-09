@@ -150,7 +150,7 @@ var Config = pocket.Config{
 
 ### Tasks with arguments
 
-Tasks can accept runtime arguments via `key=value` syntax:
+Tasks can accept runtime arguments via `-key=value` syntax:
 
 ```go
 var deployTask = &pocket.Task{
@@ -168,7 +168,8 @@ var deployTask = &pocket.Task{
 
 ```bash
 ./pok deploy              # uses default: staging
-./pok deploy env=prod     # override: prod
+./pok deploy -env=prod    # override: prod
+./pok deploy -h           # show task-specific help
 ```
 
 ### Path filtering
