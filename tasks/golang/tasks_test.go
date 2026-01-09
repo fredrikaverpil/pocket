@@ -50,7 +50,8 @@ func main() {
 
 	// Verify that go vet ./... from the module directory finds the file.
 	// We use go vet as a proxy since it's always available and tests the ./... pattern.
-	cmd := exec.Command("go", "vet", "./...")
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {

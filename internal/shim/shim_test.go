@@ -309,6 +309,7 @@ func TestGenerateWithRoot_ShimContent(t *testing.T) {
 
 	// Verify Posix shim content.
 	t.Run("posix content", func(t *testing.T) {
+		t.Parallel()
 		content, err := os.ReadFile(filepath.Join(tmpDir, "pok"))
 		if err != nil {
 			t.Fatalf("reading posix shim: %v", err)
@@ -328,6 +329,7 @@ func TestGenerateWithRoot_ShimContent(t *testing.T) {
 
 	// Verify Windows CMD shim content.
 	t.Run("windows content", func(t *testing.T) {
+		t.Parallel()
 		content, err := os.ReadFile(filepath.Join(tmpDir, "pok.cmd"))
 		if err != nil {
 			t.Fatalf("reading windows shim: %v", err)
@@ -344,6 +346,7 @@ func TestGenerateWithRoot_ShimContent(t *testing.T) {
 
 	// Verify PowerShell shim content.
 	t.Run("powershell content", func(t *testing.T) {
+		t.Parallel()
 		content, err := os.ReadFile(filepath.Join(tmpDir, "pok.ps1"))
 		if err != nil {
 			t.Fatalf("reading powershell shim: %v", err)
@@ -406,12 +409,12 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 
 	// Verify shims at each location with correct content.
 	tests := []struct {
-		shimPath       string
-		wantPocketDir  string
-		wantContext    string
-		isPosix        bool
-		isWindows      bool
-		isPowerShell   bool
+		shimPath      string
+		wantPocketDir string
+		wantContext   string
+		isPosix       bool
+		isWindows     bool
+		isPowerShell  bool
 	}{
 		// Root shims
 		{"pok", ".pocket", ".", true, false, false},
@@ -433,6 +436,7 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.shimPath, func(t *testing.T) {
+			t.Parallel()
 			fullPath := filepath.Join(tmpDir, tt.shimPath)
 			content, err := os.ReadFile(fullPath)
 			if err != nil {
