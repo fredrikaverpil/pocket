@@ -239,3 +239,197 @@ func TestCollectModuleDirectories(t *testing.T) {
 		}
 	}
 }
+
+// Task constructor functions for Skip tests.
+func testFormatTask() *Task {
+	return &Task{Name: "test-format", Usage: "format code"}
+}
+
+func testLintTask() *Task {
+	return &Task{Name: "test-lint", Usage: "lint code"}
+}
+
+func testBuildTask() *Task {
+	return &Task{Name: "test-build", Usage: "build code"}
+}
+
+// Task constructor with options (like golang.TestTask).
+type testOptions struct {
+	Verbose bool
+}
+
+func testTaskWithOptions(_ testOptions) *Task {
+	return &Task{Name: "test-with-options", Usage: "task with options"}
+}
+
+func TestExtractTaskName(t *testing.T) {
+	tests := []struct {
+		name     string
+		fn       any
+		expected string
+	}{
+		{
+			name:     "simple task constructor",
+			fn:       testFormatTask,
+			expected: "test-format",
+		},
+		{
+			name:     "task constructor with options",
+			fn:       testTaskWithOptions,
+			expected: "test-with-options",
+		},
+		{
+			name:     "non-function",
+			fn:       "not a function",
+			expected: "",
+		},
+		{
+			name:     "nil",
+			fn:       nil,
+			expected: "",
+		},
+		{
+			name:     "wrong return type",
+			fn:       func() string { return "not a task" },
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractTaskName(tt.fn)
+			if got != tt.expected {
+				t.Errorf("extractTaskName() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPaths_Skip(t *testing.T) {
+	task1 := testFormatTask()
+	task2 := testLintTask()
+	task3 := testBuildTask()
+
+	r := &mockRunnable{tasks: []*Task{task1, task2, task3}}
+	p := Paths(r).In(".").Skip(testLintTask)
+
+	// Tasks() should exclude the skipped task.
+	tasks := p.Tasks()
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks, got %d", len(tasks))
+	}
+	for _, task := range tasks {
+		if task.Name == "test-lint" {
+			t.Error("expected test-lint to be excluded from Tasks()")
+		}
+	}
+}
+
+func TestPaths_Skip_Multiple(t *testing.T) {
+	task1 := testFormatTask()
+	task2 := testLintTask()
+	task3 := testBuildTask()
+
+	r := &mockRunnable{tasks: []*Task{task1, task2, task3}}
+	p := Paths(r).In(".").Skip(testLintTask, testBuildTask)
+
+	tasks := p.Tasks()
+	if len(tasks) != 1 {
+		t.Errorf("expected 1 task, got %d", len(tasks))
+	}
+	if tasks[0].Name != "test-format" {
+		t.Errorf("expected test-format, got %s", tasks[0].Name)
+	}
+}
+
+func TestPaths_Skip_Immutability(t *testing.T) {
+	task1 := testFormatTask()
+	task2 := testLintTask()
+
+	r := &mockRunnable{tasks: []*Task{task1, task2}}
+	p1 := Paths(r).In(".")
+	p2 := p1.Skip(testLintTask)
+
+	// p1 should still have both tasks.
+	if len(p1.Tasks()) != 2 {
+		t.Error("p1 should still have 2 tasks (immutability violated)")
+	}
+	// p2 should have only 1 task.
+	if len(p2.Tasks()) != 1 {
+		t.Error("p2 should have 1 task")
+	}
+}
+
+func TestPaths_Skip_Run(t *testing.T) {
+	var executed []string
+
+	task1 := &Task{
+		Name: "task1",
+		Action: func(_ context.Context, _ *RunContext) error {
+			executed = append(executed, "task1")
+			return nil
+		},
+	}
+	task2 := &Task{
+		Name: "task2",
+		Action: func(_ context.Context, _ *RunContext) error {
+			executed = append(executed, "task2")
+			return nil
+		},
+	}
+	task3 := &Task{
+		Name: "task3",
+		Action: func(_ context.Context, _ *RunContext) error {
+			executed = append(executed, "task3")
+			return nil
+		},
+	}
+
+	// Create a runnable that runs all tasks.
+	runnable := &runnableWithTasks{
+		tasks: []*Task{task1, task2, task3},
+		runFn: func(ctx context.Context) error {
+			for _, task := range []*Task{task1, task2, task3} {
+				if err := task.Run(ctx); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+
+	// Skip task2 using task name directly (simulating extractTaskName result).
+	p := &PathFilter{
+		inner: runnable,
+		skip:  []string{"task2"},
+	}
+
+	ctx := context.Background()
+	if err := p.Run(ctx); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	// task1 and task3 should have executed, but not task2.
+	if len(executed) != 2 {
+		t.Errorf("expected 2 tasks to execute, got %d: %v", len(executed), executed)
+	}
+	for _, name := range executed {
+		if name == "task2" {
+			t.Error("task2 should have been skipped")
+		}
+	}
+}
+
+// runnableWithTasks is a helper for testing that allows custom run behavior.
+type runnableWithTasks struct {
+	tasks []*Task
+	runFn func(ctx context.Context) error
+}
+
+func (r *runnableWithTasks) Run(ctx context.Context) error {
+	return r.runFn(ctx)
+}
+
+func (r *runnableWithTasks) Tasks() []*Task {
+	return r.tasks
+}

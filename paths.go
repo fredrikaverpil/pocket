@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -104,6 +105,7 @@ type PathFilter struct {
 	include []*regexp.Regexp // explicit include patterns
 	exclude []*regexp.Regexp // exclusion patterns
 	detect  func() []string  // detection function (nil = no detection)
+	skip    []string         // task names to skip
 }
 
 // In adds include patterns (regexp).
@@ -151,6 +153,60 @@ func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
 	cp := p.clone()
 	cp.detect = fn
 	return cp
+}
+
+// Skip excludes specific tasks from execution.
+// Accepts task constructor functions (e.g., golang.TestTask) and uses reflection
+// to extract task names. The tasks will be skipped during Run() and excluded
+// from Tasks() results.
+// Returns a new *PathFilter (immutable).
+func (p *PathFilter) Skip(taskFns ...any) *PathFilter {
+	cp := p.clone()
+	for _, fn := range taskFns {
+		name := extractTaskName(fn)
+		if name != "" {
+			cp.skip = append(cp.skip, name)
+		}
+	}
+	return cp
+}
+
+// extractTaskName uses reflection to call a task constructor function
+// with zero-value arguments and extract the task name.
+func extractTaskName(fn any) string {
+	v := reflect.ValueOf(fn)
+	if v.Kind() != reflect.Func {
+		return ""
+	}
+
+	t := v.Type()
+	// Must return exactly one value of type *Task.
+	if t.NumOut() != 1 {
+		return ""
+	}
+	outType := t.Out(0)
+	taskPtrType := reflect.TypeFor[*Task]()
+	if outType != taskPtrType {
+		return ""
+	}
+
+	// Build zero-value arguments.
+	args := make([]reflect.Value, t.NumIn())
+	for i := range args {
+		args[i] = reflect.Zero(t.In(i))
+	}
+
+	// Call the function.
+	results := v.Call(args)
+	if len(results) == 0 {
+		return ""
+	}
+
+	task, ok := results[0].Interface().(*Task)
+	if !ok || task == nil {
+		return ""
+	}
+	return task.Name
 }
 
 // Resolve returns all directories where this Runnable should run.
@@ -236,12 +292,28 @@ func (p *PathFilter) Run(ctx context.Context) error {
 		task.SetPaths(paths)
 	}
 
+	// Set skip list in context so tasks can check if they should be skipped.
+	if len(p.skip) > 0 {
+		ctx = withSkipList(ctx, p.skip)
+	}
+
 	return p.inner.Run(ctx)
 }
 
-// Tasks returns all tasks from the inner Runnable.
+// Tasks returns all tasks from the inner Runnable, excluding skipped tasks.
 func (p *PathFilter) Tasks() []*Task {
-	return p.inner.Tasks()
+	tasks := p.inner.Tasks()
+	if len(p.skip) == 0 {
+		return tasks
+	}
+	// Filter out skipped tasks.
+	result := make([]*Task, 0, len(tasks))
+	for _, task := range tasks {
+		if !slices.Contains(p.skip, task.Name) {
+			result = append(result, task)
+		}
+	}
+	return result
 }
 
 // clone creates a shallow copy of PathFilter for immutability.
@@ -251,6 +323,7 @@ func (p *PathFilter) clone() *PathFilter {
 		include: slices.Clone(p.include),
 		exclude: slices.Clone(p.exclude),
 		detect:  p.detect,
+		skip:    slices.Clone(p.skip),
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 )
 
@@ -48,6 +49,8 @@ const (
 	verboseKey contextKey = iota
 	// cwdKey is the context key for current working directory (relative to git root).
 	cwdKey
+	// skipKey is the context key for the list of task names to skip.
+	skipKey
 )
 
 // WithVerbose returns a context with verbose mode set.
@@ -76,6 +79,19 @@ func CwdFromContext(ctx context.Context) string {
 	return "."
 }
 
+// withSkipList returns a context with the skip list set.
+func withSkipList(ctx context.Context, names []string) context.Context {
+	return context.WithValue(ctx, skipKey, names)
+}
+
+// isSkipped returns true if the task name is in the skip list.
+func isSkipped(ctx context.Context, name string) bool {
+	if names, ok := ctx.Value(skipKey).([]string); ok {
+		return slices.Contains(names, name)
+	}
+	return false
+}
+
 // SetArgs sets the arguments for this task execution.
 // Arguments are merged with defaults defined in Args.
 func (t *Task) SetArgs(args map[string]string) {
@@ -97,7 +113,12 @@ func (t *Task) SetPaths(paths []string) {
 
 // Run executes the task's action exactly once.
 // Implements the Runnable interface.
+// If the task is in the skip list (set via PathFilter.Skip), it returns nil immediately.
 func (t *Task) Run(ctx context.Context) error {
+	// Check if this task should be skipped (before once.Do so it can run later if not skipped).
+	if isSkipped(ctx, t.Name) {
+		return nil
+	}
 	t.once.Do(func() {
 		if t.Action == nil {
 			return
