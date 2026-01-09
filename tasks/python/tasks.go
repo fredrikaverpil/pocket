@@ -68,7 +68,7 @@ func FormatTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-format",
 		Usage: "format Python files",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error
@@ -77,13 +77,12 @@ func FormatTask(opts Options) *pocket.Task {
 					return fmt.Errorf("get ruff config: %w", err)
 				}
 			}
-
-			for _, dir := range taskOpts.Paths {
+			return rc.ForEachPath(func(dir string) error {
 				if err := ruff.Run(ctx, "format", "--config", configPath, dir); err != nil {
 					return fmt.Errorf("ruff format failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }
@@ -93,7 +92,7 @@ func LintTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-lint",
 		Usage: "lint Python files",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error
@@ -102,13 +101,12 @@ func LintTask(opts Options) *pocket.Task {
 					return fmt.Errorf("get ruff config: %w", err)
 				}
 			}
-
-			for _, dir := range taskOpts.Paths {
+			return rc.ForEachPath(func(dir string) error {
 				if err := ruff.Run(ctx, "check", "--config", configPath, dir); err != nil {
 					return fmt.Errorf("ruff check failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }
@@ -118,13 +116,13 @@ func TypecheckTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-typecheck",
 		Usage: "type-check Python files",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
-			for _, dir := range taskOpts.Paths {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
+			return rc.ForEachPath(func(dir string) error {
 				if err := mypy.Run(ctx, dir); err != nil {
 					return fmt.Errorf("mypy failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }

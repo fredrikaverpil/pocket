@@ -81,7 +81,7 @@ func FormatTask(opts ...Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			configPath := o.LintConfig
 			if configPath == "" {
 				var err error
@@ -90,8 +90,7 @@ func FormatTask(opts ...Options) *pocket.Task {
 					return fmt.Errorf("get golangci-lint config: %w", err)
 				}
 			}
-
-			for _, dir := range taskOpts.Paths {
+			return rc.ForEachPath(func(dir string) error {
 				cmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare golangci-lint: %w", err)
@@ -100,8 +99,8 @@ func FormatTask(opts ...Options) *pocket.Task {
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("golangci-lint fmt failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }
@@ -115,7 +114,7 @@ func LintTask(opts ...Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			configPath := o.LintConfig
 			if configPath == "" {
 				var err error
@@ -124,8 +123,7 @@ func LintTask(opts ...Options) *pocket.Task {
 					return fmt.Errorf("get golangci-lint config: %w", err)
 				}
 			}
-
-			for _, dir := range taskOpts.Paths {
+			return rc.ForEachPath(func(dir string) error {
 				cmd, err := golangcilint.Command(ctx, "run", "--allow-parallel-runners", "-c", configPath, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare golangci-lint: %w", err)
@@ -134,8 +132,8 @@ func LintTask(opts ...Options) *pocket.Task {
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("golangci-lint failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }
@@ -149,8 +147,8 @@ func TestTask(opts ...Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-test",
 		Usage: "run Go tests",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
-			for _, dir := range taskOpts.Paths {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
+			return rc.ForEachPath(func(dir string) error {
 				args := []string{"test"}
 				if pocket.IsVerbose(ctx) {
 					args = append(args, "-v")
@@ -165,8 +163,8 @@ func TestTask(opts ...Options) *pocket.Task {
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("go test failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }
@@ -176,8 +174,8 @@ func VulncheckTask(_ ...Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",
-		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
-			for _, dir := range taskOpts.Paths {
+		Action: func(ctx context.Context, rc *pocket.RunContext) error {
+			return rc.ForEachPath(func(dir string) error {
 				cmd, err := govulncheck.Command(ctx, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare govulncheck: %w", err)
@@ -186,8 +184,8 @@ func VulncheckTask(_ ...Options) *pocket.Task {
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("govulncheck failed in %s: %w", dir, err)
 				}
-			}
-			return nil
+				return nil
+			})
 		},
 	}
 }

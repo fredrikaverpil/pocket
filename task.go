@@ -23,6 +23,17 @@ type RunContext struct {
 	Cwd   string            // current working directory (relative to git root)
 }
 
+// ForEachPath executes fn for each path in the context.
+// This is a convenience helper for the common pattern of iterating over paths.
+func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
+	for _, dir := range rc.Paths {
+		if err := fn(dir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Task represents a runnable task.
 type Task struct {
 	Name    string
