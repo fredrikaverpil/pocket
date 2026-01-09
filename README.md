@@ -3,16 +3,29 @@
 A cross-platform build system. Write tasks, control execution order, and let
 pocket handle tool installation.
 
+> [!NOTE]
+>
+> Pocket is written in Go, but you don't need Go installed to use it. The
+> `./pok` shim (`pok.ps1` on Windows) automatically downloads Go to `.pocket/`
+> if needed.
+
 > [!WARNING]
 >
 > Under heavy development. Breaking changes will occur until the initial
 > release.
 
+## Features
+
+- **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
+- **Task management**: Define tasks with `Serial()` and `Parallel()` execution
+- **Tool management**: Downloads and caches tools in `.pocket/`
+- **Simple invocation**: Just `./pok <task>` or `./pok -h` to list tasks
+
 ## Quickstart
 
 ### Bootstrap
 
-Run in your project root (requires Go):
+This is the only step that requires Go installed. Run in your project root:
 
 ```bash
 go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
@@ -53,6 +66,17 @@ var helloTask = &pocket.Task{
 ./pok hello   # run specific task
 ./pok         # run all tasks
 ```
+
+> [!TIP]
+>
+> **Shim customization:** If you don't like `./pok`, configure a different name
+> in `.pocket/config.go`:
+>
+> ```go
+> Shim: &pocket.ShimConfig{Name: "build"}  // creates ./build instead
+> ```
+>
+> Or add a shell alias: `alias pok='./pok'`
 
 ### Execution order
 
@@ -300,14 +324,6 @@ var Config = pocket.Config{
     },
 }
 ```
-
-### Shim customization
-
-```go
-Shim: &pocket.ShimConfig{Name: "build"}  // creates ./build instead of ./pok
-```
-
-Or use a shell alias: `alias pok='./pok'`
 
 ## Acknowledgements
 
