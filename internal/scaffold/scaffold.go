@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
 	pocket "github.com/fredrikaverpil/pocket"
@@ -103,7 +102,7 @@ func GenerateToolsGoMod() error {
 	}
 
 	// Read Go version from .pocket/go.mod
-	goVersion, err := extractGoVersion(pocket.FromPocketDir())
+	goVersion, err := pocket.GoVersionFromDir(pocket.FromPocketDir())
 	if err != nil {
 		return err
 	}
@@ -122,22 +121,4 @@ func GenerateToolsGoMod() error {
 		return fmt.Errorf("writing tools/go.mod: %w", err)
 	}
 	return nil
-}
-
-// extractGoVersion reads the Go version from go.mod in the given directory.
-func extractGoVersion(dir string) (string, error) {
-	gomodPath := filepath.Join(dir, "go.mod")
-	data, err := os.ReadFile(gomodPath)
-	if err != nil {
-		return "", fmt.Errorf("read go.mod: %w", err)
-	}
-
-	lines := strings.SplitSeq(string(data), "\n")
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if after, ok := strings.CutPrefix(line, "go "); ok {
-			return strings.TrimSpace(after), nil
-		}
-	}
-	return "", fmt.Errorf("no go directive in %s", gomodPath)
 }

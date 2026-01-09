@@ -158,7 +158,7 @@ func TestGenerate_AllShimTypes(t *testing.T) {
 	}
 }
 
-func TestExtractGoVersionFromDir(t *testing.T) {
+func TestGoVersionFromDir(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -208,13 +208,13 @@ func TestExtractGoVersionFromDir(t *testing.T) {
 				t.Fatalf("writing go.mod: %v", err)
 			}
 
-			got, err := extractGoVersionFromDir(tmpDir)
+			got, err := pocket.GoVersionFromDir(tmpDir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("extractGoVersionFromDir() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GoVersionFromDir() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.wantVersion {
-				t.Errorf("extractGoVersionFromDir() = %q, want %q", got, tt.wantVersion)
+				t.Errorf("GoVersionFromDir() = %q, want %q", got, tt.wantVersion)
 			}
 		})
 	}

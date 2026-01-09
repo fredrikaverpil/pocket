@@ -49,7 +49,7 @@ func Generate(cfg pocket.Config) error {
 func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 	cfg = cfg.WithDefaults()
 
-	goVersion, err := extractGoVersionFromDir(filepath.Join(rootDir, pocket.DirName))
+	goVersion, err := pocket.GoVersionFromDir(filepath.Join(rootDir, pocket.DirName))
 	if err != nil {
 		return fmt.Errorf("reading Go version: %w", err)
 	}
@@ -108,29 +108,6 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) error {
 	}
 
 	return nil
-}
-
-// extractGoVersionFromDir reads a go.mod file from the given directory
-// and returns the Go version specified in the "go" directive.
-func extractGoVersionFromDir(dir string) (string, error) {
-	gomodPath := filepath.Join(dir, "go.mod")
-	data, err := os.ReadFile(gomodPath)
-	if err != nil {
-		return "", fmt.Errorf("read go.mod: %w", err)
-	}
-
-	// Parse the go directive from the file.
-	// Look for a line starting with "go " followed by the version.
-	lines := strings.SplitSeq(string(data), "\n")
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if after, ok := strings.CutPrefix(line, "go "); ok {
-			version := after
-			return strings.TrimSpace(version), nil
-		}
-	}
-
-	return "", fmt.Errorf("no go directive in %s", gomodPath)
 }
 
 // generateShimAt creates a single shim at the specified module directory.
