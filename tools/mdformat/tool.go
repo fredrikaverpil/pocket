@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tool"
@@ -45,14 +44,7 @@ func versionHash() string {
 func Prepare(ctx context.Context) error {
 	// Use hash-based versioning: .pocket/tools/mdformat/<hash>/
 	venvDir := pocket.FromToolsDir(name, versionHash())
-
-	// On Windows, venv uses Scripts/ instead of bin/, and .exe extension.
-	var binary string
-	if runtime.GOOS == "windows" {
-		binary = filepath.Join(venvDir, "Scripts", name+".exe")
-	} else {
-		binary = filepath.Join(venvDir, "bin", name)
-	}
+	binary := tool.VenvBinaryPath(venvDir, name)
 
 	// Skip if already installed.
 	if _, err := os.Stat(binary); err == nil {

@@ -58,10 +58,7 @@ func ConfigPath() (string, error) {
 // Prepare ensures stylua is installed.
 func Prepare(ctx context.Context) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
-	binaryName := name
-	if runtime.GOOS == "windows" {
-		binaryName = name + ".exe"
-	}
+	binaryName := pocket.BinaryName(name)
 	binary := filepath.Join(binDir, binaryName)
 
 	binURL := fmt.Sprintf(

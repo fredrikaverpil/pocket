@@ -57,10 +57,7 @@ func venvPython(venvPath string) string {
 // Prepare ensures uv is installed.
 func Prepare(ctx context.Context) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
-	binaryName := name
-	if runtime.GOOS == "windows" {
-		binaryName = name + ".exe"
-	}
+	binaryName := pocket.BinaryName(name)
 	binary := filepath.Join(binDir, binaryName)
 
 	// Windows uses .zip, others use .tar.gz.
