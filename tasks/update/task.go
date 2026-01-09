@@ -26,6 +26,7 @@ func Task(cfg pocket.Config) *pocket.Task {
 			}
 			cmd := pocket.Command(ctx, "go", "get", "-u", "github.com/fredrikaverpil/pocket@latest")
 			cmd.Dir = pocketDir
+			cmd.Env = append(cmd.Env, "GOPROXY=direct")
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("go get -u: %w", err)
 			}
