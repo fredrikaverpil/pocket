@@ -105,14 +105,13 @@ import "github.com/fredrikaverpil/pocket/tools/golangcilint"
 var lintTask = &pocket.Task{
     Name:  "lint",
     Usage: "run linter",
-    Deps:  pocket.Deps(golangcilint.Prepare),  // download tool first
     Action: func(ctx context.Context, opts *pocket.RunContext) error {
         return golangcilint.Run(ctx, "run", "./...")
     },
 }
 ```
 
-The first run downloads the tool; subsequent runs use the cached version.
+Tools are automatically downloaded on first use and cached for subsequent runs.
 
 ## Configuration
 
