@@ -1,84 +1,32 @@
 # pocket
 
-An opinionated build/task system platform.
-
-> [!NOTE]
->
-> Pocket is written in Go, but you don't need Go installed to use it. The
-> `./pok` shim (`pk.ps1` on Windows) automatically downloads Go to `.pocket/` if
-> needed.
-
-> [!TIP]
->
-> If you don't agree with Pocket's opinonated tasks, fork it!\
-> You can still leverage both tools and tasks from Pocket, but from your own
-> fork; your own platform.
+A cross-platform build system for Go projects. Write tasks, control execution
+order, and let pocket handle tool installation.
 
 > [!WARNING]
 >
-> Under heavy development. Breaking changes will occur until the initial release
-> happens.
->
-> Feedback is welcome!
-
-## Features
-
-- **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
-- **Task management**: Defines tasks like `go-test`, `python-lint`,
-  `md-format`...
-- **Tool management**: Downloads and caches tools in `.pocket/`
-- **Simple invocation**: Just `./pok <task>` or `./pok -h` to list all tasks
+> Under heavy development. Breaking changes will occur until the initial
+> release.
 
 ## Quickstart
 
-### Bootstrap your project with Pocket
+### Bootstrap
 
-This is the only part of Pocket which requires you to have Go installed (could
-be changed in the future). Run the init command in your project root:
+Run in your project root (requires Go):
 
 ```bash
 go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
 ```
 
-This creates:
+This creates `.pocket/` (build module) and `./pok` (wrapper script).
 
-- `.pocket/` - build module with config and tasks
-- `./pok` - wrapper script (or `pok.cmd`/`pok.ps1` on Windows)
+### Your first task
 
-### Run tasks
-
-```bash
-./pok -h         # list all tasks
-./pok            # run all tasks
-./pok update     # update pocket to latest version
-./pok generate   # regenerate "pok" shim(s)
-```
-
-> [!NOTE]
->
-> Pocket comes preloaded with useful tasks and tools, but none enabled out of
-> the box. You have to explicitly define them in `.pocket/config.go` as desired,
-> or make your own. More on that below.
-
-> [!TIP]
->
-> **Shim customization:** If you don't like to type out "`./pok`", configure a
-> different name in `.pocket/config.go`:
->
-> ```go
-> Shim: &pocket.ShimConfig{Name: "build"}  // creates ./build instead
-> ```
->
-> Or add a shell alias: `alias pok='./pok'` if you want to skip having to type
-> out the `./` part
-
-## Configuration
-
-Edit `.pocket/config.go` to define your tasks.
-
-### Defining Tasks
+Edit `.pocket/config.go`:
 
 ```go
+package main
+
 import (
     "context"
     "fmt"
@@ -87,47 +35,100 @@ import (
 )
 
 var Config = pocket.Config{
-    Run: pocket.Serial(
-        lintTask,
-        testTask,
-        buildTask,
-    ),
+    Run: helloTask,
 }
 
-var lintTask = &pocket.Task{
-    Name:  "lint",
-    Usage: "run linter",
+var helloTask = &pocket.Task{
+    Name:  "hello",
+    Usage: "say hello",
     Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        cmd := pocket.Command(ctx, "golangci-lint", "run", "./...")
-        return cmd.Run()
-    },
-}
-
-var testTask = &pocket.Task{
-    Name:  "test",
-    Usage: "run tests",
-    Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        cmd := pocket.Command(ctx, "go", "test", "./...")
-        return cmd.Run()
-    },
-}
-
-var buildTask = &pocket.Task{
-    Name:  "build",
-    Usage: "build the project",
-    Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        fmt.Println("Building...")
-        cmd := pocket.Command(ctx, "go", "build", "./...")
-        return cmd.Run()
+        fmt.Println("Hello from pocket!")
+        return nil
     },
 }
 ```
 
-Tasks appear in `./pok -h` and run as part of `./pok` (no args).
+```bash
+./pok -h      # list tasks
+./pok hello   # run specific task
+./pok         # run all tasks
+```
 
-### Tasks with Arguments
+### Execution order
 
-Tasks can declare arguments that users pass via `key=value` syntax:
+Use `Serial()` and `Parallel()` to control how tasks run:
+
+```go
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        formatTask,          // first
+        pocket.Parallel(     // then these in parallel
+            lintTask,
+            testTask,
+        ),
+        buildTask,           // last
+    ),
+}
+```
+
+### Tool management
+
+Pocket can download and cache tools in `.pocket/tools/`, so you don't need to
+rely on CI to install them. Here's a task that uses golangci-lint:
+
+```go
+import "github.com/fredrikaverpil/pocket/tools/golangcilint"
+
+var lintTask = &pocket.Task{
+    Name:  "lint",
+    Usage: "run linter",
+    Deps:  pocket.Deps(golangcilint.Prepare),  // download tool first
+    Action: func(ctx context.Context, opts *pocket.RunContext) error {
+        return golangcilint.Run(ctx, "run", "./...")
+    },
+}
+```
+
+The first run downloads the tool; subsequent runs use the cached version.
+
+## Configuration
+
+### Tasks with options
+
+For reusable tasks, create functions that accept options:
+
+```go
+type LintOptions struct {
+    ConfigFile string
+    Fix        bool
+}
+
+func LintTask(opts LintOptions) *pocket.Task {
+    return &pocket.Task{
+        Name:  "lint",
+        Usage: "run linter",
+        Action: func(ctx context.Context, _ *pocket.RunContext) error {
+            args := []string{"run"}
+            if opts.ConfigFile != "" {
+                args = append(args, "-c", opts.ConfigFile)
+            }
+            if opts.Fix {
+                args = append(args, "--fix")
+            }
+            args = append(args, "./...")
+            return pocket.Command(ctx, "golangci-lint", args...).Run()
+        },
+    }
+}
+
+var Config = pocket.Config{
+    Run: LintTask(LintOptions{ConfigFile: ".golangci.yml", Fix: true}),
+}
+```
+
+### Tasks with arguments
+
+Tasks can accept runtime arguments via `key=value` syntax:
 
 ```go
 var deployTask = &pocket.Task{
@@ -144,229 +145,40 @@ var deployTask = &pocket.Task{
 ```
 
 ```bash
-./pok deploy              # Deploying to staging...
-./pok deploy env=prod     # Deploying to prod...
-./pok -h deploy           # show task help with arguments
+./pok deploy              # uses default: staging
+./pok deploy env=prod     # override: prod
 ```
 
-### Tasks with Options
+### Path filtering
 
-For reusable tasks that need configuration, create functions that accept
-options:
-
-```go
-// Options for the lint task
-type LintOptions struct {
-    ConfigFile string
-    Fix        bool
-}
-
-// LintTask returns a configured lint task
-func LintTask(opts LintOptions) *pocket.Task {
-    return &pocket.Task{
-        Name:  "lint",
-        Usage: "run linter",
-        Action: func(ctx context.Context, _ *pocket.RunContext) error {
-            cmdArgs := []string{"run"}
-            if opts.ConfigFile != "" {
-                cmdArgs = append(cmdArgs, "-c", opts.ConfigFile)
-            }
-            if opts.Fix {
-                cmdArgs = append(cmdArgs, "--fix")
-            }
-            cmdArgs = append(cmdArgs, "./...")
-            return pocket.Command(ctx, "golangci-lint", cmdArgs...).Run()
-        },
-    }
-}
-
-// Usage in config.go
-var Config = pocket.Config{
-    Run: pocket.Serial(
-        LintTask(LintOptions{
-            ConfigFile: pocket.FromGitRoot(".golangci.yml"),
-            Fix:        true,
-        }),
-    ),
-}
-```
-
-### Grouping Tasks with Options
-
-For related tasks that share configuration, create a struct that implements
-`Runnable` and accepts options:
-
-```go
-type MyOptions struct {
-    ConfigFile string
-    Verbose    bool
-}
-
-func MyTasks(opts MyOptions) pocket.Runnable {
-    return &myTasks{
-        opts:   opts,
-        format: formatTask(opts),
-        lint:   lintTask(opts),
-    }
-}
-
-type myTasks struct {
-    opts   MyOptions
-    format *pocket.Task
-    lint   *pocket.Task
-}
-
-func (m *myTasks) Run(ctx context.Context) error {
-    return pocket.Serial(m.format, m.lint).Run(ctx)
-}
-
-func (m *myTasks) Tasks() []*pocket.Task {
-    return []*pocket.Task{m.format, m.lint}
-}
-
-// Usage
-var Config = pocket.Config{
-    Run: MyTasks(MyOptions{ConfigFile: ".myconfig.yml", Verbose: true}),
-}
-```
-
-Options flow from the group to individual tasks - each task function (like
-`formatTask(opts)`) receives the options and uses them in its Action closure.
-
-### Path Filtering (Multi-Directory Projects)
-
-For monorepos or multi-module projects, use `Paths()` to control where tasks are
-visible:
+For monorepos, use `Paths()` to control where `pok` shims are generated:
 
 ```go
 var Config = pocket.Config{
     Run: pocket.Serial(
-        rootTask,                                  // visible at root only
+        rootTask,                                  // visible at git root only
         pocket.Paths(apiTask).In("services/api"),  // visible in services/api/
         pocket.Paths(webTask).In("services/web"),  // visible in services/web/
     ),
 }
 ```
 
-Tasks are visible based on the current working directory:
-
-- Without `Paths()` wrapper: only visible at git root
-- With `Paths().In(...)`: visible in specified directories (supports regex)
-
 ```go
-// Run in multiple directories
+// Multiple directories
 pocket.Paths(myTask).In("proj1", "proj2")
 
-// Match patterns (regex)
+// Regex patterns
 pocket.Paths(myTask).In("services/.*")
 
 // Exclude directories
 pocket.Paths(myTask).In("services/.*").Except("services/legacy")
 ```
 
-### Execution Order
+Running `./pok` from a subdirectory shows only tasks relevant to that directory.
 
-Use `Serial()` and `Parallel()` to control execution:
+### Bundled task packages
 
-```go
-var Config = pocket.Config{
-    Run: pocket.Serial(
-        formatTask,           // run first
-        pocket.Parallel(      // then these in parallel
-            lintTask,
-            testTask,
-        ),
-        buildTask,            // run last
-    ),
-}
-```
-
-### Multi-Module Projects and Context Awareness
-
-Pocket automatically generates shims in each module directory, making tasks
-context-aware. When you run `./pok` from a subdirectory, only tasks relevant to
-that module are executed.
-
-**Example project structure:**
-
-```
-myproject/
-├── .pocket/           # build configuration
-├── pok                # root shim
-├── go.mod             # root Go module
-├── services/
-│   └── api/
-│       ├── pok        # auto-generated shim for this module
-│       └── go.mod     # separate Go module
-└── libs/
-    └── common/
-        ├── pok        # auto-generated shim for this module
-        └── go.mod     # separate Go module
-```
-
-**How it works:**
-
-1. `./pok generate` creates shims in all detected module directories
-1. Each shim knows its "context" (relative path from repo root)
-1. Running `./pok` from a subdirectory filters tasks to that module only
-
-```bash
-# From repo root - runs tasks on ALL modules
-./pok go-test
-
-# From services/api/ - runs tasks only on that module
-cd services/api
-./pok go-test
-```
-
-This enables focused workflows in large monorepos while keeping a single
-configuration in `.pocket/config.go`.
-
-### Windows Support
-
-When bootstrapping, pocket automatically detects your platform:
-
-- **Unix/macOS/WSL**: Creates `./pok` (Posix bash script)
-- **Windows**: Creates `pok.cmd` and `pok.ps1`
-
-To add additional shim types after bootstrapping, update your
-`.pocket/config.go`:
-
-```go
-var Config = pocket.Config{
-    Shim: &pocket.ShimConfig{
-        Posix:      true,   // ./pok (bash) - default
-        Windows:    true,   // pok.cmd (requires Go in PATH)
-        PowerShell: true,   // pok.ps1 (can auto-download Go)
-    },
-    // ... rest of config
-}
-```
-
-After updating the config, run `./pok generate` to create the Windows shims.
-
-**Shim types:**
-
-| Shim          | File      | Go Auto-Download | Notes                        |
-| ------------- | --------- | ---------------- | ---------------------------- |
-| Posix         | `./pok`   | Yes              | Works with bash, Git Bash    |
-| Windows (CMD) | `pok.cmd` | No               | Requires Go in PATH          |
-| PowerShell    | `pok.ps1` | Yes              | Full-featured Windows option |
-
-**Using the shims on Windows:**
-
-```batch
-rem CMD
-pok.cmd go-test
-
-rem PowerShell
-.\pok.ps1 go-test
-```
-
-### Built-in Task Packages (Optional)
-
-Pocket includes opinionated task packages for common languages. These use
-auto-detection to find project directories:
+Pocket includes ready-made task packages for common languages:
 
 ```go
 import (
@@ -378,132 +190,88 @@ import (
 
 var Config = pocket.Config{
     Run: pocket.Serial(
-        pocket.AutoDetect(golang.Tasks()),    // finds go.mod files
-        pocket.AutoDetect(python.Tasks()),    // finds pyproject.toml
-        pocket.AutoDetect(markdown.Tasks()),  // formats markdown from root
+        golang.Tasks(),
+        python.Tasks(),
+        markdown.Tasks(),
     ),
 }
 ```
 
-Available packages:
-
-- `tasks/golang` - Go formatting (gofumpt, goimports), linting (golangci-lint),
-  testing, vulncheck
-- `tasks/python` - Python formatting and linting (ruff), type checking (mypy)
-- `tasks/markdown` - Markdown formatting (mdformat)
-- `tasks/lua` - Lua formatting (stylua)
-
-#### Configuring Built-in Tasks
-
-Each package accepts an optional `Options` struct to customize behavior:
+Configure with options:
 
 ```go
-// Use custom golangci-lint config
-pocket.AutoDetect(golang.Tasks(golang.Options{
-    LintConfig: ".golangci.yml",
-}))
-
-// Use custom ruff config
-pocket.AutoDetect(python.Tasks(python.Options{
-    RuffConfig: "pyproject.toml",
-}))
+golang.Tasks(golang.Options{LintConfig: ".golangci.yml"})
+python.Tasks(python.Options{RuffConfig: "pyproject.toml"})
 ```
 
-Without options, sensible defaults are used (e.g., race detection enabled,
-pocket's bundled configs).
+### Auto-detection
 
-> [!TIP]
->
-> You can combine options with path filtering:
->
-> ```go
-> pocket.AutoDetect(golang.Tasks(golang.Options{
->     LintConfig: ".golangci.yml",
-> })).Except("vendor", "testdata")
-> ```
-
-## Terminology
-
-Pocket has three levels of configuration:
-
-```
-Config (project)
-  └── Runnable (execution tree: Serial, Parallel, Paths wrappers)
-        └── Task (executable unit of work)
-```
-
-### Config ([`config.go`](config.go))
-
-- Project-level configuration
-- Defines the execution tree via `Run`, shim settings, and options
-- Lives in [`.pocket/config.go`](.pocket/config.go)
-
-### Runnable
-
-- Anything that can be executed: `Task`, `Serial()`, `Parallel()`, or
-  `PathFilter`
-- `Serial(...)` runs children in order
-- `Parallel(...)` runs children concurrently
-- `Paths(runnable)` wraps a runnable with path filtering
-
-### PathFilter (Path Filtering)
-
-- Wraps a Runnable with directory-based visibility
-- `Paths(r).In("dir1", "dir2")` - visible in specified directories (supports
-  regex)
-- `Paths(r).Except("vendor")` - exclude directories from visibility
-- Tasks without `Paths()` wrapper are only visible at git root
-
-### Task
-
-- Executable unit of work: `go-format`, `go-lint`, `py-typecheck`...
-- Has `Name`, `Usage`, optional `Args`, and `Action` function
-- Individual tasks: `golang.FormatTask()`, `golang.LintTask()`, etc.
-
-## Convenience Functions
-
-Pocket provides helpers for writing custom tasks:
-
-**Path helpers:**
+For projects with multiple modules, use `AutoDetect()` to automatically find
+directories containing relevant files:
 
 ```go
-pocket.GitRoot()              // returns git repository root path
-pocket.FromGitRoot("subdir")  // joins paths relative to git root
-pocket.FromPocketDir("file")  // joins paths relative to .pocket/
-pocket.FromBinDir("tool")     // joins paths relative to .pocket/bin/
-pocket.BinaryName("mytool")   // appends .exe on Windows
-```
-
-**Execution helpers:**
-
-```go
-// Creates exec.Cmd with PATH including .pocket/bin/
-cmd := pocket.Command(ctx, "go", "build", "./...")
-cmd.Dir = pocket.FromGitRoot("subdir")
-cmd.Run()
-```
-
-**Detection helpers (for Auto mode):**
-
-```go
-pocket.DetectByFile("go.mod")        // finds dirs with go.mod
-pocket.DetectByExtension(".lua")     // finds dirs with .lua files
-```
-
-**Task orchestration:**
-
-```go
-// Run tasks in parallel
-pocket.Parallel(formatTask, lintTask).Run(ctx)
-
-// Run tasks sequentially
-pocket.Serial(formatTask, lintTask, testTask).Run(ctx)
-
-// Check verbose mode
-if pocket.IsVerbose(ctx) {
-    args = append(args, "-v")
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        pocket.AutoDetect(golang.Tasks()),    // finds all go.mod directories
+        pocket.AutoDetect(python.Tasks()),    // finds all pyproject.toml directories
+    ),
 }
 ```
+
+This is opinionated: it runs the same tasks across all detected directories.
+Combine with path filtering for more control:
+
+```go
+pocket.AutoDetect(golang.Tasks()).Except("vendor", "testdata")
+```
+
+## Reference
+
+### Convenience functions
+
+```go
+// Path helpers
+pocket.GitRoot()              // git repository root
+pocket.FromGitRoot("subdir")  // path relative to git root
+pocket.FromPocketDir("file")  // path relative to .pocket/
+pocket.FromBinDir("tool")     // path relative to .pocket/bin/
+pocket.BinaryName("mytool")   // appends .exe on Windows
+
+// Execution
+cmd := pocket.Command(ctx, "go", "build", "./...")  // PATH includes .pocket/bin/
+cmd.Run()
+
+// Detection (for Detectable interface)
+pocket.DetectByFile("go.mod")       // dirs containing file
+pocket.DetectByExtension(".lua")    // dirs containing extension
+```
+
+### Windows support
+
+Pocket auto-detects your platform during bootstrap:
+
+- **Unix/macOS/WSL**: Creates `./pok` (bash script)
+- **Windows**: Creates `pok.cmd` and `pok.ps1`
+
+Add additional shim types in `.pocket/config.go`:
+
+```go
+var Config = pocket.Config{
+    Shim: &pocket.ShimConfig{
+        Posix:      true,   // ./pok
+        Windows:    true,   // pok.cmd
+        PowerShell: true,   // pok.ps1
+    },
+}
+```
+
+### Shim customization
+
+```go
+Shim: &pocket.ShimConfig{Name: "build"}  // creates ./build instead of ./pok
+```
+
+Or use a shell alias: `alias pok='./pok'`
 
 ## Acknowledgements
 
