@@ -3,12 +3,10 @@
 package ruff
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tool"
@@ -63,36 +61,4 @@ func ConfigPath() (string, error) {
 }
 
 // Prepare ensures ruff is installed.
-func Prepare(ctx context.Context) error {
-	// Use version-based path: .pocket/tools/ruff/<version>/
-	venvDir := pocket.FromToolsDir(name, version)
-
-	// On Windows, venv uses Scripts/ instead of bin/, and .exe extension.
-	var binary string
-	if runtime.GOOS == "windows" {
-		binary = filepath.Join(venvDir, "Scripts", name+".exe")
-	} else {
-		binary = filepath.Join(venvDir, "bin", name)
-	}
-
-	// Skip if already installed.
-	if _, err := os.Stat(binary); err == nil {
-		// Ensure symlink/copy exists.
-		_, err := tool.CreateSymlink(binary)
-		return err
-	}
-
-	// Create virtual environment.
-	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
-		return err
-	}
-
-	// Install ruff.
-	if err := uv.PipInstall(ctx, venvDir, name+"=="+version); err != nil {
-		return err
-	}
-
-	// Create symlink (or copy on Windows) to .pocket/bin/.
-	_, err := tool.CreateSymlink(binary)
-	return err
-}
+var Prepare = tool.PythonToolPreparer(name, version, pythonVersion, uv.CreateVenv, uv.PipInstall)
