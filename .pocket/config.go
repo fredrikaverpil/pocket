@@ -10,7 +10,7 @@ import (
 )
 
 var Config = pocket.Config{
-	Run: pocket.Serial(
+	Run: pocket.Parallel(
 		pocket.AutoDetect(golang.Tasks()),
 		pocket.AutoDetect(markdown.Tasks()),
 		greetTask,
