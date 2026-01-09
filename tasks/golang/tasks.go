@@ -33,15 +33,11 @@ func (o Options) testRace() bool {
 // Tasks auto-detect Go modules by finding go.mod files.
 // Use pocket.AutoDetect(golang.Tasks()) to enable path filtering.
 func Tasks(opts ...Options) pocket.Runnable {
-	var o Options
-	if len(opts) > 0 {
-		o = opts[0]
-	}
 	return &goTasks{
-		format:    FormatTask(o),
-		lint:      LintTask(o),
-		test:      TestTask(o),
-		vulncheck: VulncheckTask(o),
+		format:    FormatTask(opts...),
+		lint:      LintTask(opts...),
+		test:      TestTask(opts...),
+		vulncheck: VulncheckTask(opts...),
 	}
 }
 
@@ -77,12 +73,16 @@ func detectModules() []string {
 }
 
 // FormatTask returns a task that formats Go code using golangci-lint fmt.
-func FormatTask(opts Options) *pocket.Task {
+func FormatTask(opts ...Options) *pocket.Task {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &pocket.Task{
 		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
 		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
-			configPath := opts.LintConfig
+			configPath := o.LintConfig
 			if configPath == "" {
 				var err error
 				configPath, err = golangcilint.ConfigPath()
@@ -107,12 +107,16 @@ func FormatTask(opts Options) *pocket.Task {
 }
 
 // LintTask returns a task that runs golangci-lint.
-func LintTask(opts Options) *pocket.Task {
+func LintTask(opts ...Options) *pocket.Task {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &pocket.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
 		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
-			configPath := opts.LintConfig
+			configPath := o.LintConfig
 			if configPath == "" {
 				var err error
 				configPath, err = golangcilint.ConfigPath()
@@ -137,7 +141,11 @@ func LintTask(opts Options) *pocket.Task {
 }
 
 // TestTask returns a task that runs Go tests with race detection.
-func TestTask(opts Options) *pocket.Task {
+func TestTask(opts ...Options) *pocket.Task {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	return &pocket.Task{
 		Name:  "go-test",
 		Usage: "run Go tests",
@@ -147,7 +155,7 @@ func TestTask(opts Options) *pocket.Task {
 				if pocket.IsVerbose(ctx) {
 					args = append(args, "-v")
 				}
-				if opts.testRace() {
+				if o.testRace() {
 					args = append(args, "-race")
 				}
 				args = append(args, "./...")
@@ -164,7 +172,7 @@ func TestTask(opts Options) *pocket.Task {
 }
 
 // VulncheckTask returns a task that runs govulncheck.
-func VulncheckTask(_ Options) *pocket.Task {
+func VulncheckTask(_ ...Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",

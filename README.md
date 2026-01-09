@@ -231,6 +231,36 @@ Combine with path filtering for more control:
 pocket.AutoDetect(golang.Tasks()).Except("vendor", "testdata")
 ```
 
+### Skipping tasks
+
+Use `Skip()` to exclude specific tasks from a task group. This works with any
+task constructor that returns `*pocket.Task`, including bundled packages like
+`golang.TestTask()`.
+
+Skip a task everywhere (global skip):
+
+```go
+pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask())
+```
+
+Skip only in specific directories (path-specific skip):
+
+```go
+pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask(), "docs")
+```
+
+Skip in multiple directories:
+
+```go
+pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask(), "docs", "examples")
+```
+
+Skip multiple tasks by chaining:
+
+```go
+pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask()).Skip(golang.VulncheckTask())
+```
+
 ## Reference
 
 ### Convenience functions
