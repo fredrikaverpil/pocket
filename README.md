@@ -261,6 +261,20 @@ func MySlowTask() *pocket.Task {
 pocket.Paths(myTasks).In(".").Skip(MySlowTask())
 ```
 
+For path-specific skipping, combine `Except()` with explicit path setup:
+
+```go
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        // All detected Go modules except projectX
+        pocket.AutoDetect(golang.Tasks()).Except("projectX"),
+
+        // projectX folder: skip vulncheck
+        pocket.Paths(golang.Tasks()).In("projectX").Skip(golang.VulncheckTask()),
+    ),
+}
+```
+
 Skipped tasks are excluded from both execution and CLI help output.
 
 ## Reference
