@@ -1,7 +1,7 @@
 # pocket
 
-A cross-platform build system for Go projects. Write tasks, control execution
-order, and let pocket handle tool installation.
+A cross-platform build system. Write tasks, control execution order, and let
+pocket handle tool installation.
 
 > [!WARNING]
 >
