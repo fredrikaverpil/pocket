@@ -44,7 +44,7 @@ func Task(cfg pocket.Config) *pocket.Task {
 			if verbose {
 				fmt.Println("Regenerating files")
 			}
-			if err := scaffold.GenerateAll(&cfg); err != nil {
+			if _, err := scaffold.GenerateAll(&cfg); err != nil {
 				return err
 			}
 

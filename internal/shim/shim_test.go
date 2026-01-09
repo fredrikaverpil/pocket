@@ -31,7 +31,7 @@ func TestGenerate_PosixShim(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestGenerate_WindowsShim(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -110,7 +110,7 @@ func TestGenerate_PowerShellShim(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -145,7 +145,7 @@ func TestGenerate_AllShimTypes(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -238,7 +238,7 @@ func TestGenerateWithRoot_MissingGoMod(t *testing.T) {
 		},
 	}
 
-	err := GenerateWithRoot(cfg, tmpDir)
+	_, err := GenerateWithRoot(cfg, tmpDir)
 	if err == nil {
 		t.Error("expected error for missing go.mod, got nil")
 	}
@@ -270,7 +270,7 @@ func TestGenerateWithRoot_MissingGoDirective(t *testing.T) {
 		},
 	}
 
-	err := GenerateWithRoot(cfg, tmpDir)
+	_, err := GenerateWithRoot(cfg, tmpDir)
 	if err == nil {
 		t.Error("expected error for missing go directive, got nil")
 	}
@@ -303,7 +303,7 @@ func TestGenerateWithRoot_ShimContent(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -403,7 +403,7 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestGenerateWithRoot_DeeplyNested(t *testing.T) {
 		},
 	}
 
-	if err := GenerateWithRoot(cfg, tmpDir); err != nil {
+	if _, err := GenerateWithRoot(cfg, tmpDir); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 

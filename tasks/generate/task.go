@@ -4,6 +4,7 @@ package generate
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pocket "github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
@@ -16,11 +17,14 @@ func Task(cfg pocket.Config) *pocket.Task {
 		Usage:   "regenerate all generated files (main.go, shim)",
 		Builtin: true,
 		Action: func(ctx context.Context, _ *pocket.RunContext) error {
-			if err := scaffold.GenerateAll(&cfg); err != nil {
+			shimPaths, err := scaffold.GenerateAll(&cfg)
+			if err != nil {
 				return err
 			}
 			if pocket.IsVerbose(ctx) {
-				fmt.Println("Generated .pocket/main.go and shim")
+				fmt.Printf("Generated .pocket/main.go and shims:\n  %s\n", strings.Join(shimPaths, "\n  "))
+			} else {
+				fmt.Printf("Generated .pocket/main.go and %d shim(s)\n", len(shimPaths))
 			}
 			return nil
 		},

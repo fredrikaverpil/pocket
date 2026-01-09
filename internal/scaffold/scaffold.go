@@ -28,19 +28,20 @@ var toolsGoModTemplate string
 // GenerateAll regenerates all generated files.
 // Creates one-time files (config.go, .gitignore) if they don't exist.
 // Always regenerates main.go and shim.
-func GenerateAll(cfg *pocket.Config) error {
+// Returns the list of generated shim paths relative to the git root.
+func GenerateAll(cfg *pocket.Config) ([]string, error) {
 	pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 
 	// Ensure .pocket/ exists
 	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
-		return fmt.Errorf("creating .pocket/: %w", err)
+		return nil, fmt.Errorf("creating .pocket/: %w", err)
 	}
 
 	// Create config.go if not exists (user-editable, never overwritten)
 	configPath := filepath.Join(pocketDir, "config.go")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if err := os.WriteFile(configPath, ConfigTemplate, 0o644); err != nil {
-			return fmt.Errorf("writing config.go: %w", err)
+			return nil, fmt.Errorf("writing config.go: %w", err)
 		}
 	}
 
@@ -48,20 +49,20 @@ func GenerateAll(cfg *pocket.Config) error {
 	gitignorePath := filepath.Join(pocketDir, ".gitignore")
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
 		if err := os.WriteFile(gitignorePath, GitignoreTemplate, 0o644); err != nil {
-			return fmt.Errorf("writing .gitignore: %w", err)
+			return nil, fmt.Errorf("writing .gitignore: %w", err)
 		}
 	}
 
 	// Always regenerate main.go
 	if err := GenerateMain(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Generate tools/go.mod if tools directory exists (prevents go mod tidy issues)
 	toolsDir := pocket.FromToolsDir()
 	if _, err := os.Stat(toolsDir); err == nil {
 		if err := GenerateToolsGoMod(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -71,11 +72,12 @@ func GenerateAll(cfg *pocket.Config) error {
 	if cfg != nil {
 		shimCfg = *cfg
 	}
-	if err := shim.Generate(shimCfg); err != nil {
-		return err
+	shimPaths, err := shim.Generate(shimCfg)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return shimPaths, nil
 }
 
 // GenerateMain creates or updates .pocket/main.go from the template.

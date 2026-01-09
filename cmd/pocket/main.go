@@ -77,7 +77,7 @@ func runInit() error {
 			PowerShell: runtime.GOOS == "windows",
 		},
 	}
-	if err := scaffold.GenerateAll(cfg); err != nil {
+	if _, err := scaffold.GenerateAll(cfg); err != nil {
 		return fmt.Errorf("generating scaffold: %w", err)
 	}
 
