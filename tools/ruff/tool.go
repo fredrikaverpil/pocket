@@ -3,8 +3,11 @@
 package ruff
 
 import (
+	"context"
 	_ "embed"
+	"os"
 
+	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tool"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
@@ -41,4 +44,27 @@ var configSpec = tool.ConfigSpec{
 var ConfigPath = configSpec.Path
 
 // Prepare ensures ruff is installed.
-var Prepare = tool.PythonToolPreparer(name, version, pythonVersion, uv.CreateVenv, uv.PipInstall)
+func Prepare(ctx context.Context) error {
+	venvDir := pocket.FromToolsDir(name, version)
+	binary := tool.VenvBinaryPath(venvDir, name)
+
+	// Skip if already installed.
+	if _, err := os.Stat(binary); err == nil {
+		_, err := tool.CreateSymlink(binary)
+		return err
+	}
+
+	// Create virtual environment.
+	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
+		return err
+	}
+
+	// Install the package.
+	if err := uv.PipInstall(ctx, venvDir, name+"=="+version); err != nil {
+		return err
+	}
+
+	// Create symlink to .pocket/bin/.
+	_, err := tool.CreateSymlink(binary)
+	return err
+}
