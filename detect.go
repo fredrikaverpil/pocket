@@ -1,11 +1,19 @@
 package pocket
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
+
+// Must panics if err is not nil.
+func Must(err error) {
+	if err != nil {
+		panic(fmt.Sprintf("pocket: %v", err))
+	}
+}
 
 // DetectByFile finds directories containing any of the specified files (e.g., "go.mod").
 // Returns paths relative to git root, sorted alphabetically.
