@@ -69,6 +69,20 @@ func detectModules() []string {
 	return pocket.DetectByFile("go.mod")
 }
 
+// formatCheck runs golangci-lint fmt --diff to check if formatting is needed.
+// Returns true if files need formatting, along with the diff output.
+func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool, output []byte, err error) {
+	cmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "--diff", "./...")
+	if err != nil {
+		return false, nil, fmt.Errorf("prepare golangci-lint: %w", err)
+	}
+	cmd.Dir = dir
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	output, _ = cmd.CombinedOutput()
+	return len(output) > 0, output, nil
+}
+
 // FormatTask returns a task that formats Go code using golangci-lint fmt.
 func FormatTask(opts ...Options) *pocket.Task {
 	var o Options
@@ -90,18 +104,11 @@ func FormatTask(opts ...Options) *pocket.Task {
 			return rc.ForEachPath(func(dir string) error {
 				absDir := pocket.FromGitRoot(dir)
 
-				// Check what needs formatting using --diff.
-				diffCmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "--diff", "./...")
+				needsFormat, diffOutput, err := formatCheck(ctx, configPath, absDir)
 				if err != nil {
-					return fmt.Errorf("prepare golangci-lint: %w", err)
+					return err
 				}
-				diffCmd.Dir = absDir
-				diffCmd.Stdout = nil
-				diffCmd.Stderr = nil
-				diffOutput, _ := diffCmd.CombinedOutput()
-
-				// If no diff output, nothing needs formatting.
-				if len(diffOutput) == 0 {
+				if !needsFormat {
 					pocket.Println(ctx, "No files in need of formatting.")
 					return nil
 				}

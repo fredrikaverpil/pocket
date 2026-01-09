@@ -39,6 +39,19 @@ func (m *mdTasks) DefaultDetect() func() []string {
 	return func() []string { return []string{"."} }
 }
 
+// formatCheck runs mdformat --check to see if formatting is needed.
+// Returns true if files need formatting, along with the check output.
+func formatCheck(ctx context.Context, dir string) (needsFormat bool, output []byte, err error) {
+	cmd, err := mdformat.Command(ctx, "--check", dir)
+	if err != nil {
+		return false, nil, fmt.Errorf("prepare mdformat: %w", err)
+	}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	output, checkErr := cmd.CombinedOutput()
+	return checkErr != nil, output, nil
+}
+
 // FormatTask returns a task that formats Markdown files using mdformat.
 func FormatTask() *pocket.Task {
 	return &pocket.Task{
@@ -48,27 +61,18 @@ func FormatTask() *pocket.Task {
 			return rc.ForEachPath(func(dir string) error {
 				absDir := pocket.FromGitRoot(dir)
 
-				// Run --check first to see which files need formatting.
-				checkCmd, err := mdformat.Command(ctx, "--check", absDir)
+				needsFormat, checkOutput, err := formatCheck(ctx, absDir)
 				if err != nil {
-					return fmt.Errorf("prepare mdformat: %w", err)
+					return err
 				}
-				// Capture output to parse filenames.
-				checkCmd.Stdout = nil
-				checkCmd.Stderr = nil
-				output, checkErr := checkCmd.CombinedOutput()
-
-				// If check passed, nothing to format.
-				if checkErr == nil {
+				if !needsFormat {
 					pocket.Println(ctx, "No files in need of formatting.")
 					return nil
 				}
 
-				// Show files that need formatting.
-				if len(output) > 0 {
-					if pocket.IsVerbose(ctx) {
-						pocket.Printf(ctx, "%s", output)
-					}
+				// Show files that need formatting in verbose mode.
+				if pocket.IsVerbose(ctx) && len(checkOutput) > 0 {
+					pocket.Printf(ctx, "%s", checkOutput)
 				}
 
 				// Now actually format.

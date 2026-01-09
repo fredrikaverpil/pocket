@@ -39,6 +39,19 @@ func (l *luaTasks) DefaultDetect() func() []string {
 	return func() []string { return []string{"."} }
 }
 
+// formatCheck runs stylua --check to see if formatting is needed.
+// Returns true if files need formatting, along with the check output.
+func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool, output []byte, err error) {
+	cmd, err := stylua.Command(ctx, "--check", "-f", configPath, dir)
+	if err != nil {
+		return false, nil, fmt.Errorf("prepare stylua: %w", err)
+	}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	output, checkErr := cmd.CombinedOutput()
+	return checkErr != nil, output, nil
+}
+
 // FormatTask returns a task that formats Lua files using stylua.
 func FormatTask() *pocket.Task {
 	return &pocket.Task{
@@ -52,17 +65,11 @@ func FormatTask() *pocket.Task {
 			return rc.ForEachPath(func(dir string) error {
 				absDir := pocket.FromGitRoot(dir)
 
-				// Check what needs formatting using --check.
-				checkCmd, err := stylua.Command(ctx, "--check", "-f", configPath, absDir)
+				needsFormat, checkOutput, err := formatCheck(ctx, configPath, absDir)
 				if err != nil {
-					return fmt.Errorf("prepare stylua: %w", err)
+					return err
 				}
-				checkCmd.Stdout = nil
-				checkCmd.Stderr = nil
-				checkOutput, checkErr := checkCmd.CombinedOutput()
-
-				// If check passed, nothing needs formatting.
-				if checkErr == nil {
+				if !needsFormat {
 					pocket.Println(ctx, "No files in need of formatting.")
 					return nil
 				}

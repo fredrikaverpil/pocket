@@ -63,6 +63,19 @@ func detectModules() []string {
 	return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
 
+// formatCheck runs ruff format --check --diff to see if formatting is needed.
+// Returns true if files need formatting, along with the diff output.
+func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool, output []byte, err error) {
+	cmd, err := ruff.Command(ctx, "format", "--check", "--diff", "--config", configPath, dir)
+	if err != nil {
+		return false, nil, fmt.Errorf("prepare ruff: %w", err)
+	}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	output, checkErr := cmd.CombinedOutput()
+	return checkErr != nil, output, nil
+}
+
 // FormatTask returns a task that formats Python files using ruff format.
 func FormatTask(opts Options) *pocket.Task {
 	return &pocket.Task{
@@ -78,24 +91,18 @@ func FormatTask(opts Options) *pocket.Task {
 				}
 			}
 			return rc.ForEachPath(func(dir string) error {
-				// Check what needs formatting using --check --diff.
-				checkCmd, err := ruff.Command(ctx, "format", "--check", "--diff", "--config", configPath, dir)
+				needsFormat, diffOutput, err := formatCheck(ctx, configPath, dir)
 				if err != nil {
-					return fmt.Errorf("prepare ruff: %w", err)
+					return err
 				}
-				checkCmd.Stdout = nil
-				checkCmd.Stderr = nil
-				checkOutput, checkErr := checkCmd.CombinedOutput()
-
-				// If check passed, nothing needs formatting.
-				if checkErr == nil {
+				if !needsFormat {
 					pocket.Println(ctx, "No files in need of formatting.")
 					return nil
 				}
 
 				// Show diff in verbose mode.
-				if pocket.IsVerbose(ctx) && len(checkOutput) > 0 {
-					pocket.Printf(ctx, "%s", checkOutput)
+				if pocket.IsVerbose(ctx) && len(diffOutput) > 0 {
+					pocket.Printf(ctx, "%s", diffOutput)
 				}
 
 				// Now actually format.
