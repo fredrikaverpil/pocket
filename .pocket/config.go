@@ -10,13 +10,11 @@ import (
 )
 
 var Config = pocket.Config{
-	TaskGroups: []pocket.TaskGroup{
-		golang.Auto(golang.Options{}),
-		markdown.Auto(markdown.Options{}),
-	},
-	Tasks: map[string][]*pocket.Task{
-		".": {greetTask},
-	},
+	Run: pocket.Serial(
+		pocket.AutoDetect(golang.Tasks()),
+		pocket.AutoDetect(markdown.Tasks()),
+		greetTask,
+	),
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
 		Windows:    true,
@@ -31,8 +29,8 @@ var greetTask = &pocket.Task{
 	Args: []pocket.ArgDef{
 		{Name: "name", Usage: "who to greet", Default: "world"},
 	},
-	Action: func(_ context.Context, args map[string]string) error {
-		fmt.Printf("Hello, %s!\n", args["name"])
+	Action: func(_ context.Context, opts *pocket.RunContext) error {
+		fmt.Printf("Hello, %s!\n", opts.Args["name"])
 		return nil
 	},
 }

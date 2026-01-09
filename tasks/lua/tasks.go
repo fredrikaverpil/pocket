@@ -4,73 +4,61 @@ package lua
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
-// Options defines options for a Lua module within a task group.
-type Options struct {
-	// Skip lists full task names to skip (e.g., "lua-format").
-	Skip []string
+// Options configures the Lua tasks.
+type Options struct{}
 
-	// Task-specific options
-	Format FormatOptions
+// Tasks returns a Runnable that executes all Lua tasks.
+// Runs from repository root since Lua files are typically scattered.
+// Use pocket.AutoDetect(lua.Tasks()) to enable path filtering.
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	return &luaTasks{
+		format: FormatTask(o),
+	}
 }
 
-// ShouldRun returns true if the given task should run based on the Skip list.
-func (o Options) ShouldRun(taskName string) bool {
-	return !slices.Contains(o.Skip, taskName)
+// luaTasks is the Runnable for Lua tasks that also implements Detectable.
+type luaTasks struct {
+	format *pocket.Task
 }
 
-// FormatOptions defines options for the format task.
-type FormatOptions struct {
-	// ConfigFile overrides the default stylua config file.
-	ConfigFile string
+// Run executes all Lua tasks.
+func (l *luaTasks) Run(ctx context.Context) error {
+	return l.format.Run(ctx)
 }
 
-// Group defines the Lua task group.
-var Group = pocket.TaskGroupDef[Options]{
-	Name:   "lua",
-	Detect: func() []string { return []string{"."} }, // Run from root.
-	Tasks: []pocket.TaskDef[Options]{
-		{Name: "lua-format", Create: FormatTask},
-	},
+// Tasks returns all Lua tasks.
+func (l *luaTasks) Tasks() []*pocket.Task {
+	return []*pocket.Task{l.format}
 }
 
-// Auto creates a Lua task group that runs from the repository root.
-// Since Lua files are typically scattered throughout a project,
-// this defaults to running stylua from root rather than detecting individual directories.
-// The defaults parameter specifies default options.
-// Skip patterns can be passed to exclude specific tasks.
-func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Group.Auto(defaults, opts...)
-}
-
-// New creates a Lua task group with explicit module configuration.
-func New(modules map[string]Options) pocket.TaskGroup {
-	return Group.New(modules)
+// DefaultDetect returns a function that detects Lua directories.
+// Returns root since Lua files are typically scattered.
+func (l *luaTasks) DefaultDetect() func() []string {
+	return func() []string { return []string{"."} }
 }
 
 // FormatTask returns a task that formats Lua files using stylua.
-// The modules map specifies which directories to format and their options.
-func FormatTask(modules map[string]Options) *pocket.Task {
+func FormatTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "lua-format",
 		Usage: "format Lua files",
-		Action: func(ctx context.Context, _ map[string]string) error {
-			for mod, opts := range modules {
-				configPath := opts.Format.ConfigFile
-				if configPath == "" {
-					var err error
-					configPath, err = stylua.ConfigPath()
-					if err != nil {
-						return fmt.Errorf("get stylua config: %w", err)
-					}
-				}
-				if err := stylua.Run(ctx, "-f", configPath, mod); err != nil {
-					return fmt.Errorf("stylua format failed in %s: %w", mod, err)
+		Action: func(ctx context.Context, opts *pocket.RunContext) error {
+			configPath, err := stylua.ConfigPath()
+			if err != nil {
+				return fmt.Errorf("get stylua config: %w", err)
+			}
+			for _, dir := range opts.Paths {
+				if err := stylua.Run(ctx, "-f", configPath, pocket.FromGitRoot(dir)); err != nil {
+					return fmt.Errorf("stylua format failed in %s: %w", dir, err)
 				}
 			}
 			return nil

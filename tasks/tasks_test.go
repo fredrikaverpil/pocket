@@ -8,7 +8,6 @@ import (
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tasks"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
-	"github.com/fredrikaverpil/pocket/tasks/lua"
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
@@ -19,183 +18,78 @@ func TestNew_CustomTasks(t *testing.T) {
 	}
 
 	cfg := pocket.Config{
-		Tasks: map[string][]*pocket.Task{
-			".": {customTask},
-		},
+		Run: customTask,
 	}
 
-	result := tasks.New(cfg, ".")
+	result := tasks.New(cfg)
 
 	// Verify custom task is registered.
-	if len(result.Tasks) != 1 {
-		t.Fatalf("expected 1 custom task, got %d", len(result.Tasks))
+	if len(result.UserTasks) != 1 {
+		t.Fatalf("expected 1 custom task, got %d", len(result.UserTasks))
 	}
-	if result.Tasks[0].Name != "my-custom-task" {
-		t.Errorf("expected custom task name 'my-custom-task', got %q", result.Tasks[0].Name)
+	if result.UserTasks[0].Name != "my-custom-task" {
+		t.Errorf("expected custom task name 'my-custom-task', got %q", result.UserTasks[0].Name)
 	}
 }
 
 func TestNew_MultipleCustomTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Tasks: map[string][]*pocket.Task{
-			".": {
-				{Name: "deploy", Usage: "deploy the app"},
-				{Name: "release", Usage: "create a release"},
-			},
-		},
+		Run: pocket.Serial(
+			&pocket.Task{Name: "deploy", Usage: "deploy the app"},
+			&pocket.Task{Name: "release", Usage: "create a release"},
+		),
 	}
 
-	result := tasks.New(cfg, ".")
+	result := tasks.New(cfg)
 
-	if len(result.Tasks) != 2 {
-		t.Fatalf("expected 2 custom tasks, got %d", len(result.Tasks))
+	if len(result.UserTasks) != 2 {
+		t.Fatalf("expected 2 custom tasks, got %d", len(result.UserTasks))
 	}
 }
 
-func TestNew_GoTaskGroupConfigDriven(t *testing.T) {
-	tests := []struct {
-		name         string
-		taskGroup    pocket.TaskGroup
-		wantTasks    []string
-		wantNotTasks []string
-	}{
-		{
-			name: "all Go tasks enabled",
-			taskGroup: golang.New(map[string]golang.Options{
-				".": {},
-			}),
-			wantTasks:    []string{"go-format", "go-lint", "go-test", "go-vulncheck"},
-			wantNotTasks: nil,
-		},
-		{
-			name: "skip format excludes go-format",
-			taskGroup: golang.New(map[string]golang.Options{
-				".": {Skip: []string{"go-format"}},
-			}),
-			wantTasks:    []string{"go-lint", "go-test", "go-vulncheck"},
-			wantNotTasks: []string{"go-format"},
-		},
+func TestNew_GoTasks(t *testing.T) {
+	cfg := pocket.Config{
+		Run: golang.Tasks(),
+	}
+	result := tasks.New(cfg)
+
+	// Check that Go tasks are present.
+	taskNames := make(map[string]bool)
+	for _, task := range result.UserTasks {
+		taskNames[task.Name] = true
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := pocket.Config{
-				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
-			}
-			result := tasks.New(cfg, ".")
-
-			// Build map of task names.
-			taskNames := make(map[string]bool)
-			for _, task := range result.TaskGroupTasks {
-				taskNames[task.Name] = true
-			}
-
-			for _, want := range tt.wantTasks {
-				if !taskNames[want] {
-					t.Errorf("expected %q in tasks, but not found", want)
-				}
-			}
-
-			for _, notWant := range tt.wantNotTasks {
-				if taskNames[notWant] {
-					t.Errorf("expected %q NOT in tasks, but found", notWant)
-				}
-			}
-		})
+	expected := []string{"go-format", "go-lint", "go-test", "go-vulncheck"}
+	for _, name := range expected {
+		if !taskNames[name] {
+			t.Errorf("expected %q in tasks, but not found", name)
+		}
 	}
 }
 
-func TestNew_LuaTaskGroupConfigDriven(t *testing.T) {
-	tests := []struct {
-		name          string
-		taskGroup     pocket.TaskGroup
-		wantLuaFormat bool
-	}{
-		{
-			name: "lua format enabled",
-			taskGroup: lua.New(map[string]lua.Options{
-				".": {},
-			}),
-			wantLuaFormat: true,
-		},
-		{
-			name: "lua format skipped",
-			taskGroup: lua.New(map[string]lua.Options{
-				".": {Skip: []string{"lua-format"}},
-			}),
-			wantLuaFormat: false,
-		},
+func TestNew_MarkdownTasks(t *testing.T) {
+	cfg := pocket.Config{
+		Run: markdown.Tasks(),
+	}
+	result := tasks.New(cfg)
+
+	// Check that markdown tasks are present.
+	var foundMdFormat bool
+	for _, task := range result.UserTasks {
+		if task.Name == "md-format" {
+			foundMdFormat = true
+			break
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := pocket.Config{
-				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
-			}
-			result := tasks.New(cfg, ".")
-
-			found := false
-			for _, task := range result.TaskGroupTasks {
-				if task.Name == "lua-format" {
-					found = true
-					break
-				}
-			}
-
-			if found != tt.wantLuaFormat {
-				t.Errorf("lua-format in tasks = %v, want %v", found, tt.wantLuaFormat)
-			}
-		})
-	}
-}
-
-func TestNew_MarkdownTaskGroupConfigDriven(t *testing.T) {
-	tests := []struct {
-		name         string
-		taskGroup    pocket.TaskGroup
-		wantMdFormat bool
-	}{
-		{
-			name: "markdown format enabled",
-			taskGroup: markdown.New(map[string]markdown.Options{
-				".": {},
-			}),
-			wantMdFormat: true,
-		},
-		{
-			name: "markdown format skipped",
-			taskGroup: markdown.New(map[string]markdown.Options{
-				".": {Skip: []string{"md-format"}},
-			}),
-			wantMdFormat: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := pocket.Config{
-				TaskGroups: []pocket.TaskGroup{tt.taskGroup},
-			}
-			result := tasks.New(cfg, ".")
-
-			found := false
-			for _, task := range result.TaskGroupTasks {
-				if task.Name == "md-format" {
-					found = true
-					break
-				}
-			}
-
-			if found != tt.wantMdFormat {
-				t.Errorf("md-format in tasks = %v, want %v", found, tt.wantMdFormat)
-			}
-		})
+	if !foundMdFormat {
+		t.Error("expected md-format in tasks")
 	}
 }
 
 func TestNew_GenerateAlwaysPresent(t *testing.T) {
 	// Even with empty config, generate should be present.
-	result := tasks.New(pocket.Config{}, ".")
+	result := tasks.New(pocket.Config{})
 
 	if result.Generate == nil {
 		t.Error("'generate' task should always be present")
@@ -205,8 +99,8 @@ func TestNew_GenerateAlwaysPresent(t *testing.T) {
 	}
 }
 
-func TestNew_NoTaskGroupsRegistered(t *testing.T) {
-	result := tasks.New(pocket.Config{}, ".")
+func TestNew_NoRunConfigured(t *testing.T) {
+	result := tasks.New(pocket.Config{})
 
 	// Should have Generate, All, Update, GitDiff defined.
 	if result.Generate == nil {
@@ -222,127 +116,24 @@ func TestNew_NoTaskGroupsRegistered(t *testing.T) {
 		t.Error("GitDiff task should be defined")
 	}
 
-	// No task group tasks should be registered.
-	if len(result.TaskGroupTasks) != 0 {
-		t.Errorf("expected 0 task group tasks, got %d", len(result.TaskGroupTasks))
+	// No user tasks should be registered.
+	if len(result.UserTasks) != 0 {
+		t.Errorf("expected 0 user tasks, got %d", len(result.UserTasks))
 	}
-}
-
-func TestNew_ContextFiltering(t *testing.T) {
-	// Create a task group with modules in different contexts.
-	goTaskGroup := golang.New(map[string]golang.Options{
-		".":     {},
-		"tests": {},
-	})
-
-	cfg := pocket.Config{
-		TaskGroups: []pocket.TaskGroup{goTaskGroup},
-		Tasks: map[string][]*pocket.Task{
-			".":      {{Name: "root-task", Usage: "root only"}},
-			"tests":  {{Name: "tests-task", Usage: "tests only"}},
-			"deploy": {{Name: "deploy-task", Usage: "deploy only"}},
-		},
-	}
-
-	t.Run("root context includes all", func(t *testing.T) {
-		result := tasks.New(cfg, ".")
-
-		// Should include root custom task.
-		found := false
-		for _, task := range result.Tasks {
-			if task.Name == "root-task" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("expected root-task for root context")
-		}
-
-		// Task group tasks should be present.
-		foundFormat := false
-		for _, task := range result.TaskGroupTasks {
-			if task.Name == "go-format" {
-				foundFormat = true
-				break
-			}
-		}
-		if !foundFormat {
-			t.Error("expected go-format for root context")
-		}
-	})
-
-	t.Run("tests context filters to tests only", func(t *testing.T) {
-		result := tasks.New(cfg, "tests")
-
-		// Should include tests custom task.
-		found := false
-		for _, task := range result.Tasks {
-			if task.Name == "tests-task" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("expected tests-task for tests context")
-		}
-
-		// Should NOT include root custom task.
-		foundRoot := false
-		for _, task := range result.Tasks {
-			if task.Name == "root-task" {
-				foundRoot = true
-				break
-			}
-		}
-		if foundRoot {
-			t.Error("did not expect root-task for tests context")
-		}
-	})
-
-	t.Run("deploy context has no task group tasks", func(t *testing.T) {
-		result := tasks.New(cfg, "deploy")
-
-		// Should include deploy custom task.
-		found := false
-		for _, task := range result.Tasks {
-			if task.Name == "deploy-task" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("expected deploy-task for deploy context")
-		}
-
-		// Task group doesn't have a deploy module, so no go-format.
-		foundFormat := false
-		for _, task := range result.TaskGroupTasks {
-			if task.Name == "go-format" {
-				foundFormat = true
-				break
-			}
-		}
-		if foundFormat {
-			t.Error("did not expect go-format for deploy context (task group has no deploy module)")
-		}
-	})
 }
 
 func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	cfg := pocket.Config{
-		TaskGroups: []pocket.TaskGroup{
-			golang.New(map[string]golang.Options{".": {}}),
-		},
-		Tasks: map[string][]*pocket.Task{
-			".": {{Name: "custom", Usage: "custom task"}},
-		},
+		Run: pocket.Serial(
+			golang.Tasks(),
+			&pocket.Task{Name: "custom", Usage: "custom task"},
+		),
 	}
 
-	result := tasks.New(cfg, ".")
+	result := tasks.New(cfg)
 	allTasks := result.AllTasks()
 
-	// Should include All, Generate, Update, GitDiff, task group tasks, and custom tasks.
+	// Should include All, Generate, Update, GitDiff, and user tasks.
 	taskNames := make(map[string]bool)
 	for _, task := range allTasks {
 		taskNames[task.Name] = true
@@ -358,7 +149,6 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 		"go-lint",
 		"go-test",
 		"go-vulncheck",
-		"go-all",
 	}
 	for _, name := range expected {
 		if !taskNames[name] {
@@ -367,26 +157,26 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	}
 }
 
-func TestDeps_ParallelExecution(t *testing.T) {
+func TestParallel_Execution(t *testing.T) {
 	var count atomic.Int32
 	task1 := &pocket.Task{
 		Name: "task1",
-		Action: func(_ context.Context, _ map[string]string) error {
+		Action: func(_ context.Context, _ *pocket.RunContext) error {
 			count.Add(1)
 			return nil
 		},
 	}
 	task2 := &pocket.Task{
 		Name: "task2",
-		Action: func(_ context.Context, _ map[string]string) error {
+		Action: func(_ context.Context, _ *pocket.RunContext) error {
 			count.Add(1)
 			return nil
 		},
 	}
 
-	err := pocket.Deps(context.Background(), task1, task2)
+	err := pocket.Parallel(task1, task2).Run(context.Background())
 	if err != nil {
-		t.Fatalf("Deps failed: %v", err)
+		t.Fatalf("Parallel failed: %v", err)
 	}
 
 	if count.Load() != 2 {
@@ -394,26 +184,26 @@ func TestDeps_ParallelExecution(t *testing.T) {
 	}
 }
 
-func TestSerialDeps_SequentialExecution(t *testing.T) {
+func TestSerial_Execution(t *testing.T) {
 	var order []string
 	task1 := &pocket.Task{
 		Name: "task1",
-		Action: func(_ context.Context, _ map[string]string) error {
+		Action: func(_ context.Context, _ *pocket.RunContext) error {
 			order = append(order, "task1")
 			return nil
 		},
 	}
 	task2 := &pocket.Task{
 		Name: "task2",
-		Action: func(_ context.Context, _ map[string]string) error {
+		Action: func(_ context.Context, _ *pocket.RunContext) error {
 			order = append(order, "task2")
 			return nil
 		},
 	}
 
-	err := pocket.SerialDeps(context.Background(), task1, task2)
+	err := pocket.Serial(task1, task2).Run(context.Background())
 	if err != nil {
-		t.Fatalf("SerialDeps failed: %v", err)
+		t.Fatalf("Serial failed: %v", err)
 	}
 
 	if len(order) != 2 || order[0] != "task1" || order[1] != "task2" {
@@ -425,16 +215,16 @@ func TestTask_RunsOnlyOnce(t *testing.T) {
 	runCount := 0
 	task := &pocket.Task{
 		Name: "once",
-		Action: func(_ context.Context, _ map[string]string) error {
+		Action: func(_ context.Context, _ *pocket.RunContext) error {
 			runCount++
 			return nil
 		},
 	}
 
 	ctx := context.Background()
-	_ = pocket.Run(ctx, task)
-	_ = pocket.Run(ctx, task)
-	_ = pocket.Run(ctx, task)
+	_ = task.Run(ctx)
+	_ = task.Run(ctx)
+	_ = task.Run(ctx)
 
 	if runCount != 1 {
 		t.Errorf("expected task to run once, but ran %d times", runCount)

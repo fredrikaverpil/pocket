@@ -4,17 +4,35 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"time"
 )
 
-// Command creates an exec.Cmd with the working directory set to the git root
-// and PATH prepended with the .pocket/bin directory.
+// WaitDelay is the grace period given to child processes to handle
+// termination signals before being force-killed.
+const WaitDelay = 5 * time.Second
+
+// Command creates an exec.Cmd with PATH prepended with .pocket/bin,
+// stdout/stderr connected, and graceful shutdown configured.
+//
+// When the context is cancelled, the command receives SIGINT first
+// (allowing graceful shutdown), then SIGKILL after WaitDelay.
 func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = GitRoot()
 	cmd.Env = PrependPath(os.Environ(), FromBinDir())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	setGracefulShutdown(cmd)
 	return cmd
+}
+
+// setGracefulShutdown configures a command for graceful shutdown.
+// When the context is cancelled, the process receives SIGINT first,
+// then SIGKILL after WaitDelay if still running.
+func setGracefulShutdown(cmd *exec.Cmd) {
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(os.Interrupt)
+	}
+	cmd.WaitDelay = WaitDelay
 }
 
 // PrependPath prepends a directory to the PATH in the given environment.

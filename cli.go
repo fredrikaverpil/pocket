@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
@@ -15,22 +16,32 @@ import (
 // Main is the entry point for the CLI.
 // It parses flags, handles -h/--help, and runs the specified task(s).
 // If no task is specified, defaultTask is run.
-func Main(tasks []*Task, defaultTask *Task) {
-	os.Exit(run(tasks, defaultTask))
+//
+// pathMappings maps task names to their PathFilter configuration.
+// Tasks not in pathMappings are only visible when running from the git root.
+func Main(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) {
+	os.Exit(run(tasks, defaultTask, pathMappings))
 }
 
 // run parses flags and runs tasks, returning the exit code.
-func run(tasks []*Task, defaultTask *Task) int {
+func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) int {
 	verbose := flag.Bool("v", false, "verbose output")
 	help := flag.Bool("h", false, "show help")
+
+	// Detect current working directory relative to git root.
+	cwd := detectCwd()
+
+	// Filter tasks based on cwd.
+	visibleTasks := filterTasksByCwd(tasks, cwd, pathMappings)
+
 	flag.Usage = func() {
-		printHelp(tasks, defaultTask)
+		printHelp(visibleTasks, defaultTask)
 	}
 	flag.Parse()
 
-	// Build task map for lookup.
-	taskMap := make(map[string]*Task, len(tasks))
-	for _, t := range tasks {
+	// Build task map for lookup (visible tasks only).
+	taskMap := make(map[string]*Task, len(visibleTasks))
+	for _, t := range visibleTasks {
 		taskMap[t.Name] = t
 	}
 
@@ -46,7 +57,7 @@ func run(tasks []*Task, defaultTask *Task) int {
 			fmt.Fprintf(os.Stderr, "unknown task: %s\n", args[0])
 			return 1
 		}
-		printHelp(tasks, defaultTask)
+		printHelp(visibleTasks, defaultTask)
 		return 0
 	}
 
@@ -98,15 +109,66 @@ func run(tasks []*Task, defaultTask *Task) int {
 		cancel()
 	}()
 
-	// Set verbose mode in context.
+	// Set verbose mode and cwd in context.
 	ctx = WithVerbose(ctx, *verbose)
+	ctx = WithCwd(ctx, cwd)
 
 	// Run the task.
-	if err := Run(ctx, taskToRun); err != nil {
+	if err := taskToRun.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "task %s failed: %v\n", taskToRun.Name, err)
 		return 1
 	}
 	return 0
+}
+
+// detectCwd returns the current working directory relative to git root.
+// Uses POK_CONTEXT environment variable if set (set by the shim script),
+// otherwise falls back to detecting from os.Getwd().
+// Returns "." if at git root or if detection fails.
+func detectCwd() string {
+	// Check for POK_CONTEXT environment variable (set by shim).
+	if ctx := os.Getenv("POK_CONTEXT"); ctx != "" {
+		return ctx
+	}
+
+	// Fallback to detecting from actual cwd.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	root := GitRoot()
+	rel, err := filepath.Rel(root, cwd)
+	if err != nil {
+		return "."
+	}
+	// Normalize to forward slashes for cross-platform consistency.
+	rel = filepath.ToSlash(rel)
+	if rel == "" {
+		rel = "."
+	}
+	return rel
+}
+
+// filterTasksByCwd returns tasks visible in the given directory.
+// - Tasks with path mapping: visible if paths.RunsIn(cwd) returns true
+// - Tasks without path mapping: visible only at root (cwd == ".").
+func filterTasksByCwd(tasks []*Task, cwd string, pathMappings map[string]*PathFilter) []*Task {
+	var result []*Task
+	for _, t := range tasks {
+		if isTaskVisibleIn(t.Name, cwd, pathMappings) {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// isTaskVisibleIn returns true if a task should be visible in the given directory.
+func isTaskVisibleIn(taskName, cwd string, pathMappings map[string]*PathFilter) bool {
+	if paths, ok := pathMappings[taskName]; ok {
+		return paths.RunsIn(cwd)
+	}
+	// Tasks without path mapping are only visible at root.
+	return cwd == "."
 }
 
 // printHelp prints the help message with available tasks.

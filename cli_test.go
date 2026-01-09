@@ -1,6 +1,8 @@
 package pocket
 
 import (
+	"context"
+	"os"
 	"strings"
 	"testing"
 )
@@ -71,4 +73,107 @@ func TestParseKeyValue(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDetectCwd_WithEnvVar(t *testing.T) {
+	// Set the environment variable.
+	os.Setenv("POK_CONTEXT", "proj1")
+	defer os.Unsetenv("POK_CONTEXT")
+
+	cwd := detectCwd()
+	if cwd != "proj1" {
+		t.Errorf("expected cwd to be 'proj1', got %q", cwd)
+	}
+}
+
+func TestDetectCwd_WithoutEnvVar(t *testing.T) {
+	// Ensure the environment variable is not set.
+	os.Unsetenv("POK_CONTEXT")
+
+	cwd := detectCwd()
+	// Should fall back to detecting from actual cwd.
+	// Since we're running in the repo, it should return "." or a valid path.
+	if cwd == "" {
+		t.Error("expected cwd to be non-empty")
+	}
+}
+
+func TestFilterTasksByCwd(t *testing.T) {
+	task1 := &Task{Name: "task1"}
+	task2 := &Task{Name: "task2"}
+	task3 := &Task{Name: "task3"} // no path mapping
+
+	// Create path mappings.
+	// task1 runs in proj1, task2 runs in root.
+	mappings := map[string]*PathFilter{
+		"task1": Paths(&cliMockRunnable{}).In("proj1"),
+		"task2": Paths(&cliMockRunnable{}).In("."),
+	}
+
+	tasks := []*Task{task1, task2, task3}
+
+	// Test filtering from root.
+	rootTasks := filterTasksByCwd(tasks, ".", mappings)
+	if len(rootTasks) != 2 {
+		t.Errorf("expected 2 tasks at root, got %d", len(rootTasks))
+	}
+	// task2 and task3 should be visible (task2 has ".", task3 has no mapping but root-only).
+
+	// Test filtering from proj1.
+	proj1Tasks := filterTasksByCwd(tasks, "proj1", mappings)
+	if len(proj1Tasks) != 1 {
+		t.Errorf("expected 1 task in proj1, got %d", len(proj1Tasks))
+	}
+	if proj1Tasks[0].Name != "task1" {
+		t.Errorf("expected task1 in proj1, got %s", proj1Tasks[0].Name)
+	}
+
+	// Test filtering from unknown directory.
+	otherTasks := filterTasksByCwd(tasks, "other", mappings)
+	if len(otherTasks) != 0 {
+		t.Errorf("expected 0 tasks in other, got %d", len(otherTasks))
+	}
+}
+
+func TestIsTaskVisibleIn(t *testing.T) {
+	mappings := map[string]*PathFilter{
+		"task1": Paths(&cliMockRunnable{}).In("proj1", "proj2"),
+		"task2": Paths(&cliMockRunnable{}).In("."),
+	}
+
+	tests := []struct {
+		taskName string
+		cwd      string
+		visible  bool
+	}{
+		{"task1", "proj1", true},
+		{"task1", "proj2", true},
+		{"task1", ".", false},
+		{"task1", "other", false},
+		{"task2", ".", true},
+		{"task2", "proj1", false},
+		{"task3", ".", true}, // no mapping = root only
+		{"task3", "proj1", false},
+	}
+
+	for _, tt := range tests {
+		result := isTaskVisibleIn(tt.taskName, tt.cwd, mappings)
+		if result != tt.visible {
+			t.Errorf("isTaskVisibleIn(%q, %q) = %v, want %v",
+				tt.taskName, tt.cwd, result, tt.visible)
+		}
+	}
+}
+
+// cliMockRunnable is a minimal Runnable for CLI tests.
+type cliMockRunnable struct {
+	tasks []*Task
+}
+
+func (m *cliMockRunnable) Run(_ context.Context) error {
+	return nil
+}
+
+func (m *cliMockRunnable) Tasks() []*Task {
+	return m.tasks
 }

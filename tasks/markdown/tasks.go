@@ -4,64 +4,57 @@ package markdown
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/mdformat"
 )
 
-// Options defines options for a Markdown module within a task group.
-type Options struct {
-	// Skip lists full task names to skip (e.g., "md-format").
-	Skip []string
+// Options configures the Markdown tasks.
+type Options struct{}
 
-	// Task-specific options
-	Format FormatOptions
+// Tasks returns a Runnable that executes all Markdown tasks.
+// Runs from repository root since markdown files are typically scattered.
+// Use pocket.AutoDetect(markdown.Tasks()) to enable path filtering.
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	return &mdTasks{
+		format: FormatTask(o),
+	}
 }
 
-// ShouldRun returns true if the given task should run based on the Skip list.
-func (o Options) ShouldRun(taskName string) bool {
-	return !slices.Contains(o.Skip, taskName)
+// mdTasks is the Runnable for Markdown tasks that also implements Detectable.
+type mdTasks struct {
+	format *pocket.Task
 }
 
-// FormatOptions defines options for the format task.
-type FormatOptions struct {
-	// placeholder for future options
+// Run executes all Markdown tasks.
+func (m *mdTasks) Run(ctx context.Context) error {
+	return m.format.Run(ctx)
 }
 
-// Group defines the Markdown task group.
-var Group = pocket.TaskGroupDef[Options]{
-	Name:   "markdown",
-	Detect: func() []string { return []string{"."} }, // Just use root for markdown.
-	Tasks: []pocket.TaskDef[Options]{
-		{Name: "md-format", Create: FormatTask},
-	},
+// Tasks returns all Markdown tasks.
+func (m *mdTasks) Tasks() []*pocket.Task {
+	return []*pocket.Task{m.format}
 }
 
-// Auto creates a Markdown task group that runs from the repository root.
-// Since markdown files are typically scattered throughout a project,
-// this defaults to running mdformat from root rather than detecting individual directories.
-// The defaults parameter specifies default options for all detected modules.
-// Skip patterns can be passed to exclude paths or specific tasks.
-func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Group.Auto(defaults, opts...)
-}
-
-// New creates a Markdown task group with explicit module configuration.
-func New(modules map[string]Options) pocket.TaskGroup {
-	return Group.New(modules)
+// DefaultDetect returns a function that detects Markdown directories.
+// Returns root since markdown files are typically scattered.
+func (m *mdTasks) DefaultDetect() func() []string {
+	return func() []string { return []string{"."} }
 }
 
 // FormatTask returns a task that formats Markdown files using mdformat.
-// The modules map specifies which directories to format and their options.
-func FormatTask(modules map[string]Options) *pocket.Task {
+func FormatTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "md-format",
 		Usage: "format Markdown files",
-		Action: func(ctx context.Context, _ map[string]string) error {
-			for mod := range modules {
-				if err := mdformat.Run(ctx, mod); err != nil {
-					return fmt.Errorf("mdformat format failed in %s: %w", mod, err)
+		Action: func(ctx context.Context, opts *pocket.RunContext) error {
+			for _, dir := range opts.Paths {
+				if err := mdformat.Run(ctx, pocket.FromGitRoot(dir)); err != nil {
+					return fmt.Errorf("mdformat failed in %s: %w", dir, err)
 				}
 			}
 			return nil

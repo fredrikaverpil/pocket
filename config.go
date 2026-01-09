@@ -1,33 +1,21 @@
 package pocket
 
-import (
-	"slices"
-	"sort"
-)
-
 // Config defines the configuration for a project using pocket.
 type Config struct {
-	// TaskGroups contains task groups (e.g., Go, Lua, Markdown) to enable.
-	// Each task group provides related tasks and owns its configuration.
+	// Run defines the execution tree for tasks.
+	// Use Serial() and Parallel() to control execution order.
 	//
 	// Example:
 	//
-	//	TaskGroups: []pocket.TaskGroup{
-	//	    golang.New(golang.Config{Modules: map[string]golang.Options{".": {}}}),
-	//	    markdown.New(markdown.Config{Modules: map[string]markdown.Options{".": {}}}),
-	//	},
-	TaskGroups []TaskGroup
-
-	// Tasks maps folder paths to custom tasks.
-	// Use "." for the root context.
-	// Tasks are included in the "all" task and shown in help output.
-	//
-	// Example:
-	//
-	//	Tasks: map[string][]*Task{
-	//	    ".": {{Name: "deploy", Usage: "deploy the app", Action: deployAction}},
-	//	},
-	Tasks map[string][]*Task
+	//	Run: pocket.Serial(
+	//	    golang.Tasks(),           // run Go tasks first
+	//	    pocket.Parallel(          // then these in parallel
+	//	        python.Tasks(),
+	//	        markdown.Tasks(),
+	//	    ),
+	//	    myCustomTask,             // then custom task
+	//	),
+	Run Runnable
 
 	// Shim controls shim script generation.
 	// By default, only Posix (./pok) is generated with name "pok".
@@ -58,24 +46,6 @@ type ShimConfig struct {
 	PowerShell bool
 }
 
-// BaseModuleConfig provides a default implementation of ModuleConfig.
-// Task groups can embed this or define their own config types.
-type BaseModuleConfig struct {
-	// Skip lists task names to skip (e.g., "format", "lint", "test").
-	Skip []string
-	// Only lists task names to run (empty = run all).
-	// If non-empty, only these tasks run (Skip is ignored).
-	Only []string
-}
-
-// ShouldRun returns true if the given task should run based on Skip/Only options.
-func (o BaseModuleConfig) ShouldRun(task string) bool {
-	if len(o.Only) > 0 {
-		return slices.Contains(o.Only, task)
-	}
-	return !slices.Contains(o.Skip, task)
-}
-
 // WithDefaults returns a copy of the config with default values applied.
 func (c Config) WithDefaults() Config {
 	// Default to Posix shim only if no Shim config is provided.
@@ -90,56 +60,4 @@ func (c Config) WithDefaults() Config {
 	c.Shim = &shim
 
 	return c
-}
-
-// GetTasks returns all custom tasks from the config.
-// For a filtered config (via ForContext), this returns only the tasks for that context.
-func (c Config) GetTasks() []*Task {
-	var tasks []*Task
-	for _, contextTasks := range c.Tasks {
-		tasks = append(tasks, contextTasks...)
-	}
-	return tasks
-}
-
-// TaskPaths returns unique directory paths from custom tasks.
-// The paths are sorted.
-func (c Config) TaskPaths() []string {
-	seen := make(map[string]bool)
-	for path := range c.Tasks {
-		seen[path] = true
-	}
-
-	paths := make([]string, 0, len(seen))
-	for path := range seen {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	return paths
-}
-
-// ForContext returns a filtered config containing only tasks for the given path.
-// For the root context ("."), returns the full config unchanged.
-// Note: TaskGroup filtering is handled by TaskGroup.ForContext() separately.
-func (c Config) ForContext(context string) Config {
-	if context == "." {
-		return c
-	}
-
-	filtered := Config{
-		Shim:        c.Shim,        // Preserve shim config.
-		SkipGitDiff: c.SkipGitDiff, // Preserve git diff setting.
-	}
-
-	// Filter task groups for context.
-	filtered.TaskGroups = FilterTaskGroupsForContext(c.TaskGroups, context)
-
-	// Filter custom tasks.
-	if tasks, ok := c.Tasks[context]; ok {
-		filtered.Tasks = map[string][]*Task{
-			context: tasks,
-		}
-	}
-
-	return filtered
 }

@@ -4,8 +4,6 @@ package update
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket"
@@ -18,7 +16,7 @@ func Task(cfg pocket.Config) *pocket.Task {
 		Name:    "update",
 		Usage:   "update pocket dependency and regenerate files",
 		Builtin: true,
-		Action: func(ctx context.Context, _ map[string]string) error {
+		Action: func(ctx context.Context, _ *pocket.RunContext) error {
 			pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 			verbose := pocket.IsVerbose(ctx)
 
@@ -26,10 +24,8 @@ func Task(cfg pocket.Config) *pocket.Task {
 			if verbose {
 				fmt.Println("Updating github.com/fredrikaverpil/pocket@latest")
 			}
-			cmd := exec.CommandContext(ctx, "go", "get", "-u", "github.com/fredrikaverpil/pocket@latest")
+			cmd := pocket.Command(ctx, "go", "get", "-u", "github.com/fredrikaverpil/pocket@latest")
 			cmd.Dir = pocketDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("go get -u: %w", err)
 			}
@@ -38,10 +34,8 @@ func Task(cfg pocket.Config) *pocket.Task {
 			if verbose {
 				fmt.Println("Running go mod tidy")
 			}
-			cmd = exec.CommandContext(ctx, "go", "mod", "tidy")
+			cmd = pocket.Command(ctx, "go", "mod", "tidy")
 			cmd.Dir = pocketDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("go mod tidy: %w", err)
 			}

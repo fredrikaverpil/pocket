@@ -16,7 +16,7 @@ func Task() *pocket.Task {
 		Name:    "git-diff",
 		Usage:   "fail if there are uncommitted changes",
 		Builtin: true,
-		Action: func(ctx context.Context, _ map[string]string) error {
+		Action: func(ctx context.Context, _ *pocket.RunContext) error {
 			cmd := pocket.Command(ctx, "git", "diff", "--exit-code")
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("uncommitted changes detected; please commit or stage your changes")

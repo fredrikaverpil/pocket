@@ -92,14 +92,14 @@ func TestTask_ActionReceivesArgs(t *testing.T) {
 		Args: []ArgDef{
 			{Name: "name", Default: "world"},
 		},
-		Action: func(_ context.Context, args map[string]string) error {
-			receivedArgs = args
+		Action: func(_ context.Context, opts *RunContext) error {
+			receivedArgs = opts.Args
 			return nil
 		},
 	}
 
 	task.SetArgs(map[string]string{"name": "test"})
-	err := task.run(context.Background())
+	err := task.Run(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,14 +117,14 @@ func TestTask_RunInitializesArgs(t *testing.T) {
 		Args: []ArgDef{
 			{Name: "name", Default: "default-value"},
 		},
-		Action: func(_ context.Context, args map[string]string) error {
-			receivedArgs = args
+		Action: func(_ context.Context, opts *RunContext) error {
+			receivedArgs = opts.Args
 			return nil
 		},
 	}
 
-	// Don't call SetArgs, let run() initialize it
-	err := task.run(context.Background())
+	// Don't call SetArgs, let Run() initialize it
+	err := task.Run(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

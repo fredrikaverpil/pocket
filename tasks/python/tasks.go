@@ -4,88 +4,83 @@ package python
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/mypy"
 	"github.com/fredrikaverpil/pocket/tools/ruff"
 )
 
-// Options defines options for a Python module within a task group.
+// Options configures the Python tasks.
 type Options struct {
-	// Skip lists full task names to skip (e.g., "py-format", "py-lint", "py-typecheck").
-	Skip []string
-
-	// Task-specific options
-	Format    FormatOptions
-	Lint      LintOptions
-	Typecheck TypecheckOptions
+	// RuffConfig is the path to ruff config file.
+	// If empty, uses the default config from pocket.
+	RuffConfig string
 }
 
-// ShouldRun returns true if the given task should run based on the Skip list.
-func (o Options) ShouldRun(taskName string) bool {
-	return !slices.Contains(o.Skip, taskName)
+// Tasks returns a Runnable that executes all Python tasks.
+// Tasks auto-detect Python projects by finding pyproject.toml, setup.py, or setup.cfg.
+// Use pocket.AutoDetect(python.Tasks()) to enable path filtering.
+func Tasks(opts ...Options) pocket.Runnable {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	return &pyTasks{
+		format:    FormatTask(o),
+		lint:      LintTask(o),
+		typecheck: TypecheckTask(o),
+	}
 }
 
-// FormatOptions defines options for the format task.
-type FormatOptions struct {
-	// ConfigFile overrides the default ruff config file.
-	ConfigFile string
+// pyTasks is the Runnable for Python tasks that also implements Detectable.
+type pyTasks struct {
+	format    *pocket.Task
+	lint      *pocket.Task
+	typecheck *pocket.Task
 }
 
-// LintOptions defines options for the lint task.
-type LintOptions struct {
-	// ConfigFile overrides the default ruff config file.
-	ConfigFile string
+// Run executes all Python tasks.
+// Format runs first, then lint and typecheck run in parallel.
+func (p *pyTasks) Run(ctx context.Context) error {
+	if err := p.format.Run(ctx); err != nil {
+		return err
+	}
+	return pocket.Parallel(p.lint, p.typecheck).Run(ctx)
 }
 
-// TypecheckOptions defines options for the typecheck task.
-type TypecheckOptions struct {
-	// placeholder for future options
+// Tasks returns all Python tasks.
+func (p *pyTasks) Tasks() []*pocket.Task {
+	return []*pocket.Task{p.format, p.lint, p.typecheck}
 }
 
-// Group defines the Python task group.
-var Group = pocket.TaskGroupDef[Options]{
-	Name:   "python",
-	Detect: func() []string { return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg") },
-	Tasks: []pocket.TaskDef[Options]{
-		{Name: "py-format", Create: FormatTask},
-		{Name: "py-lint", Create: LintTask},
-		{Name: "py-typecheck", Create: TypecheckTask},
-	},
+// DefaultDetect returns a function that detects Python project directories.
+func (p *pyTasks) DefaultDetect() func() []string {
+	return detectModules
 }
 
-// Auto creates a Python task group that auto-detects modules by finding
-// pyproject.toml, setup.py, or setup.cfg files.
-// The defaults parameter specifies default options for all detected modules.
-// Skip patterns can be passed to exclude paths or specific tasks.
-func Auto(defaults Options, opts ...pocket.SkipOption) pocket.TaskGroup {
-	return Group.Auto(defaults, opts...)
-}
-
-// New creates a Python task group with explicit module configuration.
-func New(modules map[string]Options) pocket.TaskGroup {
-	return Group.New(modules)
+// detectModules returns directories containing Python project files.
+func detectModules() []string {
+	return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
 
 // FormatTask returns a task that formats Python files using ruff format.
-// The modules map specifies which directories to format and their options.
-func FormatTask(modules map[string]Options) *pocket.Task {
+func FormatTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-format",
 		Usage: "format Python files",
-		Action: func(ctx context.Context, _ map[string]string) error {
-			for mod, opts := range modules {
-				configPath := opts.Format.ConfigFile
-				if configPath == "" {
-					var err error
-					configPath, err = ruff.ConfigPath()
-					if err != nil {
-						return fmt.Errorf("get ruff config: %w", err)
-					}
+		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+			configPath := opts.RuffConfig
+			if configPath == "" {
+				var err error
+				configPath, err = ruff.ConfigPath()
+				if err != nil {
+					return fmt.Errorf("get ruff config: %w", err)
 				}
-				if err := ruff.Run(ctx, "format", "--config", configPath, mod); err != nil {
-					return fmt.Errorf("ruff format failed in %s: %w", mod, err)
+			}
+
+			for _, dir := range taskOpts.Paths {
+				if err := ruff.Run(ctx, "format", "--config", configPath, dir); err != nil {
+					return fmt.Errorf("ruff format failed in %s: %w", dir, err)
 				}
 			}
 			return nil
@@ -94,23 +89,23 @@ func FormatTask(modules map[string]Options) *pocket.Task {
 }
 
 // LintTask returns a task that lints Python files using ruff check.
-// The modules map specifies which directories to lint and their options.
-func LintTask(modules map[string]Options) *pocket.Task {
+func LintTask(opts Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-lint",
 		Usage: "lint Python files",
-		Action: func(ctx context.Context, _ map[string]string) error {
-			for mod, opts := range modules {
-				configPath := opts.Lint.ConfigFile
-				if configPath == "" {
-					var err error
-					configPath, err = ruff.ConfigPath()
-					if err != nil {
-						return fmt.Errorf("get ruff config: %w", err)
-					}
+		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+			configPath := opts.RuffConfig
+			if configPath == "" {
+				var err error
+				configPath, err = ruff.ConfigPath()
+				if err != nil {
+					return fmt.Errorf("get ruff config: %w", err)
 				}
-				if err := ruff.Run(ctx, "check", "--config", configPath, mod); err != nil {
-					return fmt.Errorf("ruff check failed in %s: %w", mod, err)
+			}
+
+			for _, dir := range taskOpts.Paths {
+				if err := ruff.Run(ctx, "check", "--config", configPath, dir); err != nil {
+					return fmt.Errorf("ruff check failed in %s: %w", dir, err)
 				}
 			}
 			return nil
@@ -119,15 +114,14 @@ func LintTask(modules map[string]Options) *pocket.Task {
 }
 
 // TypecheckTask returns a task that type-checks Python files using mypy.
-// The modules map specifies which directories to check and their options.
-func TypecheckTask(modules map[string]Options) *pocket.Task {
+func TypecheckTask(_ Options) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-typecheck",
 		Usage: "type-check Python files",
-		Action: func(ctx context.Context, _ map[string]string) error {
-			for mod := range modules {
-				if err := mypy.Run(ctx, mod); err != nil {
-					return fmt.Errorf("mypy failed in %s: %w", mod, err)
+		Action: func(ctx context.Context, taskOpts *pocket.RunContext) error {
+			for _, dir := range taskOpts.Paths {
+				if err := mypy.Run(ctx, dir); err != nil {
+					return fmt.Errorf("mypy failed in %s: %w", dir, err)
 				}
 			}
 			return nil

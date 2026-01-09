@@ -20,11 +20,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false
       - name: show help
         run: ./pok -h
       - name: pocket
-        run: ./pok
+        run: ./pok -v
 
   test-cmd:
     name: test-cmd
@@ -37,11 +36,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false
       - name: show help
         run: pok.cmd -h
       - name: Run go-test
-        run: pok.cmd
+        run: pok.cmd -v
 
   test-powershell:
     name: test-powershell
@@ -54,8 +52,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false
       - name: show help
         run: .\pok.ps1 -h
       - name: Run go-test
-        run: .\pok.ps1
+        run: .\pok.ps1 -v

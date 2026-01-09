@@ -15,7 +15,7 @@ func Task(cfg pocket.Config) *pocket.Task {
 		Name:    "generate",
 		Usage:   "regenerate all generated files (main.go, shim)",
 		Builtin: true,
-		Action: func(ctx context.Context, _ map[string]string) error {
+		Action: func(ctx context.Context, _ *pocket.RunContext) error {
 			if err := scaffold.GenerateAll(&cfg); err != nil {
 				return err
 			}

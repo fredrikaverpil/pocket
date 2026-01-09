@@ -25,72 +25,58 @@ type Tasks struct {
 	// GitDiff fails if there are uncommitted changes.
 	GitDiff *pocket.Task
 
-	// Tasks holds standalone tasks registered for this context.
-	Tasks []*pocket.Task
+	// UserTasks holds all tasks from Config.Run (for CLI registration).
+	UserTasks []*pocket.Task
 
-	// TaskGroupTasks holds all tasks from registered task groups.
-	TaskGroupTasks []*pocket.Task
+	// pathMappings maps task names to their PathFilter configuration.
+	pathMappings map[string]*pocket.PathFilter
 }
 
 // New creates tasks based on the provided Config.
-// It filters both config and task groups for the current context.
-func New(cfg pocket.Config, ctxPath string) *Tasks {
+func New(cfg pocket.Config) *Tasks {
 	cfg = cfg.WithDefaults()
 	t := &Tasks{}
 
 	// Generate runs first - other tasks may need generated files.
 	t.Generate = generate.Task(cfg)
 
-	// Update is standalone (not part of "all")
+	// Update is standalone (not part of "all").
 	t.Update = update.Task(cfg)
 
 	// GitDiff is available as a standalone task.
 	t.GitDiff = gitdiff.Task()
 
-	// Filter config for context (this also filters task groups).
-	filteredCfg := cfg.ForContext(ctxPath)
-
-	// Collect orchestrator tasks from task groups (hidden tasks that control order).
-	var orchestratorTasks []*pocket.Task
-
-	// Create tasks from context-filtered task groups.
-	for _, tg := range filteredCfg.TaskGroups {
-		tgTasks := tg.Tasks(filteredCfg)
-		for _, task := range tgTasks {
-			t.TaskGroupTasks = append(t.TaskGroupTasks, task)
-			if task.Hidden {
-				// Hidden tasks are orchestrators that control execution order.
-				orchestratorTasks = append(orchestratorTasks, task)
-			}
-		}
+	// Extract all tasks from the execution tree for CLI registration.
+	// Also collect path mappings for cwd-based filtering.
+	if cfg.Run != nil {
+		t.UserTasks = cfg.Run.Tasks()
+		t.pathMappings = pocket.CollectPathMappings(cfg.Run)
+	} else {
+		t.pathMappings = make(map[string]*pocket.PathFilter)
 	}
 
-	// Define standalone tasks from filtered config.
-	t.Tasks = append(t.Tasks, filteredCfg.GetTasks()...)
-
-	// Create the "all" task that runs everything, then checks for uncommitted changes.
+	// Create the "all" task that runs everything.
+	// Hidden because it's the default task (run when no task is specified).
 	t.All = &pocket.Task{
-		Name:  "all",
-		Usage: "run all tasks",
-		Action: func(ctx context.Context, _ map[string]string) error {
+		Name:   "all",
+		Usage:  "run all tasks",
+		Hidden: true,
+		Action: func(ctx context.Context, _ *pocket.RunContext) error {
 			// Generate first.
-			if err := pocket.SerialDeps(ctx, t.Generate); err != nil {
+			if err := t.Generate.Run(ctx); err != nil {
 				return err
 			}
 
-			// Run all task group orchestrators (each handles its own ordering).
-			if err := pocket.SerialDeps(ctx, orchestratorTasks...); err != nil {
-				return err
-			}
-
-			// Run custom user tasks in parallel.
-			if err := pocket.Deps(ctx, t.Tasks...); err != nil {
-				return err
+			// Run the user's execution tree.
+			if cfg.Run != nil {
+				if err := cfg.Run.Run(ctx); err != nil {
+					return err
+				}
 			}
 
 			// Git diff at the end (if not skipped).
 			if !cfg.SkipGitDiff {
-				return pocket.SerialDeps(ctx, t.GitDiff)
+				return t.GitDiff.Run(ctx)
 			}
 			return nil
 		},
@@ -103,7 +89,12 @@ func New(cfg pocket.Config, ctxPath string) *Tasks {
 // This is used by the CLI to register all available tasks.
 func (t *Tasks) AllTasks() []*pocket.Task {
 	tasks := []*pocket.Task{t.All, t.Generate, t.Update, t.GitDiff}
-	tasks = append(tasks, t.TaskGroupTasks...)
-	tasks = append(tasks, t.Tasks...)
+	tasks = append(tasks, t.UserTasks...)
 	return tasks
+}
+
+// PathMappings returns the path mappings for cwd-based task filtering.
+// Tasks not in this map are only visible when running from the git root.
+func (t *Tasks) PathMappings() map[string]*pocket.PathFilter {
+	return t.pathMappings
 }
