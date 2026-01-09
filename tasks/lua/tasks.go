@@ -50,9 +50,33 @@ func FormatTask() *pocket.Task {
 				return fmt.Errorf("get stylua config: %w", err)
 			}
 			return rc.ForEachPath(func(dir string) error {
-				if err := stylua.Run(ctx, "-f", configPath, pocket.FromGitRoot(dir)); err != nil {
+				absDir := pocket.FromGitRoot(dir)
+
+				// Check what needs formatting using --check.
+				checkCmd, err := stylua.Command(ctx, "--check", "-f", configPath, absDir)
+				if err != nil {
+					return fmt.Errorf("prepare stylua: %w", err)
+				}
+				checkCmd.Stdout = nil
+				checkCmd.Stderr = nil
+				checkOutput, checkErr := checkCmd.CombinedOutput()
+
+				// If check passed, nothing needs formatting.
+				if checkErr == nil {
+					pocket.Println(ctx, "No files in need of formatting.")
+					return nil
+				}
+
+				// Show diff in verbose mode.
+				if pocket.IsVerbose(ctx) && len(checkOutput) > 0 {
+					pocket.Printf(ctx, "%s", checkOutput)
+				}
+
+				// Now actually format.
+				if err := stylua.Run(ctx, "-f", configPath, absDir); err != nil {
 					return fmt.Errorf("stylua format failed in %s: %w", dir, err)
 				}
+				pocket.Println(ctx, "Formatted files.")
 				return nil
 			})
 		},

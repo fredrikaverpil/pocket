@@ -2,6 +2,7 @@ package pocket
 
 import (
 	"context"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -78,12 +79,22 @@ func Parallel(children ...Runnable) Runnable {
 
 func (p *parallel) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
+	// Mutex to serialize output flushing so task outputs don't interleave.
+	var flushMu sync.Mutex
 	for _, child := range p.children {
 		if child == nil {
 			continue
 		}
 		g.Go(func() error {
-			return child.Run(ctx)
+			// Create a buffer for this task's output.
+			buf := &bufferedOutput{}
+			childCtx := withOutput(ctx, buf.Stdout(), buf.Stderr())
+			err := child.Run(childCtx)
+			// Flush output atomically after task completes.
+			flushMu.Lock()
+			buf.Flush()
+			flushMu.Unlock()
+			return err
 		})
 	}
 	return g.Wait()

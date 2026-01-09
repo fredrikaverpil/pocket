@@ -46,9 +46,36 @@ func FormatTask() *pocket.Task {
 		Usage: "format Markdown files",
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			return rc.ForEachPath(func(dir string) error {
-				if err := mdformat.Run(ctx, pocket.FromGitRoot(dir)); err != nil {
+				absDir := pocket.FromGitRoot(dir)
+
+				// Run --check first to see which files need formatting.
+				checkCmd, err := mdformat.Command(ctx, "--check", absDir)
+				if err != nil {
+					return fmt.Errorf("prepare mdformat: %w", err)
+				}
+				// Capture output to parse filenames.
+				checkCmd.Stdout = nil
+				checkCmd.Stderr = nil
+				output, checkErr := checkCmd.CombinedOutput()
+
+				// If check passed, nothing to format.
+				if checkErr == nil {
+					pocket.Println(ctx, "No files in need of formatting.")
+					return nil
+				}
+
+				// Show files that need formatting.
+				if len(output) > 0 {
+					if pocket.IsVerbose(ctx) {
+						pocket.Printf(ctx, "%s", output)
+					}
+				}
+
+				// Now actually format.
+				if err := mdformat.Run(ctx, absDir); err != nil {
 					return fmt.Errorf("mdformat failed in %s: %w", dir, err)
 				}
+				pocket.Println(ctx, "Formatted files.")
 				return nil
 			})
 		},

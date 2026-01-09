@@ -17,11 +17,14 @@ const WaitDelay = 5 * time.Second
 //
 // When the context is cancelled, the command receives SIGINT first
 // (allowing graceful shutdown), then SIGKILL after WaitDelay.
+//
+// Output is directed to the writers from context (set by Parallel for buffering)
+// or directly to os.Stdout/os.Stderr for serial execution.
 func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Env = PrependPath(os.Environ(), FromBinDir())
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = Stdout(ctx)
+	cmd.Stderr = Stderr(ctx)
 	setGracefulShutdown(cmd)
 	return cmd
 }

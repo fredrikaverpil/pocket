@@ -42,7 +42,6 @@ package main
 
 import (
     "context"
-    "fmt"
 
     "github.com/fredrikaverpil/pocket"
 )
@@ -55,7 +54,7 @@ var helloTask = &pocket.Task{
     Name:  "hello",
     Usage: "say hello",
     Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        fmt.Println("Hello from pocket!")
+        pocket.Println(ctx, "Hello from pocket!")
         return nil
     },
 }
@@ -162,7 +161,7 @@ var deployTask = &pocket.Task{
         {Name: "env", Usage: "target environment", Default: "staging"},
     },
     Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        fmt.Printf("Deploying to %s...\n", opts.Args["env"])
+        pocket.Printf(ctx, "Deploying to %s...\n", opts.Args["env"])
         return nil
     },
 }
@@ -297,6 +296,12 @@ pocket.FromPocketDir("file")  // path relative to .pocket/
 pocket.FromBinDir("tool")     // path relative to .pocket/bin/
 pocket.BinaryName("mytool")   // appends .exe on Windows
 
+// Output (use these instead of fmt.Printf/Println in task actions)
+pocket.Printf(ctx, "Hello %s\n", name)  // writes to stdout, buffered for parallel tasks
+pocket.Println(ctx, "Done!")            // writes to stdout with newline
+pocket.Stdout(ctx)                      // io.Writer for stdout
+pocket.Stderr(ctx)                      // io.Writer for stderr
+
 // Execution
 cmd := pocket.Command(ctx, "go", "build", "./...")  // PATH includes .pocket/bin/
 cmd.Run()
@@ -305,6 +310,13 @@ cmd.Run()
 pocket.DetectByFile("go.mod")       // dirs containing file
 pocket.DetectByExtension(".lua")    // dirs containing extension
 ```
+
+> [!NOTE]
+>
+> Use `pocket.Printf`/`pocket.Println` instead of `fmt.Printf`/`fmt.Println` in
+> task actions. This ensures output is properly buffered when tasks run in
+> parallel, preventing interleaved output. Single tasks and serial execution
+> still get real-time output.
 
 ### Windows support
 

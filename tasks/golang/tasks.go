@@ -91,14 +91,39 @@ func FormatTask(opts ...Options) *pocket.Task {
 				}
 			}
 			return rc.ForEachPath(func(dir string) error {
+				absDir := pocket.FromGitRoot(dir)
+
+				// Check what needs formatting using --diff.
+				diffCmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "--diff", "./...")
+				if err != nil {
+					return fmt.Errorf("prepare golangci-lint: %w", err)
+				}
+				diffCmd.Dir = absDir
+				diffCmd.Stdout = nil
+				diffCmd.Stderr = nil
+				diffOutput, _ := diffCmd.CombinedOutput()
+
+				// If no diff output, nothing needs formatting.
+				if len(diffOutput) == 0 {
+					pocket.Println(ctx, "No files in need of formatting.")
+					return nil
+				}
+
+				// Show diff in verbose mode.
+				if pocket.IsVerbose(ctx) {
+					pocket.Printf(ctx, "%s", diffOutput)
+				}
+
+				// Now actually format.
 				cmd, err := golangcilint.Command(ctx, "fmt", "-c", configPath, "./...")
 				if err != nil {
 					return fmt.Errorf("prepare golangci-lint: %w", err)
 				}
-				cmd.Dir = pocket.FromGitRoot(dir)
+				cmd.Dir = absDir
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("golangci-lint fmt failed in %s: %w", dir, err)
 				}
+				pocket.Println(ctx, "Formatted files.")
 				return nil
 			})
 		},

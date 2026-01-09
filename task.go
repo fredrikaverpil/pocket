@@ -179,14 +179,14 @@ func (t *Task) Run(ctx context.Context) error {
 		}
 		// If all paths are skipped, don't run.
 		if len(filteredPaths) == 0 {
-			fmt.Printf("=== %s (skipped)\n", t.Name)
+			fmt.Fprintf(Stdout(ctx), "=== %s (skipped)\n", t.Name)
 			return
 		}
 		// Show task name with any skipped paths.
 		if len(skippedPaths) > 0 {
-			fmt.Printf("=== %s (skipped in: %s)\n", t.Name, strings.Join(skippedPaths, ", "))
+			fmt.Fprintf(Stdout(ctx), "=== %s (skipped in: %s)\n", t.Name, strings.Join(skippedPaths, ", "))
 		} else {
-			fmt.Printf("=== %s\n", t.Name)
+			fmt.Fprintf(Stdout(ctx), "=== %s\n", t.Name)
 		}
 		// Ensure args map exists (may be nil if SetArgs wasn't called).
 		if t.args == nil {

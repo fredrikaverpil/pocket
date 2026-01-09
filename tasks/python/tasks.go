@@ -78,9 +78,31 @@ func FormatTask(opts Options) *pocket.Task {
 				}
 			}
 			return rc.ForEachPath(func(dir string) error {
+				// Check what needs formatting using --check --diff.
+				checkCmd, err := ruff.Command(ctx, "format", "--check", "--diff", "--config", configPath, dir)
+				if err != nil {
+					return fmt.Errorf("prepare ruff: %w", err)
+				}
+				checkCmd.Stdout = nil
+				checkCmd.Stderr = nil
+				checkOutput, checkErr := checkCmd.CombinedOutput()
+
+				// If check passed, nothing needs formatting.
+				if checkErr == nil {
+					pocket.Println(ctx, "No files in need of formatting.")
+					return nil
+				}
+
+				// Show diff in verbose mode.
+				if pocket.IsVerbose(ctx) && len(checkOutput) > 0 {
+					pocket.Printf(ctx, "%s", checkOutput)
+				}
+
+				// Now actually format.
 				if err := ruff.Run(ctx, "format", "--config", configPath, dir); err != nil {
 					return fmt.Errorf("ruff format failed in %s: %w", dir, err)
 				}
+				pocket.Println(ctx, "Formatted files.")
 				return nil
 			})
 		},

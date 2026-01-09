@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
@@ -29,8 +28,8 @@ var greetTask = &pocket.Task{
 	Args: []pocket.ArgDef{
 		{Name: "name", Usage: "who to greet", Default: "world"},
 	},
-	Action: func(_ context.Context, opts *pocket.RunContext) error {
-		fmt.Printf("Hello, %s!\n", opts.Args["name"])
+	Action: func(ctx context.Context, opts *pocket.RunContext) error {
+		pocket.Printf(ctx, "Hello, %s!\n", opts.Args["name"])
 		return nil
 	},
 }
