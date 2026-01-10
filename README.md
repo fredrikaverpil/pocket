@@ -30,15 +30,15 @@ pocket handle tool installation.
       to create tasks and task groups. Tasks and task groups could use `New`
       functions that would help users with creation? (Solved with `NewTask()`
       constructor and chainable methods.)
-- [ ] Categorize functions used to create tasks and task groups under one
-      package, e.g. named `pok`. It will make it easier to discover possible
-      functions etc that exist at your disposal when setting up your
-      `.pocket/config.go` for example. But also, we want it to be as straight
-      forward to discover functions etc when designing tasks and task groups.
+- [ ] `./pok clean`; to clean `./pocket/tools`, `./pocket/bin`
+- [ ] Ability to define tasks which run on ./pok and tasks which must be run
+      only explicitly with `./pok <taskname>`. Such "explicit tasks" should
+      appear in their own section in `./pok -h`. Default behavior is to not
+      auto-run.
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
       worry users starts using things we cannot refactor later.
-- [ ] Move as much as possible into an internal folder, that export parts of
-      Pocket that is only intended for the internals powering Pocket.
+  - [ ] Move as much as possible into an internal folder, that export parts of
+        Pocket that is only intended for the internals powering Pocket.
 
 ## Quickstart
 
