@@ -32,7 +32,7 @@ var greetTask = &pocket.Task{
 	Usage: "print a greeting message",
 	Options: GreetOptions{Name: "world"},
 	Action: func(ctx context.Context, rc *pocket.RunContext) error {
-		args := pocket.GetArgs[GreetOptions](rc)
+		args := pocket.GetOptions[GreetOptions](rc)
 		pocket.Printf(ctx, "Hello, %s!\n", args.Name)
 		return nil
 	},

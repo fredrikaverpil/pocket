@@ -21,7 +21,7 @@ func TestNew_CustomTasks(t *testing.T) {
 		Run: customTask,
 	}
 
-	result := tasks.New(cfg)
+	result := tasks.NewRunner(cfg)
 
 	// Verify custom task is registered.
 	if len(result.UserTasks) != 1 {
@@ -40,7 +40,7 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 		),
 	}
 
-	result := tasks.New(cfg)
+	result := tasks.NewRunner(cfg)
 
 	if len(result.UserTasks) != 2 {
 		t.Fatalf("expected 2 custom tasks, got %d", len(result.UserTasks))
@@ -51,7 +51,7 @@ func TestNew_GoTasks(t *testing.T) {
 	cfg := pocket.Config{
 		Run: golang.Tasks(),
 	}
-	result := tasks.New(cfg)
+	result := tasks.NewRunner(cfg)
 
 	// Check that Go tasks are present.
 	taskNames := make(map[string]bool)
@@ -71,7 +71,7 @@ func TestNew_MarkdownTasks(t *testing.T) {
 	cfg := pocket.Config{
 		Run: markdown.Tasks(),
 	}
-	result := tasks.New(cfg)
+	result := tasks.NewRunner(cfg)
 
 	// Check that markdown tasks are present.
 	var foundMdFormat bool
@@ -89,7 +89,7 @@ func TestNew_MarkdownTasks(t *testing.T) {
 
 func TestNew_GenerateAlwaysPresent(t *testing.T) {
 	// Even with empty config, generate should be present.
-	result := tasks.New(pocket.Config{})
+	result := tasks.NewRunner(pocket.Config{})
 
 	if result.Generate == nil {
 		t.Error("'generate' task should always be present")
@@ -100,7 +100,7 @@ func TestNew_GenerateAlwaysPresent(t *testing.T) {
 }
 
 func TestNew_NoRunConfigured(t *testing.T) {
-	result := tasks.New(pocket.Config{})
+	result := tasks.NewRunner(pocket.Config{})
 
 	// Should have Generate, All, Update, GitDiff defined.
 	if result.Generate == nil {
@@ -130,7 +130,7 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 		),
 	}
 
-	result := tasks.New(cfg)
+	result := tasks.NewRunner(cfg)
 	allTasks := result.AllTasks()
 
 	// Should include All, Generate, Update, GitDiff, and user tasks.

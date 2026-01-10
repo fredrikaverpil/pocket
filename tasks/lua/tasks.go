@@ -13,30 +13,8 @@ import (
 // Runs from repository root since Lua files are typically scattered.
 // Use pocket.AutoDetect(lua.Tasks()) to enable path filtering.
 func Tasks() pocket.Runnable {
-	return &luaTasks{
-		format: FormatTask(),
-	}
-}
-
-// luaTasks is the Runnable for Lua tasks that also implements Detectable.
-type luaTasks struct {
-	format *pocket.Task
-}
-
-// Run executes all Lua tasks.
-func (l *luaTasks) Run(ctx context.Context) error {
-	return l.format.Run(ctx)
-}
-
-// Tasks returns all Lua tasks.
-func (l *luaTasks) Tasks() []*pocket.Task {
-	return []*pocket.Task{l.format}
-}
-
-// DefaultDetect returns a function that detects Lua directories.
-// Returns root since Lua files are typically scattered.
-func (l *luaTasks) DefaultDetect() func() []string {
-	return func() []string { return []string{"."} }
+	return pocket.NewTaskGroup(FormatTask()).
+		DetectBy(func() []string { return []string{"."} })
 }
 
 // FormatOptions configures the lua-format task.
@@ -61,11 +39,11 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 // Optional defaults can be passed to set project-level configuration.
 func FormatTask(defaults ...FormatOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "lua-format",
-		Usage: "format Lua files",
+		Name:    "lua-format",
+		Usage:   "format Lua files",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatOptions](rc)
+			opts := pocket.GetOptions[FormatOptions](rc)
 			configPath := opts.StyluaConfig
 			if configPath == "" {
 				var err error

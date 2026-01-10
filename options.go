@@ -6,6 +6,20 @@ import (
 	"strconv"
 )
 
+// TaskOptions is the type for Task.Options fields.
+// It must be a struct with exported fields of type bool, string, or int.
+// Use struct tags to customize behavior:
+//   - `usage:"description"` - help text shown in CLI
+//   - `arg:"name"` - override the CLI flag name (default: derived from field name)
+//
+// Example:
+//
+//	type FormatOptions struct {
+//	    ConfigFile string `usage:"path to config file"`
+//	    Verbose    bool   `usage:"enable verbose output"`
+//	}
+type TaskOptions = any
+
 // argField holds metadata about a single argument field.
 type argField struct {
 	Name    string       // CLI name (from tag or field name)
@@ -100,9 +114,9 @@ func inspectArgs(args any) (*argsInfo, error) {
 	return info, nil
 }
 
-// parseArgsFromCLI parses CLI arguments into a new instance of the args struct.
+// parseOptionsFromCLI parses CLI arguments into a new instance of the options struct.
 // It starts with the default values from the template and overlays CLI values.
-func parseArgsFromCLI(template any, cliArgs map[string]string) (any, error) {
+func parseOptionsFromCLI(template any, cliArgs map[string]string) (any, error) {
 	if template == nil {
 		return nil, nil
 	}
@@ -205,14 +219,14 @@ func FirstOrZero[T any](items ...T) T {
 	return zero
 }
 
-// GetArgs retrieves the typed args from RunContext.
-// Returns the zero value of T if args are not set or wrong type.
-func GetArgs[T any](rc *RunContext) T {
-	if rc.parsedArgs == nil {
+// GetOptions retrieves the typed options from RunContext.
+// Returns the zero value of T if options are not set or wrong type.
+func GetOptions[T any](rc *RunContext) T {
+	if rc.parsedOptions == nil {
 		var zero T
 		return zero
 	}
-	if typed, ok := rc.parsedArgs.(T); ok {
+	if typed, ok := rc.parsedOptions.(T); ok {
 		return typed
 	}
 	var zero T

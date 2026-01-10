@@ -11,8 +11,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tasks/update"
 )
 
-// Tasks holds all registered tasks based on the Config.
-type Tasks struct {
+// Runner holds all registered tasks based on the Config.
+// It orchestrates built-in tasks (all, generate, update, git-diff)
+// and collects user tasks for CLI registration.
+type Runner struct {
 	// All runs all configured tasks.
 	All *pocket.Task
 
@@ -32,10 +34,10 @@ type Tasks struct {
 	pathMappings map[string]*pocket.PathFilter
 }
 
-// New creates tasks based on the provided Config.
-func New(cfg pocket.Config) *Tasks {
+// NewRunner creates a Runner based on the provided Config.
+func NewRunner(cfg pocket.Config) *Runner {
 	cfg = cfg.WithDefaults()
-	t := &Tasks{}
+	t := &Runner{}
 
 	// Generate runs first - other tasks may need generated files.
 	t.Generate = generate.Task(cfg)
@@ -87,7 +89,7 @@ func New(cfg pocket.Config) *Tasks {
 
 // AllTasks returns all tasks including the "all" task.
 // This is used by the CLI to register all available tasks.
-func (t *Tasks) AllTasks() []*pocket.Task {
+func (t *Runner) AllTasks() []*pocket.Task {
 	tasks := []*pocket.Task{t.All, t.Generate, t.Update, t.GitDiff}
 	tasks = append(tasks, t.UserTasks...)
 	return tasks
@@ -95,6 +97,6 @@ func (t *Tasks) AllTasks() []*pocket.Task {
 
 // PathMappings returns the path mappings for cwd-based task filtering.
 // Tasks not in this map are only visible when running from the git root.
-func (t *Tasks) PathMappings() map[string]*pocket.PathFilter {
+func (t *Runner) PathMappings() map[string]*pocket.PathFilter {
 	return t.pathMappings
 }

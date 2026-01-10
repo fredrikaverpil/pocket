@@ -13,43 +13,23 @@ import (
 // Tasks returns a Runnable that executes all Python tasks.
 // Tasks auto-detect Python projects by finding pyproject.toml, setup.py, or setup.cfg.
 // Use pocket.AutoDetect(python.Tasks()) to enable path filtering.
+//
+// Execution order: format runs first, then lint and typecheck run in parallel.
 func Tasks() pocket.Runnable {
-	return &pyTasks{
-		format:    FormatTask(),
-		lint:      LintTask(),
-		typecheck: TypecheckTask(),
-	}
-}
+	format := FormatTask()
+	lint := LintTask()
+	typecheck := TypecheckTask()
 
-// pyTasks is the Runnable for Python tasks that also implements Detectable.
-type pyTasks struct {
-	format    *pocket.Task
-	lint      *pocket.Task
-	typecheck *pocket.Task
-}
-
-// Run executes all Python tasks.
-// Format runs first, then lint and typecheck run in parallel.
-func (p *pyTasks) Run(ctx context.Context) error {
-	if err := p.format.Run(ctx); err != nil {
-		return err
-	}
-	return pocket.Parallel(p.lint, p.typecheck).Run(ctx)
-}
-
-// Tasks returns all Python tasks.
-func (p *pyTasks) Tasks() []*pocket.Task {
-	return []*pocket.Task{p.format, p.lint, p.typecheck}
-}
-
-// DefaultDetect returns a function that detects Python project directories.
-func (p *pyTasks) DefaultDetect() func() []string {
-	return detectModules
-}
-
-// detectModules returns directories containing Python project files.
-func detectModules() []string {
-	return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
+	return pocket.NewTaskGroup(format, lint, typecheck).
+		RunWith(func(ctx context.Context) error {
+			// Format must run first.
+			if err := format.Run(ctx); err != nil {
+				return err
+			}
+			// Lint and typecheck can run in parallel.
+			return pocket.Parallel(lint, typecheck).Run(ctx)
+		}).
+		DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
 
 // FormatOptions configures the py-format task.
@@ -74,11 +54,11 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 // Optional defaults can be passed to set project-level configuration.
 func FormatTask(defaults ...FormatOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "py-format",
-		Usage: "format Python files",
+		Name:    "py-format",
+		Usage:   "format Python files",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatOptions](rc)
+			opts := pocket.GetOptions[FormatOptions](rc)
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error
@@ -122,11 +102,11 @@ type LintOptions struct {
 // Optional defaults can be passed to set project-level configuration.
 func LintTask(defaults ...LintOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "py-lint",
-		Usage: "lint Python files",
+		Name:    "py-lint",
+		Usage:   "lint Python files",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[LintOptions](rc)
+			opts := pocket.GetOptions[LintOptions](rc)
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error

@@ -16,10 +16,10 @@ func TestTask_TypedArgs_Defaults(t *testing.T) {
 	var received TestOptions
 
 	task := &Task{
-		Name: "test-task",
+		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestOptions](rc)
+			received = GetOptions[TestOptions](rc)
 			return nil
 		},
 	}
@@ -44,10 +44,10 @@ func TestTask_TypedArgs_CLIOverride(t *testing.T) {
 	var received TestOptions
 
 	task := &Task{
-		Name: "test-task",
+		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestOptions](rc)
+			received = GetOptions[TestOptions](rc)
 			return nil
 		},
 	}
@@ -78,10 +78,10 @@ func TestTask_TypedArgs_PartialOverride(t *testing.T) {
 	var received TestOptions
 
 	task := &Task{
-		Name: "test-task",
+		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestOptions](rc)
+			received = GetOptions[TestOptions](rc)
 			return nil
 		},
 	}
@@ -112,7 +112,7 @@ func TestTask_NoArgs(t *testing.T) {
 		Action: func(_ context.Context, rc *RunContext) error {
 			ran = true
 			// GetArgs on nil should return zero value.
-			args := GetArgs[TestOptions](rc)
+			args := GetOptions[TestOptions](rc)
 			if args.Name != "" {
 				t.Errorf("expected empty Name, got %q", args.Name)
 			}

@@ -14,44 +14,25 @@ import (
 // Tasks returns a Runnable that executes all Go tasks.
 // Tasks auto-detect Go modules by finding go.mod files.
 // Use pocket.AutoDetect(golang.Tasks()) to enable path filtering.
+//
+// Execution order: format and lint run serially first,
+// then test and vulncheck run in parallel.
 func Tasks() pocket.Runnable {
-	return &goTasks{
-		format:    FormatTask(),
-		lint:      LintTask(),
-		test:      TestTask(),
-		vulncheck: VulncheckTask(),
-	}
-}
+	format := FormatTask()
+	lint := LintTask()
+	test := TestTask()
+	vulncheck := VulncheckTask()
 
-// goTasks is the Runnable for Go tasks that also implements Detectable.
-type goTasks struct {
-	format    *pocket.Task
-	lint      *pocket.Task
-	test      *pocket.Task
-	vulncheck *pocket.Task
-}
-
-// Run executes all Go tasks.
-func (g *goTasks) Run(ctx context.Context) error {
-	if err := pocket.Serial(g.format, g.lint).Run(ctx); err != nil {
-		return err
-	}
-	return pocket.Parallel(g.test, g.vulncheck).Run(ctx)
-}
-
-// Tasks returns all Go tasks.
-func (g *goTasks) Tasks() []*pocket.Task {
-	return []*pocket.Task{g.format, g.lint, g.test, g.vulncheck}
-}
-
-// DefaultDetect returns a function that detects Go module directories.
-func (g *goTasks) DefaultDetect() func() []string {
-	return detectModules
-}
-
-// detectModules returns directories containing go.mod files.
-func detectModules() []string {
-	return pocket.DetectByFile("go.mod")
+	return pocket.NewTaskGroup(format, lint, test, vulncheck).
+		RunWith(func(ctx context.Context) error {
+			// Format and lint must run serially (lint after format).
+			if err := pocket.Serial(format, lint).Run(ctx); err != nil {
+				return err
+			}
+			// Test and vulncheck can run in parallel.
+			return pocket.Parallel(test, vulncheck).Run(ctx)
+		}).
+		DetectByFile("go.mod")
 }
 
 // FormatOptions configures the go-format task.
@@ -81,7 +62,7 @@ func FormatTask(defaults ...FormatOptions) *pocket.Task {
 		Usage:   "format Go code (gofumpt, goimports, gci, golines)",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatOptions](rc)
+			opts := pocket.GetOptions[FormatOptions](rc)
 			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
@@ -136,7 +117,7 @@ func LintTask(defaults ...LintOptions) *pocket.Task {
 		Usage:   "run golangci-lint",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[LintOptions](rc)
+			opts := pocket.GetOptions[LintOptions](rc)
 			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
@@ -174,7 +155,7 @@ func TestTask(defaults ...TestOptions) *pocket.Task {
 		Usage:   "run Go tests",
 		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[TestOptions](rc)
+			opts := pocket.GetOptions[TestOptions](rc)
 			return rc.ForEachPath(func(dir string) error {
 				args := []string{"test"}
 				if rc.Verbose {

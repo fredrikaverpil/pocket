@@ -164,7 +164,7 @@ var deployTask = &pocket.Task{
     Usage: "deploy to environment",
     Options: DeployOptions{Env: "staging"},  // defaults
     Action: func(ctx context.Context, rc *pocket.RunContext) error {
-        opts := pocket.GetArgs[DeployOptions](rc)
+        opts := pocket.GetOptions[DeployOptions](rc)
         if opts.DryRun {
             pocket.Printf(ctx, "Would deploy to %s\n", opts.Env)
             return nil

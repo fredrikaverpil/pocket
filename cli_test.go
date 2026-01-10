@@ -31,8 +31,8 @@ func TestPrintTaskHelp_NoArgs(t *testing.T) {
 
 func TestPrintTaskHelp_WithArgs(t *testing.T) {
 	task := &Task{
-		Name:  "greet",
-		Usage: "print a greeting",
+		Name:    "greet",
+		Usage:   "print a greeting",
 		Options: CLITestOptions{Name: "world", Count: 5},
 	}
 

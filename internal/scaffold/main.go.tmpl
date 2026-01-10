@@ -10,6 +10,6 @@ import (
 )
 
 func main() {
-	t := tasks.New(Config)
+	t := tasks.NewRunner(Config)
 	pocket.Main(t.AllTasks(), t.All, t.PathMappings())
 }

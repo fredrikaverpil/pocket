@@ -8,14 +8,18 @@ import (
 	"sync"
 )
 
+// TaskAction is the function signature for task actions.
+// Actions receive context and RunContext, and return an error if the task fails.
+type TaskAction func(ctx context.Context, rc *RunContext) error
+
 // RunContext provides runtime context to Actions.
 type RunContext struct {
 	Paths   []string // resolved paths for this task (from Paths wrapper)
 	Cwd     string   // current working directory (relative to git root)
 	Verbose bool     // verbose mode enabled
 
-	parsedArgs any        // typed args, access via GetArgs[T](rc)
-	skipRules  []skipRule // internal: task skip rules
+	parsedOptions any        // typed options, access via GetOptions[T](rc)
+	skipRules     []skipRule // internal: task skip rules
 }
 
 // ForEachPath executes fn for each path in the context.
@@ -33,8 +37,8 @@ func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 type Task struct {
 	Name    string
 	Usage   string
-	Options any // typed options struct, inspected via reflection for CLI parsing
-	Action  func(ctx context.Context, rc *RunContext) error
+	Options TaskOptions // typed options struct for CLI parsing (see args.go)
+	Action  TaskAction  // function to execute when task runs
 	Hidden  bool
 	Builtin bool // true for core tasks like generate, update, git-diff
 
@@ -151,18 +155,18 @@ func (t *Task) Run(ctx context.Context) error {
 		} else {
 			fmt.Fprintf(Stdout(ctx), "=== %s\n", t.Name)
 		}
-		// Parse typed args (merge defaults from t.Options with CLI overrides).
-		parsedArgs, err := parseArgsFromCLI(t.Options, t.cliArgs)
+		// Parse typed options (merge defaults from t.Options with CLI overrides).
+		parsedOptions, err := parseOptionsFromCLI(t.Options, t.cliArgs)
 		if err != nil {
-			t.err = fmt.Errorf("parse args: %w", err)
+			t.err = fmt.Errorf("parse options: %w", err)
 			return
 		}
 		// Build RunContext for this task.
 		rc := &RunContext{
-			Paths:      filteredPaths,
-			Cwd:        base.Cwd,
-			Verbose:    base.Verbose,
-			parsedArgs: parsedArgs,
+			Paths:         filteredPaths,
+			Cwd:           base.Cwd,
+			Verbose:       base.Verbose,
+			parsedOptions: parsedOptions,
 		}
 		t.err = t.Action(ctx, rc)
 	})
