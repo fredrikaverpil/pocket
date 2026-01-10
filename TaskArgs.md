@@ -1,6 +1,6 @@
 ❯ ultrathink on how we can pass in argumetns to the tasks. Perhaps we can use a
-"--" to denote that what follows  
- after that are args that gets passed into e.g. `go test`, `mdformat` etc.
+"--" to denote that what follows\
+after that are args that gets passed into e.g. `go test`, `mdformat` etc.
 
 ⏺ Let me explore the codebase first to understand the current CLI and task
 execution flow.
@@ -146,7 +146,7 @@ This mirrors how npm test -- --watch and cargo run -- args work.
 The implementation is straightforward:
 
 1. Split os.Args on -- before flag.Parse()
-2. Store extra args in context via WithExtraArgs(ctx, extraArgs)
-3. Tasks call pocket.ExtraArgs(ctx) to get them and append to their commands
+1. Store extra args in context via WithExtraArgs(ctx, extraArgs)
+1. Tasks call pocket.ExtraArgs(ctx) to get them and append to their commands
 
 Want me to implement it?

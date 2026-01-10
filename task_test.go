@@ -5,132 +5,126 @@ import (
 	"testing"
 )
 
-func TestTask_SetArgs_Defaults(t *testing.T) {
-	task := &Task{
-		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Default: "world"},
-			{Name: "count", Default: "10"},
-		},
-	}
-
-	task.SetArgs(nil)
-
-	if task.args["name"] != "world" {
-		t.Errorf("expected default name='world', got %q", task.args["name"])
-	}
-	if task.args["count"] != "10" {
-		t.Errorf("expected default count='10', got %q", task.args["count"])
-	}
+// TestArgs is a typed args struct for testing.
+type TestArgs struct {
+	Name  string `arg:"name"  usage:"who to greet"`
+	Count int    `arg:"count" usage:"number of times"`
+	Debug bool   `arg:"debug" usage:"enable debug mode"`
 }
 
-func TestTask_SetArgs_Override(t *testing.T) {
-	task := &Task{
-		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Default: "world"},
-			{Name: "count", Default: "10"},
-		},
-	}
-
-	task.SetArgs(map[string]string{
-		"name": "Claude",
-	})
-
-	if task.args["name"] != "Claude" {
-		t.Errorf("expected name='Claude', got %q", task.args["name"])
-	}
-	if task.args["count"] != "10" {
-		t.Errorf("expected default count='10', got %q", task.args["count"])
-	}
-}
-
-func TestTask_SetArgs_NoDefaults(t *testing.T) {
-	task := &Task{
-		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Usage: "no default"},
-		},
-	}
-
-	task.SetArgs(map[string]string{
-		"name": "test",
-	})
-
-	if task.args["name"] != "test" {
-		t.Errorf("expected name='test', got %q", task.args["name"])
-	}
-}
-
-func TestTask_SetArgs_ExtraArgs(t *testing.T) {
-	task := &Task{
-		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Default: "world"},
-		},
-	}
-
-	// Pass an extra arg not in Args definition
-	task.SetArgs(map[string]string{
-		"name":  "test",
-		"extra": "value",
-	})
-
-	if task.args["name"] != "test" {
-		t.Errorf("expected name='test', got %q", task.args["name"])
-	}
-	if task.args["extra"] != "value" {
-		t.Errorf("expected extra='value', got %q", task.args["extra"])
-	}
-}
-
-func TestTask_ActionReceivesArgs(t *testing.T) {
-	var receivedArgs map[string]string
+func TestTask_TypedArgs_Defaults(t *testing.T) {
+	var received TestArgs
 
 	task := &Task{
 		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Default: "world"},
-		},
-		Action: func(_ context.Context, opts *RunContext) error {
-			receivedArgs = opts.Args
+		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Action: func(_ context.Context, rc *RunContext) error {
+			received = GetArgs[TestArgs](rc)
 			return nil
 		},
 	}
 
-	task.SetArgs(map[string]string{"name": "test"})
-	err := task.Run(context.Background())
-	if err != nil {
+	// Run without any CLI args - should get defaults.
+	if err := task.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if receivedArgs["name"] != "test" {
-		t.Errorf("expected action to receive name='test', got %q", receivedArgs["name"])
+	if received.Name != "world" {
+		t.Errorf("expected Name='world', got %q", received.Name)
+	}
+	if received.Count != 10 {
+		t.Errorf("expected Count=10, got %d", received.Count)
+	}
+	if received.Debug {
+		t.Error("expected Debug=false")
 	}
 }
 
-func TestTask_RunInitializesArgs(t *testing.T) {
-	var receivedArgs map[string]string
+func TestTask_TypedArgs_CLIOverride(t *testing.T) {
+	var received TestArgs
 
 	task := &Task{
 		Name: "test-task",
-		Args: []ArgDef{
-			{Name: "name", Default: "default-value"},
-		},
-		Action: func(_ context.Context, opts *RunContext) error {
-			receivedArgs = opts.Args
+		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Action: func(_ context.Context, rc *RunContext) error {
+			received = GetArgs[TestArgs](rc)
 			return nil
 		},
 	}
 
-	// Don't call SetArgs, let Run() initialize it
-	err := task.Run(context.Background())
-	if err != nil {
+	// Override via CLI args.
+	task.SetArgs(map[string]string{
+		"name":  "Freddy",
+		"count": "42",
+		"debug": "true",
+	})
+
+	if err := task.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if receivedArgs["name"] != "default-value" {
-		t.Errorf("expected action to receive name='default-value', got %q", receivedArgs["name"])
+	if received.Name != "Freddy" {
+		t.Errorf("expected Name='Freddy', got %q", received.Name)
+	}
+	if received.Count != 42 {
+		t.Errorf("expected Count=42, got %d", received.Count)
+	}
+	if !received.Debug {
+		t.Error("expected Debug=true")
+	}
+}
+
+func TestTask_TypedArgs_PartialOverride(t *testing.T) {
+	var received TestArgs
+
+	task := &Task{
+		Name: "test-task",
+		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Action: func(_ context.Context, rc *RunContext) error {
+			received = GetArgs[TestArgs](rc)
+			return nil
+		},
+	}
+
+	// Override only one field.
+	task.SetArgs(map[string]string{
+		"name": "partial",
+	})
+
+	if err := task.Run(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if received.Name != "partial" {
+		t.Errorf("expected Name='partial', got %q", received.Name)
+	}
+	if received.Count != 10 {
+		t.Errorf("expected Count=10 (default), got %d", received.Count)
+	}
+}
+
+func TestTask_NoArgs(t *testing.T) {
+	ran := false
+
+	task := &Task{
+		Name: "test-task",
+		// No Args field set
+		Action: func(_ context.Context, rc *RunContext) error {
+			ran = true
+			// GetArgs on nil should return zero value.
+			args := GetArgs[TestArgs](rc)
+			if args.Name != "" {
+				t.Errorf("expected empty Name, got %q", args.Name)
+			}
+			return nil
+		},
+	}
+
+	if err := task.Run(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("action should have run")
 	}
 }
 
@@ -151,7 +145,7 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if receivedVerbose {
-		t.Error("expected Verbose=false without runConfig")
+		t.Error("expected Verbose=false without runContext")
 	}
 
 	// Run with verbose (new task since sync.Once).
@@ -167,6 +161,6 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !receivedVerbose {
-		t.Error("expected Verbose=true with runConfig")
+		t.Error("expected Verbose=true with runContext")
 	}
 }

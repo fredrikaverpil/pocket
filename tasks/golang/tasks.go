@@ -11,30 +11,15 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 )
 
-// Options configures the Go tasks.
-type Options struct {
-	// LintConfig is the path to golangci-lint config file.
-	// If empty, uses the default config from pocket.
-	LintConfig string
-
-	// SkipRace disables race detection in tests.
-	// Default: false (race detection enabled)
-	SkipRace bool
-
-	// SkipCoverage disables coverage output.
-	// Default: false (coverage enabled, writes to coverage.out)
-	SkipCoverage bool
-}
-
 // Tasks returns a Runnable that executes all Go tasks.
 // Tasks auto-detect Go modules by finding go.mod files.
 // Use pocket.AutoDetect(golang.Tasks()) to enable path filtering.
-func Tasks(opts ...Options) pocket.Runnable {
+func Tasks() pocket.Runnable {
 	return &goTasks{
-		format:    FormatTask(opts...),
-		lint:      LintTask(opts...),
-		test:      TestTask(opts...),
-		vulncheck: VulncheckTask(opts...),
+		format:    FormatTask(),
+		lint:      LintTask(),
+		test:      TestTask(),
+		vulncheck: VulncheckTask(),
 	}
 }
 
@@ -69,6 +54,11 @@ func detectModules() []string {
 	return pocket.DetectByFile("go.mod")
 }
 
+// FormatArgs configures the go-format task.
+type FormatArgs struct {
+	LintConfig string `usage:"path to golangci-lint config file"`
+}
+
 // formatCheck runs golangci-lint fmt --diff to check if formatting is needed.
 // Returns true if files need formatting, along with the diff output.
 func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool, output []byte, err error) {
@@ -84,16 +74,15 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 }
 
 // FormatTask returns a task that formats Go code using golangci-lint fmt.
-func FormatTask(opts ...Options) *pocket.Task {
-	var o Options
-	if len(opts) > 0 {
-		o = opts[0]
-	}
+// Optional defaults can be passed to set project-level configuration.
+func FormatTask(defaults ...FormatArgs) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-format",
 		Usage: "format Go code (gofumpt, goimports, gci, golines)",
+		Args:  pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			configPath := o.LintConfig
+			opts := pocket.GetArgs[FormatArgs](rc)
+			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
 				configPath, err = golangcilint.ConfigPath()
@@ -134,17 +123,21 @@ func FormatTask(opts ...Options) *pocket.Task {
 	}
 }
 
+// LintArgs configures the go-lint task.
+type LintArgs struct {
+	LintConfig string `usage:"path to golangci-lint config file"`
+}
+
 // LintTask returns a task that runs golangci-lint.
-func LintTask(opts ...Options) *pocket.Task {
-	var o Options
-	if len(opts) > 0 {
-		o = opts[0]
-	}
+// Optional defaults can be passed to set project-level configuration.
+func LintTask(defaults ...LintArgs) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-lint",
 		Usage: "run golangci-lint",
+		Args:  pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			configPath := o.LintConfig
+			opts := pocket.GetArgs[LintArgs](rc)
+			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
 				configPath, err = golangcilint.ConfigPath()
@@ -167,25 +160,30 @@ func LintTask(opts ...Options) *pocket.Task {
 	}
 }
 
+// TestArgs configures the go-test task.
+type TestArgs struct {
+	SkipRace     bool `usage:"skip race detection"`
+	SkipCoverage bool `usage:"skip coverage output"`
+}
+
 // TestTask returns a task that runs Go tests with race detection and coverage.
-func TestTask(opts ...Options) *pocket.Task {
-	var o Options
-	if len(opts) > 0 {
-		o = opts[0]
-	}
+// Optional defaults can be passed to set project-level configuration.
+func TestTask(defaults ...TestArgs) *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-test",
 		Usage: "run Go tests",
+		Args:  pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
+			opts := pocket.GetArgs[TestArgs](rc)
 			return rc.ForEachPath(func(dir string) error {
 				args := []string{"test"}
 				if rc.Verbose {
 					args = append(args, "-v")
 				}
-				if !o.SkipRace {
+				if !opts.SkipRace {
 					args = append(args, "-race")
 				}
-				if !o.SkipCoverage {
+				if !opts.SkipCoverage {
 					// Name coverage file based on directory to avoid overwrites.
 					coverName := "coverage.out"
 					if dir != "." {
@@ -209,7 +207,7 @@ func TestTask(opts ...Options) *pocket.Task {
 }
 
 // VulncheckTask returns a task that runs govulncheck.
-func VulncheckTask(_ ...Options) *pocket.Task {
+func VulncheckTask() *pocket.Task {
 	return &pocket.Task{
 		Name:  "go-vulncheck",
 		Usage: "run govulncheck",

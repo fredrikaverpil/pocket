@@ -3,27 +3,19 @@ package pocket
 import (
 	"context"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"sync"
 )
 
-// ArgDef defines an argument that a task accepts.
-type ArgDef struct {
-	Name    string // argument name (used as key in key=value)
-	Usage   string // description for help output
-	Default string // default value if not provided
-}
-
 // RunContext provides runtime context to Actions.
 type RunContext struct {
-	Args    map[string]string // CLI arguments (key=value pairs)
-	Paths   []string          // resolved paths for this task (from Paths wrapper)
-	Cwd     string            // current working directory (relative to git root)
-	Verbose bool              // verbose mode enabled
+	Paths   []string // resolved paths for this task (from Paths wrapper)
+	Cwd     string   // current working directory (relative to git root)
+	Verbose bool     // verbose mode enabled
 
-	skipRules []skipRule // internal: task skip rules (not visible to Actions in other packages)
+	parsedArgs any        // typed args, access via GetArgs[T](rc)
+	skipRules  []skipRule // internal: task skip rules
 }
 
 // ForEachPath executes fn for each path in the context.
@@ -41,7 +33,7 @@ func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 type Task struct {
 	Name    string
 	Usage   string
-	Args    []ArgDef // declared arguments this task accepts
+	Args    any // typed args struct, inspected via reflection for CLI parsing
 	Action  func(ctx context.Context, rc *RunContext) error
 	Hidden  bool
 	Builtin bool // true for core tasks like generate, update, git-diff
@@ -50,8 +42,8 @@ type Task struct {
 	once sync.Once
 	// err stores the result of the task execution.
 	err error
-	// args stores the parsed arguments for this execution.
-	args map[string]string
+	// cliArgs stores the CLI arguments for this execution.
+	cliArgs map[string]string
 	// paths stores the resolved paths for this execution.
 	paths []string
 }
@@ -107,18 +99,10 @@ func isSkipped(ctx context.Context, name, path string) bool {
 	return false
 }
 
-// SetArgs sets the arguments for this task execution.
-// Arguments are merged with defaults defined in Args.
+// SetArgs sets the CLI arguments for this task execution.
+// These will be merged with defaults from Args struct when the task runs.
 func (t *Task) SetArgs(args map[string]string) {
-	t.args = make(map[string]string)
-	// Apply defaults first.
-	for _, arg := range t.Args {
-		if arg.Default != "" {
-			t.args[arg.Name] = arg.Default
-		}
-	}
-	// Override with provided args.
-	maps.Copy(t.args, args)
+	t.cliArgs = args
 }
 
 // SetPaths sets the resolved paths for this task execution.
@@ -167,16 +151,18 @@ func (t *Task) Run(ctx context.Context) error {
 		} else {
 			fmt.Fprintf(Stdout(ctx), "=== %s\n", t.Name)
 		}
-		// Ensure args map exists (may be nil if SetArgs wasn't called).
-		if t.args == nil {
-			t.SetArgs(nil)
+		// Parse typed args (merge defaults from t.Args with CLI overrides).
+		parsedArgs, err := parseArgsFromCLI(t.Args, t.cliArgs)
+		if err != nil {
+			t.err = fmt.Errorf("parse args: %w", err)
+			return
 		}
 		// Build RunContext for this task.
 		rc := &RunContext{
-			Args:    t.args,
-			Paths:   filteredPaths,
-			Cwd:     base.Cwd,
-			Verbose: base.Verbose,
+			Paths:      filteredPaths,
+			Cwd:        base.Cwd,
+			Verbose:    base.Verbose,
+			parsedArgs: parsedArgs,
 		}
 		t.err = t.Action(ctx, rc)
 	})

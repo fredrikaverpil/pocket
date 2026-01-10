@@ -39,6 +39,11 @@ func (l *luaTasks) DefaultDetect() func() []string {
 	return func() []string { return []string{"."} }
 }
 
+// FormatArgs configures the lua-format task.
+type FormatArgs struct {
+	StyluaConfig string `usage:"path to stylua config file"`
+}
+
 // formatCheck runs stylua --check to see if formatting is needed.
 // Returns true if files need formatting, along with the check output.
 func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool, output []byte, err error) {
@@ -53,14 +58,21 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 }
 
 // FormatTask returns a task that formats Lua files using stylua.
-func FormatTask() *pocket.Task {
+// Optional defaults can be passed to set project-level configuration.
+func FormatTask(defaults ...FormatArgs) *pocket.Task {
 	return &pocket.Task{
 		Name:  "lua-format",
 		Usage: "format Lua files",
+		Args:  pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			configPath, err := stylua.ConfigPath()
-			if err != nil {
-				return fmt.Errorf("get stylua config: %w", err)
+			opts := pocket.GetArgs[FormatArgs](rc)
+			configPath := opts.StyluaConfig
+			if configPath == "" {
+				var err error
+				configPath, err = stylua.ConfigPath()
+				if err != nil {
+					return fmt.Errorf("get stylua config: %w", err)
+				}
 			}
 			return rc.ForEachPath(func(dir string) error {
 				absDir := pocket.FromGitRoot(dir)

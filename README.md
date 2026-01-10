@@ -150,26 +150,39 @@ var Config = pocket.Config{
 
 ### Tasks with arguments
 
-Tasks can accept runtime arguments via `-key=value` syntax:
+Tasks can accept runtime arguments via `-key=value` syntax. Define a struct for
+your arguments:
 
 ```go
+type DeployArgs struct {
+    Env    string
+    DryRun bool
+}
+
 var deployTask = &pocket.Task{
     Name:  "deploy",
     Usage: "deploy to environment",
-    Args: []pocket.ArgDef{
-        {Name: "env", Usage: "target environment", Default: "staging"},
-    },
-    Action: func(ctx context.Context, opts *pocket.RunContext) error {
-        pocket.Printf(ctx, "Deploying to %s...\n", opts.Args["env"])
+    Args:  DeployArgs{Env: "staging"},  // defaults
+    Action: func(ctx context.Context, rc *pocket.RunContext) error {
+        args := pocket.GetArgs[DeployArgs](rc)
+        if args.DryRun {
+            pocket.Printf(ctx, "Would deploy to %s\n", args.Env)
+            return nil
+        }
+        pocket.Printf(ctx, "Deploying to %s...\n", args.Env)
         return nil
     },
 }
 ```
 
+CLI flags and help text are derived from field names (`DryRun` → `-dry-run`).
+Supported types: `string`, `int`, `bool`. Optional tags: `` `arg:"name"` `` to
+override flag name, `` `usage:"description"` `` for custom help text.
+
 ```bash
-./pok deploy              # uses default: staging
-./pok deploy -env=prod    # override: prod
-./pok deploy -h           # show task-specific help
+./pok deploy                        # uses defaults
+./pok deploy -env=prod -dry-run     # override values
+./pok deploy -h                     # show task-specific help
 ```
 
 ### Path filtering
@@ -226,11 +239,23 @@ var Config = pocket.Config{
 }
 ```
 
-Configure with options:
+Task arguments can be overridden at runtime:
+
+```bash
+./pok go-test -skip-race        # skip race detection
+./pok go-lint -lint-config=.golangci.yml
+```
+
+Or set project-level defaults by constructing individual tasks:
 
 ```go
-golang.Tasks(golang.Options{LintConfig: ".golangci.yml"})
-python.Tasks(python.Options{RuffConfig: "pyproject.toml"})
+var Config = pocket.Config{
+    Run: pocket.Serial(
+        golang.FormatTask(),
+        golang.LintTask(golang.LintArgs{LintConfig: ".golangci.yml"}),
+        golang.TestTask(golang.TestArgs{SkipRace: true}),
+    ),
+}
 ```
 
 ### Auto-detection

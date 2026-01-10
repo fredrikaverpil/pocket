@@ -222,31 +222,37 @@ func printHelp(tasks []*Task, defaultTask *Task) {
 func printTaskHelp(t *Task) {
 	fmt.Printf("%s - %s\n", t.Name, t.Usage)
 
-	if len(t.Args) == 0 {
+	info, err := inspectArgs(t.Args)
+	if err != nil || info == nil || len(info.Fields) == 0 {
 		fmt.Println("\nThis task accepts no arguments.")
 		return
 	}
 
 	fmt.Println("\nArguments:")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, arg := range t.Args {
-		if arg.Default != "" {
-			fmt.Fprintf(w, "  %s\t%s (default: %q)\n", arg.Name, arg.Usage, arg.Default)
+	for _, field := range info.Fields {
+		defaultStr := formatArgDefault(field.Default)
+		if field.Usage != "" {
+			fmt.Fprintf(w, "  -%s\t%s (default: %s)\n", field.Name, field.Usage, defaultStr)
 		} else {
-			fmt.Fprintf(w, "  %s\t%s\n", arg.Name, arg.Usage)
+			fmt.Fprintf(w, "  -%s\t(default: %s)\n", field.Name, defaultStr)
 		}
 	}
 	w.Flush()
 
 	fmt.Printf("\nExample:\n  pok %s", t.Name)
-	for _, arg := range t.Args {
-		fmt.Printf(" -%s=<value>", arg.Name)
+	for _, field := range info.Fields {
+		fmt.Printf(" -%s=<value>", field.Name)
 	}
 	fmt.Println()
 }
 
 // parseTaskArgs parses task arguments from command line args.
-// It supports two formats: -key=value and -key value.
+// It supports three formats:
+//   - -key=value (explicit value)
+//   - -key value (value as next arg, if next arg doesn't start with -)
+//   - -key (boolean flag, treated as true)
+//
 // Returns:
 //   - parsed args map
 //   - helpRequested: true if -h was found in args
@@ -265,13 +271,13 @@ func parseTaskArgs(args []string) (map[string]string, bool, error) {
 		if k, v, ok := strings.Cut(key, "="); ok {
 			// -key=value format
 			taskArgs[k] = v
-		} else {
-			// -key value format
-			if i+1 >= len(args) {
-				return nil, false, fmt.Errorf("missing value for argument -%s", key)
-			}
+		} else if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			// -key value format (next arg is a value, not another flag)
 			i++
 			taskArgs[key] = args[i]
+		} else {
+			// -key alone (boolean flag, empty string means true)
+			taskArgs[key] = ""
 		}
 	}
 	return taskArgs, false, nil

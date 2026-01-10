@@ -7,15 +7,25 @@ import (
 	"testing"
 )
 
+// CLITestArgs is a typed args struct for CLI tests.
+type CLITestArgs struct {
+	Name  string `arg:"name"  usage:"who to greet"`
+	Count int    `arg:"count" usage:"how many times"`
+}
+
 func TestPrintTaskHelp_NoArgs(t *testing.T) {
 	task := &Task{
 		Name:  "test-task",
 		Usage: "a test task",
 	}
 
-	// Verify task with no args is set up correctly
-	if len(task.Args) != 0 {
-		t.Error("expected no args")
+	// Verify task with no args is set up correctly.
+	info, err := inspectArgs(task.Args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info != nil {
+		t.Error("expected nil argsInfo for nil Args")
 	}
 }
 
@@ -23,23 +33,27 @@ func TestPrintTaskHelp_WithArgs(t *testing.T) {
 	task := &Task{
 		Name:  "greet",
 		Usage: "print a greeting",
-		Args: []ArgDef{
-			{Name: "name", Usage: "who to greet", Default: "world"},
-			{Name: "count", Usage: "how many times"},
-		},
+		Args:  CLITestArgs{Name: "world", Count: 5},
 	}
 
-	if len(task.Args) != 2 {
-		t.Errorf("expected 2 args, got %d", len(task.Args))
+	info, err := inspectArgs(task.Args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if task.Args[0].Name != "name" {
-		t.Errorf("expected first arg name='name', got %q", task.Args[0].Name)
+	if info == nil {
+		t.Fatal("expected non-nil argsInfo")
 	}
-	if task.Args[0].Default != "world" {
-		t.Errorf("expected first arg default='world', got %q", task.Args[0].Default)
+	if len(info.Fields) != 2 {
+		t.Errorf("expected 2 fields, got %d", len(info.Fields))
 	}
-	if task.Args[1].Default != "" {
-		t.Errorf("expected second arg no default, got %q", task.Args[1].Default)
+	if info.Fields[0].Name != "name" {
+		t.Errorf("expected first field name='name', got %q", info.Fields[0].Name)
+	}
+	if info.Fields[0].Default != "world" {
+		t.Errorf("expected first field default='world', got %v", info.Fields[0].Default)
+	}
+	if info.Fields[1].Default != 5 {
+		t.Errorf("expected second field default=5, got %v", info.Fields[1].Default)
 	}
 }
 
@@ -75,8 +89,8 @@ func TestParseTaskArgs(t *testing.T) {
 		},
 		{
 			name:     "multiple args with mixed formats",
-			args:     []string{"-name=Claude", "-count", "10"},
-			wantArgs: map[string]string{"name": "Claude", "count": "10"},
+			args:     []string{"-name=Freddy", "-count", "10"},
+			wantArgs: map[string]string{"name": "Freddy", "count": "10"},
 			wantHelp: false,
 			wantErr:  false,
 		},
@@ -131,12 +145,18 @@ func TestParseTaskArgs(t *testing.T) {
 			errContains: "expected -key=value or -key value",
 		},
 		{
-			name:        "missing value for space format",
-			args:        []string{"-name"},
-			wantArgs:    nil,
-			wantHelp:    false,
-			wantErr:     true,
-			errContains: "missing value for argument -name",
+			name:     "flag alone treated as boolean",
+			args:     []string{"-name"},
+			wantArgs: map[string]string{"name": ""},
+			wantHelp: false,
+			wantErr:  false,
+		},
+		{
+			name:     "multiple boolean flags",
+			args:     []string{"-skip-race", "-skip-coverage"},
+			wantArgs: map[string]string{"skip-race": "", "skip-coverage": ""},
+			wantHelp: false,
+			wantErr:  false,
 		},
 	}
 
