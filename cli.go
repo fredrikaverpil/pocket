@@ -19,12 +19,24 @@ import (
 //
 // pathMappings maps task names to their PathFilter configuration.
 // Tasks not in pathMappings are only visible when running from the git root.
-func Main(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) {
-	os.Exit(run(tasks, defaultTask, pathMappings))
+//
+// autoRunNames is the set of task names from Config.AutoRun (for help display).
+func Main(
+	tasks []*Task,
+	defaultTask *Task,
+	pathMappings map[string]*PathFilter,
+	autoRunNames map[string]bool,
+) {
+	os.Exit(run(tasks, defaultTask, pathMappings, autoRunNames))
 }
 
 // run parses flags and runs tasks, returning the exit code.
-func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) int {
+func run(
+	tasks []*Task,
+	defaultTask *Task,
+	pathMappings map[string]*PathFilter,
+	autoRunNames map[string]bool,
+) int {
 	verbose := flag.Bool("v", false, "verbose output")
 	help := flag.Bool("h", false, "show help")
 
@@ -35,7 +47,7 @@ func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) 
 	visibleTasks := filterTasksByCwd(tasks, cwd, pathMappings)
 
 	flag.Usage = func() {
-		printHelp(visibleTasks, defaultTask)
+		printHelp(visibleTasks, autoRunNames)
 	}
 	flag.Parse()
 
@@ -57,7 +69,7 @@ func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) 
 			fmt.Fprintf(os.Stderr, "unknown task: %s\n", args[0])
 			return 1
 		}
-		printHelp(visibleTasks, defaultTask)
+		printHelp(visibleTasks, autoRunNames)
 		return 0
 	}
 
@@ -169,7 +181,11 @@ func isTaskVisibleIn(taskName, cwd string, pathMappings map[string]*PathFilter) 
 }
 
 // printHelp prints the help message with available tasks.
-func printHelp(tasks []*Task, defaultTask *Task) {
+// Tasks are grouped into three sections:
+// - Tasks: auto-run tasks (from Config.AutoRun)
+// - Manual Tasks: explicit-only tasks (from Config.ManualRun)
+// - Builtin tasks: core tasks like generate, update, git-diff, clean.
+func printHelp(tasks []*Task, autoRunNames map[string]bool) {
 	fmt.Println("Usage: pok [flags] <task> [-key=value ...]")
 	fmt.Println()
 	fmt.Println("Flags:")
@@ -177,44 +193,67 @@ func printHelp(tasks []*Task, defaultTask *Task) {
 	fmt.Println("  -v         verbose output")
 	fmt.Println()
 
-	// Separate visible tasks into regular and builtin.
-	var regular, builtin []*Task
+	// Separate visible tasks into auto-run, manual, and builtin.
+	var autorun, manual, builtin []*Task
 	for _, t := range tasks {
 		if t.Hidden {
 			continue
 		}
-		if t.Builtin {
+		switch {
+		case t.Builtin:
 			builtin = append(builtin, t)
-		} else {
-			regular = append(regular, t)
+		case autoRunNames[t.Name]:
+			autorun = append(autorun, t)
+		default:
+			manual = append(manual, t)
 		}
 	}
-	sort.Slice(regular, func(i, j int) bool {
-		return regular[i].Name < regular[j].Name
+	sort.Slice(autorun, func(i, j int) bool {
+		return autorun[i].Name < autorun[j].Name
+	})
+	sort.Slice(manual, func(i, j int) bool {
+		return manual[i].Name < manual[j].Name
 	})
 	sort.Slice(builtin, func(i, j int) bool {
 		return builtin[i].Name < builtin[j].Name
 	})
 
-	fmt.Println("Tasks:")
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for _, t := range regular {
-		defaultMark := ""
-		if defaultTask != nil && t.Name == defaultTask.Name {
-			defaultMark = " (default)"
+	if len(autorun) > 0 {
+		fmt.Println("Tasks:")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, t := range autorun {
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
 		}
-		fmt.Fprintf(w, "  %s\t%s%s\n", t.Name, t.Usage, defaultMark)
+		w.Flush()
 	}
-	w.Flush()
+
+	if len(manual) > 0 {
+		if len(autorun) > 0 {
+			fmt.Println()
+		}
+		fmt.Println("Manual Tasks:")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, t := range manual {
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
+		}
+		w.Flush()
+	}
 
 	if len(builtin) > 0 {
-		fmt.Println()
+		if len(autorun) > 0 || len(manual) > 0 {
+			fmt.Println()
+		}
 		fmt.Println("Builtin tasks:")
-		w = tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for _, t := range builtin {
 			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
 		}
 		w.Flush()
+	}
+
+	// Show note if there are no tasks at all.
+	if len(autorun) == 0 && len(manual) == 0 && len(builtin) == 0 {
+		fmt.Println("No tasks available.")
 	}
 }
 

@@ -88,8 +88,8 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) ([]string, error) {
 
 	// Collect all module directories from the config.
 	var moduleDirs []string
-	if cfg.Run != nil {
-		moduleDirs = pocket.CollectModuleDirectories(cfg.Run)
+	if cfg.AutoRun != nil {
+		moduleDirs = pocket.CollectModuleDirectories(cfg.AutoRun)
 	} else {
 		moduleDirs = []string{"."}
 	}

@@ -21,7 +21,7 @@ func TestNew_CustomTasks(t *testing.T) {
 	)
 
 	cfg := pocket.Config{
-		Run: customTask,
+		AutoRun: customTask,
 	}
 
 	result := tasks.NewRunner(cfg)
@@ -37,7 +37,7 @@ func TestNew_CustomTasks(t *testing.T) {
 
 func TestNew_MultipleCustomTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Run: pocket.Serial(
+		AutoRun: pocket.Serial(
 			pocket.NewTask(
 				"deploy",
 				"deploy the app",
@@ -60,7 +60,7 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 
 func TestNew_GoTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Run: golang.Tasks(),
+		AutoRun: golang.Tasks(),
 	}
 	result := tasks.NewRunner(cfg)
 
@@ -80,7 +80,7 @@ func TestNew_GoTasks(t *testing.T) {
 
 func TestNew_MarkdownTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Run: markdown.Tasks(),
+		AutoRun: markdown.Tasks(),
 	}
 	result := tasks.NewRunner(cfg)
 
@@ -135,7 +135,7 @@ func TestNew_NoRunConfigured(t *testing.T) {
 
 func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	cfg := pocket.Config{
-		Run: pocket.Serial(
+		AutoRun: pocket.Serial(
 			golang.Tasks(),
 			pocket.NewTask("custom", "custom task", func(_ context.Context, _ *pocket.RunContext) error { return nil }),
 		),
@@ -224,5 +224,153 @@ func TestTask_RunsOnlyOnce(t *testing.T) {
 
 	if runCount != 1 {
 		t.Errorf("expected task to run once, but ran %d times", runCount)
+	}
+}
+
+func TestManualRun_TasksRegistered(t *testing.T) {
+	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+
+	cfg := pocket.Config{
+		ManualRun: []pocket.Runnable{manualTask},
+	}
+
+	result := tasks.NewRunner(cfg)
+
+	// Verify manual task is registered.
+	if len(result.UserTasks) != 1 {
+		t.Fatalf("expected 1 user task, got %d", len(result.UserTasks))
+	}
+	if result.UserTasks[0].TaskName() != "deploy" {
+		t.Errorf("expected task name 'deploy', got %q", result.UserTasks[0].TaskName())
+	}
+
+	// Verify it's NOT in autoRunTaskNames.
+	if result.AutoRunTaskNames()["deploy"] {
+		t.Error("manual task should not be in AutoRunTaskNames")
+	}
+}
+
+func TestAutoRunTaskNames_TracksAutoRunTasks(t *testing.T) {
+	autoTask := pocket.NewTask("build", "build task", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+
+	cfg := pocket.Config{
+		AutoRun:   autoTask,
+		ManualRun: []pocket.Runnable{manualTask},
+	}
+
+	result := tasks.NewRunner(cfg)
+	autoRunNames := result.AutoRunTaskNames()
+
+	if !autoRunNames["build"] {
+		t.Error("'build' should be in AutoRunTaskNames")
+	}
+	if autoRunNames["deploy"] {
+		t.Error("'deploy' should NOT be in AutoRunTaskNames")
+	}
+}
+
+func TestDuplicateTask_SameInstance_Deduplicated(t *testing.T) {
+	// Same task instance added to both AutoRun and ManualRun.
+	task := pocket.NewTask("shared", "shared task", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+
+	cfg := pocket.Config{
+		AutoRun:   task,
+		ManualRun: []pocket.Runnable{task},
+	}
+
+	result := tasks.NewRunner(cfg)
+
+	// Should only appear once in UserTasks.
+	count := 0
+	for _, t := range result.UserTasks {
+		if t.TaskName() == "shared" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 'shared' to appear once, got %d", count)
+	}
+
+	// Should be marked as auto-run (since it was in AutoRun).
+	if !result.AutoRunTaskNames()["shared"] {
+		t.Error("'shared' should be in AutoRunTaskNames")
+	}
+}
+
+func TestDuplicateTask_DifferentInstances_FirstWins(t *testing.T) {
+	// Two different task instances with the same name.
+	task1 := pocket.NewTask("deploy", "deploy v1", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+	task2 := pocket.NewTask("deploy", "deploy v2", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+
+	cfg := pocket.Config{
+		AutoRun:   task1,
+		ManualRun: []pocket.Runnable{task2},
+	}
+
+	result := tasks.NewRunner(cfg)
+
+	// Should only have one 'deploy' task.
+	count := 0
+	var registeredTask *pocket.Task
+	for _, task := range result.UserTasks {
+		if task.TaskName() == "deploy" {
+			count++
+			registeredTask = task
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 'deploy' to appear once, got %d", count)
+	}
+
+	// The first one (from AutoRun) should win.
+	if registeredTask.Usage != "deploy v1" {
+		t.Errorf("expected first task (v1) to be registered, got %q", registeredTask.Usage)
+	}
+}
+
+func TestManualRun_WithPathFilter(t *testing.T) {
+	task := pocket.NewTask("benchmark", "run benchmarks", func(_ context.Context, _ *pocket.RunContext) error {
+		return nil
+	})
+
+	cfg := pocket.Config{
+		ManualRun: []pocket.Runnable{
+			pocket.Paths(task).In("services/api"),
+		},
+	}
+
+	result := tasks.NewRunner(cfg)
+
+	// Task should be registered.
+	if len(result.UserTasks) != 1 {
+		t.Fatalf("expected 1 user task, got %d", len(result.UserTasks))
+	}
+
+	// Path mapping should be collected.
+	pathMappings := result.PathMappings()
+	pf, ok := pathMappings["benchmark"]
+	if !ok {
+		t.Fatal("expected path mapping for 'benchmark'")
+	}
+
+	// Should run in services/api, not at root.
+	if pf.RunsIn(".") {
+		t.Error("task should not run at root")
+	}
+	if !pf.RunsIn("services/api") {
+		t.Error("task should run in services/api")
 	}
 }

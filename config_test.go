@@ -101,10 +101,10 @@ func TestConfig_Run(t *testing.T) {
 	task2 := &Task{Name: "release", Usage: "release app"}
 
 	cfg := Config{
-		Run: Serial(task1, task2),
+		AutoRun: Serial(task1, task2),
 	}
 
-	tasks := cfg.Run.Tasks()
+	tasks := cfg.AutoRun.Tasks()
 	if len(tasks) != 2 {
 		t.Errorf("Run.Tasks() length = %d, want 2", len(tasks))
 	}

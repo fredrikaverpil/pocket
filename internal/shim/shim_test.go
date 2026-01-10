@@ -395,7 +395,7 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 	pathFilter := pocket.Paths(mockTask).In(moduleDirs...)
 
 	cfg := pocket.Config{
-		Run: pathFilter,
+		AutoRun: pathFilter,
 		Shim: &pocket.ShimConfig{
 			Name:       "pok",
 			Posix:      true,
@@ -498,7 +498,7 @@ func TestGenerateWithRoot_DeeplyNested(t *testing.T) {
 	pathFilter := pocket.Paths(mockTask).In(deepDir)
 
 	cfg := pocket.Config{
-		Run: pathFilter,
+		AutoRun: pathFilter,
 		Shim: &pocket.ShimConfig{
 			Name:  "pok",
 			Posix: true,

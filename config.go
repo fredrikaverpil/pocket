@@ -2,20 +2,29 @@ package pocket
 
 // Config defines the configuration for a project using pocket.
 type Config struct {
-	// Run defines the execution tree for tasks.
+	// AutoRun defines the execution tree for ./pok (no arguments).
 	// Use Serial() and Parallel() to control execution order.
+	// All tasks in AutoRun execute when running ./pok without arguments.
 	//
 	// Example:
 	//
-	//	Run: pocket.Serial(
-	//	    golang.Tasks(),           // run Go tasks first
-	//	    pocket.Parallel(          // then these in parallel
-	//	        python.Tasks(),
-	//	        markdown.Tasks(),
-	//	    ),
-	//	    myCustomTask,             // then custom task
+	//	AutoRun: pocket.Serial(
+	//	    pocket.AutoDetect(golang.Tasks()),
+	//	    pocket.AutoDetect(python.Tasks()),
 	//	),
-	Run Runnable
+	AutoRun Runnable
+
+	// ManualRun registers additional tasks that only run when explicitly
+	// invoked with ./pok <taskname>. These tasks appear in ./pok -h under
+	// "Manual Tasks" and support the same wrappers as AutoRun (Paths, AutoDetect, etc.).
+	//
+	// Example:
+	//
+	//	ManualRun: []pocket.Runnable{
+	//	    deployTask,
+	//	    pocket.Paths(benchmarkTask).In("services/api"),
+	//	},
+	ManualRun []Runnable
 
 	// Shim controls shim script generation.
 	// By default, only Posix (./pok) is generated with name "pok".

@@ -9,15 +9,20 @@ import (
 )
 
 var Config = pocket.Config{
-	// Run defines the execution tree.
+	// AutoRun defines tasks that run on ./pok (no arguments).
 	// Use pocket.Serial() and pocket.Parallel() to control order.
 	//
 	// Example:
-	//   Run: pocket.Serial(
-	//       golang.Tasks(),
-	//       pocket.Parallel(
-	//           python.Tasks(),
-	//           markdown.Tasks(),
-	//       ),
+	//   AutoRun: pocket.Serial(
+	//       pocket.AutoDetect(golang.Tasks()),
+	//       pocket.AutoDetect(python.Tasks()),
 	//   ),
+
+	// ManualRun registers tasks that only run with ./pok <taskname>.
+	//
+	// Example:
+	//   ManualRun: []pocket.Runnable{
+	//       deployTask,
+	//       pocket.Paths(benchmarkTask).In("services/api"),
+	//   },
 }

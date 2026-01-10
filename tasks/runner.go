@@ -4,6 +4,7 @@ package tasks
 
 import (
 	"context"
+	"maps"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/internal/tasks/clean"
@@ -31,11 +32,14 @@ type Runner struct {
 	// GitDiff fails if there are uncommitted changes.
 	GitDiff *pocket.Task
 
-	// UserTasks holds all tasks from Config.Run (for CLI registration).
+	// UserTasks holds all tasks from Config.AutoRun and Config.ManualRun (for CLI registration).
 	UserTasks []*pocket.Task
 
 	// pathMappings maps task names to their PathFilter configuration.
 	pathMappings map[string]*pocket.PathFilter
+
+	// autoRunTaskNames tracks which tasks are from AutoRun (for CLI help display).
+	autoRunTaskNames map[string]bool
 }
 
 // NewRunner creates a Runner based on the provided Config.
@@ -55,13 +59,35 @@ func NewRunner(cfg pocket.Config) *Runner {
 	// GitDiff is available as a standalone task.
 	t.GitDiff = gitdiff.Task()
 
-	// Extract all tasks from the execution tree for CLI registration.
-	// Also collect path mappings for cwd-based filtering.
-	if cfg.Run != nil {
-		t.UserTasks = cfg.Run.Tasks()
-		t.pathMappings = pocket.CollectPathMappings(cfg.Run)
-	} else {
-		t.pathMappings = make(map[string]*pocket.PathFilter)
+	// Initialize maps.
+	t.pathMappings = make(map[string]*pocket.PathFilter)
+	t.autoRunTaskNames = make(map[string]bool)
+	seenTasks := make(map[string]bool)
+
+	// Extract tasks from AutoRun for CLI registration and execution.
+	if cfg.AutoRun != nil {
+		for _, task := range cfg.AutoRun.Tasks() {
+			name := task.TaskName()
+			if !seenTasks[name] {
+				t.UserTasks = append(t.UserTasks, task)
+				seenTasks[name] = true
+			}
+			t.autoRunTaskNames[name] = true
+		}
+		maps.Copy(t.pathMappings, pocket.CollectPathMappings(cfg.AutoRun))
+	}
+
+	// Extract tasks from ManualRun for CLI registration only.
+	// Skip tasks already registered from AutoRun.
+	for _, r := range cfg.ManualRun {
+		for _, task := range r.Tasks() {
+			name := task.TaskName()
+			if !seenTasks[name] {
+				t.UserTasks = append(t.UserTasks, task)
+				seenTasks[name] = true
+			}
+		}
+		maps.Copy(t.pathMappings, pocket.CollectPathMappings(r))
 	}
 
 	// Create the "all" task that runs everything.
@@ -73,8 +99,8 @@ func NewRunner(cfg pocket.Config) *Runner {
 		}
 
 		// Run the user's execution tree.
-		if cfg.Run != nil {
-			if err := cfg.Run.Run(ctx); err != nil {
+		if cfg.AutoRun != nil {
+			if err := cfg.AutoRun.Run(ctx); err != nil {
 				return err
 			}
 		}
@@ -101,4 +127,10 @@ func (t *Runner) AllTasks() []*pocket.Task {
 // Tasks not in this map are only visible when running from the git root.
 func (t *Runner) PathMappings() map[string]*pocket.PathFilter {
 	return t.pathMappings
+}
+
+// AutoRunTaskNames returns the set of task names that are from AutoRun.
+// Used by the CLI to display tasks in separate sections.
+func (t *Runner) AutoRunTaskNames() map[string]bool {
+	return t.autoRunTaskNames
 }

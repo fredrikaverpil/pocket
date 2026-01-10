@@ -9,11 +9,15 @@ import (
 )
 
 var Config = pocket.Config{
-	Run: pocket.Parallel(
+	// AutoRun: tasks that run on ./pok (no arguments).
+	AutoRun: pocket.Parallel(
 		pocket.AutoDetect(golang.Tasks()),
 		pocket.AutoDetect(markdown.Tasks()),
-		greetTask,
 	),
+	// ManualRun: tasks that require ./pok <taskname>.
+	ManualRun: []pocket.Runnable{
+		greetTask,
+	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
 		Windows:    true,

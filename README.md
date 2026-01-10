@@ -18,8 +18,10 @@ pocket handle tool installation.
 
 - **Cross-platform**: No Makefiles - works on Windows, macOS, and Linux
 - **Task management**: Define tasks with `Serial()` and `Parallel()` execution
+- **Auto-run & manual tasks**: `AutoRun` tasks execute on `./pok`, `ManualRun`
+  tasks require `./pok <name>`
 - **Tool management**: Downloads and caches tools in `.pocket/`
-- **Simple invocation**: Just `./pok <task>` or `./pok -h` to list tasks
+- **Simple invocation**: Just `./pok` or `./pok -h` to list tasks
 
 ### Todos
 
@@ -31,10 +33,10 @@ pocket handle tool installation.
       functions that would help users with creation? (Solved with `NewTask()`
       constructor and chainable methods.)
 - [x] `./pok clean`; to clean `./pocket/tools`, `./pocket/bin`
-- [ ] Ability to define tasks which run on ./pok and tasks which must be run
+- [x] Ability to define tasks which run on ./pok and tasks which must be run
       only explicitly with `./pok <taskname>`. Such "explicit tasks" should
       appear in their own section in `./pok -h`. Default behavior is to not
-      auto-run.
+      auto-run. (Solved with `AutoRun` and `ManualRun` config fields.)
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
       worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
@@ -69,7 +71,8 @@ import (
 )
 
 var Config = pocket.Config{
-    Run: helloTask,
+    // AutoRun: tasks that run on ./pok (no arguments).
+    AutoRun: helloTask,
 }
 
 // helloAction is defined separately from the task constructor.
@@ -85,8 +88,13 @@ var helloTask = pocket.NewTask("hello", "say hello", helloAction)
 ```bash
 ./pok -h      # list tasks
 ./pok hello   # run specific task
-./pok         # run all tasks
+./pok         # run auto-run tasks
 ```
+
+> [!TIP]
+>
+> Use `ManualRun` for tasks that should only run when explicitly called (like
+> `deploy`). See [Auto-run vs manual tasks](#auto-run-vs-manual-tasks).
 
 > [!TIP]
 >
@@ -105,7 +113,7 @@ Use `Serial()` and `Parallel()` to control how tasks run:
 
 ```go
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         formatTask,          // first
         pocket.Parallel(     // then these in parallel
             lintTask,
@@ -164,7 +172,10 @@ func DeployTask() *pocket.Task {
 }
 
 var Config = pocket.Config{
-    Run: DeployTask().WithOptions(DeployOptions{Env: "staging"}),  // project defaults
+    // Deploy is a manual task - only runs with ./pok deploy
+    ManualRun: []pocket.Runnable{
+        DeployTask().WithOptions(DeployOptions{Env: "staging"}),
+    },
 }
 ```
 
@@ -179,11 +190,11 @@ CLI flags are derived from field names (`DryRun` → `-dry-run`). Supported type
 
 ### Path filtering
 
-For monorepos, use `Paths()` to control where `pok` shims are generated:
+For monorepos, use `Paths()` to control where tasks are visible:
 
 ```go
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         rootTask,                                  // visible at git root only
         pocket.Paths(apiTask).In("services/api"),  // visible in services/api/
         pocket.Paths(webTask).In("services/web"),  // visible in services/web/
@@ -223,7 +234,7 @@ import (
 )
 
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         golang.Tasks(),
         python.Tasks(),
         markdown.Tasks(),
@@ -245,7 +256,7 @@ Or set project-level defaults using functional options:
 
 ```go
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         golang.Tasks(
             golang.WithFormat(golang.FormatOptions{LintConfig: ".golangci.yml"}),
             golang.WithTest(golang.TestOptions{SkipRace: true}),
@@ -261,7 +272,7 @@ Or construct individual tasks with options:
 
 ```go
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         golang.FormatTask().WithOptions(golang.FormatOptions{LintConfig: ".golangci.yml"}),
         golang.LintTask(),
         golang.TestTask().WithOptions(golang.TestOptions{SkipRace: true}),
@@ -276,7 +287,7 @@ directories containing relevant files:
 
 ```go
 var Config = pocket.Config{
-    Run: pocket.Serial(
+    AutoRun: pocket.Serial(
         pocket.AutoDetect(golang.Tasks()),    // finds all go.mod directories
         pocket.AutoDetect(python.Tasks()),    // finds all pyproject.toml directories
     ),
@@ -320,6 +331,48 @@ Skip multiple tasks by chaining:
 pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask()).Skip(golang.VulncheckTask())
 ```
 
+### Auto-run vs manual tasks
+
+Pocket separates tasks into two categories:
+
+- **AutoRun**: Tasks that execute when running `./pok` without arguments
+- **ManualRun**: Tasks that only run when explicitly invoked with
+  `./pok <taskname>`
+
+```go
+var Config = pocket.Config{
+    // AutoRun: these execute on ./pok
+    AutoRun: pocket.Serial(
+        pocket.AutoDetect(golang.Tasks()),
+        pocket.AutoDetect(python.Tasks()),
+    ),
+    // ManualRun: these require ./pok <taskname>
+    ManualRun: []pocket.Runnable{
+        deployTask,
+        pocket.Paths(benchmarkTask).In("services/api"),
+    },
+}
+```
+
+The `./pok -h` output shows tasks in separate sections:
+
+```
+Tasks:
+  go-format      format Go code
+  go-lint        run linter
+
+Manual Tasks:
+  deploy         deploy to environment
+  benchmark      run benchmarks
+
+Builtin tasks:
+  clean          remove tools and bin
+  generate       regenerate files
+```
+
+Both `AutoRun` and `ManualRun` support the same wrappers (`Paths()`,
+`AutoDetect()`, `Serial()`, `Parallel()`, etc.).
+
 ## Reference
 
 ### Task creation
@@ -352,6 +405,35 @@ group.RunWith(func(ctx context.Context) error {
 group.DetectByFile("go.mod")           // detect by marker files
 group.DetectByExtension(".py")         // detect by file extensions
 group.DetectBy(func() []string { ... }) // custom detection
+```
+
+### Config structure
+
+```go
+var Config = pocket.Config{
+    // AutoRun: tasks that run on ./pok (no arguments)
+    AutoRun: pocket.Serial(
+        pocket.AutoDetect(golang.Tasks()),
+        pocket.AutoDetect(python.Tasks()),
+    ),
+
+    // ManualRun: tasks that only run with ./pok <taskname>
+    ManualRun: []pocket.Runnable{
+        deployTask,
+        pocket.Paths(benchmarkTask).In("services/api"),
+    },
+
+    // Shim: configure generated wrapper scripts
+    Shim: &pocket.ShimConfig{
+        Name:       "pok",   // base name (default: "pok")
+        Posix:      true,    // ./pok (bash)
+        Windows:    true,    // pok.cmd
+        PowerShell: true,    // pok.ps1
+    },
+
+    // SkipGitDiff: disable git diff check after running tasks
+    SkipGitDiff: false,
+}
 ```
 
 ### Convenience functions
