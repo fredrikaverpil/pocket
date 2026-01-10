@@ -16,12 +16,12 @@ func Task(cfg pocket.Config) *pocket.Task {
 		Name:    "generate",
 		Usage:   "regenerate all generated files (main.go, shim)",
 		Builtin: true,
-		Action: func(ctx context.Context, _ *pocket.RunContext) error {
+		Action: func(_ context.Context, rc *pocket.RunContext) error {
 			shimPaths, err := scaffold.GenerateAll(&cfg)
 			if err != nil {
 				return err
 			}
-			if pocket.IsVerbose(ctx) {
+			if rc.Verbose {
 				fmt.Printf("Generated .pocket/main.go and shims:\n  %s\n", strings.Join(shimPaths, "\n  "))
 			} else {
 				fmt.Printf("Generated .pocket/main.go and %d shim(s)\n", len(shimPaths))

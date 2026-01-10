@@ -75,7 +75,7 @@ func FormatTask() *pocket.Task {
 				}
 
 				// Show diff in verbose mode.
-				if pocket.IsVerbose(ctx) && len(checkOutput) > 0 {
+				if rc.Verbose && len(checkOutput) > 0 {
 					pocket.Printf(ctx, "%s", checkOutput)
 				}
 

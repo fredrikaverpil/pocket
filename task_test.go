@@ -133,3 +133,40 @@ func TestTask_RunInitializesArgs(t *testing.T) {
 		t.Errorf("expected action to receive name='default-value', got %q", receivedArgs["name"])
 	}
 }
+
+func TestTask_ActionReceivesVerbose(t *testing.T) {
+	var receivedVerbose bool
+
+	task := &Task{
+		Name: "test-task",
+		Action: func(_ context.Context, rc *RunContext) error {
+			receivedVerbose = rc.Verbose
+			return nil
+		},
+	}
+
+	// Run without verbose.
+	ctx := context.Background()
+	if err := task.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedVerbose {
+		t.Error("expected Verbose=false without WithVerbose")
+	}
+
+	// Run with verbose (new task since sync.Once).
+	task2 := &Task{
+		Name: "test-task-verbose",
+		Action: func(_ context.Context, rc *RunContext) error {
+			receivedVerbose = rc.Verbose
+			return nil
+		},
+	}
+	ctx = WithVerbose(ctx, true)
+	if err := task2.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !receivedVerbose {
+		t.Error("expected Verbose=true with WithVerbose")
+	}
+}

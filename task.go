@@ -18,9 +18,10 @@ type ArgDef struct {
 
 // RunContext provides runtime context to Actions.
 type RunContext struct {
-	Args  map[string]string // CLI arguments (key=value pairs)
-	Paths []string          // resolved paths for this task (from Paths wrapper)
-	Cwd   string            // current working directory (relative to git root)
+	Args    map[string]string // CLI arguments (key=value pairs)
+	Paths   []string          // resolved paths for this task (from Paths wrapper)
+	Cwd     string            // current working directory (relative to git root)
+	Verbose bool              // verbose mode enabled
 }
 
 // ForEachPath executes fn for each path in the context.
@@ -194,9 +195,10 @@ func (t *Task) Run(ctx context.Context) error {
 		}
 		// Build RunContext with filtered paths and cwd.
 		rc := &RunContext{
-			Args:  t.args,
-			Paths: filteredPaths,
-			Cwd:   CwdFromContext(ctx),
+			Args:    t.args,
+			Paths:   filteredPaths,
+			Cwd:     CwdFromContext(ctx),
+			Verbose: IsVerbose(ctx),
 		}
 		t.err = t.Action(ctx, rc)
 	})

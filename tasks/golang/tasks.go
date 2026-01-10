@@ -114,7 +114,7 @@ func FormatTask(opts ...Options) *pocket.Task {
 				}
 
 				// Show diff in verbose mode.
-				if pocket.IsVerbose(ctx) {
+				if rc.Verbose {
 					pocket.Printf(ctx, "%s", diffOutput)
 				}
 
@@ -179,7 +179,7 @@ func TestTask(opts ...Options) *pocket.Task {
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
 			return rc.ForEachPath(func(dir string) error {
 				args := []string{"test"}
-				if pocket.IsVerbose(ctx) {
+				if rc.Verbose {
 					args = append(args, "-v")
 				}
 				if !o.SkipRace {
