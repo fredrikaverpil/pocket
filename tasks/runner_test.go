@@ -30,8 +30,8 @@ func TestNew_CustomTasks(t *testing.T) {
 	if len(result.UserTasks) != 1 {
 		t.Fatalf("expected 1 custom task, got %d", len(result.UserTasks))
 	}
-	if result.UserTasks[0].Name != "my-custom-task" {
-		t.Errorf("expected custom task name 'my-custom-task', got %q", result.UserTasks[0].Name)
+	if result.UserTasks[0].TaskName() != "my-custom-task" {
+		t.Errorf("expected custom task name 'my-custom-task', got %q", result.UserTasks[0].TaskName())
 	}
 }
 
@@ -67,7 +67,7 @@ func TestNew_GoTasks(t *testing.T) {
 	// Check that Go tasks are present.
 	taskNames := make(map[string]bool)
 	for _, task := range result.UserTasks {
-		taskNames[task.Name] = true
+		taskNames[task.TaskName()] = true
 	}
 
 	expected := []string{"go-format", "go-lint", "go-test", "go-vulncheck"}
@@ -87,7 +87,7 @@ func TestNew_MarkdownTasks(t *testing.T) {
 	// Check that markdown tasks are present.
 	var foundMdFormat bool
 	for _, task := range result.UserTasks {
-		if task.Name == "md-format" {
+		if task.TaskName() == "md-format" {
 			foundMdFormat = true
 			break
 		}
@@ -105,8 +105,8 @@ func TestNew_GenerateAlwaysPresent(t *testing.T) {
 	if result.Generate == nil {
 		t.Error("'generate' task should always be present")
 	}
-	if result.Generate.Name != "generate" {
-		t.Errorf("expected generate task name, got %q", result.Generate.Name)
+	if result.Generate.TaskName() != "generate" {
+		t.Errorf("expected generate task name, got %q", result.Generate.TaskName())
 	}
 }
 
@@ -147,7 +147,7 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	// Should include All, Generate, Update, GitDiff, and user tasks.
 	taskNames := make(map[string]bool)
 	for _, task := range allTasks {
-		taskNames[task.Name] = true
+		taskNames[task.TaskName()] = true
 	}
 
 	expected := []string{

@@ -12,7 +12,12 @@ import (
 
 // Task returns a task that updates pocket and regenerates files.
 func Task(cfg pocket.Config) *pocket.Task {
-	return pocket.NewTask("update", "update pocket dependency and regenerate files", func(ctx context.Context, rc *pocket.RunContext) error {
+	return pocket.NewTask("update", "update pocket dependency and regenerate files", updateAction(&cfg)).
+		AsBuiltin()
+}
+
+func updateAction(cfg *pocket.Config) pocket.TaskAction {
+	return func(ctx context.Context, rc *pocket.RunContext) error {
 		pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 		verbose := rc.Verbose
 
@@ -41,7 +46,7 @@ func Task(cfg pocket.Config) *pocket.Task {
 		if verbose {
 			fmt.Println("Regenerating files")
 		}
-		if _, err := scaffold.GenerateAll(&cfg); err != nil {
+		if _, err := scaffold.GenerateAll(cfg); err != nil {
 			return err
 		}
 
@@ -49,5 +54,5 @@ func Task(cfg pocket.Config) *pocket.Task {
 			fmt.Println("Done!")
 		}
 		return nil
-	}).AsBuiltin()
+	}
 }

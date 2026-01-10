@@ -42,6 +42,7 @@ func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 //	}).WithOptions(MyOptions{})
 type Task struct {
 	// Public fields (for backwards compatibility during migration)
+	//
 	// Deprecated: Use NewTask() constructor instead of struct literals.
 	Name    string
 	Usage   string
@@ -58,6 +59,11 @@ type Task struct {
 	cliArgs map[string]string
 	// paths stores the resolved paths for this execution.
 	paths []string
+}
+
+// TaskName returns the task's CLI command name.
+func (t *Task) TaskName() string {
+	return t.Name
 }
 
 // NewTask creates a task with the required fields.
