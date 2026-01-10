@@ -156,7 +156,7 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 			return nil
 		},
 	}
-	ctx = withRunContext(ctx, &RunContext{Verbose: true, Cwd: "."})
+	ctx = withRunContext(ctx, &RunContext{Verbose: true, cwd: "."})
 	if err := task2.Run(ctx); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

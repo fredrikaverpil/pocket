@@ -107,7 +107,7 @@ func run(tasks []*Task, defaultTask *Task, pathMappings map[string]*PathFilter) 
 	// Set run context.
 	ctx = withRunContext(ctx, &RunContext{
 		Verbose: *verbose,
-		Cwd:     cwd,
+		cwd:     cwd,
 	})
 
 	// Run the task.

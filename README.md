@@ -39,9 +39,9 @@ pocket handle tool installation.
       worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
         Pocket that is only intended for the internals powering Pocket.
-- [ ] `RunContext` holds `Cwd` and `Paths`. This seems a bit redundant, as each
-      task should run from each entry in Path, and thus the Cwd changes for each
-      path too...?
+- [x] `RunContext` holds `Cwd` and `Paths`. This is confusing. (Resolved: `Cwd`
+      is now unexported - it's only used internally for path filtering. Task
+      actions use `Paths` via `ForEachPath()`.)
 
 ## Quickstart
 

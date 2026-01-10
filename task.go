@@ -15,9 +15,9 @@ type TaskAction func(ctx context.Context, rc *RunContext) error
 // RunContext provides runtime context to Actions.
 type RunContext struct {
 	Paths   []string // resolved paths for this task (from Paths wrapper)
-	Cwd     string   // current working directory (relative to git root)
 	Verbose bool     // verbose mode enabled
 
+	cwd           string     // internal: where CLI was invoked (relative to git root)
 	parsedOptions any        // typed options, access via GetOptions[T](rc)
 	skipRules     []skipRule // internal: task skip rules
 }
@@ -147,7 +147,7 @@ func getRunContext(ctx context.Context) *RunContext {
 	if rc, ok := ctx.Value(runContextKey).(*RunContext); ok {
 		return rc
 	}
-	return &RunContext{Cwd: "."}
+	return &RunContext{cwd: "."}
 }
 
 // withRunContext returns a context with the RunContext set.
@@ -160,7 +160,7 @@ func withSkipRules(ctx context.Context, rules []skipRule) context.Context {
 	rc := getRunContext(ctx)
 	return withRunContext(ctx, &RunContext{
 		Verbose:   rc.Verbose,
-		Cwd:       rc.Cwd,
+		cwd:       rc.cwd,
 		skipRules: rules,
 	})
 }
@@ -211,7 +211,7 @@ func (t *Task) Run(ctx context.Context) error {
 		// Determine paths, defaulting to cwd if not set.
 		paths := t.paths
 		if len(paths) == 0 {
-			paths = []string{base.Cwd}
+			paths = []string{base.cwd}
 		}
 		// Filter out paths that should be skipped.
 		var filteredPaths []string
@@ -243,8 +243,8 @@ func (t *Task) Run(ctx context.Context) error {
 		// Build RunContext for this task.
 		rc := &RunContext{
 			Paths:         filteredPaths,
-			Cwd:           base.Cwd,
 			Verbose:       base.Verbose,
+			cwd:           base.cwd,
 			parsedOptions: parsedOptions,
 		}
 		t.err = t.Action(ctx, rc)
