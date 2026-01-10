@@ -6,10 +6,10 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket"
-	"github.com/fredrikaverpil/pocket/tasks/clean"
-	"github.com/fredrikaverpil/pocket/tasks/generate"
-	"github.com/fredrikaverpil/pocket/tasks/gitdiff"
-	"github.com/fredrikaverpil/pocket/tasks/update"
+	"github.com/fredrikaverpil/pocket/internal/tasks/clean"
+	"github.com/fredrikaverpil/pocket/internal/tasks/generate"
+	"github.com/fredrikaverpil/pocket/internal/tasks/gitdiff"
+	"github.com/fredrikaverpil/pocket/internal/tasks/update"
 )
 
 // Runner holds all registered tasks based on the Config.
