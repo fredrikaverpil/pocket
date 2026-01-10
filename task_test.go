@@ -5,21 +5,21 @@ import (
 	"testing"
 )
 
-// TestArgs is a typed args struct for testing.
-type TestArgs struct {
+// TestOptions is a typed options struct for testing.
+type TestOptions struct {
 	Name  string `arg:"name"  usage:"who to greet"`
 	Count int    `arg:"count" usage:"number of times"`
 	Debug bool   `arg:"debug" usage:"enable debug mode"`
 }
 
 func TestTask_TypedArgs_Defaults(t *testing.T) {
-	var received TestArgs
+	var received TestOptions
 
 	task := &Task{
 		Name: "test-task",
-		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestArgs](rc)
+			received = GetArgs[TestOptions](rc)
 			return nil
 		},
 	}
@@ -41,13 +41,13 @@ func TestTask_TypedArgs_Defaults(t *testing.T) {
 }
 
 func TestTask_TypedArgs_CLIOverride(t *testing.T) {
-	var received TestArgs
+	var received TestOptions
 
 	task := &Task{
 		Name: "test-task",
-		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestArgs](rc)
+			received = GetArgs[TestOptions](rc)
 			return nil
 		},
 	}
@@ -75,13 +75,13 @@ func TestTask_TypedArgs_CLIOverride(t *testing.T) {
 }
 
 func TestTask_TypedArgs_PartialOverride(t *testing.T) {
-	var received TestArgs
+	var received TestOptions
 
 	task := &Task{
 		Name: "test-task",
-		Args: TestArgs{Name: "world", Count: 10, Debug: false},
+		Options: TestOptions{Name: "world", Count: 10, Debug: false},
 		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetArgs[TestArgs](rc)
+			received = GetArgs[TestOptions](rc)
 			return nil
 		},
 	}
@@ -112,7 +112,7 @@ func TestTask_NoArgs(t *testing.T) {
 		Action: func(_ context.Context, rc *RunContext) error {
 			ran = true
 			// GetArgs on nil should return zero value.
-			args := GetArgs[TestArgs](rc)
+			args := GetArgs[TestOptions](rc)
 			if args.Name != "" {
 				t.Errorf("expected empty Name, got %q", args.Name)
 			}

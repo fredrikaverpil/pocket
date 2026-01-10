@@ -52,8 +52,8 @@ func detectModules() []string {
 	return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
 
-// FormatArgs configures the py-format task.
-type FormatArgs struct {
+// FormatOptions configures the py-format task.
+type FormatOptions struct {
 	RuffConfig string `usage:"path to ruff config file"`
 }
 
@@ -72,13 +72,13 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 
 // FormatTask returns a task that formats Python files using ruff format.
 // Optional defaults can be passed to set project-level configuration.
-func FormatTask(defaults ...FormatArgs) *pocket.Task {
+func FormatTask(defaults ...FormatOptions) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-format",
 		Usage: "format Python files",
-		Args:  pocket.FirstOrZero(defaults...),
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatArgs](rc)
+			opts := pocket.GetArgs[FormatOptions](rc)
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error
@@ -113,20 +113,20 @@ func FormatTask(defaults ...FormatArgs) *pocket.Task {
 	}
 }
 
-// LintArgs configures the py-lint task.
-type LintArgs struct {
+// LintOptions configures the py-lint task.
+type LintOptions struct {
 	RuffConfig string `usage:"path to ruff config file"`
 }
 
 // LintTask returns a task that lints Python files using ruff check.
 // Optional defaults can be passed to set project-level configuration.
-func LintTask(defaults ...LintArgs) *pocket.Task {
+func LintTask(defaults ...LintOptions) *pocket.Task {
 	return &pocket.Task{
 		Name:  "py-lint",
 		Usage: "lint Python files",
-		Args:  pocket.FirstOrZero(defaults...),
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[LintArgs](rc)
+			opts := pocket.GetArgs[LintOptions](rc)
 			configPath := opts.RuffConfig
 			if configPath == "" {
 				var err error

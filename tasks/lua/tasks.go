@@ -39,8 +39,8 @@ func (l *luaTasks) DefaultDetect() func() []string {
 	return func() []string { return []string{"."} }
 }
 
-// FormatArgs configures the lua-format task.
-type FormatArgs struct {
+// FormatOptions configures the lua-format task.
+type FormatOptions struct {
 	StyluaConfig string `usage:"path to stylua config file"`
 }
 
@@ -59,13 +59,13 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 
 // FormatTask returns a task that formats Lua files using stylua.
 // Optional defaults can be passed to set project-level configuration.
-func FormatTask(defaults ...FormatArgs) *pocket.Task {
+func FormatTask(defaults ...FormatOptions) *pocket.Task {
 	return &pocket.Task{
 		Name:  "lua-format",
 		Usage: "format Lua files",
-		Args:  pocket.FirstOrZero(defaults...),
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatArgs](rc)
+			opts := pocket.GetArgs[FormatOptions](rc)
 			configPath := opts.StyluaConfig
 			if configPath == "" {
 				var err error

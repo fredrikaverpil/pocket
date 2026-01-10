@@ -148,13 +148,13 @@ var Config = pocket.Config{
 }
 ```
 
-### Tasks with arguments
+### Tasks with options
 
-Tasks can accept runtime arguments via `-key=value` syntax. Define a struct for
-your arguments:
+Tasks can accept options that are configurable via CLI flags. Define a struct
+for your options:
 
 ```go
-type DeployArgs struct {
+type DeployOptions struct {
     Env    string
     DryRun bool
 }
@@ -162,14 +162,14 @@ type DeployArgs struct {
 var deployTask = &pocket.Task{
     Name:  "deploy",
     Usage: "deploy to environment",
-    Args:  DeployArgs{Env: "staging"},  // defaults
+    Options: DeployOptions{Env: "staging"},  // defaults
     Action: func(ctx context.Context, rc *pocket.RunContext) error {
-        args := pocket.GetArgs[DeployArgs](rc)
-        if args.DryRun {
-            pocket.Printf(ctx, "Would deploy to %s\n", args.Env)
+        opts := pocket.GetArgs[DeployOptions](rc)
+        if opts.DryRun {
+            pocket.Printf(ctx, "Would deploy to %s\n", opts.Env)
             return nil
         }
-        pocket.Printf(ctx, "Deploying to %s...\n", args.Env)
+        pocket.Printf(ctx, "Deploying to %s...\n", opts.Env)
         return nil
     },
 }

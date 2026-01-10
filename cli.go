@@ -222,7 +222,7 @@ func printHelp(tasks []*Task, defaultTask *Task) {
 func printTaskHelp(t *Task) {
 	fmt.Printf("%s - %s\n", t.Name, t.Usage)
 
-	info, err := inspectArgs(t.Args)
+	info, err := inspectArgs(t.Options)
 	if err != nil || info == nil || len(info.Fields) == 0 {
 		fmt.Println("\nThis task accepts no arguments.")
 		return

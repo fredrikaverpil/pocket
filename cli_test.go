@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// CLITestArgs is a typed args struct for CLI tests.
-type CLITestArgs struct {
+// CLITestOptions is a typed options struct for CLI tests.
+type CLITestOptions struct {
 	Name  string `arg:"name"  usage:"who to greet"`
 	Count int    `arg:"count" usage:"how many times"`
 }
@@ -20,7 +20,7 @@ func TestPrintTaskHelp_NoArgs(t *testing.T) {
 	}
 
 	// Verify task with no args is set up correctly.
-	info, err := inspectArgs(task.Args)
+	info, err := inspectArgs(task.Options)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -33,10 +33,10 @@ func TestPrintTaskHelp_WithArgs(t *testing.T) {
 	task := &Task{
 		Name:  "greet",
 		Usage: "print a greeting",
-		Args:  CLITestArgs{Name: "world", Count: 5},
+		Options: CLITestOptions{Name: "world", Count: 5},
 	}
 
-	info, err := inspectArgs(task.Args)
+	info, err := inspectArgs(task.Options)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

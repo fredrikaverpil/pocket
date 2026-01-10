@@ -33,7 +33,7 @@ func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 type Task struct {
 	Name    string
 	Usage   string
-	Args    any // typed args struct, inspected via reflection for CLI parsing
+	Options any // typed options struct, inspected via reflection for CLI parsing
 	Action  func(ctx context.Context, rc *RunContext) error
 	Hidden  bool
 	Builtin bool // true for core tasks like generate, update, git-diff
@@ -100,7 +100,7 @@ func isSkipped(ctx context.Context, name, path string) bool {
 }
 
 // SetArgs sets the CLI arguments for this task execution.
-// These will be merged with defaults from Args struct when the task runs.
+// These will be merged with defaults from Options struct when the task runs.
 func (t *Task) SetArgs(args map[string]string) {
 	t.cliArgs = args
 }
@@ -151,8 +151,8 @@ func (t *Task) Run(ctx context.Context) error {
 		} else {
 			fmt.Fprintf(Stdout(ctx), "=== %s\n", t.Name)
 		}
-		// Parse typed args (merge defaults from t.Args with CLI overrides).
-		parsedArgs, err := parseArgsFromCLI(t.Args, t.cliArgs)
+		// Parse typed args (merge defaults from t.Options with CLI overrides).
+		parsedArgs, err := parseArgsFromCLI(t.Options, t.cliArgs)
 		if err != nil {
 			t.err = fmt.Errorf("parse args: %w", err)
 			return

@@ -54,8 +54,8 @@ func detectModules() []string {
 	return pocket.DetectByFile("go.mod")
 }
 
-// FormatArgs configures the go-format task.
-type FormatArgs struct {
+// FormatOptions configures the go-format task.
+type FormatOptions struct {
 	LintConfig string `usage:"path to golangci-lint config file"`
 }
 
@@ -75,13 +75,13 @@ func formatCheck(ctx context.Context, configPath, dir string) (needsFormat bool,
 
 // FormatTask returns a task that formats Go code using golangci-lint fmt.
 // Optional defaults can be passed to set project-level configuration.
-func FormatTask(defaults ...FormatArgs) *pocket.Task {
+func FormatTask(defaults ...FormatOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "go-format",
-		Usage: "format Go code (gofumpt, goimports, gci, golines)",
-		Args:  pocket.FirstOrZero(defaults...),
+		Name:    "go-format",
+		Usage:   "format Go code (gofumpt, goimports, gci, golines)",
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[FormatArgs](rc)
+			opts := pocket.GetArgs[FormatOptions](rc)
 			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
@@ -123,20 +123,20 @@ func FormatTask(defaults ...FormatArgs) *pocket.Task {
 	}
 }
 
-// LintArgs configures the go-lint task.
-type LintArgs struct {
+// LintOptions configures the go-lint task.
+type LintOptions struct {
 	LintConfig string `usage:"path to golangci-lint config file"`
 }
 
 // LintTask returns a task that runs golangci-lint.
 // Optional defaults can be passed to set project-level configuration.
-func LintTask(defaults ...LintArgs) *pocket.Task {
+func LintTask(defaults ...LintOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "go-lint",
-		Usage: "run golangci-lint",
-		Args:  pocket.FirstOrZero(defaults...),
+		Name:    "go-lint",
+		Usage:   "run golangci-lint",
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[LintArgs](rc)
+			opts := pocket.GetArgs[LintOptions](rc)
 			configPath := opts.LintConfig
 			if configPath == "" {
 				var err error
@@ -160,21 +160,21 @@ func LintTask(defaults ...LintArgs) *pocket.Task {
 	}
 }
 
-// TestArgs configures the go-test task.
-type TestArgs struct {
+// TestOptions configures the go-test task.
+type TestOptions struct {
 	SkipRace     bool `usage:"skip race detection"`
 	SkipCoverage bool `usage:"skip coverage output"`
 }
 
 // TestTask returns a task that runs Go tests with race detection and coverage.
 // Optional defaults can be passed to set project-level configuration.
-func TestTask(defaults ...TestArgs) *pocket.Task {
+func TestTask(defaults ...TestOptions) *pocket.Task {
 	return &pocket.Task{
-		Name:  "go-test",
-		Usage: "run Go tests",
-		Args:  pocket.FirstOrZero(defaults...),
+		Name:    "go-test",
+		Usage:   "run Go tests",
+		Options: pocket.FirstOrZero(defaults...),
 		Action: func(ctx context.Context, rc *pocket.RunContext) error {
-			opts := pocket.GetArgs[TestArgs](rc)
+			opts := pocket.GetArgs[TestOptions](rc)
 			return rc.ForEachPath(func(dir string) error {
 				args := []string{"test"}
 				if rc.Verbose {

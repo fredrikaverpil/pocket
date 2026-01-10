@@ -26,7 +26,7 @@ type argsInfo struct {
 //
 // Example struct:
 //
-//	type TestArgs struct {
+//	type TestOptions struct {
 //	    SkipRace   bool   `arg:"skip-race" usage:"skip race detection"`
 //	    LintConfig string `arg:"lint-config" usage:"path to config file"`
 //	}
