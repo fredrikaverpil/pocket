@@ -58,7 +58,7 @@ import (
 
 var Config = pocket.Config{
     // AutoRun: tasks that run on ./pok (no arguments).
-    AutoRun: helloTask,
+    ManualRun: helloTask,
 }
 
 // helloAction is defined separately from the task constructor.
@@ -74,7 +74,6 @@ var helloTask = pocket.NewTask("hello", "say hello", helloAction)
 ```bash
 ./pok -h      # list tasks
 ./pok hello   # run specific task
-./pok         # run auto-run tasks
 ```
 
 > [!NOTE]
@@ -94,6 +93,9 @@ var helloTask = pocket.NewTask("hello", "say hello", helloAction)
 > Or add a shell alias: `alias pok='./pok'`
 
 ### Execution order
+
+When using `AutoRun` instead of `ManualRun`, you can run all specified tasks
+directly on invoking `./pok`.
 
 Use `Serial()` and `Parallel()` to control how tasks run:
 
