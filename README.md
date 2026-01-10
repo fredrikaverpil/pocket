@@ -26,24 +26,24 @@ pocket handle tool installation.
 ### Todos
 
 - [x] Prevent accidental use of `defaults` in a task's `Action` function; must
-      use the helper `GetOptions`. (Solved by separating action functions from
-      task constructors - no closure capture possible.)
+  use the helper `GetOptions`. (Solved by separating action functions from
+  task constructors - no closure capture possible.)
 - [x] It is difficult to just read the source code today, and get a grasp on how
-      to create tasks and task groups. Tasks and task groups could use `New`
-      functions that would help users with creation? (Solved with `NewTask()`
-      constructor and chainable methods.)
+  to create tasks and task groups. Tasks and task groups could use `New`
+  functions that would help users with creation? (Solved with `NewTask()`
+  constructor and chainable methods.)
 - [x] `./pok clean`; to clean `./pocket/tools`, `./pocket/bin`
 - [x] Ability to define tasks which run on ./pok and tasks which must be run
-      only explicitly with `./pok <taskname>`. Such "explicit tasks" should
-      appear in their own section in `./pok -h`. Default behavior is to not
-      auto-run. (Solved with `AutoRun` and `ManualRun` config fields.)
+  only explicitly with `./pok <taskname>`. Such "explicit tasks" should
+  appear in their own section in `./pok -h`. Default behavior is to not
+  auto-run. (Solved with `AutoRun` and `ManualRun` config fields.)
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
-      worry users starts using things we cannot refactor later.
+  worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
-        Pocket that is only intended for the internals powering Pocket.
+    Pocket that is only intended for the internals powering Pocket.
 - [x] `RunContext` holds `Cwd` and `Paths`. This is confusing. (Resolved: `Cwd`
-      is now unexported - it's only used internally for path filtering. Task
-      actions use `Paths` via `ForEachPath()`.)
+  is now unexported - it's only used internally for path filtering. Task
+  actions use `Paths` via `ForEachPath()`.)
 
 ## Quickstart
 
