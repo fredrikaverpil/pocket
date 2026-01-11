@@ -17,15 +17,32 @@ type RunContext struct {
 	Paths   []string // resolved paths for this task (from Paths wrapper)
 	Verbose bool     // verbose mode enabled
 
-	cwd           string     // internal: where CLI was invoked (relative to git root)
-	parsedOptions any        // typed options, access via GetOptions[T](rc)
-	skipRules     []skipRule // internal: task skip rules
+	ctx           context.Context // internal: for cancellation checks
+	cwd           string          // internal: where CLI was invoked (relative to git root)
+	parsedOptions any             // typed options, access via GetOptions[T](rc)
+	skipRules     []skipRule      // internal: task skip rules
+}
+
+// Context returns the context for this task execution.
+// Use this to check for cancellation or pass to sub-operations.
+func (rc *RunContext) Context() context.Context {
+	if rc.ctx == nil {
+		return context.Background()
+	}
+	return rc.ctx
 }
 
 // ForEachPath executes fn for each path in the context.
 // This is a convenience helper for the common pattern of iterating over paths.
+// Iteration stops early if the context is cancelled (e.g., another parallel task failed).
 func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 	for _, dir := range rc.Paths {
+		// Check for cancellation before each iteration.
+		select {
+		case <-rc.Context().Done():
+			return rc.Context().Err()
+		default:
+		}
 		if err := fn(dir); err != nil {
 			return err
 		}
@@ -244,6 +261,7 @@ func (t *Task) Run(ctx context.Context) error {
 		rc := &RunContext{
 			Paths:         filteredPaths,
 			Verbose:       base.Verbose,
+			ctx:           ctx,
 			cwd:           base.cwd,
 			parsedOptions: parsedOptions,
 		}

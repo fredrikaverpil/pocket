@@ -23,8 +23,6 @@ pocket handle tool installation.
 
 ### Todos
 
-- [ ] Behavior on when a task is failing which runs in parallel flow; signal all
-      other tasks to stop?
 - [ ] We lost output colors with buffered output. Can we do something about it?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
       worry users starts using things we cannot refactor later.
