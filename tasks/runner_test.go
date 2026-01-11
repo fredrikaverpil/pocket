@@ -234,6 +234,33 @@ func TestTask_RunsOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestTask_RunsAgainWithNewExecution(t *testing.T) {
+	runCount := 0
+	task := pocket.NewTask(
+		"reusable",
+		"can run in multiple executions",
+		func(_ context.Context, _ *pocket.TaskContext) error {
+			runCount++
+			return nil
+		},
+	)
+
+	ctx := context.Background()
+
+	// First execution.
+	exec1 := pocket.NewExecution(pocket.StdOutput(), false, ".")
+	_ = task.Run(ctx, exec1)
+
+	// Second execution (fresh dedupTracker).
+	exec2 := pocket.NewExecution(pocket.StdOutput(), false, ".")
+	_ = task.Run(ctx, exec2)
+
+	// Same task should run once per Execution.
+	if runCount != 2 {
+		t.Errorf("expected task to run twice (once per Execution), got %d", runCount)
+	}
+}
+
 func TestManualRun_TasksRegistered(t *testing.T) {
 	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil

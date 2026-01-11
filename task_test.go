@@ -153,7 +153,9 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 		t.Error("expected Verbose=false")
 	}
 
-	// Run with verbose (new task since execution tracking is per-Execution).
+	// Run with verbose using a new Execution.
+	// Note: We could reuse the same task since dedupTracker is per-Execution,
+	// but we use a different task name here for clarity in test output.
 	task2 := &Task{
 		Name: "test-task-verbose",
 		Action: func(_ context.Context, tc *TaskContext) error {
