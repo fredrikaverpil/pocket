@@ -27,6 +27,9 @@ pocket handle tool installation.
   `RunContext` mixes concerns: task-specific data (`Paths`, `Out`, `parsedOptions`)
   with shared state (`state`, `setup`). Consider separating into `Execution`
   (created once) and `TaskContext` (built fresh per task).
+- [x] Rename internal `execution` struct to `dedupTracker`. Currently there's
+  `Execution` (shared runtime context) and `execution` (deduplication tracker)
+  which have confusingly similar names.
 - [ ] Evaluate whether `Tasks()` should remain part of `Runnable` interface.
   `TaskLister` is already defined but unused. The `Tasks()` method is only needed
   for CLI registration, not execution—consider if callers should type-assert when

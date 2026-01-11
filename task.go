@@ -167,22 +167,22 @@ func (tc *TaskContext) ForEachPath(ctx context.Context, fn func(dir string) erro
 	return nil
 }
 
-// execution tracks which tasks have run in a single execution.
+// dedupTracker tracks which tasks have run in a single execution.
 // This is shared across the entire Runnable tree.
-type execution struct {
+type dedupTracker struct {
 	mu     sync.Mutex
 	done   map[string]bool
 	errors map[string]error
 }
 
-func newExecution() *execution {
-	return &execution{
+func newDedupTracker() *dedupTracker {
+	return &dedupTracker{
 		done:   make(map[string]bool),
 		errors: make(map[string]error),
 	}
 }
 
-func (e *execution) markDone(name string, err error) {
+func (e *dedupTracker) markDone(name string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.done[name] = true
@@ -191,7 +191,7 @@ func (e *execution) markDone(name string, err error) {
 	}
 }
 
-func (e *execution) isDone(name string) (bool, error) {
+func (e *dedupTracker) isDone(name string) (bool, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.done[name] {

@@ -6,9 +6,9 @@ import "slices"
 // It is created once by the CLI and passed through all Runnables.
 // Fields are immutable after creation.
 type executionState struct {
-	cwd     string     // where CLI was invoked (relative to git root)
-	verbose bool       // verbose mode enabled
-	dedup   *execution // tracks which tasks have run (thread-safe)
+	cwd     string        // where CLI was invoked (relative to git root)
+	verbose bool          // verbose mode enabled
+	dedup   *dedupTracker // tracks which tasks have run (thread-safe)
 }
 
 // newExecutionState creates an executionState for a new execution.
@@ -16,7 +16,7 @@ func newExecutionState(cwd string, verbose bool) *executionState {
 	return &executionState{
 		cwd:     cwd,
 		verbose: verbose,
-		dedup:   newExecution(),
+		dedup:   newDedupTracker(),
 	}
 }
 
