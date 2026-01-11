@@ -108,16 +108,17 @@ func TestLintTask_PathsPassedCorrectly(t *testing.T) {
 	task := pocket.NewTask(
 		"test-capture",
 		"capture paths for testing",
-		func(_ context.Context, opts *pocket.RunContext) error {
-			capturedPaths = opts.Paths
+		func(_ context.Context, rc *pocket.RunContext) error {
+			capturedPaths = rc.Paths
 			return nil
 		},
 	)
 
-	// Set paths via SetPaths (as PathFilter wrapper does).
-	task.SetPaths([]string{"proj1", "proj2"})
+	// Wrap task with Paths() to set paths (as PathFilter does).
+	wrapped := pocket.Paths(task).In("proj1", "proj2")
 
-	if err := task.Run(context.Background(), pocket.StdOutput()); err != nil {
+	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	if err := wrapped.Run(context.Background(), rc); err != nil {
 		t.Fatalf("task.Run failed: %v", err)
 	}
 

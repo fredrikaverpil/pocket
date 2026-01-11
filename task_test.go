@@ -25,7 +25,8 @@ func TestTask_TypedArgs_Defaults(t *testing.T) {
 	}
 
 	// Run without any CLI args - should get defaults.
-	if err := task.Run(context.Background(), StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := task.Run(context.Background(), rc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -52,14 +53,15 @@ func TestTask_TypedArgs_CLIOverride(t *testing.T) {
 		},
 	}
 
-	// Override via CLI args.
-	task.SetArgs(map[string]string{
+	// Override via CLI args set on RunContext.
+	rc := NewRunContext(StdOutput(), false, ".")
+	rc.SetTaskArgs(task.Name, map[string]string{
 		"name":  "Freddy",
 		"count": "42",
 		"debug": "true",
 	})
 
-	if err := task.Run(context.Background(), StdOutput()); err != nil {
+	if err := task.Run(context.Background(), rc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -87,11 +89,12 @@ func TestTask_TypedArgs_PartialOverride(t *testing.T) {
 	}
 
 	// Override only one field.
-	task.SetArgs(map[string]string{
+	rc := NewRunContext(StdOutput(), false, ".")
+	rc.SetTaskArgs(task.Name, map[string]string{
 		"name": "partial",
 	})
 
-	if err := task.Run(context.Background(), StdOutput()); err != nil {
+	if err := task.Run(context.Background(), rc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -120,7 +123,8 @@ func TestTask_NoArgs(t *testing.T) {
 		},
 	}
 
-	if err := task.Run(context.Background(), StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := task.Run(context.Background(), rc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !ran {
@@ -141,14 +145,15 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 
 	// Run without verbose.
 	ctx := context.Background()
-	if err := task.Run(ctx, StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := task.Run(ctx, rc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if receivedVerbose {
-		t.Error("expected Verbose=false without runContext")
+		t.Error("expected Verbose=false")
 	}
 
-	// Run with verbose (new task since sync.Once).
+	// Run with verbose (new task since execution tracking is per-RunContext).
 	task2 := &Task{
 		Name: "test-task-verbose",
 		Action: func(_ context.Context, rc *RunContext) error {
@@ -156,11 +161,11 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 			return nil
 		},
 	}
-	ctx = withRunContext(ctx, &RunContext{Verbose: true, cwd: "."})
-	if err := task2.Run(ctx, StdOutput()); err != nil {
+	rcVerbose := NewRunContext(StdOutput(), true, ".")
+	if err := task2.Run(ctx, rcVerbose); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !receivedVerbose {
-		t.Error("expected Verbose=true with runContext")
+		t.Error("expected Verbose=true")
 	}
 }

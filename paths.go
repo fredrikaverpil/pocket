@@ -252,21 +252,21 @@ func (p *PathFilter) ResolveFor(cwd string) []string {
 }
 
 // Run executes the inner Runnable after setting resolved paths on tasks.
-func (p *PathFilter) Run(ctx context.Context, out *Output) error {
-	rc := getRunContext(ctx)
-	paths := p.ResolveFor(rc.cwd)
+func (p *PathFilter) Run(ctx context.Context, rc *RunContext) error {
+	paths := p.ResolveFor(rc.CWD())
 
-	// Set paths on all tasks in the inner Runnable.
+	// Set paths for all tasks in the inner Runnable.
 	for _, task := range p.inner.Tasks() {
-		task.SetPaths(paths)
+		rc.setTaskPaths(task.Name, paths)
 	}
 
-	// Set skip rules in context so tasks can check if they should be skipped.
+	// Create child RunContext with skip rules if any.
+	childRC := rc
 	if len(p.skipRules) > 0 {
-		ctx = withSkipRules(ctx, p.skipRules)
+		childRC = rc.withSkipRules(p.skipRules)
 	}
 
-	return p.inner.Run(ctx, out)
+	return p.inner.Run(ctx, childRC)
 }
 
 // Tasks returns all tasks from the inner Runnable, excluding globally skipped tasks.
@@ -412,7 +412,6 @@ func collectPathMappingsRecursive(r Runnable, result map[string]*PathFilter, cur
 	}
 
 	// For other Runnables (serial, parallel), recurse into children.
-	// We need to check for known types.
 	switch v := r.(type) {
 	case interface{ Children() []Runnable }:
 		for _, child := range v.Children() {

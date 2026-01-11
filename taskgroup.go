@@ -19,17 +19,17 @@ import "context"
 //	    test, vulncheck := TestTask(), VulncheckTask()
 //
 //	    return pocket.NewTaskGroup(format, lint, test, vulncheck).
-//	        RunWith(func(ctx context.Context, out *pocket.Output) error {
-//	            if err := pocket.Serial(format, lint).Run(ctx, out); err != nil {
+//	        RunWith(func(ctx context.Context, rc *pocket.RunContext) error {
+//	            if err := pocket.Serial(format, lint).Run(ctx, rc); err != nil {
 //	                return err
 //	            }
-//	            return pocket.Parallel(test, vulncheck).Run(ctx, out)
+//	            return pocket.Parallel(test, vulncheck).Run(ctx, rc)
 //	        }).
 //	        DetectBy(pocket.DetectByFile("go.mod"))
 //	}
 type TaskGroup struct {
 	tasks    []*Task
-	runFn    func(context.Context, *Output) error
+	runFn    func(context.Context, *RunContext) error
 	detectFn func() []string
 }
 
@@ -44,9 +44,9 @@ func NewTaskGroup(tasks ...*Task) *TaskGroup {
 // RunWith sets a custom execution function for the task group.
 // If not called, tasks run in parallel by default.
 //
-// The function receives context and output, and should orchestrate task execution
+// The function receives context and RunContext, and should orchestrate task execution
 // using Serial() and Parallel() as needed.
-func (g *TaskGroup) RunWith(fn func(context.Context, *Output) error) *TaskGroup {
+func (g *TaskGroup) RunWith(fn func(context.Context, *RunContext) error) *TaskGroup {
 	g.runFn = fn
 	return g
 }
@@ -67,16 +67,16 @@ func (g *TaskGroup) DetectBy(fn func() []string) *TaskGroup {
 // Run executes the task group.
 // If RunWith was called, uses the custom function.
 // Otherwise, runs all tasks in parallel.
-func (g *TaskGroup) Run(ctx context.Context, out *Output) error {
+func (g *TaskGroup) Run(ctx context.Context, rc *RunContext) error {
 	if g.runFn != nil {
-		return g.runFn(ctx, out)
+		return g.runFn(ctx, rc)
 	}
 	// Default: run all tasks in parallel.
 	runnables := make([]Runnable, len(g.tasks))
 	for i, t := range g.tasks {
 		runnables[i] = t
 	}
-	return Parallel(runnables...).Run(ctx, out)
+	return Parallel(runnables...).Run(ctx, rc)
 }
 
 // Tasks returns all tasks in the group.

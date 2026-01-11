@@ -179,7 +179,8 @@ func TestParallel_Execution(t *testing.T) {
 		return nil
 	})
 
-	err := pocket.Parallel(task1, task2).Run(context.Background(), pocket.StdOutput())
+	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	err := pocket.Parallel(task1, task2).Run(context.Background(), rc)
 	if err != nil {
 		t.Fatalf("Parallel failed: %v", err)
 	}
@@ -200,7 +201,8 @@ func TestSerial_Execution(t *testing.T) {
 		return nil
 	})
 
-	err := pocket.Serial(task1, task2).Run(context.Background(), pocket.StdOutput())
+	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	err := pocket.Serial(task1, task2).Run(context.Background(), rc)
 	if err != nil {
 		t.Fatalf("Serial failed: %v", err)
 	}
@@ -218,9 +220,10 @@ func TestTask_RunsOnlyOnce(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	_ = task.Run(ctx, pocket.StdOutput())
-	_ = task.Run(ctx, pocket.StdOutput())
-	_ = task.Run(ctx, pocket.StdOutput())
+	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	_ = task.Run(ctx, rc)
+	_ = task.Run(ctx, rc)
+	_ = task.Run(ctx, rc)
 
 	if runCount != 1 {
 		t.Errorf("expected task to run once, but ran %d times", runCount)

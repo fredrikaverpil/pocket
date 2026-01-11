@@ -109,21 +109,20 @@ func run(
 		}
 	}
 
-	// Set task arguments.
-	taskToRun.SetArgs(taskArgs)
-
 	// Create context with cancellation on interrupt.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Set run context.
-	ctx = withRunContext(ctx, &RunContext{
-		Verbose: *verbose,
-		cwd:     cwd,
-	})
+	// Create RunContext with all state.
+	rc := NewRunContext(StdOutput(), *verbose, cwd)
+
+	// Set CLI args for the task being run.
+	if taskArgs != nil {
+		rc.taskArgs[taskToRun.Name] = taskArgs
+	}
 
 	// Run the task.
-	if err := taskToRun.Run(ctx, StdOutput()); err != nil {
+	if err := taskToRun.Run(ctx, rc); err != nil {
 		fmt.Fprintf(os.Stderr, "task %s failed: %v\n", taskToRun.Name, err)
 		return 1
 	}

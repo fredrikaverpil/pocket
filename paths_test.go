@@ -10,7 +10,7 @@ type mockRunnable struct {
 	tasks []*Task
 }
 
-func (m *mockRunnable) Run(_ context.Context, _ *Output) error {
+func (m *mockRunnable) Run(_ context.Context, _ *RunContext) error {
 	return nil
 }
 
@@ -324,9 +324,9 @@ func TestPaths_Skip_Run(t *testing.T) {
 	// Create a runnable that runs all tasks.
 	runnable := &runnableWithTasks{
 		tasks: []*Task{task1, task2, task3},
-		runFn: func(ctx context.Context, out *Output) error {
+		runFn: func(ctx context.Context, rc *RunContext) error {
 			for _, task := range []*Task{task1, task2, task3} {
-				if err := task.Run(ctx, out); err != nil {
+				if err := task.Run(ctx, rc); err != nil {
 					return err
 				}
 			}
@@ -338,7 +338,8 @@ func TestPaths_Skip_Run(t *testing.T) {
 	p := Paths(runnable).In(".").Skip(task2)
 
 	ctx := context.Background()
-	if err := p.Run(ctx, StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := p.Run(ctx, rc); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -356,11 +357,11 @@ func TestPaths_Skip_Run(t *testing.T) {
 // runnableWithTasks is a helper for testing that allows custom run behavior.
 type runnableWithTasks struct {
 	tasks []*Task
-	runFn func(ctx context.Context, out *Output) error
+	runFn func(ctx context.Context, rc *RunContext) error
 }
 
-func (r *runnableWithTasks) Run(ctx context.Context, out *Output) error {
-	return r.runFn(ctx, out)
+func (r *runnableWithTasks) Run(ctx context.Context, rc *RunContext) error {
+	return r.runFn(ctx, rc)
 }
 
 func (r *runnableWithTasks) Tasks() []*Task {
@@ -382,8 +383,8 @@ func TestPaths_Skip_InPath(t *testing.T) {
 
 	runnable := &runnableWithTasks{
 		tasks: []*Task{task1},
-		runFn: func(ctx context.Context, out *Output) error {
-			return task1.Run(ctx, out)
+		runFn: func(ctx context.Context, rc *RunContext) error {
+			return task1.Run(ctx, rc)
 		},
 	}
 
@@ -393,7 +394,8 @@ func TestPaths_Skip_InPath(t *testing.T) {
 	}).Skip(task1, "docs")
 
 	ctx := context.Background()
-	if err := p.Run(ctx, StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := p.Run(ctx, rc); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -421,8 +423,8 @@ func TestPaths_Skip_InMultiplePaths(t *testing.T) {
 
 	runnable := &runnableWithTasks{
 		tasks: []*Task{task1},
-		runFn: func(ctx context.Context, out *Output) error {
-			return task1.Run(ctx, out)
+		runFn: func(ctx context.Context, rc *RunContext) error {
+			return task1.Run(ctx, rc)
 		},
 	}
 
@@ -432,7 +434,8 @@ func TestPaths_Skip_InMultiplePaths(t *testing.T) {
 	}).Skip(task1, "docs", "test")
 
 	ctx := context.Background()
-	if err := p.Run(ctx, StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := p.Run(ctx, rc); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
@@ -455,8 +458,8 @@ func TestPaths_Skip_AllPathsFiltered(t *testing.T) {
 
 	runnable := &runnableWithTasks{
 		tasks: []*Task{task1},
-		runFn: func(ctx context.Context, out *Output) error {
-			return task1.Run(ctx, out)
+		runFn: func(ctx context.Context, rc *RunContext) error {
+			return task1.Run(ctx, rc)
 		},
 	}
 
@@ -466,7 +469,8 @@ func TestPaths_Skip_AllPathsFiltered(t *testing.T) {
 	}).Skip(task1, "docs")
 
 	ctx := context.Background()
-	if err := p.Run(ctx, StdOutput()); err != nil {
+	rc := NewRunContext(StdOutput(), false, ".")
+	if err := p.Run(ctx, rc); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
