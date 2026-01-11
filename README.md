@@ -23,31 +23,39 @@ pocket handle tool installation.
 
 ### Todos
 
-- [x] Split `RunContext` into shared execution state vs per-task context. Currently
-  `RunContext` mixes concerns: task-specific data (`Paths`, `Out`, `parsedOptions`)
-  with shared state (`state`, `setup`). Consider separating into `Execution`
-  (created once) and `TaskContext` (built fresh per task).
+- [x] Split `RunContext` into shared execution state vs per-task context.
+      Currently `RunContext` mixes concerns: task-specific data (`Paths`, `Out`,
+      `parsedOptions`) with shared state (`state`, `setup`). Consider separating
+      into `Execution` (created once) and `TaskContext` (built fresh per task).
 - [x] Rename internal `execution` struct to `dedupTracker`. Currently there's
-  `Execution` (shared runtime context) and `execution` (deduplication tracker)
-  which have confusingly similar names.
+      `Execution` (shared runtime context) and `execution` (deduplication
+      tracker) which have confusingly similar names.
 - [x] Evaluate whether `Tasks()` should remain part of `Runnable` interface.
-  Decision: Keep `Tasks()` in `Runnable` because it's used during execution
-  (PathFilter.Run sets paths on tasks), not just CLI registration. Removed the
-  unused `TaskLister` interface.
+      Decision: Keep `Tasks()` in `Runnable` because it's used during execution
+      (PathFilter.Run sets paths on tasks), not just CLI registration. Removed
+      the unused `TaskLister` interface.
 - [x] Consider `sync.Once` for task deduplication instead of the current
-  `dedupTracker` struct with mutex + maps. Decision: Keep current approach.
-  `sync.Once` would save ~10 lines but prevents re-running tasks in tests and
-  library usage (same Task instance becomes "used up"). Current approach creates
-  fresh `dedupTracker` per `Execution`, allowing task reuse across runs.
+      `dedupTracker` struct with mutex + maps. Decision: Keep current approach.
+      `sync.Once` would save ~10 lines but prevents re-running tasks in tests
+      and library usage (same Task instance becomes "used up"). Current approach
+      creates fresh `dedupTracker` per `Execution`, allowing task reuse across
+      runs.
 - [x] We lost output colors with buffered output. Fixed by detecting if stdout
-  is a TTY and setting `FORCE_COLOR=1`, `CLICOLOR_FORCE=1` env vars for
-  subprocesses. Tools now output ANSI codes even when buffered.
+      is a TTY and setting `FORCE_COLOR=1`, `CLICOLOR_FORCE=1` env vars for
+      subprocesses. Tools now output ANSI codes even when buffered.
+- [ ] `./pok -v` and e.g. `./pok go-test -v` does not output buffered correctly:
+      both tools and tasks are outputing in realtime. But I'm now starting to
+      think we shouldn't use buffered output. There will be no progress what so
+      ever on e.g. long-running tests. Can we maintain colored output if
+      prefixing each line with e.g. `[the-task]` and not buffering the output?
+      It looks fairly simple to fix for tasks, but how can we make tools use the
+      same io.Writer for stdout/stderr?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
-  worry users starts using things we cannot refactor later.
+      worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
-    Pocket that is only intended for the internals powering Pocket.
+        Pocket that is only intended for the internals powering Pocket.
 - [ ] Diagrams/tables showing how Pocket works in different senses. I would like
-  to explain;
+      to explain;
   - [ ] Project config driven command execution
   - [ ] Path resolver behavior
   - [ ] What a "Runnable" is, and how it gets executed
