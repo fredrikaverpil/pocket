@@ -3,7 +3,6 @@
 package tasks
 
 import (
-	"context"
 	"maps"
 
 	"github.com/fredrikaverpil/pocket"
@@ -92,7 +91,8 @@ func NewRunner(cfg pocket.Config) *Runner {
 
 	// Create the "all" task that runs everything.
 	// Hidden because it's the default task (run when no task is specified).
-	t.All = pocket.NewTask("all", "run all tasks", func(ctx context.Context, _ *pocket.RunContext) error {
+	t.All = pocket.NewTask("all", "run all tasks", func(rc *pocket.RunContext) error {
+		ctx := rc.Context()
 		// Generate first.
 		if err := t.Generate.Run(ctx); err != nil {
 			return err

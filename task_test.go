@@ -18,7 +18,7 @@ func TestTask_TypedArgs_Defaults(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			received = GetOptions[TestOptions](rc)
 			return nil
 		},
@@ -46,7 +46,7 @@ func TestTask_TypedArgs_CLIOverride(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			received = GetOptions[TestOptions](rc)
 			return nil
 		},
@@ -80,7 +80,7 @@ func TestTask_TypedArgs_PartialOverride(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			received = GetOptions[TestOptions](rc)
 			return nil
 		},
@@ -109,7 +109,7 @@ func TestTask_NoArgs(t *testing.T) {
 	task := &Task{
 		Name: "test-task",
 		// No Args field set
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			ran = true
 			// GetArgs on nil should return zero value.
 			args := GetOptions[TestOptions](rc)
@@ -133,7 +133,7 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 
 	task := &Task{
 		Name: "test-task",
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			receivedVerbose = rc.Verbose
 			return nil
 		},
@@ -151,7 +151,7 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 	// Run with verbose (new task since sync.Once).
 	task2 := &Task{
 		Name: "test-task-verbose",
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			receivedVerbose = rc.Verbose
 			return nil
 		},

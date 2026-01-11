@@ -73,7 +73,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the py-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
+func formatAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[FormatOptions](rc)
 	configPath := opts.RuffConfig
 	if configPath == "" {
@@ -132,7 +133,8 @@ func LintTask() *pocket.Task {
 }
 
 // lintAction is the action for the py-lint task.
-func lintAction(ctx context.Context, rc *pocket.RunContext) error {
+func lintAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[LintOptions](rc)
 	configPath := opts.RuffConfig
 	if configPath == "" {
@@ -156,7 +158,8 @@ func TypecheckTask() *pocket.Task {
 }
 
 // typecheckAction is the action for the py-typecheck task.
-func typecheckAction(ctx context.Context, rc *pocket.RunContext) error {
+func typecheckAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	return rc.ForEachPath(func(dir string) error {
 		if err := mypy.Run(ctx, dir); err != nil {
 			return fmt.Errorf("mypy failed in %s: %w", dir, err)

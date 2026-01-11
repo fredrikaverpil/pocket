@@ -9,8 +9,8 @@ import (
 )
 
 // TaskAction is the function signature for task actions.
-// Actions receive context and RunContext, and return an error if the task fails.
-type TaskAction func(ctx context.Context, rc *RunContext) error
+// Actions receive RunContext (which provides context via rc.Context()) and return an error if the task fails.
+type TaskAction func(rc *RunContext) error
 
 // RunContext provides runtime context to Actions.
 type RunContext struct {
@@ -54,7 +54,7 @@ func (rc *RunContext) ForEachPath(fn func(dir string) error) error {
 //
 // Create tasks using NewTask:
 //
-//	pocket.NewTask("my-task", "description", func(ctx context.Context, rc *pocket.RunContext) error {
+//	pocket.NewTask("my-task", "description", func(rc *pocket.RunContext) error {
 //	    return nil
 //	}).WithOptions(MyOptions{})
 type Task struct {
@@ -90,7 +90,7 @@ func (t *Task) TaskName() string {
 //
 // Example:
 //
-//	pocket.NewTask("deploy", "deploy to environment", func(ctx context.Context, rc *pocket.RunContext) error {
+//	pocket.NewTask("deploy", "deploy to environment", func(rc *pocket.RunContext) error {
 //	    opts := pocket.GetOptions[DeployOptions](rc)
 //	    return deploy(opts.Env)
 //	}).WithOptions(DeployOptions{Env: "staging"})
@@ -265,7 +265,7 @@ func (t *Task) Run(ctx context.Context) error {
 			cwd:           base.cwd,
 			parsedOptions: parsedOptions,
 		}
-		t.err = t.Action(ctx, rc)
+		t.err = t.Action(rc)
 	})
 	return t.err
 }

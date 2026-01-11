@@ -2,7 +2,6 @@
 package update
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 
@@ -17,7 +16,8 @@ func Task(cfg pocket.Config) *pocket.Task {
 }
 
 func updateAction(cfg *pocket.Config) pocket.TaskAction {
-	return func(ctx context.Context, rc *pocket.RunContext) error {
+	return func(rc *pocket.RunContext) error {
+		ctx := rc.Context()
 		pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 		verbose := rc.Verbose
 

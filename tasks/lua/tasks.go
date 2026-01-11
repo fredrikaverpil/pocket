@@ -54,7 +54,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the lua-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
+func formatAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[FormatOptions](rc)
 	configPath := opts.StyluaConfig
 	if configPath == "" {

@@ -83,7 +83,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the go-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
+func formatAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[FormatOptions](rc)
 	configPath := opts.LintConfig
 	if configPath == "" {
@@ -150,7 +151,8 @@ func LintTask() *pocket.Task {
 }
 
 // lintAction is the action for the go-lint task.
-func lintAction(ctx context.Context, rc *pocket.RunContext) error {
+func lintAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[LintOptions](rc)
 	configPath := opts.LintConfig
 	if configPath == "" {
@@ -186,7 +188,8 @@ func TestTask() *pocket.Task {
 }
 
 // testAction is the action for the go-test task.
-func testAction(ctx context.Context, rc *pocket.RunContext) error {
+func testAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[TestOptions](rc)
 	return rc.ForEachPath(func(dir string) error {
 		args := []string{"test"}
@@ -223,7 +226,8 @@ func VulncheckTask() *pocket.Task {
 }
 
 // vulncheckAction is the action for the go-vulncheck task.
-func vulncheckAction(ctx context.Context, rc *pocket.RunContext) error {
+func vulncheckAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	return rc.ForEachPath(func(dir string) error {
 		cmd, err := govulncheck.Command(ctx, "./...")
 		if err != nil {

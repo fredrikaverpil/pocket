@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
@@ -31,7 +29,8 @@ type GreetOptions struct {
 }
 
 // greetAction is the action for the greet task.
-func greetAction(ctx context.Context, rc *pocket.RunContext) error {
+func greetAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
 	opts := pocket.GetOptions[GreetOptions](rc)
 	name := opts.Name
 	if name == "" {

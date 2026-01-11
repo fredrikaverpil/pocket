@@ -2,7 +2,6 @@
 package clean
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -15,7 +14,9 @@ func Task() *pocket.Task {
 		AsBuiltin()
 }
 
-func cleanAction(ctx context.Context, _ *pocket.RunContext) error {
+func cleanAction(rc *pocket.RunContext) error {
+	ctx := rc.Context()
+
 	// Remove .pocket/tools
 	toolsDir := pocket.FromToolsDir()
 	if _, err := os.Stat(toolsDir); err == nil {

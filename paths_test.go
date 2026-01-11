@@ -301,21 +301,21 @@ func TestPaths_Skip_Run(t *testing.T) {
 
 	task1 := &Task{
 		Name: "task1",
-		Action: func(_ context.Context, _ *RunContext) error {
+		Action: func(_ *RunContext) error {
 			executed = append(executed, "task1")
 			return nil
 		},
 	}
 	task2 := &Task{
 		Name: "task2",
-		Action: func(_ context.Context, _ *RunContext) error {
+		Action: func(_ *RunContext) error {
 			executed = append(executed, "task2")
 			return nil
 		},
 	}
 	task3 := &Task{
 		Name: "task3",
-		Action: func(_ context.Context, _ *RunContext) error {
+		Action: func(_ *RunContext) error {
 			executed = append(executed, "task3")
 			return nil
 		},
@@ -372,7 +372,7 @@ func TestPaths_Skip_InPath(t *testing.T) {
 
 	task1 := &Task{
 		Name: "task1",
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			for _, p := range rc.Paths {
 				executedPaths = append(executedPaths, "task1:"+p)
 			}
@@ -413,7 +413,7 @@ func TestPaths_Skip_InMultiplePaths(t *testing.T) {
 
 	task1 := &Task{
 		Name: "task1",
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(rc *RunContext) error {
 			executedPaths = append(executedPaths, rc.Paths...)
 			return nil
 		},
@@ -447,7 +447,7 @@ func TestPaths_Skip_AllPathsFiltered(t *testing.T) {
 
 	task1 := &Task{
 		Name: "task1",
-		Action: func(_ context.Context, _ *RunContext) error {
+		Action: func(_ *RunContext) error {
 			executed = true
 			return nil
 		},

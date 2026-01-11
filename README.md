@@ -55,11 +55,7 @@ Edit `.pocket/config.go`:
 ```go
 package main
 
-import (
-    "context"
-
-    "github.com/fredrikaverpil/pocket"
-)
+import "github.com/fredrikaverpil/pocket"
 
 var Config = pocket.Config{
     // AutoRun: tasks that run on ./pok (no arguments).
@@ -67,8 +63,8 @@ var Config = pocket.Config{
 }
 
 // helloAction is defined separately from the task constructor.
-func helloAction(ctx context.Context, rc *pocket.RunContext) error {
-    pocket.Println(ctx, "Hello from pocket!")
+func helloAction(rc *pocket.RunContext) error {
+    pocket.Println(rc.Context(), "Hello from pocket!")
     return nil
 }
 
@@ -125,8 +121,8 @@ rely on CI to install them. Here's a task that uses golangci-lint:
 ```go
 import "github.com/fredrikaverpil/pocket/tools/golangcilint"
 
-func lintAction(ctx context.Context, rc *pocket.RunContext) error {
-    return golangcilint.Run(ctx, "run", "./...")
+func lintAction(rc *pocket.RunContext) error {
+    return golangcilint.Run(rc.Context(), "run", "./...")
 }
 
 var lintTask = pocket.NewTask("lint", "run linter", lintAction)
@@ -149,7 +145,8 @@ type DeployOptions struct {
 }
 
 // deployAction is the task implementation.
-func deployAction(ctx context.Context, rc *pocket.RunContext) error {
+func deployAction(rc *pocket.RunContext) error {
+    ctx := rc.Context()
     opts := pocket.GetOptions[DeployOptions](rc)  // defaults merged with CLI flags
     if opts.DryRun {
         pocket.Printf(ctx, "Would deploy to %s\n", opts.Env)

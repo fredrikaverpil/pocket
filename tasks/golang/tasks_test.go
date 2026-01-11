@@ -108,7 +108,7 @@ func TestLintTask_PathsPassedCorrectly(t *testing.T) {
 	task := pocket.NewTask(
 		"test-capture",
 		"capture paths for testing",
-		func(_ context.Context, opts *pocket.RunContext) error {
+		func(opts *pocket.RunContext) error {
 			capturedPaths = opts.Paths
 			return nil
 		},
