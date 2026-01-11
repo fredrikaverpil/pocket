@@ -17,7 +17,7 @@ type RunContext struct {
 	Paths   []string // resolved paths for this task (from Paths wrapper)
 	Verbose bool     // verbose mode enabled
 
-	ctx           context.Context // internal: for cancellation checks
+	ctx           context.Context // internal: cancellation signals and output writers
 	cwd           string          // internal: where CLI was invoked (relative to git root)
 	parsedOptions any             // typed options, access via GetOptions[T](rc)
 	skipRules     []skipRule      // internal: task skip rules
