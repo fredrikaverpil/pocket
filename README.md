@@ -30,10 +30,10 @@ pocket handle tool installation.
 - [x] Rename internal `execution` struct to `dedupTracker`. Currently there's
   `Execution` (shared runtime context) and `execution` (deduplication tracker)
   which have confusingly similar names.
-- [ ] Evaluate whether `Tasks()` should remain part of `Runnable` interface.
-  `TaskLister` is already defined but unused. The `Tasks()` method is only needed
-  for CLI registration, not execution—consider if callers should type-assert when
-  needed instead.
+- [x] Evaluate whether `Tasks()` should remain part of `Runnable` interface.
+  Decision: Keep `Tasks()` in `Runnable` because it's used during execution
+  (PathFilter.Run sets paths on tasks), not just CLI registration. Removed the
+  unused `TaskLister` interface.
 - [ ] Consider `sync.Once` for task deduplication instead of the current
   `execution` struct with mutex + maps. Trade-off: `sync.Once` is simpler but
   doesn't allow fresh executions if the same `Task` instance is reused.

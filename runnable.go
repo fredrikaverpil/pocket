@@ -21,17 +21,6 @@ type Runnable interface {
 	Tasks() []*Task
 }
 
-// TaskLister provides task introspection for CLI registration and help display.
-// This interface documents the introspection aspect of Runnable, separating it
-// conceptually from the execution aspect (Run method).
-//
-// All Runnable implementations also implement TaskLister since Runnable
-// embeds the Tasks() method requirement.
-type TaskLister interface {
-	// Tasks returns all tasks contained in this runnable.
-	Tasks() []*Task
-}
-
 // Detectable is an optional interface for Runnables that support auto-detection.
 // When a Runnable implements this interface, P(r).Detect() will use the
 // DefaultDetect function to find directories where the Runnable should run.
