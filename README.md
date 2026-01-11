@@ -23,6 +23,17 @@ pocket handle tool installation.
 
 ### Todos
 
+- [ ] Split `RunContext` into shared execution state vs per-task context. Currently
+  `RunContext` mixes concerns: task-specific data (`Paths`, `Out`, `parsedOptions`)
+  with shared state (`state`, `setup`). Consider separating into `Execution`
+  (created once) and `TaskContext` (built fresh per task).
+- [ ] Evaluate whether `Tasks()` should remain part of `Runnable` interface.
+  `TaskLister` is already defined but unused. The `Tasks()` method is only needed
+  for CLI registration, not execution—consider if callers should type-assert when
+  needed instead.
+- [ ] Consider `sync.Once` for task deduplication instead of the current
+  `execution` struct with mutex + maps. Trade-off: `sync.Once` is simpler but
+  doesn't allow fresh executions if the same `Task` instance is reused.
 - [ ] We lost output colors with buffered output. Can we do something about it?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
   worry users starts using things we cannot refactor later.
