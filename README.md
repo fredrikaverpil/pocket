@@ -34,9 +34,11 @@ pocket handle tool installation.
   Decision: Keep `Tasks()` in `Runnable` because it's used during execution
   (PathFilter.Run sets paths on tasks), not just CLI registration. Removed the
   unused `TaskLister` interface.
-- [ ] Consider `sync.Once` for task deduplication instead of the current
-  `execution` struct with mutex + maps. Trade-off: `sync.Once` is simpler but
-  doesn't allow fresh executions if the same `Task` instance is reused.
+- [x] Consider `sync.Once` for task deduplication instead of the current
+  `dedupTracker` struct with mutex + maps. Decision: Keep current approach.
+  `sync.Once` would save ~10 lines but prevents re-running tasks in tests and
+  library usage (same Task instance becomes "used up"). Current approach creates
+  fresh `dedupTracker` per `Execution`, allowing task reuse across runs.
 - [ ] We lost output colors with buffered output. Can we do something about it?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
   worry users starts using things we cannot refactor later.
