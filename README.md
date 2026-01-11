@@ -25,11 +25,11 @@ pocket handle tool installation.
 
 - [ ] We lost output colors with buffered output. Can we do something about it?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
-      worry users starts using things we cannot refactor later.
+  worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
-        Pocket that is only intended for the internals powering Pocket.
+    Pocket that is only intended for the internals powering Pocket.
 - [ ] Diagrams/tables showing how Pocket works in different senses. I would like
-      to explain;
+  to explain;
   - [ ] Project config driven command execution
   - [ ] Path resolver behavior
   - [ ] What a "Runnable" is, and how it gets executed
