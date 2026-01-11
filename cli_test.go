@@ -296,7 +296,7 @@ type cliMockRunnable struct {
 	tasks []*Task
 }
 
-func (m *cliMockRunnable) Run(_ context.Context, _ *RunContext) error {
+func (m *cliMockRunnable) Run(_ context.Context, _ *Execution) error {
 	return nil
 }
 

@@ -23,8 +23,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the md-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
-	return rc.ForEachPath(ctx, func(dir string) error {
+func formatAction(ctx context.Context, tc *pocket.TaskContext) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		absDir := pocket.FromGitRoot(dir)
 
 		needsFormat, checkOutput, err := formatCheck(ctx, absDir)
@@ -32,20 +32,20 @@ func formatAction(ctx context.Context, rc *pocket.RunContext) error {
 			return err
 		}
 		if !needsFormat {
-			rc.Out.Println("No files in need of formatting.")
+			tc.Out.Println("No files in need of formatting.")
 			return nil
 		}
 
 		// Show files that need formatting in verbose mode.
-		if rc.Verbose && len(checkOutput) > 0 {
-			rc.Out.Printf("%s", checkOutput)
+		if tc.Verbose && len(checkOutput) > 0 {
+			tc.Out.Printf("%s", checkOutput)
 		}
 
 		// Now actually format.
 		if err := mdformat.Run(ctx, absDir); err != nil {
 			return fmt.Errorf("mdformat failed in %s: %w", dir, err)
 		}
-		rc.Out.Println("Formatted files.")
+		tc.Out.Println("Formatted files.")
 		return nil
 	})
 }

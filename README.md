@@ -23,7 +23,7 @@ pocket handle tool installation.
 
 ### Todos
 
-- [ ] Split `RunContext` into shared execution state vs per-task context. Currently
+- [x] Split `RunContext` into shared execution state vs per-task context. Currently
   `RunContext` mixes concerns: task-specific data (`Paths`, `Out`, `parsedOptions`)
   with shared state (`state`, `setup`). Consider separating into `Execution`
   (created once) and `TaskContext` (built fresh per task).

@@ -50,13 +50,13 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	typecheck := TypecheckTask()
 
 	return pocket.NewTaskGroup(format, lint, typecheck).
-		RunWith(func(ctx context.Context, rc *pocket.RunContext) error {
+		RunWith(func(ctx context.Context, exec *pocket.Execution) error {
 			// Format must run first.
-			if err := format.Run(ctx, rc); err != nil {
+			if err := format.Run(ctx, exec); err != nil {
 				return err
 			}
 			// Lint and typecheck can run in parallel.
-			return pocket.Parallel(lint, typecheck).Run(ctx, rc)
+			return pocket.Parallel(lint, typecheck).Run(ctx, exec)
 		}).
 		DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
@@ -73,8 +73,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the py-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
-	opts := pocket.GetOptions[FormatOptions](rc)
+func formatAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[FormatOptions](tc)
 	configPath := opts.RuffConfig
 	if configPath == "" {
 		var err error
@@ -83,26 +83,26 @@ func formatAction(ctx context.Context, rc *pocket.RunContext) error {
 			return fmt.Errorf("get ruff config: %w", err)
 		}
 	}
-	return rc.ForEachPath(ctx, func(dir string) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		needsFormat, diffOutput, err := formatCheck(ctx, configPath, dir)
 		if err != nil {
 			return err
 		}
 		if !needsFormat {
-			rc.Out.Println("No files in need of formatting.")
+			tc.Out.Println("No files in need of formatting.")
 			return nil
 		}
 
 		// Show diff in verbose mode.
-		if rc.Verbose && len(diffOutput) > 0 {
-			rc.Out.Printf("%s", diffOutput)
+		if tc.Verbose && len(diffOutput) > 0 {
+			tc.Out.Printf("%s", diffOutput)
 		}
 
 		// Now actually format.
 		if err := ruff.Run(ctx, "format", "--config", configPath, dir); err != nil {
 			return fmt.Errorf("ruff format failed in %s: %w", dir, err)
 		}
-		rc.Out.Println("Formatted files.")
+		tc.Out.Println("Formatted files.")
 		return nil
 	})
 }
@@ -132,8 +132,8 @@ func LintTask() *pocket.Task {
 }
 
 // lintAction is the action for the py-lint task.
-func lintAction(ctx context.Context, rc *pocket.RunContext) error {
-	opts := pocket.GetOptions[LintOptions](rc)
+func lintAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[LintOptions](tc)
 	configPath := opts.RuffConfig
 	if configPath == "" {
 		var err error
@@ -142,7 +142,7 @@ func lintAction(ctx context.Context, rc *pocket.RunContext) error {
 			return fmt.Errorf("get ruff config: %w", err)
 		}
 	}
-	return rc.ForEachPath(ctx, func(dir string) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		if err := ruff.Run(ctx, "check", "--config", configPath, dir); err != nil {
 			return fmt.Errorf("ruff check failed in %s: %w", dir, err)
 		}
@@ -156,8 +156,8 @@ func TypecheckTask() *pocket.Task {
 }
 
 // typecheckAction is the action for the py-typecheck task.
-func typecheckAction(ctx context.Context, rc *pocket.RunContext) error {
-	return rc.ForEachPath(ctx, func(dir string) error {
+func typecheckAction(ctx context.Context, tc *pocket.TaskContext) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		if err := mypy.Run(ctx, dir); err != nil {
 			return fmt.Errorf("mypy failed in %s: %w", dir, err)
 		}

@@ -113,16 +113,16 @@ func run(
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Create RunContext with all state.
-	rc := NewRunContext(StdOutput(), *verbose, cwd)
+	// Create Execution with all state.
+	exec := NewExecution(StdOutput(), *verbose, cwd)
 
 	// Set CLI args for the task being run.
 	if taskArgs != nil {
-		rc.SetTaskArgs(taskToRun.Name, taskArgs)
+		exec.SetTaskArgs(taskToRun.Name, taskArgs)
 	}
 
 	// Run the task.
-	if err := taskToRun.Run(ctx, rc); err != nil {
+	if err := taskToRun.Run(ctx, exec); err != nil {
 		fmt.Fprintf(os.Stderr, "task %s failed: %v\n", taskToRun.Name, err)
 		return 1
 	}

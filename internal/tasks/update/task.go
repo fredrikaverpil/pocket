@@ -17,9 +17,9 @@ func Task(cfg pocket.Config) *pocket.Task {
 }
 
 func updateAction(cfg *pocket.Config) pocket.TaskAction {
-	return func(ctx context.Context, rc *pocket.RunContext) error {
+	return func(ctx context.Context, tc *pocket.TaskContext) error {
 		pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
-		verbose := rc.Verbose
+		verbose := tc.Verbose
 
 		// Update pocket dependency
 		if verbose {

@@ -10,12 +10,12 @@ import (
 // Runnable is anything that can be executed as part of the build.
 // Both individual tasks and task groups implement this interface.
 //
-// RunContext is passed explicitly through the chain, containing all
+// Execution is passed explicitly through the chain, containing all
 // runtime state (output writers, paths, options, execution tracking).
 type Runnable interface {
 	// Run executes this runnable with the given context.
-	// RunContext contains output writers, paths, and execution state.
-	Run(ctx context.Context, rc *RunContext) error
+	// Execution contains output writers, paths, and execution state.
+	Run(ctx context.Context, exec *Execution) error
 
 	// Tasks returns all tasks contained in this runnable (for CLI registration).
 	Tasks() []*Task
@@ -48,17 +48,17 @@ type serial struct {
 
 // Serial creates a Runnable that executes children sequentially.
 // Execution stops on first error.
-// Use Serial(...).Run(ctx, rc) inside Actions to run tasks sequentially.
+// Use Serial(...).Run(ctx, exec) inside Actions to run tasks sequentially.
 func Serial(children ...Runnable) Runnable {
 	return &serial{children: children}
 }
 
-func (s *serial) Run(ctx context.Context, rc *RunContext) error {
+func (s *serial) Run(ctx context.Context, exec *Execution) error {
 	for _, child := range s.children {
 		if child == nil {
 			continue
 		}
-		if err := child.Run(ctx, rc); err != nil {
+		if err := child.Run(ctx, exec); err != nil {
 			return err
 		}
 	}
@@ -87,12 +87,12 @@ type parallel struct {
 
 // Parallel creates a Runnable that executes children concurrently.
 // Waits for all children to complete, returns first error encountered.
-// Use Parallel(...).Run(ctx, rc) inside Actions to run tasks in parallel.
+// Use Parallel(...).Run(ctx, exec) inside Actions to run tasks in parallel.
 func Parallel(children ...Runnable) Runnable {
 	return &parallel{children: children}
 }
 
-func (p *parallel) Run(ctx context.Context, rc *RunContext) error {
+func (p *parallel) Run(ctx context.Context, exec *Execution) error {
 	g, ctx := errgroup.WithContext(ctx)
 	// Mutex to serialize output flushing so task outputs don't interleave.
 	var flushMu sync.Mutex
@@ -103,9 +103,9 @@ func (p *parallel) Run(ctx context.Context, rc *RunContext) error {
 		g.Go(func() error {
 			// Create a buffer for this task's output.
 			buf := &bufferedOutput{}
-			// Create child RunContext with buffered output.
-			childRC := rc.withOutput(buf.Output())
-			err := child.Run(ctx, childRC)
+			// Create child Execution with buffered output.
+			childExec := exec.withOutput(buf.Output())
+			err := child.Run(ctx, childExec)
 			// Flush output atomically after task completes.
 			flushMu.Lock()
 			buf.Flush()

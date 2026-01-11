@@ -60,13 +60,13 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	vulncheck := VulncheckTask()
 
 	return pocket.NewTaskGroup(format, lint, test, vulncheck).
-		RunWith(func(ctx context.Context, rc *pocket.RunContext) error {
+		RunWith(func(ctx context.Context, exec *pocket.Execution) error {
 			// Format and lint must run serially (lint after format).
-			if err := pocket.Serial(format, lint).Run(ctx, rc); err != nil {
+			if err := pocket.Serial(format, lint).Run(ctx, exec); err != nil {
 				return err
 			}
 			// Test and vulncheck can run in parallel.
-			return pocket.Parallel(test, vulncheck).Run(ctx, rc)
+			return pocket.Parallel(test, vulncheck).Run(ctx, exec)
 		}).
 		DetectByFile("go.mod")
 }
@@ -83,8 +83,8 @@ func FormatTask() *pocket.Task {
 }
 
 // formatAction is the action for the go-format task.
-func formatAction(ctx context.Context, rc *pocket.RunContext) error {
-	opts := pocket.GetOptions[FormatOptions](rc)
+func formatAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[FormatOptions](tc)
 	configPath := opts.LintConfig
 	if configPath == "" {
 		var err error
@@ -93,7 +93,7 @@ func formatAction(ctx context.Context, rc *pocket.RunContext) error {
 			return fmt.Errorf("get golangci-lint config: %w", err)
 		}
 	}
-	return rc.ForEachPath(ctx, func(dir string) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		absDir := pocket.FromGitRoot(dir)
 
 		needsFormat, diffOutput, err := formatCheck(ctx, configPath, absDir)
@@ -101,13 +101,13 @@ func formatAction(ctx context.Context, rc *pocket.RunContext) error {
 			return err
 		}
 		if !needsFormat {
-			rc.Out.Println("No files in need of formatting.")
+			tc.Out.Println("No files in need of formatting.")
 			return nil
 		}
 
 		// Show diff in verbose mode.
-		if rc.Verbose {
-			rc.Out.Printf("%s", diffOutput)
+		if tc.Verbose {
+			tc.Out.Printf("%s", diffOutput)
 		}
 
 		// Now actually format.
@@ -119,7 +119,7 @@ func formatAction(ctx context.Context, rc *pocket.RunContext) error {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("golangci-lint fmt failed in %s: %w", dir, err)
 		}
-		rc.Out.Println("Formatted files.")
+		tc.Out.Println("Formatted files.")
 		return nil
 	})
 }
@@ -150,8 +150,8 @@ func LintTask() *pocket.Task {
 }
 
 // lintAction is the action for the go-lint task.
-func lintAction(ctx context.Context, rc *pocket.RunContext) error {
-	opts := pocket.GetOptions[LintOptions](rc)
+func lintAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[LintOptions](tc)
 	configPath := opts.LintConfig
 	if configPath == "" {
 		var err error
@@ -160,7 +160,7 @@ func lintAction(ctx context.Context, rc *pocket.RunContext) error {
 			return fmt.Errorf("get golangci-lint config: %w", err)
 		}
 	}
-	return rc.ForEachPath(ctx, func(dir string) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		cmd, err := golangcilint.Command(ctx, "run", "--allow-parallel-runners", "-c", configPath, "./...")
 		if err != nil {
 			return fmt.Errorf("prepare golangci-lint: %w", err)
@@ -186,11 +186,11 @@ func TestTask() *pocket.Task {
 }
 
 // testAction is the action for the go-test task.
-func testAction(ctx context.Context, rc *pocket.RunContext) error {
-	opts := pocket.GetOptions[TestOptions](rc)
-	return rc.ForEachPath(ctx, func(dir string) error {
+func testAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[TestOptions](tc)
+	return tc.ForEachPath(ctx, func(dir string) error {
 		args := []string{"test"}
-		if rc.Verbose {
+		if tc.Verbose {
 			args = append(args, "-v")
 		}
 		if !opts.SkipRace {
@@ -223,8 +223,8 @@ func VulncheckTask() *pocket.Task {
 }
 
 // vulncheckAction is the action for the go-vulncheck task.
-func vulncheckAction(ctx context.Context, rc *pocket.RunContext) error {
-	return rc.ForEachPath(ctx, func(dir string) error {
+func vulncheckAction(ctx context.Context, tc *pocket.TaskContext) error {
+	return tc.ForEachPath(ctx, func(dir string) error {
 		cmd, err := govulncheck.Command(ctx, "./...")
 		if err != nil {
 			return fmt.Errorf("prepare govulncheck: %w", err)

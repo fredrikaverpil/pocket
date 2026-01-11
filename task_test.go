@@ -18,15 +18,15 @@ func TestTask_TypedArgs_Defaults(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetOptions[TestOptions](rc)
+		Action: func(_ context.Context, tc *TaskContext) error {
+			received = GetOptions[TestOptions](tc)
 			return nil
 		},
 	}
 
 	// Run without any CLI args - should get defaults.
-	rc := NewRunContext(StdOutput(), false, ".")
-	if err := task.Run(context.Background(), rc); err != nil {
+	exec := NewExecution(StdOutput(), false, ".")
+	if err := task.Run(context.Background(), exec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -47,21 +47,21 @@ func TestTask_TypedArgs_CLIOverride(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetOptions[TestOptions](rc)
+		Action: func(_ context.Context, tc *TaskContext) error {
+			received = GetOptions[TestOptions](tc)
 			return nil
 		},
 	}
 
-	// Override via CLI args set on RunContext.
-	rc := NewRunContext(StdOutput(), false, ".")
-	rc.SetTaskArgs(task.Name, map[string]string{
+	// Override via CLI args set on Execution.
+	exec := NewExecution(StdOutput(), false, ".")
+	exec.SetTaskArgs(task.Name, map[string]string{
 		"name":  "Freddy",
 		"count": "42",
 		"debug": "true",
 	})
 
-	if err := task.Run(context.Background(), rc); err != nil {
+	if err := task.Run(context.Background(), exec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -82,19 +82,19 @@ func TestTask_TypedArgs_PartialOverride(t *testing.T) {
 	task := &Task{
 		Name:    "test-task",
 		Options: TestOptions{Name: "world", Count: 10, Debug: false},
-		Action: func(_ context.Context, rc *RunContext) error {
-			received = GetOptions[TestOptions](rc)
+		Action: func(_ context.Context, tc *TaskContext) error {
+			received = GetOptions[TestOptions](tc)
 			return nil
 		},
 	}
 
 	// Override only one field.
-	rc := NewRunContext(StdOutput(), false, ".")
-	rc.SetTaskArgs(task.Name, map[string]string{
+	exec := NewExecution(StdOutput(), false, ".")
+	exec.SetTaskArgs(task.Name, map[string]string{
 		"name": "partial",
 	})
 
-	if err := task.Run(context.Background(), rc); err != nil {
+	if err := task.Run(context.Background(), exec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -112,10 +112,10 @@ func TestTask_NoArgs(t *testing.T) {
 	task := &Task{
 		Name: "test-task",
 		// No Args field set
-		Action: func(_ context.Context, rc *RunContext) error {
+		Action: func(_ context.Context, tc *TaskContext) error {
 			ran = true
 			// GetArgs on nil should return zero value.
-			args := GetOptions[TestOptions](rc)
+			args := GetOptions[TestOptions](tc)
 			if args.Name != "" {
 				t.Errorf("expected empty Name, got %q", args.Name)
 			}
@@ -123,8 +123,8 @@ func TestTask_NoArgs(t *testing.T) {
 		},
 	}
 
-	rc := NewRunContext(StdOutput(), false, ".")
-	if err := task.Run(context.Background(), rc); err != nil {
+	exec := NewExecution(StdOutput(), false, ".")
+	if err := task.Run(context.Background(), exec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !ran {
@@ -137,32 +137,32 @@ func TestTask_ActionReceivesVerbose(t *testing.T) {
 
 	task := &Task{
 		Name: "test-task",
-		Action: func(_ context.Context, rc *RunContext) error {
-			receivedVerbose = rc.Verbose
+		Action: func(_ context.Context, tc *TaskContext) error {
+			receivedVerbose = tc.Verbose
 			return nil
 		},
 	}
 
 	// Run without verbose.
 	ctx := context.Background()
-	rc := NewRunContext(StdOutput(), false, ".")
-	if err := task.Run(ctx, rc); err != nil {
+	exec := NewExecution(StdOutput(), false, ".")
+	if err := task.Run(ctx, exec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if receivedVerbose {
 		t.Error("expected Verbose=false")
 	}
 
-	// Run with verbose (new task since execution tracking is per-RunContext).
+	// Run with verbose (new task since execution tracking is per-Execution).
 	task2 := &Task{
 		Name: "test-task-verbose",
-		Action: func(_ context.Context, rc *RunContext) error {
-			receivedVerbose = rc.Verbose
+		Action: func(_ context.Context, tc *TaskContext) error {
+			receivedVerbose = tc.Verbose
 			return nil
 		},
 	}
-	rcVerbose := NewRunContext(StdOutput(), true, ".")
-	if err := task2.Run(ctx, rcVerbose); err != nil {
+	execVerbose := NewExecution(StdOutput(), true, ".")
+	if err := task2.Run(ctx, execVerbose); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !receivedVerbose {

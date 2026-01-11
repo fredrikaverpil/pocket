@@ -17,12 +17,12 @@ func Task(cfg pocket.Config) *pocket.Task {
 }
 
 func generateAction(cfg *pocket.Config) pocket.TaskAction {
-	return func(_ context.Context, rc *pocket.RunContext) error {
+	return func(_ context.Context, tc *pocket.TaskContext) error {
 		shimPaths, err := scaffold.GenerateAll(cfg)
 		if err != nil {
 			return err
 		}
-		if rc.Verbose {
+		if tc.Verbose {
 			fmt.Printf("Generated .pocket/main.go and shims:\n  %s\n", strings.Join(shimPaths, "\n  "))
 		} else {
 			fmt.Printf("Generated .pocket/main.go and %d shim(s)\n", len(shimPaths))

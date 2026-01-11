@@ -15,14 +15,14 @@ func Task() *pocket.Task {
 		AsBuiltin()
 }
 
-func cleanAction(_ context.Context, rc *pocket.RunContext) error {
+func cleanAction(_ context.Context, tc *pocket.TaskContext) error {
 	// Remove .pocket/tools
 	toolsDir := pocket.FromToolsDir()
 	if _, err := os.Stat(toolsDir); err == nil {
 		if err := os.RemoveAll(toolsDir); err != nil {
 			return fmt.Errorf("remove tools dir: %w", err)
 		}
-		rc.Out.Printf("Removed %s\n", toolsDir)
+		tc.Out.Printf("Removed %s\n", toolsDir)
 	}
 
 	// Remove .pocket/bin
@@ -31,7 +31,7 @@ func cleanAction(_ context.Context, rc *pocket.RunContext) error {
 		if err := os.RemoveAll(binDir); err != nil {
 			return fmt.Errorf("remove bin dir: %w", err)
 		}
-		rc.Out.Printf("Removed %s\n", binDir)
+		tc.Out.Printf("Removed %s\n", binDir)
 	}
 
 	return nil

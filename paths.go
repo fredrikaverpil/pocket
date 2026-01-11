@@ -252,21 +252,21 @@ func (p *PathFilter) ResolveFor(cwd string) []string {
 }
 
 // Run executes the inner Runnable after setting resolved paths on tasks.
-func (p *PathFilter) Run(ctx context.Context, rc *RunContext) error {
-	paths := p.ResolveFor(rc.CWD())
+func (p *PathFilter) Run(ctx context.Context, exec *Execution) error {
+	paths := p.ResolveFor(exec.CWD())
 
 	// Set paths for all tasks in the inner Runnable.
 	for _, task := range p.inner.Tasks() {
-		rc.setTaskPaths(task.Name, paths)
+		exec.setTaskPaths(task.Name, paths)
 	}
 
-	// Create child RunContext with skip rules if any.
-	childRC := rc
+	// Create child Execution with skip rules if any.
+	childExec := exec
 	if len(p.skipRules) > 0 {
-		childRC = rc.withSkipRules(p.skipRules)
+		childExec = exec.withSkipRules(p.skipRules)
 	}
 
-	return p.inner.Run(ctx, childRC)
+	return p.inner.Run(ctx, childExec)
 }
 
 // Tasks returns all tasks from the inner Runnable, excluding globally skipped tasks.

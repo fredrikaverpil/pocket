@@ -16,8 +16,8 @@ func Task() *pocket.Task {
 		AsBuiltin()
 }
 
-func gitDiffAction(ctx context.Context, rc *pocket.RunContext) error {
-	_ = rc // unused but required by TaskAction signature
+func gitDiffAction(ctx context.Context, tc *pocket.TaskContext) error {
+	_ = tc // unused but required by TaskAction signature
 	cmd := pocket.Command(ctx, "git", "diff", "--exit-code")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("uncommitted changes detected; please commit or stage your changes")

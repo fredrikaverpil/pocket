@@ -15,7 +15,7 @@ func TestNew_CustomTasks(t *testing.T) {
 	customTask := pocket.NewTask(
 		"my-custom-task",
 		"a custom task for testing",
-		func(_ context.Context, _ *pocket.RunContext) error {
+		func(_ context.Context, _ *pocket.TaskContext) error {
 			return nil
 		},
 	)
@@ -41,12 +41,12 @@ func TestNew_MultipleCustomTasks(t *testing.T) {
 			pocket.NewTask(
 				"deploy",
 				"deploy the app",
-				func(_ context.Context, _ *pocket.RunContext) error { return nil },
+				func(_ context.Context, _ *pocket.TaskContext) error { return nil },
 			),
 			pocket.NewTask(
 				"release",
 				"create a release",
-				func(_ context.Context, _ *pocket.RunContext) error { return nil },
+				func(_ context.Context, _ *pocket.TaskContext) error { return nil },
 			),
 		),
 	}
@@ -137,7 +137,11 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 	cfg := pocket.Config{
 		AutoRun: pocket.Serial(
 			golang.Tasks(),
-			pocket.NewTask("custom", "custom task", func(_ context.Context, _ *pocket.RunContext) error { return nil }),
+			pocket.NewTask(
+				"custom",
+				"custom task",
+				func(_ context.Context, _ *pocket.TaskContext) error { return nil },
+			),
 		),
 	}
 
@@ -170,16 +174,16 @@ func TestAllTasks_ReturnsAllTasks(t *testing.T) {
 
 func TestParallel_Execution(t *testing.T) {
 	var count atomic.Int32
-	task1 := pocket.NewTask("task1", "task 1", func(_ context.Context, _ *pocket.RunContext) error {
+	task1 := pocket.NewTask("task1", "task 1", func(_ context.Context, _ *pocket.TaskContext) error {
 		count.Add(1)
 		return nil
 	})
-	task2 := pocket.NewTask("task2", "task 2", func(_ context.Context, _ *pocket.RunContext) error {
+	task2 := pocket.NewTask("task2", "task 2", func(_ context.Context, _ *pocket.TaskContext) error {
 		count.Add(1)
 		return nil
 	})
 
-	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	rc := pocket.NewExecution(pocket.StdOutput(), false, ".")
 	err := pocket.Parallel(task1, task2).Run(context.Background(), rc)
 	if err != nil {
 		t.Fatalf("Parallel failed: %v", err)
@@ -192,16 +196,16 @@ func TestParallel_Execution(t *testing.T) {
 
 func TestSerial_Execution(t *testing.T) {
 	var order []string
-	task1 := pocket.NewTask("task1", "task 1", func(_ context.Context, _ *pocket.RunContext) error {
+	task1 := pocket.NewTask("task1", "task 1", func(_ context.Context, _ *pocket.TaskContext) error {
 		order = append(order, "task1")
 		return nil
 	})
-	task2 := pocket.NewTask("task2", "task 2", func(_ context.Context, _ *pocket.RunContext) error {
+	task2 := pocket.NewTask("task2", "task 2", func(_ context.Context, _ *pocket.TaskContext) error {
 		order = append(order, "task2")
 		return nil
 	})
 
-	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	rc := pocket.NewExecution(pocket.StdOutput(), false, ".")
 	err := pocket.Serial(task1, task2).Run(context.Background(), rc)
 	if err != nil {
 		t.Fatalf("Serial failed: %v", err)
@@ -214,13 +218,13 @@ func TestSerial_Execution(t *testing.T) {
 
 func TestTask_RunsOnlyOnce(t *testing.T) {
 	runCount := 0
-	task := pocket.NewTask("once", "run once", func(_ context.Context, _ *pocket.RunContext) error {
+	task := pocket.NewTask("once", "run once", func(_ context.Context, _ *pocket.TaskContext) error {
 		runCount++
 		return nil
 	})
 
 	ctx := context.Background()
-	rc := pocket.NewRunContext(pocket.StdOutput(), false, ".")
+	rc := pocket.NewExecution(pocket.StdOutput(), false, ".")
 	_ = task.Run(ctx, rc)
 	_ = task.Run(ctx, rc)
 	_ = task.Run(ctx, rc)
@@ -231,7 +235,7 @@ func TestTask_RunsOnlyOnce(t *testing.T) {
 }
 
 func TestManualRun_TasksRegistered(t *testing.T) {
-	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.RunContext) error {
+	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
 
@@ -256,10 +260,10 @@ func TestManualRun_TasksRegistered(t *testing.T) {
 }
 
 func TestAutoRunTaskNames_TracksAutoRunTasks(t *testing.T) {
-	autoTask := pocket.NewTask("build", "build task", func(_ context.Context, _ *pocket.RunContext) error {
+	autoTask := pocket.NewTask("build", "build task", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
-	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.RunContext) error {
+	manualTask := pocket.NewTask("deploy", "deploy task", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
 
@@ -281,7 +285,7 @@ func TestAutoRunTaskNames_TracksAutoRunTasks(t *testing.T) {
 
 func TestDuplicateTask_SameInstance_Deduplicated(t *testing.T) {
 	// Same task instance added to both AutoRun and ManualRun.
-	task := pocket.NewTask("shared", "shared task", func(_ context.Context, _ *pocket.RunContext) error {
+	task := pocket.NewTask("shared", "shared task", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
 
@@ -311,10 +315,10 @@ func TestDuplicateTask_SameInstance_Deduplicated(t *testing.T) {
 
 func TestDuplicateTask_DifferentInstances_FirstWins(t *testing.T) {
 	// Two different task instances with the same name.
-	task1 := pocket.NewTask("deploy", "deploy v1", func(_ context.Context, _ *pocket.RunContext) error {
+	task1 := pocket.NewTask("deploy", "deploy v1", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
-	task2 := pocket.NewTask("deploy", "deploy v2", func(_ context.Context, _ *pocket.RunContext) error {
+	task2 := pocket.NewTask("deploy", "deploy v2", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
 
@@ -345,7 +349,7 @@ func TestDuplicateTask_DifferentInstances_FirstWins(t *testing.T) {
 }
 
 func TestManualRun_WithPathFilter(t *testing.T) {
-	task := pocket.NewTask("benchmark", "run benchmarks", func(_ context.Context, _ *pocket.RunContext) error {
+	task := pocket.NewTask("benchmark", "run benchmarks", func(_ context.Context, _ *pocket.TaskContext) error {
 		return nil
 	})
 
