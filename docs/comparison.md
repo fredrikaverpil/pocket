@@ -78,6 +78,30 @@ require container isolation or enterprise-scale features.
 | **Bazel**   | Starlark (Python-like) | Java/C++ | Hermetic        | Optional   | Large-scale monorepos                   |
 | **Make**    | Makefile               | C        | No              | No         | Unix systems, C/C++ projects            |
 
+## Feature Matrix
+
+| Feature             | Pocket | Sage | Mage | Task | Just | Dagger | Earthly | Bazel |
+| ------------------- | ------ | ---- | ---- | ---- | ---- | ------ | ------- | ----- |
+| Go configuration    | ✅     | ✅   | ✅   | ❌   | ❌   | ✅     | ❌      | ❌    |
+| Cross-platform      | ✅     | ⚠️   | ✅   | ✅   | ✅   | ✅     | ✅      | ✅    |
+| Tool management     | ✅     | ✅   | ❌   | ❌   | ❌   | ✅     | ✅      | ✅    |
+| Parallel execution  | ✅     | ✅   | ✅   | ✅   | ❌   | ✅     | ✅      | ✅    |
+| Container isolation | ❌     | ❌   | ❌   | ❌   | ❌   | ✅     | ✅      | ⚠️    |
+| Path filtering      | ✅     | ❌   | ❌   | ❌   | ❌   | ❌     | ❌      | ✅    |
+| Auto-detection      | ✅     | ❌   | ❌   | ❌   | ❌   | ❌     | ❌      | ❌    |
+| Remote caching      | ❌     | ❌   | ❌   | ❌   | ❌   | ✅     | ✅      | ✅    |
+| CI portability      | ✅     | ✅   | ⚠️   | ⚠️   | ⚠️   | ✅     | ✅      | ✅    |
+| Setup complexity    | Low    | Low  | Low  | Low  | Low  | Medium | Medium  | High  |
+
+Legend: ✅ Full support | ⚠️ Partial/Limited | ❌ Not available
+
+**CI portability notes:**
+
+- Pocket and Sage auto-download Go if not installed — CI config is just `./pok`
+  or `make`
+- Dagger, Earthly, Bazel use containers or hermetic builds for full isolation
+- Mage, Task, Just require pre-installing the runtime on CI
+
 ## Detailed Comparison
 
 ### Pocket
@@ -446,32 +470,6 @@ builds.
 
 ---
 
-## Feature Matrix
-
-| Feature             | Pocket | Sage | Mage | Task | Just | Dagger | Earthly | Bazel |
-| ------------------- | ------ | ---- | ---- | ---- | ---- | ------ | ------- | ----- |
-| Go configuration    | ✅     | ✅   | ✅   | ❌   | ❌   | ✅     | ❌      | ❌    |
-| Cross-platform      | ✅     | ⚠️   | ✅   | ✅   | ✅   | ✅     | ✅      | ✅    |
-| Tool management     | ✅     | ✅   | ❌   | ❌   | ❌   | ✅     | ✅      | ✅    |
-| Parallel execution  | ✅     | ✅   | ✅   | ✅   | ❌   | ✅     | ✅      | ✅    |
-| Container isolation | ❌     | ❌   | ❌   | ❌   | ❌   | ✅     | ✅      | ⚠️    |
-| Path filtering      | ✅     | ❌   | ❌   | ❌   | ❌   | ❌     | ❌      | ✅    |
-| Auto-detection      | ✅     | ❌   | ❌   | ❌   | ❌   | ❌     | ❌      | ❌    |
-| Remote caching      | ❌     | ❌   | ❌   | ❌   | ❌   | ✅     | ✅      | ✅    |
-| CI portability      | ✅     | ✅   | ⚠️   | ⚠️   | ⚠️   | ✅     | ✅      | ✅    |
-| Setup complexity    | Low    | Low  | Low  | Low  | Low  | Medium | Medium  | High  |
-
-Legend: ✅ Full support | ⚠️ Partial/Limited | ❌ Not available
-
-**CI portability notes:**
-
-- Pocket and Sage auto-download Go if not installed — CI config is just
-  `./pok` or `make`
-- Dagger, Earthly, Bazel use containers or hermetic builds for full isolation
-- Mage, Task, Just require pre-installing the runtime on CI
-
----
-
 ## Sources
 
 - [Mage](https://magefile.org/)
@@ -486,5 +484,5 @@ Legend: ✅ Full support | ⚠️ Partial/Limited | ❌ Not available
 
 ---
 
-*This comparison was generated with the help of Claude Opus 4.5 on 2026-01-12.
-Information may become outdated as these tools evolve.*
+_This comparison was generated with the help of Claude Opus 4.5 on 2026-01-12.
+Information may become outdated as these tools evolve._
