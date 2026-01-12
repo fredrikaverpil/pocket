@@ -118,9 +118,9 @@ func (e *Execution) resolveAndFilterPaths(taskName string) (paths, skipped []str
 // printTaskHeader writes the task execution header to output.
 func (e *Execution) printTaskHeader(taskName string, skippedPaths []string) {
 	if len(skippedPaths) > 0 {
-		fmt.Fprintf(e.Out.Stdout, "=== %s (skipped in: %s)\n", taskName, strings.Join(skippedPaths, ", "))
+		fmt.Fprintf(e.Out.Stdout, ":: %s (skipped in: %s)\n", taskName, strings.Join(skippedPaths, ", "))
 	} else {
-		fmt.Fprintf(e.Out.Stdout, "=== %s\n", taskName)
+		fmt.Fprintf(e.Out.Stdout, ":: %s\n", taskName)
 	}
 }
 
@@ -391,7 +391,7 @@ func (t *Task) Run(ctx context.Context, exec *Execution) error {
 	// Resolve paths and filter skipped ones.
 	paths, skipped := exec.resolveAndFilterPaths(t.Name)
 	if len(paths) == 0 {
-		fmt.Fprintf(exec.Out.Stdout, "=== %s (skipped)\n", t.Name)
+		fmt.Fprintf(exec.Out.Stdout, ":: %s (skipped)\n", t.Name)
 		dedup.markDone(t.Name, nil)
 		return nil
 	}

@@ -90,8 +90,9 @@ func (p *parallel) Run(ctx context.Context, exec *Execution) error {
 			continue
 		}
 		g.Go(func() error {
-			// Create a buffer for this task's output.
-			buf := &bufferedOutput{}
+			// Create a buffer that flushes to the parent's output.
+			// This ensures nested Parallel calls flush correctly.
+			buf := newBufferedOutput(exec.Out)
 			// Create child Execution with buffered output.
 			childExec := exec.withOutput(buf.Output())
 			err := child.Run(ctx, childExec)

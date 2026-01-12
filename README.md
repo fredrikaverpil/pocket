@@ -26,19 +26,12 @@ other build tools.
 
 ### Todos
 
-- [ ] `./pok -v` and e.g. `./pok go-test -v` does not output buffered correctly:
-  both tools and tasks are outputing in realtime. But I'm now starting to
-  think we shouldn't use buffered output. There will be no progress what so
-  ever on e.g. long-running tests. Can we maintain colored output if
-  prefixing each line with e.g. `[the-task]` and not buffering the output?
-  It looks fairly simple to fix for tasks, but how can we make tools use the
-  same io.Writer for stdout/stderr?
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
-  worry users starts using things we cannot refactor later.
+      worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
-    Pocket that is only intended for the internals powering Pocket.
+        Pocket that is only intended for the internals powering Pocket.
 - [ ] Diagrams/tables showing how Pocket works in different senses. I would like
-  to explain;
+      to explain;
   - [ ] Project config driven command execution
   - [ ] Path resolver behavior
   - [ ] What a "Runnable" is, and how it gets executed

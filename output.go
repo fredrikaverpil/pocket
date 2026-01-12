@@ -31,10 +31,17 @@ func (o *Output) Println(a ...any) (int, error) {
 }
 
 // bufferedOutput captures output to buffers for later printing.
+// Parent writers are where the buffer flushes to (supports nested parallel).
 type bufferedOutput struct {
+	parent *Output
 	mu     sync.Mutex
 	stdout bytes.Buffer
 	stderr bytes.Buffer
+}
+
+// newBufferedOutput creates a bufferedOutput that flushes to the given parent.
+func newBufferedOutput(parent *Output) *bufferedOutput {
+	return &bufferedOutput{parent: parent}
 }
 
 // Stdout returns a writer for stdout that is safe for concurrent use.
@@ -47,12 +54,12 @@ func (b *bufferedOutput) Stderr() io.Writer {
 	return &lockedWriter{mu: &b.mu, w: &b.stderr}
 }
 
-// Flush writes all buffered output to os.Stdout and os.Stderr.
+// Flush writes all buffered output to the parent output.
 func (b *bufferedOutput) Flush() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	_, _ = io.Copy(os.Stdout, &b.stdout)
-	_, _ = io.Copy(os.Stderr, &b.stderr)
+	_, _ = io.Copy(b.parent.Stdout, &b.stdout)
+	_, _ = io.Copy(b.parent.Stderr, &b.stderr)
 }
 
 // Output returns an Output that writes to the buffers.
