@@ -138,7 +138,7 @@ var Config = pocket.Config{
 }
 ```
 
----
+______________________________________________________________________
 
 ### Sage (einride/sage)
 
@@ -176,7 +176,7 @@ func Build(ctx context.Context) error {
 }
 ```
 
----
+______________________________________________________________________
 
 ### Mage
 
@@ -211,7 +211,7 @@ func Build() error {
 }
 ```
 
----
+______________________________________________________________________
 
 ### Task (go-task)
 
@@ -249,7 +249,7 @@ tasks:
       - go build ./...
 ```
 
----
+______________________________________________________________________
 
 ### Just
 
@@ -283,7 +283,7 @@ build: format lint
     go build ./...
 ```
 
----
+______________________________________________________________________
 
 ### Dagger
 
@@ -324,7 +324,7 @@ func (m *MyPipeline) Build(ctx context.Context) error {
 }
 ```
 
----
+______________________________________________________________________
 
 ### Earthly
 
@@ -361,7 +361,7 @@ build:
     SAVE ARTIFACT ./myapp
 ```
 
----
+______________________________________________________________________
 
 ### Bazel
 
@@ -395,7 +395,7 @@ builds.
 - Need byte-for-byte reproducibility
 - Remote build execution requirements
 
----
+______________________________________________________________________
 
 ### Make
 
@@ -421,7 +421,7 @@ builds.
 - Make has platform issues; Pocket is cross-platform
 - Make is everywhere; Pocket needs bootstrap
 
----
+______________________________________________________________________
 
 ## Decision Guide
 
@@ -468,7 +468,7 @@ builds.
 - Need hermetic, reproducible builds
 - Can invest significant setup time
 
----
+______________________________________________________________________
 
 ## Sources
 
@@ -482,7 +482,7 @@ builds.
 - [Go Build Tools Comparison](https://www.amazingcto.com/go-build-tools-make-bazel-just-xc-taskfile-mage/)
 - [When to use Bazel?](https://earthly.dev/blog/bazel-build/)
 
----
+______________________________________________________________________
 
 _This comparison was generated with the help of Claude Opus 4.5 on 2026-01-12.
 Information may become outdated as these tools evolve._
