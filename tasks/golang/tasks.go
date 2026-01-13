@@ -16,6 +16,7 @@ type TasksOption func(*tasksConfig)
 
 type tasksConfig struct {
 	format FormatOptions
+	fix    FixOptions
 	lint   LintOptions
 	test   TestOptions
 }
@@ -54,12 +55,13 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	}
 
 	format := FormatTask().WithOptions(cfg.format)
+	fix := FixTask().WithOptions(cfg.fix)
 	lint := LintTask().WithOptions(cfg.lint)
 	test := TestTask().WithOptions(cfg.test)
 	vulncheck := VulncheckTask()
 
 	return pocket.NewTaskGroup(format, lint, test, vulncheck).
-		RunWith(pocket.Serial(format, lint, pocket.Parallel(test, vulncheck)))
+		RunWith(pocket.Serial(format, fix, lint, pocket.Parallel(test, vulncheck)))
 }
 
 // Detect returns a detection function that finds Go modules.
@@ -235,6 +237,35 @@ func vulncheckAction(ctx context.Context, tc *pocket.TaskContext) error {
 	cmd.Dir = pocket.FromGitRoot(tc.Path)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("govulncheck failed in %s: %w", tc.Path, err)
+	}
+	return nil
+}
+
+// FixOptions configures the go-fix task.
+type FixOptions struct {
+	Fixes string `usage:"comma-separated list of fixes to run (default: all)"`
+}
+
+// FixTask returns a task that runs go fix to update packages to new APIs.
+// Use WithOptions to set project-level configuration.
+func FixTask() *pocket.Task {
+	return pocket.NewTask("go-fix", "update packages to use new APIs", fixAction)
+}
+
+// fixAction is the action for the go-fix task.
+func fixAction(ctx context.Context, tc *pocket.TaskContext) error {
+	opts := pocket.GetOptions[FixOptions](tc)
+
+	args := []string{"fix"}
+	if opts.Fixes != "" {
+		args = append(args, "-fix", opts.Fixes)
+	}
+	args = append(args, "./...")
+
+	cmd := tc.Command(ctx, "go", args...)
+	cmd.Dir = pocket.FromGitRoot(tc.Path)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go fix failed in %s: %w", tc.Path, err)
 	}
 	return nil
 }
