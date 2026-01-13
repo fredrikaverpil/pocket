@@ -26,6 +26,7 @@ other build tools.
 
 ### Todos
 
+- [ ] Review config and tasks API UX and improve it, make it simpler.
 - [ ] Make as much parts of Pocket as possible non-exported, so we don't have to
   worry users starts using things we cannot refactor later.
   - [ ] Move as much as possible into an internal folder, that export parts of
