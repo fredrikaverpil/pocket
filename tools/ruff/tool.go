@@ -36,8 +36,6 @@ var Tool = pocket.NewTool(name, version, install).
 	})
 
 func install(ctx context.Context, tc *pocket.TaskContext) error {
-	tc.Out.Printf("Installing %s %s...\n", name, version)
-
 	venvDir := pocket.FromToolsDir(name, version)
 	binary := pocket.VenvBinaryPath(venvDir, name)
 

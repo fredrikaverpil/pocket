@@ -149,7 +149,6 @@ const myToolVersion = "1.0.0"
 var myTool = pocket.NewTool("mytool", myToolVersion, installMyTool)
 
 func installMyTool(ctx context.Context, tc *pocket.TaskContext) error {
-    tc.Out.Printf("Installing mytool %s...\n", myToolVersion)
     // Option 1: Download binary from URL
     return pocket.DownloadBinary(ctx, tc, "https://example.com/mytool.tar.gz", pocket.DownloadOpts{
         DestDir: pocket.FromToolsDir("mytool", myToolVersion),

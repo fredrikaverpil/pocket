@@ -30,13 +30,12 @@ import (
 //	    })
 //
 //	func install(ctx context.Context, tc *pocket.TaskContext) error {
-//	    tc.Out.Printf("Installing golangci-lint %s...\n", version)
 //	    return pocket.DownloadBinary(ctx, tc, url, opts)
 //	}
 type Tool struct {
 	name    string
 	version string
-	install TaskAction
+	task    *Task // internal install task
 	config  *ToolConfig
 }
 
@@ -65,7 +64,6 @@ type ToolConfig struct {
 //	var Tool = pocket.NewTool("golangci-lint", version, install)
 //
 //	func install(ctx context.Context, tc *pocket.TaskContext) error {
-//	    tc.Out.Printf("Installing %s...\n", Tool.Name())
 //	    // ... installation logic
 //	}
 func NewTool(name, version string, install TaskAction) *Tool {
@@ -78,10 +76,12 @@ func NewTool(name, version string, install TaskAction) *Tool {
 	if install == nil {
 		panic("pocket.NewTool: install function is required")
 	}
+	// Create hidden install task. Version in name ensures unique dedup key.
+	taskName := "install:" + name + "@" + version
 	return &Tool{
 		name:    name,
 		version: version,
-		install: install,
+		task:    NewTask(taskName, "install "+name, install).AsHidden(),
 	}
 }
 
@@ -90,7 +90,7 @@ func (t *Tool) WithConfig(cfg ToolConfig) *Tool {
 	return &Tool{
 		name:    t.name,
 		version: t.version,
-		install: t.install,
+		task:    t.task,
 		config:  &cfg,
 	}
 }
@@ -156,20 +156,7 @@ func (t *Tool) binaryPath() string {
 //
 // Deduplication is automatic: the same tool is only installed once per execution.
 func (t *Tool) Run(ctx context.Context, exec *Execution) error {
-	key := "tool:" + t.name + "@" + t.version
-	if done, err := exec.state.dedup.isDone(key); done {
-		return err
-	}
-
-	tc := &TaskContext{
-		Path:    ".",
-		Verbose: exec.Verbose(),
-		Out:     exec.Out,
-		exec:    exec,
-	}
-	err := t.install(ctx, tc)
-	exec.state.dedup.markDone(key, err)
-	return err
+	return t.task.Run(ctx, exec)
 }
 
 // Tasks implements Runnable - returns nil since tools aren't CLI-visible.

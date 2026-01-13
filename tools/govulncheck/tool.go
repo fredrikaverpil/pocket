@@ -22,7 +22,6 @@ const pkg = "golang.org/x/vuln/cmd/govulncheck"
 var Tool = pocket.NewTool(name, version, install)
 
 func install(ctx context.Context, tc *pocket.TaskContext) error {
-	tc.Out.Printf("Installing %s %s...\n", name, version)
 	_, err := pocket.GoInstall(ctx, tc, pkg, version)
 	return err
 }

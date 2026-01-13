@@ -39,8 +39,6 @@ func versionHash() string {
 }
 
 func install(ctx context.Context, tc *pocket.TaskContext) error {
-	tc.Out.Printf("Installing %s...\n", name)
-
 	// Use hash-based versioning: .pocket/tools/mdformat/<hash>/
 	venvDir := pocket.FromToolsDir(name, versionHash())
 	binary := pocket.VenvBinaryPath(venvDir, name)
