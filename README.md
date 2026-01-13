@@ -362,8 +362,8 @@ Builtin tasks:
   generate       regenerate files
 ```
 
-Both `AutoRun` and `ManualRun` support the same wrappers (`Paths()`,
-`Serial()`, `Parallel()`, etc.).
+Both `AutoRun` and `ManualRun` support the same wrappers (`Paths()`, `Serial()`,
+`Parallel()`, etc.).
 
 ## Reference
 
