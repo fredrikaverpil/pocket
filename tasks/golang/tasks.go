@@ -39,7 +39,7 @@ func WithTest(opts TestOptions) TasksOption {
 // Tasks returns a Runnable that executes all Go tasks.
 // Use pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()) to enable path filtering.
 //
-// Execution order: format and lint run serially first,
+// Execution order: format and fix run first, then lint,
 // then test and vulncheck run in parallel.
 //
 // Example with options:
@@ -60,8 +60,7 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	test := TestTask().WithOptions(cfg.test)
 	vulncheck := VulncheckTask()
 
-	return pocket.NewTaskGroup(format, lint, test, vulncheck).
-		RunWith(pocket.Serial(format, fix, lint, pocket.Parallel(test, vulncheck)))
+	return pocket.Serial(format, fix, lint, pocket.Parallel(test, vulncheck))
 }
 
 // Detect returns a detection function that finds Go modules.

@@ -36,9 +36,7 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 		opt(&cfg)
 	}
 
-	format := FormatTask().WithOptions(cfg.format)
-
-	return pocket.NewTaskGroup(format)
+	return FormatTask().WithOptions(cfg.format)
 }
 
 // Detect returns a detection function that finds Lua projects.

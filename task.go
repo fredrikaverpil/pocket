@@ -20,63 +20,80 @@ type Execution struct {
 	// Output writers (can be swapped for buffering in parallel execution)
 	Out *Output
 
-	// Internal state (shared across execution tree)
-	state *executionState // cwd, verbose, dedup (immutable after creation)
-	setup *taskSetup      // paths, args, skipRules (accumulated during traversal)
+	// Immutable state (set at creation)
+	cwd     string        // where CLI was invoked (relative to git root)
+	verbose bool          // verbose mode enabled
+	dedup   *dedupTracker // tracks which tasks have run (thread-safe)
+
+	// Accumulated state (modified during tree traversal)
+	paths     map[string][]string          // task name -> resolved paths
+	args      map[string]map[string]string // task name -> CLI args
+	skipRules []skipRule                   // accumulated skip rules
 }
 
 // NewExecution creates an Execution for a new run.
 func NewExecution(out *Output, verbose bool, cwd string) *Execution {
 	return &Execution{
-		Out:   out,
-		state: newExecutionState(cwd, verbose),
-		setup: newTaskSetup(),
+		Out:     out,
+		cwd:     cwd,
+		verbose: verbose,
+		dedup:   newDedupTracker(),
+		paths:   make(map[string][]string),
+		args:    make(map[string]map[string]string),
 	}
 }
 
 // CWD returns the current working directory relative to git root.
 func (e *Execution) CWD() string {
-	return e.state.cwd
+	return e.cwd
 }
 
 // Verbose returns whether verbose mode is enabled.
 func (e *Execution) Verbose() bool {
-	return e.state.verbose
+	return e.verbose
 }
 
 // withOutput returns a copy with different output (for parallel buffering).
-// Shares the same execution tracking and setup.
+// Shares the same execution tracking and accumulated state.
 func (e *Execution) withOutput(out *Output) *Execution {
 	return &Execution{
-		Out:   out,
-		state: e.state, // shared
-		setup: e.setup, // shared
+		Out:       out,
+		cwd:       e.cwd,
+		verbose:   e.verbose,
+		dedup:     e.dedup,     // shared
+		paths:     e.paths,     // shared
+		args:      e.args,      // shared
+		skipRules: e.skipRules, // shared (appended via withSkipRules)
 	}
 }
 
-// withSkipRules returns a copy with additional skip rules.
+// withSkipRules returns a copy with additional skip rules appended.
 func (e *Execution) withSkipRules(rules []skipRule) *Execution {
 	return &Execution{
-		Out:   e.Out,
-		state: e.state,
-		setup: e.setup.withSkipRules(rules),
+		Out:       e.Out,
+		cwd:       e.cwd,
+		verbose:   e.verbose,
+		dedup:     e.dedup,
+		paths:     e.paths,
+		args:      e.args,
+		skipRules: append(slices.Clone(e.skipRules), rules...),
 	}
 }
 
 // setTaskPaths sets resolved paths for a task.
 func (e *Execution) setTaskPaths(taskName string, paths []string) {
-	e.setup.paths[taskName] = paths
+	e.paths[taskName] = paths
 }
 
 // SetTaskArgs sets CLI arguments for a task. This is used by the CLI
 // to pass parsed command-line arguments to the task.
 func (e *Execution) SetTaskArgs(taskName string, args map[string]string) {
-	e.setup.args[taskName] = args
+	e.args[taskName] = args
 }
 
 // isSkipped checks if a task should be skipped for a given path.
 func (e *Execution) isSkipped(taskName, path string) bool {
-	for _, rule := range e.setup.skipRules {
+	for _, rule := range e.skipRules {
 		if rule.taskName != taskName {
 			continue
 		}
@@ -99,9 +116,9 @@ func (e *Execution) shouldSkipGlobally(taskName string) bool {
 // Returns the paths to run and the paths that were skipped.
 func (e *Execution) resolveAndFilterPaths(taskName string) (paths, skipped []string) {
 	// Determine paths, defaulting to cwd if not set.
-	all := e.setup.paths[taskName]
+	all := e.paths[taskName]
 	if len(all) == 0 {
-		all = []string{e.state.cwd}
+		all = []string{e.cwd}
 	}
 
 	// Filter out paths that should be skipped.
@@ -317,7 +334,7 @@ func (t *Task) AsBuiltin() *Task {
 // - Global skip (no paths): task doesn't run at all
 // - Path-specific skip: those paths are filtered from execution.
 func (t *Task) Run(ctx context.Context, exec *Execution) error {
-	dedup := exec.state.dedup
+	dedup := exec.dedup
 
 	// Check if already done in this execution.
 	if done, err := dedup.isDone(t.Name); done {
@@ -339,7 +356,7 @@ func (t *Task) Run(ctx context.Context, exec *Execution) error {
 	}
 
 	// Parse typed options (shared across all path iterations).
-	opts, err := parseOptionsFromCLI(t.Options, exec.setup.args[t.Name])
+	opts, err := parseOptionsFromCLI(t.Options, exec.args[t.Name])
 	if err != nil {
 		dedup.markDone(t.Name, fmt.Errorf("parse options: %w", err))
 		return err

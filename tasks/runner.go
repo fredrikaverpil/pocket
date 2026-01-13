@@ -135,3 +135,16 @@ func (t *Runner) PathMappings() map[string]*pocket.PathFilter {
 func (t *Runner) AutoRunTaskNames() map[string]bool {
 	return t.autoRunTaskNames
 }
+
+// Run is the simplified entry point for pocket projects.
+// It creates a Runner from the Config and invokes the CLI.
+//
+// Usage in .pocket/main.go:
+//
+//	func main() {
+//	    tasks.Run(Config)
+//	}
+func Run(cfg pocket.Config) {
+	r := NewRunner(cfg)
+	pocket.Main(r.AllTasks(), r.All, r.PathMappings(), r.AutoRunTaskNames())
+}

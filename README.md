@@ -413,17 +413,17 @@ task.AsHidden()                // hide from CLI help
 task.AsBuiltin()               // mark as built-in task
 ```
 
-### Task group creation
+### Task composition
 
 ```go
-// Create a task group (runs tasks in parallel by default)
-group := pocket.NewTaskGroup(formatTask, lintTask, testTask)
+// Run tasks in sequence
+pocket.Serial(formatTask, lintTask, testTask)
 
-// Configure execution order using Serial/Parallel composition
-group.RunWith(pocket.Serial(formatTask, lintTask, testTask))
+// Run tasks in parallel
+pocket.Parallel(lintTask, testTask)
 
 // Mixed serial and parallel
-group.RunWith(pocket.Serial(formatTask, pocket.Parallel(lintTask, testTask)))
+pocket.Serial(formatTask, pocket.Parallel(lintTask, testTask))
 ```
 
 ### Path filtering and detection

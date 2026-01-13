@@ -112,11 +112,6 @@ func (p *PathFilter) In(patterns ...string) *PathFilter {
 	return cp
 }
 
-// Include is an alias for In.
-func (p *PathFilter) Include(patterns ...string) *PathFilter {
-	return p.In(patterns...)
-}
-
 // Except adds exclude patterns (regexp).
 // Directories matching any pattern are excluded from results.
 // Returns a new *PathFilter (immutable).

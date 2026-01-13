@@ -48,8 +48,7 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	lint := LintTask().WithOptions(cfg.lint)
 	typecheck := TypecheckTask()
 
-	return pocket.NewTaskGroup(format, lint, typecheck).
-		RunWith(pocket.Serial(format, pocket.Parallel(lint, typecheck)))
+	return pocket.Serial(format, pocket.Parallel(lint, typecheck))
 }
 
 // Detect returns a detection function that finds Python projects.

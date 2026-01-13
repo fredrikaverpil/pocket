@@ -218,7 +218,7 @@ func printHelp(tasks []*Task, autoRunNames map[string]bool) {
 	})
 
 	if len(autorun) > 0 {
-		fmt.Println("Tasks:")
+		fmt.Println("Auto-run Tasks:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for _, t := range autorun {
 			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
@@ -230,7 +230,7 @@ func printHelp(tasks []*Task, autoRunNames map[string]bool) {
 		if len(autorun) > 0 {
 			fmt.Println()
 		}
-		fmt.Println("Manual Tasks:")
+		fmt.Println("Tasks:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for _, t := range manual {
 			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
