@@ -14,8 +14,8 @@ var Config = pocket.Config{
 	//
 	// Example:
 	//   AutoRun: pocket.Serial(
-	//       pocket.AutoDetect(golang.Tasks()),
-	//       pocket.AutoDetect(python.Tasks()),
+	//       pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+	//       pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
 	//   ),
 
 	// ManualRun registers tasks that only run with ./pok <taskname>.

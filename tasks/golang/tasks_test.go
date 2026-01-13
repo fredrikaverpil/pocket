@@ -62,24 +62,14 @@ func main() {
 	t.Log("Verified: ./... pattern includes sibling .go files next to go.mod")
 }
 
-// TestDetectModules_FindsSiblingFiles verifies that DetectByFile("go.mod")
-// returns the directory containing go.mod (which is where sibling files live).
-func TestDetectModules_FindsSiblingFiles(t *testing.T) {
+// TestDetect_FindsGoModules verifies that golang.Detect() finds directories
+// containing go.mod files.
+func TestDetect_FindsGoModules(t *testing.T) {
 	// This test relies on the pocket repo having a .pocket/go.mod.
-	// The detection should return "." or ".pocket" depending on where we run from.
 
-	// Test that golang.Tasks implements Detectable.
-	tasks := golang.Tasks()
-	detectable, ok := tasks.(interface {
-		DefaultDetect() func() []string
-	})
-	if !ok {
-		t.Fatal("golang.Tasks() should implement Detectable interface")
-	}
-
-	detectFn := detectable.DefaultDetect()
+	detectFn := golang.Detect()
 	if detectFn == nil {
-		t.Fatal("DefaultDetect() should return a non-nil function")
+		t.Fatal("Detect() should return a non-nil function")
 	}
 
 	// The detect function finds directories with go.mod.

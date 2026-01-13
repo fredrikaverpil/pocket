@@ -36,18 +36,17 @@ func WithTest(opts TestOptions) TasksOption {
 }
 
 // Tasks returns a Runnable that executes all Go tasks.
-// Tasks auto-detect Go modules by finding go.mod files.
-// Use pocket.AutoDetect(golang.Tasks()) to enable path filtering.
+// Use pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()) to enable path filtering.
 //
 // Execution order: format and lint run serially first,
 // then test and vulncheck run in parallel.
 //
 // Example with options:
 //
-//	pocket.AutoDetect(golang.Tasks(
+//	pocket.Paths(golang.Tasks(
 //	    golang.WithFormat(golang.FormatOptions{LintConfig: ".golangci.yml"}),
 //	    golang.WithTest(golang.TestOptions{SkipRace: true}),
-//	))
+//	)).DetectBy(golang.Detect())
 func Tasks(opts ...TasksOption) pocket.Runnable {
 	var cfg tasksConfig
 	for _, opt := range opts {
@@ -60,8 +59,19 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 	vulncheck := VulncheckTask()
 
 	return pocket.NewTaskGroup(format, lint, test, vulncheck).
-		RunWith(pocket.Serial(format, lint, pocket.Parallel(test, vulncheck))).
-		DetectByFile("go.mod")
+		RunWith(pocket.Serial(format, lint, pocket.Parallel(test, vulncheck)))
+}
+
+// Detect returns a detection function that finds Go modules.
+// It detects directories containing go.mod files.
+//
+// Usage:
+//
+//	pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+func Detect() func() []string {
+	return func() []string {
+		return pocket.DetectByFile("go.mod")
+	}
 }
 
 // FormatOptions configures the go-format task.

@@ -274,14 +274,14 @@ var Config = pocket.Config{
 
 ### Auto-detection
 
-For projects with multiple modules, use `AutoDetect()` to automatically find
-directories containing relevant files:
+For projects with multiple modules, use `Paths().DetectBy()` with the package's
+`Detect()` function to automatically find directories containing relevant files:
 
 ```go
 var Config = pocket.Config{
     AutoRun: pocket.Serial(
-        pocket.AutoDetect(golang.Tasks()),    // finds all go.mod directories
-        pocket.AutoDetect(python.Tasks()),    // finds all pyproject.toml directories
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),    // finds all go.mod directories
+        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),    // finds all pyproject.toml directories
     ),
 }
 ```
@@ -290,7 +290,7 @@ This is opinionated: it runs the same tasks across all detected directories.
 Combine with path filtering for more control:
 
 ```go
-pocket.AutoDetect(golang.Tasks()).Except("vendor", "testdata")
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Except("vendor", "testdata")
 ```
 
 ### Skipping tasks
@@ -302,25 +302,25 @@ task constructor that returns `*pocket.Task`, including bundled packages like
 Skip a task everywhere (global skip):
 
 ```go
-pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask())
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Skip(golang.TestTask())
 ```
 
 Skip only in specific directories (path-specific skip):
 
 ```go
-pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask(), "docs")
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Skip(golang.TestTask(), "docs")
 ```
 
 Skip in multiple directories:
 
 ```go
-pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask(), "docs", "examples")
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Skip(golang.TestTask(), "docs", "examples")
 ```
 
 Skip multiple tasks by chaining:
 
 ```go
-pocket.AutoDetect(golang.Tasks()).Skip(golang.TestTask()).Skip(golang.VulncheckTask())
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Skip(golang.TestTask()).Skip(golang.VulncheckTask())
 ```
 
 ### Auto-run vs manual tasks
@@ -335,8 +335,8 @@ Pocket separates tasks into two categories:
 var Config = pocket.Config{
     // AutoRun: these execute on ./pok
     AutoRun: pocket.Serial(
-        pocket.AutoDetect(golang.Tasks()),
-        pocket.AutoDetect(python.Tasks()),
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
     ),
     // ManualRun: these require ./pok <taskname>
     ManualRun: []pocket.Runnable{
@@ -363,7 +363,7 @@ Builtin tasks:
 ```
 
 Both `AutoRun` and `ManualRun` support the same wrappers (`Paths()`,
-`AutoDetect()`, `Serial()`, `Parallel()`, etc.).
+`Serial()`, `Parallel()`, etc.).
 
 ## Reference
 
@@ -390,11 +390,24 @@ group.RunWith(pocket.Serial(formatTask, lintTask, testTask))
 
 // Mixed serial and parallel
 group.RunWith(pocket.Serial(formatTask, pocket.Parallel(lintTask, testTask)))
+```
 
-// Configure auto-detection
-group.DetectByFile("go.mod")           // detect by marker files
-group.DetectByExtension(".py")         // detect by file extensions
-group.DetectBy(func() []string { ... }) // custom detection
+### Path filtering and detection
+
+```go
+// Wrap with detection using a package's Detect() function
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+
+// Custom detection function
+pocket.Paths(myTasks).DetectBy(func() []string {
+    return pocket.DetectByFile("go.mod")
+})
+
+// Explicit directories
+pocket.Paths(myTasks).In("proj1", "proj2")
+
+// Combine detection with filtering
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Except("vendor")
 ```
 
 ### Config structure
@@ -403,8 +416,8 @@ group.DetectBy(func() []string { ... }) // custom detection
 var Config = pocket.Config{
     // AutoRun: tasks that run on ./pok (no arguments)
     AutoRun: pocket.Serial(
-        pocket.AutoDetect(golang.Tasks()),
-        pocket.AutoDetect(python.Tasks()),
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
     ),
 
     // ManualRun: tasks that only run with ./pok <taskname>

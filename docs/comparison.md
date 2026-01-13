@@ -115,7 +115,7 @@ Tasks are defined in Go code with `Serial()` and `Parallel()` execution control.
 - Automatic tool downloading and caching in `.pocket/`
 - Auto-detection of project types (Go modules, Python projects, etc.)
 - Task groups that run consistently across all detected locations
-- Path filtering for monorepos (`Paths().In()`, `AutoDetect()`)
+- Path filtering for monorepos (`Paths().In()`, `Paths().DetectBy()`)
 - Bootstrap shim (`./pok`) that auto-installs Go if needed
 - Bundled task packages for Go, Python, Lua, Markdown
 
@@ -130,10 +130,10 @@ Tasks are defined in Go code with `Serial()` and `Parallel()` execution control.
 ```go
 var Config = pocket.Config{
     AutoRun: pocket.Serial(
-        // Auto-detect finds all go.mod and pyproject.toml locations
+        // DetectBy finds all go.mod and pyproject.toml locations
         // and runs these task groups in each
-        pocket.AutoDetect(golang.Tasks()),
-        pocket.AutoDetect(python.Tasks()),
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
     ),
 }
 ```

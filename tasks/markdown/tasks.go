@@ -11,10 +11,21 @@ import (
 
 // Tasks returns a Runnable that executes all Markdown tasks.
 // Runs from repository root since markdown files are typically scattered.
-// Use pocket.AutoDetect(markdown.Tasks()) to enable path filtering.
+// Use pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()) to enable path filtering.
 func Tasks() pocket.Runnable {
-	return pocket.NewTaskGroup(FormatTask()).
-		DetectBy(func() []string { return []string{"."} })
+	return pocket.NewTaskGroup(FormatTask())
+}
+
+// Detect returns a detection function that finds Markdown projects.
+// It returns the repository root since markdown files are typically scattered.
+//
+// Usage:
+//
+//	pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect())
+func Detect() func() []string {
+	return func() []string {
+		return []string{"."}
+	}
 }
 
 // FormatTask returns a task that formats Markdown files using mdformat.

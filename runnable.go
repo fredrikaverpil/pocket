@@ -21,15 +21,6 @@ type Runnable interface {
 	Tasks() []*Task
 }
 
-// Detectable is an optional interface for Runnables that support auto-detection.
-// When a Runnable implements this interface, P(r).Detect() will use the
-// DefaultDetect function to find directories where the Runnable should run.
-type Detectable interface {
-	// DefaultDetect returns a function that detects directories where this
-	// Runnable should run. The returned paths should be relative to git root.
-	DefaultDetect() func() []string
-}
-
 // serial runs children in order, stopping on first error.
 type serial struct {
 	children []Runnable

@@ -91,13 +91,6 @@ func Paths(r Runnable) *PathFilter {
 	return &PathFilter{inner: r}
 }
 
-// AutoDetect wraps a Runnable with automatic directory detection.
-// This is a convenience function equivalent to Paths(r).Detect().
-// The Runnable should implement Detectable for this to work.
-func AutoDetect(r Runnable) *PathFilter {
-	return Paths(r).Detect()
-}
-
 // PathFilter wraps a Runnable with path filtering.
 // It implements Runnable, so it can be used anywhere a Runnable is expected.
 type PathFilter struct {
@@ -131,17 +124,6 @@ func (p *PathFilter) Except(patterns ...string) *PathFilter {
 	cp := p.clone()
 	for _, pat := range patterns {
 		cp.exclude = append(cp.exclude, regexp.MustCompile("^"+pat+"$"))
-	}
-	return cp
-}
-
-// Detect enables detection using the inner Runnable's DefaultDetect method.
-// If the inner Runnable doesn't implement Detectable, this has no effect.
-// Returns a new *PathFilter (immutable).
-func (p *PathFilter) Detect() *PathFilter {
-	cp := p.clone()
-	if d, ok := cp.inner.(Detectable); ok {
-		cp.detect = d.DefaultDetect()
 	}
 	return cp
 }

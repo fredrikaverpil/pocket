@@ -11,8 +11,8 @@ import (
 var Config = pocket.Config{
 	// AutoRun: tasks that run on ./pok (no arguments).
 	AutoRun: pocket.Parallel(
-		pocket.AutoDetect(golang.Tasks()),
-		pocket.AutoDetect(markdown.Tasks()),
+		pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+		pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
 	),
 	// ManualRun: tasks that require ./pok <taskname>.
 	ManualRun: []pocket.Runnable{

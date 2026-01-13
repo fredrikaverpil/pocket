@@ -23,13 +23,13 @@ func WithFormat(opts FormatOptions) TasksOption {
 
 // Tasks returns a Runnable that executes all Lua tasks.
 // Runs from repository root since Lua files are typically scattered.
-// Use pocket.AutoDetect(lua.Tasks()) to enable path filtering.
+// Use pocket.Paths(lua.Tasks()).DetectBy(lua.Detect()) to enable path filtering.
 //
 // Example with options:
 //
-//	pocket.AutoDetect(lua.Tasks(
+//	pocket.Paths(lua.Tasks(
 //	    lua.WithFormat(lua.FormatOptions{StyluaConfig: ".stylua.toml"}),
-//	))
+//	)).DetectBy(lua.Detect())
 func Tasks(opts ...TasksOption) pocket.Runnable {
 	var cfg tasksConfig
 	for _, opt := range opts {
@@ -38,8 +38,19 @@ func Tasks(opts ...TasksOption) pocket.Runnable {
 
 	format := FormatTask().WithOptions(cfg.format)
 
-	return pocket.NewTaskGroup(format).
-		DetectBy(func() []string { return []string{"."} })
+	return pocket.NewTaskGroup(format)
+}
+
+// Detect returns a detection function that finds Lua projects.
+// It returns the repository root since Lua files are typically scattered.
+//
+// Usage:
+//
+//	pocket.Paths(lua.Tasks()).DetectBy(lua.Detect())
+func Detect() func() []string {
+	return func() []string {
+		return []string{"."}
+	}
 }
 
 // FormatOptions configures the lua-format task.
