@@ -11,8 +11,8 @@ import (
 // Config is the pocket configuration for this project.
 var Config = pocket.Config{
 	AutoRun: pocket.Serial(
-		pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-		pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
+		pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
+		pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()),
 	),
 	ManualRun: []pocket.Runnable{
 		Greet,

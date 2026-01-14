@@ -45,20 +45,20 @@ func WithTest(opts TestOptions) Option {
 	return func(c *config) { c.test = opts }
 }
 
-// Tasks returns all Go tasks as a Runnable.
+// Workflow returns all Go tasks composed as a Runnable.
 // Use this with pocket.Paths().DetectBy() for auto-detection.
 //
 // Example:
 //
-//	pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+//	pocket.Paths(golang.Workflow()).DetectBy(golang.Detect())
 //
 // Example with options:
 //
-//	pocket.Paths(golang.Tasks(
+//	pocket.Paths(golang.Workflow(
 //	    golang.WithLint(golang.LintOptions{Config: ".golangci.yml"}),
 //	    golang.WithTest(golang.TestOptions{Race: false}),
 //	)).DetectBy(golang.Detect())
-func Tasks(opts ...Option) pocket.Runnable {
+func Workflow(opts ...Option) pocket.Runnable {
 	var cfg config
 	for _, opt := range opts {
 		opt(&cfg)

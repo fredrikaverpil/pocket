@@ -11,8 +11,8 @@ type Config struct {
 	// Example:
 	//
 	//	AutoRun: pocket.Serial(
-	//	    pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-	//	    pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
+	//	    pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
+	//	    pocket.Paths(python.Workflow()).DetectBy(python.Detect()),
 	//	),
 	AutoRun Runnable
 

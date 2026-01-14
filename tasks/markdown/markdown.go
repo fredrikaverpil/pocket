@@ -18,13 +18,13 @@ type FormatOptions struct {
 	Check bool // check only, don't write
 }
 
-// Tasks returns all markdown tasks as a Runnable.
+// Workflow returns all markdown tasks composed as a Runnable.
 // Use this with pocket.Paths().DetectBy() for auto-detection.
 //
 // Example:
 //
-//	pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect())
-func Tasks() pocket.Runnable {
+//	pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect())
+func Workflow() pocket.Runnable {
 	return Format
 }
 

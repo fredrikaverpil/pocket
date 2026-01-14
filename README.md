@@ -209,10 +209,12 @@ func Exec(ctx context.Context, args ...string) error {
 }
 ```
 
-#### 3. Task
+#### 3. Task Package
 
-A task package provides related functions. It exports action functions,
-`Tasks()` for composition, and `Detect()` for auto-discovery:
+A task package provides related functions. Individual functions defined with
+`pocket.Func()` are **tasks**. The `Workflow()` function composes these tasks
+into a **workflow** using `Serial`/`Parallel`, and `Detect()` enables
+auto-discovery:
 
 ```go
 // tasks/golang/golang.go
@@ -239,8 +241,8 @@ func vulncheck(ctx context.Context) error {
     return govulncheck.Exec(ctx, "./...")
 }
 
-// Tasks returns all Go tasks - composition mode, no ctx
-func Tasks() pocket.Runnable {
+// Workflow returns all Go tasks composed - no ctx means composition mode
+func Workflow() pocket.Runnable {
     return pocket.Serial(
         Format,                           // mutates files
         Lint,                             // mutates files (--fix)
@@ -290,7 +292,7 @@ Then projects import from your platform instead of Pocket's bundled tasks:
 import "github.com/myorg/platform/tasks/golang"
 
 var Config = pocket.Config{
-    AutoRun: pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+    AutoRun: pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
 }
 ```
 
@@ -300,7 +302,7 @@ var Config = pocket.Config{
 | ---------------- | ------------------ | ------------------------------------- | ---------------- |
 | **Runtime Tool** | Provides a runtime | `Install` (hidden)                    | bun, uv          |
 | **Action Tool**  | Does something     | `Install` + action func + `Exec()`    | prettier, ruff   |
-| **Task**         | Orchestrates tools | Action funcs + `Tasks()` + `Detect()` | markdown, golang |
+| **Task Package** | Orchestrates tools | Tasks + `Workflow()` + `Detect()` | markdown, golang |
 
 ### Config Usage
 
@@ -311,8 +313,8 @@ var Config = pocket.Config{
     // AutoRun executes on ./pok (no arguments)
     AutoRun: pocket.Serial(
         // Use task collections with auto-detection
-        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-        pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
+        pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
+        pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()),
 
         // Or use action tools directly
         pocket.Paths(prettier.Format).In("docs"),
@@ -341,13 +343,13 @@ For monorepos, use `Paths()` to control where functions run:
 pocket.Paths(myFunc).In("services/api", "services/web")
 
 // Auto-detect directories containing go.mod
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+pocket.Paths(golang.Workflow()).DetectBy(golang.Detect())
 
 // Exclude directories
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Except("vendor")
+pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).Except("vendor")
 
 // Skip specific functions in specific paths
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Skip(golang.GoTest, "docs")
+pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).Skip(golang.GoTest, "docs")
 ```
 
 ## Options
