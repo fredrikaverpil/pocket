@@ -5,7 +5,8 @@ pocket handle tool installation.
 
 > [!NOTE]
 >
-> Pocket is written in Go, but you don't need Go installed to use it. The
+> Pocket is written in Go, but
+> [you don't need Go installed to use it](.github/workflows/test.yml). The
 > `./pok` shim (`pok.ps1` on Windows) automatically downloads Go to `.pocket/`
 > if needed.
 
