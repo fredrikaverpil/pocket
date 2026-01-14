@@ -8,17 +8,10 @@ import (
 	"path/filepath"
 )
 
-// Tool represents an installable tool that implements Runnable.
+// Tool is a Task that installs a binary and provides methods to run it.
 //
-// Tools can be composed with Serial/Parallel just like tasks:
-//
-//	pocket.Serial(
-//	    pocket.Parallel(golangcilint.Tool, govulncheck.Tool),  // install in parallel
-//	    pocket.Parallel(lintTask, vulncheckTask),              // then run tasks
-//	)
-//
-// The install function has the same signature as task actions, giving it
-// full access to TaskContext for output and other tools.
+// Tool embeds *Task, so it satisfies Runnable automatically. The embedded
+// task is hidden from CLI and handles installation with deduplication.
 //
 // Example:
 //
@@ -30,12 +23,12 @@ import (
 //	    })
 //
 //	func install(ctx context.Context, tc *pocket.TaskContext) error {
-//	    return pocket.DownloadBinary(ctx, tc, url, opts)
+//	    return pocket.Download(ctx, tc, url, opts)
 //	}
 type Tool struct {
-	name    string
+	*Task           // embedded - Tool IS-A Task
+	binary  string  // binary name (e.g., "golangci-lint")
 	version string
-	task    *Task // internal install task
 	config  *ToolConfig
 }
 
@@ -79,25 +72,25 @@ func NewTool(name, version string, install TaskAction) *Tool {
 	// Create hidden install task. Version in name ensures unique dedup key.
 	taskName := "install:" + name + "@" + version
 	return &Tool{
-		name:    name,
+		Task:    NewTask(taskName, "install "+name, install).AsHidden(),
+		binary:  name,
 		version: version,
-		task:    NewTask(taskName, "install "+name, install).AsHidden(),
 	}
 }
 
 // WithConfig returns a new Tool with configuration file handling.
 func (t *Tool) WithConfig(cfg ToolConfig) *Tool {
 	return &Tool{
-		name:    t.name,
+		Task:    t.Task,
+		binary:  t.binary,
 		version: t.version,
-		task:    t.task,
 		config:  &cfg,
 	}
 }
 
-// Name returns the tool's binary name (without .exe extension).
-func (t *Tool) Name() string {
-	return t.name
+// BinaryName returns the tool's binary name (without .exe extension).
+func (t *Tool) BinaryName() string {
+	return t.binary
 }
 
 // Version returns the tool's version string.
@@ -124,7 +117,7 @@ func (t *Tool) ConfigPath() (string, error) {
 	}
 
 	// Write bundled config to .pocket/tools/<name>/<default-file>.
-	configDir := FromToolsDir(t.name)
+	configDir := FromToolsDir(t.binary)
 	configPath := filepath.Join(configDir, t.config.DefaultFile)
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -141,25 +134,14 @@ func (t *Tool) ConfigPath() (string, error) {
 
 // binaryPath returns the full path to the tool's binary in .pocket/bin/.
 func (t *Tool) binaryPath() string {
-	return FromBinDir(BinaryName(t.name))
+	return FromBinDir(BinaryName(t.binary))
 }
 
-// Run implements Runnable - installs the tool if needed.
-//
-// Tools can be composed with Serial/Parallel:
-//
-//	// Install tools in parallel, then run tasks
-//	pocket.Serial(
-//	    pocket.Parallel(golangcilint.Tool, govulncheck.Tool),
-//	    lintTask,
-//	)
-//
+// Run is promoted from embedded *Task - installs the tool if needed.
 // Deduplication is automatic: the same tool is only installed once per execution.
-func (t *Tool) Run(ctx context.Context, exec *Execution) error {
-	return t.task.Run(ctx, exec)
-}
 
-// Tasks implements Runnable - returns nil since tools aren't CLI-visible.
+// Tasks overrides the embedded Task.Tasks to return nil.
+// This hides tools from CLI task listings.
 func (t *Tool) Tasks() []*Task {
 	return nil
 }
@@ -195,7 +177,7 @@ func (t *Tool) Exec(ctx context.Context, tc *TaskContext, args ...string) error 
 //	return cmd.Run()
 func (t *Tool) Command(ctx context.Context, tc *TaskContext, args ...string) (*exec.Cmd, error) {
 	if err := t.Run(ctx, tc.Execution()); err != nil {
-		return nil, fmt.Errorf("install %s: %w", t.name, err)
+		return nil, fmt.Errorf("install %s: %w", t.binary, err)
 	}
 	return tc.Command(ctx, t.binaryPath(), args...), nil
 }
