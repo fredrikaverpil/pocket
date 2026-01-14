@@ -266,7 +266,7 @@ function.
 
 ## Path Filtering
 
-For monorepos, use `Paths()` to control where functions run:
+For e.g. monorepos, use `Paths()` to control where functions run:
 
 ```go
 // Run in specific directories

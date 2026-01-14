@@ -98,10 +98,22 @@ func validateNoDuplicateFuncs(funcs, builtinFuncs []*FuncDef) error {
 	return nil
 }
 
+// planOptions configures the plan command.
+type planOptions struct {
+	Hidden bool `arg:"hidden" usage:"show hidden functions (e.g., install tasks)"`
+}
+
 // builtinTasks returns the built-in tasks that are always available.
-// These include: clean, generate, git-diff, update.
+// These include: clean, generate, git-diff, plan, update.
 func builtinTasks(cfg *Config) []*FuncDef {
 	return []*FuncDef{
+		// plan: show the execution tree
+		Func("plan", "show the execution tree and shim locations", func(ctx context.Context) error {
+			opts := Options[planOptions](ctx)
+			printPlan(ctx, cfg, opts.Hidden)
+			return nil
+		}).With(planOptions{}),
+
 		// clean: remove .pocket/tools and .pocket/bin directories
 		Func("clean", "remove .pocket/tools and .pocket/bin directories", func(ctx context.Context) error {
 			toolsDir := FromToolsDir()
@@ -187,4 +199,145 @@ func builtinTasks(cfg *Config) []*FuncDef {
 			return nil
 		}),
 	}
+}
+
+// printPlan prints the execution tree and shim locations.
+func printPlan(ctx context.Context, cfg *Config, showHidden bool) {
+	// Print AutoRun tree
+	if cfg.AutoRun != nil {
+		Printf(ctx, "AutoRun (./pok):\n")
+		printTree(ctx, cfg.AutoRun, "  ", true, showHidden)
+	} else {
+		Printf(ctx, "AutoRun: (none)\n")
+	}
+
+	// Print shim locations
+	Printf(ctx, "\nShims:\n")
+	if cfg.Shim == nil {
+		Printf(ctx, "  (using defaults)\n")
+		cfg = &Config{Shim: cfg.Shim}
+		*cfg = cfg.WithDefaults()
+	}
+	shim := cfg.Shim
+	if shim == nil {
+		shim = &ShimConfig{Name: "pok", Posix: true}
+	}
+	root := GitRoot()
+	if shim.Posix {
+		Printf(ctx, "  %s/%s (posix)\n", root, shim.Name)
+	}
+	if shim.Windows {
+		Printf(ctx, "  %s/%s.cmd (windows)\n", root, shim.Name)
+	}
+	if shim.PowerShell {
+		Printf(ctx, "  %s/%s.ps1 (powershell)\n", root, shim.Name)
+	}
+}
+
+// printTree recursively prints a Runnable tree with indentation.
+func printTree(ctx context.Context, r Runnable, indent string, last, showHidden bool) {
+	// Determine the connector
+	connector := "├── "
+	if last {
+		connector = "└── "
+	}
+	childIndent := indent + "│   "
+	if last {
+		childIndent = indent + "    "
+	}
+
+	switch v := r.(type) {
+	case *FuncDef:
+		// Skip hidden functions unless showHidden is true
+		if v.hidden && !showHidden {
+			return
+		}
+		label := v.name
+		if v.hidden {
+			label += " (hidden)"
+		}
+		if v.usage != "" {
+			label += " - " + v.usage
+		}
+		Printf(ctx, "%s%s%s\n", indent, connector, label)
+		// If FuncDef has a body (composition), print it
+		if v.body != nil {
+			printTree(ctx, v.body, childIndent, true, showHidden)
+		}
+	case *serial:
+		// Filter items if not showing hidden
+		items := v.items
+		if !showHidden {
+			items = filterVisible(items)
+		}
+		if len(items) == 0 {
+			return
+		}
+		Printf(ctx, "%s%sSerial:\n", indent, connector)
+		for i, item := range items {
+			printTree(ctx, item, childIndent, i == len(items)-1, showHidden)
+		}
+	case *parallel:
+		// Filter items if not showing hidden
+		items := v.items
+		if !showHidden {
+			items = filterVisible(items)
+		}
+		if len(items) == 0 {
+			return
+		}
+		Printf(ctx, "%s%sParallel:\n", indent, connector)
+		for i, item := range items {
+			printTree(ctx, item, childIndent, i == len(items)-1, showHidden)
+		}
+	case *PathFilter:
+		paths := describePathFilter(v)
+		Printf(ctx, "%s%sPaths(%s):\n", indent, connector, paths)
+		printTree(ctx, v.inner, childIndent, true, showHidden)
+	default:
+		Printf(ctx, "%s%s(unknown: %T)\n", indent, connector, r)
+	}
+}
+
+// filterVisible returns only visible (non-hidden) runnables.
+func filterVisible(items []Runnable) []Runnable {
+	result := make([]Runnable, 0, len(items))
+	for _, item := range items {
+		if f, ok := item.(*FuncDef); ok && f.hidden {
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+// describePathFilter returns a human-readable description of path filtering.
+func describePathFilter(p *PathFilter) string {
+	var parts []string
+	if p.detect != nil {
+		detected := p.detect()
+		if len(detected) > 0 {
+			parts = append(parts, "detect: "+strings.Join(detected, ", "))
+		} else {
+			parts = append(parts, "detect: (none)")
+		}
+	}
+	if len(p.include) > 0 {
+		var patterns []string
+		for _, re := range p.include {
+			patterns = append(patterns, re.String())
+		}
+		parts = append(parts, "in: "+strings.Join(patterns, ", "))
+	}
+	if len(p.exclude) > 0 {
+		var patterns []string
+		for _, re := range p.exclude {
+			patterns = append(patterns, re.String())
+		}
+		parts = append(parts, "except: "+strings.Join(patterns, ", "))
+	}
+	if len(parts) == 0 {
+		return "all"
+	}
+	return strings.Join(parts, "; ")
 }
