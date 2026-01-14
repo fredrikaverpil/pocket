@@ -17,6 +17,5 @@ const Version = "v1.1.4"
 var Install = pocket.Func("install:govulncheck", "install govulncheck", install).Hidden()
 
 func install(ctx context.Context) error {
-	pocket.Printf(ctx, "Installing govulncheck %s...\n", Version)
 	return pocket.InstallGo(ctx, "golang.org/x/vuln/cmd/govulncheck", Version)
 }

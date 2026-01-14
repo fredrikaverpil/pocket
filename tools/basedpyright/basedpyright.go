@@ -32,8 +32,6 @@ func install(ctx context.Context) error {
 		return err
 	}
 
-	pocket.Printf(ctx, "Installing basedpyright %s...\n", Version)
-
 	// Create virtual environment (uv auto-installs if needed).
 	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
 		return err

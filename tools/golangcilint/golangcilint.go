@@ -17,7 +17,6 @@ const Version = "v2.0.2"
 var Install = pocket.Func("install:golangci-lint", "install golangci-lint", install).Hidden()
 
 func install(ctx context.Context) error {
-	pocket.Printf(ctx, "Installing golangci-lint %s...\n", Version)
 	return pocket.InstallGo(ctx, "github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version)
 }
 

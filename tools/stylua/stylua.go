@@ -48,7 +48,6 @@ func install(ctx context.Context) error {
 		Version, hostOS, hostArch,
 	)
 
-	pocket.Printf(ctx, "Installing stylua %s...\n", Version)
 	return pocket.Download(ctx, url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat("zip"),

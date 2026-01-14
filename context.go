@@ -136,6 +136,17 @@ func Errorf(ctx context.Context, format string, args ...any) {
 	fmt.Fprintf(ec.out.Stderr, format, args...)
 }
 
+// printTaskHeader writes the task execution header to output.
+// Format: ":: task-name" or ":: task-name [path]" when running in a specific path.
+func printTaskHeader(ctx context.Context, name string) {
+	ec := getExecContext(ctx)
+	if ec.path != "" && ec.path != "." {
+		fmt.Fprintf(ec.out.Stdout, ":: %s [%s]\n", name, ec.path)
+	} else {
+		fmt.Fprintf(ec.out.Stdout, ":: %s\n", name)
+	}
+}
+
 // Options retrieves typed options from the context.
 // Returns zero value if no options are set.
 //

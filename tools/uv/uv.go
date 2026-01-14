@@ -31,7 +31,6 @@ func install(ctx context.Context) error {
 		pocket.DefaultArchiveFormat(),
 	)
 
-	pocket.Printf(ctx, "Installing uv %s...\n", Version)
 	return pocket.Download(ctx, url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat(pocket.DefaultArchiveFormat()),

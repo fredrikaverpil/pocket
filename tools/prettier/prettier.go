@@ -36,8 +36,6 @@ func install(ctx context.Context) error {
 		return err
 	}
 
-	pocket.Printf(ctx, "Installing prettier %s...\n", Version)
-
 	// Ensure bun is installed.
 	pocket.Serial(ctx, bun.Install)
 

@@ -133,6 +133,9 @@ func (f *FuncDef) run(ctx context.Context) (err error) {
 		}
 	}()
 
+	// Print task header
+	printTaskHeader(ctx, f.name)
+
 	// Inject options into context if present
 	if f.opts != nil {
 		ctx = withOptions(ctx, f.name, f.opts)

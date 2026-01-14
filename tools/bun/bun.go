@@ -29,7 +29,6 @@ func install(ctx context.Context) error {
 		Version, platformArch(),
 	)
 
-	pocket.Printf(ctx, "Installing bun %s...\n", Version)
 	return pocket.Download(ctx, url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat("zip"),

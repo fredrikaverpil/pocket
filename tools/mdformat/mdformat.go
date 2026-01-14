@@ -47,8 +47,6 @@ func install(ctx context.Context) error {
 		return err
 	}
 
-	pocket.Printf(ctx, "Installing mdformat...\n")
-
 	// Create virtual environment with Python 3.13+ for --exclude support.
 	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
 		return err

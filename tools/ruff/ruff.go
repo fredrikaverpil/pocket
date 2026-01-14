@@ -43,8 +43,6 @@ func install(ctx context.Context) error {
 		return err
 	}
 
-	pocket.Printf(ctx, "Installing ruff %s...\n", Version)
-
 	// Create virtual environment (uv auto-installs if needed).
 	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
 		return err
