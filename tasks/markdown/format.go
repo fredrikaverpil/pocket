@@ -18,6 +18,8 @@ var Format = pocket.Func("md-format", "format Markdown files", format).
 	With(FormatOptions{})
 
 func format(ctx context.Context) error {
+	pocket.Serial(ctx, prettier.Install)
+
 	opts := pocket.Options[FormatOptions](ctx)
 
 	args := []string{}
@@ -39,7 +41,7 @@ func format(ctx context.Context) error {
 
 	args = append(args, "**/*.md")
 
-	if err := prettier.Exec(ctx, args...); err != nil {
+	if err := pocket.Exec(ctx, prettier.Name, args...); err != nil {
 		return fmt.Errorf("prettier failed: %w", err)
 	}
 	return nil

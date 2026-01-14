@@ -14,6 +14,9 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
+// Name is the binary name for mdformat.
+const Name = "mdformat"
+
 // Python 3.13+ required by mdformat v1 for --exclude support.
 const pythonVersion = "3.13"
 
@@ -30,7 +33,6 @@ func Version() string {
 }
 
 // Install ensures mdformat is available.
-// This is a hidden dependency used by Exec.
 var Install = pocket.Func("install:mdformat", "install mdformat", install).Hidden()
 
 func install(ctx context.Context) error {
@@ -66,10 +68,4 @@ func install(ctx context.Context) error {
 	// Create symlink (or copy on Windows) to .pocket/bin/.
 	_, err := pocket.CreateSymlink(binary)
 	return err
-}
-
-// Exec runs mdformat with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "mdformat", args...)
 }

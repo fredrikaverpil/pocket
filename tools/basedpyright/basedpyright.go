@@ -10,6 +10,9 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
+// Name is the binary name for basedpyright.
+const Name = "basedpyright"
+
 // renovate: datasource=pypi depName=basedpyright
 const Version = "1.37.0"
 
@@ -17,7 +20,6 @@ const Version = "1.37.0"
 const pythonVersion = "3.12"
 
 // Install ensures basedpyright is available.
-// This is a hidden dependency used by Exec.
 var Install = pocket.Func("install:basedpyright", "install basedpyright", install).Hidden()
 
 func install(ctx context.Context) error {
@@ -45,10 +47,4 @@ func install(ctx context.Context) error {
 	// Create symlink to .pocket/bin/.
 	_, err := pocket.CreateSymlink(binary)
 	return err
-}
-
-// Exec runs basedpyright with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "basedpyright", args...)
 }

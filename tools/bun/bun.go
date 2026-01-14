@@ -10,18 +10,18 @@ import (
 	"github.com/fredrikaverpil/pocket"
 )
 
-const name = "bun"
+// Name is the binary name for bun.
+const Name = "bun"
 
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.*)$
 const Version = "1.3.6"
 
 // Install ensures bun is available.
-// This is a hidden dependency - other tools call this, users don't.
 var Install = pocket.Func("install:bun", "ensure bun is available", install).Hidden()
 
 func install(ctx context.Context) error {
-	binDir := pocket.FromToolsDir(name, Version, "bin")
-	binaryName := pocket.BinaryName(name)
+	binDir := pocket.FromToolsDir(Name, Version, "bin")
+	binaryName := pocket.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
@@ -59,19 +59,6 @@ func platformArch() string {
 	default:
 		return fmt.Sprintf("%s-%s", hostOS, hostArch)
 	}
-}
-
-// Exec runs bun with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "bun", args...)
-}
-
-// InstallPackage installs an npm package using bun into the specified directory.
-// The package should include version, e.g., "prettier@3.7.4".
-func InstallPackage(ctx context.Context, installDir, pkg string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "bun", "install", "--cwd", installDir, pkg)
 }
 
 // BinaryPath returns the path to a binary installed by bun in the given directory.

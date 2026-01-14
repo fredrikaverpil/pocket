@@ -11,6 +11,9 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
+// Name is the binary name for ruff.
+const Name = "ruff"
+
 // renovate: datasource=pypi depName=ruff
 const Version = "0.14.0"
 
@@ -28,7 +31,6 @@ var Config = pocket.ToolConfig{
 }
 
 // Install ensures ruff is available.
-// This is a hidden dependency used by Exec.
 var Install = pocket.Func("install:ruff", "install ruff", install).Hidden()
 
 func install(ctx context.Context) error {
@@ -56,10 +58,4 @@ func install(ctx context.Context) error {
 	// Create symlink to .pocket/bin/.
 	_, err := pocket.CreateSymlink(binary)
 	return err
-}
-
-// Exec runs ruff with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "ruff", args...)
 }

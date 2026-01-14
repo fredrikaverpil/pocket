@@ -10,6 +10,9 @@ import (
 	"github.com/fredrikaverpil/pocket"
 )
 
+// Name is the binary name for stylua.
+const Name = "stylua"
+
 // renovate: datasource=github-releases depName=JohnnyMorganz/StyLua
 const Version = "2.3.1"
 
@@ -24,7 +27,6 @@ var Config = pocket.ToolConfig{
 }
 
 // Install ensures stylua is available.
-// This is a hidden dependency used by Exec.
 var Install = pocket.Func("install:stylua", "install stylua", install).Hidden()
 
 func install(ctx context.Context) error {
@@ -54,10 +56,4 @@ func install(ctx context.Context) error {
 		pocket.WithSymlink(),
 		pocket.WithSkipIfExists(binaryPath),
 	)
-}
-
-// Exec runs stylua with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "stylua", args...)
 }

@@ -11,5 +11,6 @@ import (
 var Vulncheck = pocket.Func("go-vulncheck", "run govulncheck", vulncheck)
 
 func vulncheck(ctx context.Context) error {
-	return govulncheck.Exec(ctx, "./...")
+	pocket.Serial(ctx, govulncheck.Install)
+	return pocket.Exec(ctx, govulncheck.Name, "./...")
 }

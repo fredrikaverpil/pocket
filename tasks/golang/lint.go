@@ -18,6 +18,8 @@ var Lint = pocket.Func("go-lint", "run golangci-lint", lint).
 	With(LintOptions{})
 
 func lint(ctx context.Context) error {
+	pocket.Serial(ctx, golangcilint.Install)
+
 	opts := pocket.Options[LintOptions](ctx)
 
 	args := []string{"run"}
@@ -31,5 +33,5 @@ func lint(ctx context.Context) error {
 	}
 	args = append(args, "./...")
 
-	return golangcilint.Exec(ctx, args...)
+	return pocket.Exec(ctx, golangcilint.Name, args...)
 }

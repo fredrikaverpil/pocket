@@ -10,11 +10,13 @@ import (
 	"github.com/fredrikaverpil/pocket"
 )
 
+// Name is the binary name for uv.
+const Name = "uv"
+
 // renovate: datasource=github-releases depName=astral-sh/uv
 const Version = "0.7.13"
 
 // Install ensures uv is available.
-// This is a hidden dependency used by other functions.
 var Install = pocket.Func("install:uv", "install uv", install).Hidden()
 
 func install(ctx context.Context) error {
@@ -49,25 +51,19 @@ func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
 		args = append(args, "--python", pythonVersion)
 	}
 	args = append(args, venvPath)
-	return pocket.Exec(ctx, "uv", args...)
+	return pocket.Exec(ctx, Name, args...)
 }
 
 // PipInstall installs a package into a virtual environment.
 func PipInstall(ctx context.Context, venvPath, pkg string) error {
 	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "uv", "pip", "install", "--python", venvPython(venvPath), pkg)
+	return pocket.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
 }
 
 // PipInstallRequirements installs packages from a requirements.txt file.
 func PipInstallRequirements(ctx context.Context, venvPath, requirementsPath string) error {
 	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "uv", "pip", "install", "--python", venvPython(venvPath), "-r", requirementsPath)
-}
-
-// Exec runs uv with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	pocket.Serial(ctx, Install)
-	return pocket.Exec(ctx, "uv", args...)
+	return pocket.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), "-r", requirementsPath)
 }
 
 // venvPython returns the path to the Python executable in a venv.

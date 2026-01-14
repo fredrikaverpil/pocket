@@ -18,6 +18,8 @@ var Lint = pocket.Func("py-lint", "lint Python files", lint).
 	With(LintOptions{})
 
 func lint(ctx context.Context) error {
+	pocket.Serial(ctx, ruff.Install)
+
 	opts := pocket.Options[LintOptions](ctx)
 	configPath := opts.RuffConfig
 	if configPath == "" {
@@ -34,5 +36,5 @@ func lint(ctx context.Context) error {
 	}
 	args = append(args, pocket.Path(ctx))
 
-	return ruff.Exec(ctx, args...)
+	return pocket.Exec(ctx, ruff.Name, args...)
 }

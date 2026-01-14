@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -22,21 +21,21 @@ import (
 type toolTest struct {
 	name        string
 	install     *pocket.FuncDef
-	exec        func(ctx context.Context, args ...string) error
+	binary      string
 	versionArgs []string
 }
 
 var tools = []toolTest{
-	{"golangci-lint", golangcilint.Install, golangcilint.Exec, []string{"version"}},
-	{"govulncheck", govulncheck.Install, govulncheck.Exec, []string{"-version"}},
-	{"uv", uv.Install, uv.Exec, []string{"--version"}},
-	{"mdformat", mdformat.Install, mdformat.Exec, []string{"--version"}},
-	{"ruff", ruff.Install, ruff.Exec, []string{"--version"}},
-	{"mypy", mypy.Install, mypy.Exec, []string{"--version"}},
-	{"basedpyright", basedpyright.Install, basedpyright.Exec, []string{"--version"}},
-	{"stylua", stylua.Install, stylua.Exec, []string{"--version"}},
-	{"bun", bun.Install, bun.Exec, []string{"--version"}},
-	{"prettier", prettier.Install, prettier.Exec, []string{"--version"}},
+	{"golangci-lint", golangcilint.Install, golangcilint.Name, []string{"version"}},
+	{"govulncheck", govulncheck.Install, govulncheck.Name, []string{"-version"}},
+	{"uv", uv.Install, uv.Name, []string{"--version"}},
+	{"mdformat", mdformat.Install, mdformat.Name, []string{"--version"}},
+	{"ruff", ruff.Install, ruff.Name, []string{"--version"}},
+	{"mypy", mypy.Install, mypy.Name, []string{"--version"}},
+	{"basedpyright", basedpyright.Install, basedpyright.Name, []string{"--version"}},
+	{"stylua", stylua.Install, stylua.Name, []string{"--version"}},
+	{"bun", bun.Install, bun.Name, []string{"--version"}},
+	{"prettier", prettier.Install, prettier.Name, []string{"--version"}},
 }
 
 func TestTools(t *testing.T) {
@@ -53,8 +52,8 @@ func TestTools(t *testing.T) {
 			pocket.Serial(ctx, tool.install)
 
 			// Run the tool to verify it works.
-			if err := tool.exec(ctx, tool.versionArgs...); err != nil {
-				t.Fatalf("Exec %v: %v", tool.versionArgs, err)
+			if err := pocket.Exec(ctx, tool.binary, tool.versionArgs...); err != nil {
+				t.Fatalf("Exec %s %v: %v", tool.binary, tool.versionArgs, err)
 			}
 		})
 	}

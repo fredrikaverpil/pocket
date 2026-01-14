@@ -18,6 +18,8 @@ var Format = pocket.Func("py-format", "format Python files", format).
 	With(FormatOptions{})
 
 func format(ctx context.Context) error {
+	pocket.Serial(ctx, ruff.Install)
+
 	opts := pocket.Options[FormatOptions](ctx)
 	configPath := opts.RuffConfig
 	if configPath == "" {
@@ -34,5 +36,5 @@ func format(ctx context.Context) error {
 	}
 	args = append(args, pocket.Path(ctx))
 
-	return ruff.Exec(ctx, args...)
+	return pocket.Exec(ctx, ruff.Name, args...)
 }
