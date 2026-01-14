@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -18,39 +17,43 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-var tools = []struct {
+// toolTest defines a tool to test.
+type toolTest struct {
 	name        string
-	tool        *pocket.Tool
+	install     *pocket.FuncDef
+	binary      string
 	versionArgs []string
-}{
-	{"golangci-lint", golangcilint.Tool, []string{"version"}},
-	{"govulncheck", govulncheck.Tool, []string{"-version"}},
-	{"uv", uv.Tool, []string{"--version"}},
-	{"mdformat", mdformat.Tool, []string{"--version"}},
-	{"ruff", ruff.Tool, []string{"--version"}},
-	{"mypy", mypy.Tool, []string{"--version"}},
-	{"basedpyright", basedpyright.Tool, []string{"--version"}},
-	{"stylua", stylua.Tool, []string{"--version"}},
-	{"bun", bun.Tool, []string{"--version"}},
-	{"prettier", prettier.Tool, []string{"--version"}},
+}
+
+var tools = []toolTest{
+	{"golangci-lint", golangcilint.Install, golangcilint.Name, []string{"version"}},
+	{"govulncheck", govulncheck.Install, govulncheck.Name, []string{"-version"}},
+	{"uv", uv.Install, uv.Name, []string{"--version"}},
+	{"mdformat", mdformat.Install, mdformat.Name, []string{"--version"}},
+	{"ruff", ruff.Install, ruff.Name, []string{"--version"}},
+	{"mypy", mypy.Install, mypy.Name, []string{"--version"}},
+	{"basedpyright", basedpyright.Install, basedpyright.Name, []string{"--version"}},
+	{"stylua", stylua.Install, stylua.Name, []string{"--version"}},
+	{"bun", bun.Install, bun.Name, []string{"--version"}},
+	{"prettier", prettier.Install, prettier.Name, []string{"--version"}},
 }
 
 func TestTools(t *testing.T) {
-	// Create an Execution for testing tool installation.
-	out := &pocket.Output{Stdout: os.Stdout, Stderr: os.Stderr}
-	exec := pocket.NewExecution(out, false, ".")
-	tc := exec.TaskContext(".")
+	// Create execution context for testing.
+	out := pocket.StdOutput()
+	out.Stdout = os.Stdout
+	out.Stderr = os.Stderr
 
 	for _, tool := range tools {
 		t.Run(tool.name, func(t *testing.T) {
-			ctx := context.Background()
-			// Install the tool (Tool implements Runnable).
-			if err := tool.tool.Run(ctx, exec); err != nil {
-				t.Fatalf("Install: %v", err)
-			}
-			// Run the tool binary to verify it works.
-			if err := tool.tool.Exec(ctx, tc, tool.versionArgs...); err != nil {
-				t.Fatalf("Exec %v: %v", tool.versionArgs, err)
+			ctx := pocket.TestContext(out)
+
+			// Install the tool.
+			pocket.Serial(ctx, tool.install)
+
+			// Run the tool to verify it works.
+			if err := pocket.Exec(ctx, tool.binary, tool.versionArgs...); err != nil {
+				t.Fatalf("Exec %s %v: %v", tool.binary, tool.versionArgs, err)
 			}
 		})
 	}

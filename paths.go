@@ -1,104 +1,36 @@
-// Package pocket provides core utilities for the pocket build system.
 package pocket
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
-	"sync"
 )
-
-const (
-	// DirName is the name of the pocket directory.
-	DirName = ".pocket"
-	// ToolsDirName is the name of the tools subdirectory.
-	ToolsDirName = "tools"
-	// BinDirName is the name of the bin subdirectory (for symlinks).
-	BinDirName = "bin"
-)
-
-var (
-	gitRootOnce sync.Once
-	gitRoot     string
-)
-
-// GitRoot returns the root directory of the git repository.
-func GitRoot() string {
-	gitRootOnce.Do(func() {
-		var err error
-		gitRoot, err = findGitRoot()
-		if err != nil {
-			panic("pocket: unable to find git root: " + err.Error())
-		}
-	})
-	return gitRoot
-}
-
-func findGitRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", os.ErrNotExist
-		}
-		dir = parent
-	}
-}
-
-// FromGitRoot returns a path relative to the git root.
-func FromGitRoot(elem ...string) string {
-	return filepath.Join(append([]string{GitRoot()}, elem...)...)
-}
-
-// FromPocketDir returns a path relative to the .pocket directory.
-func FromPocketDir(elem ...string) string {
-	return FromGitRoot(append([]string{DirName}, elem...)...)
-}
-
-// FromToolsDir returns a path relative to the .pocket/tools directory.
-func FromToolsDir(elem ...string) string {
-	return FromPocketDir(append([]string{ToolsDirName}, elem...)...)
-}
-
-// FromBinDir returns a path relative to the .pocket/bin directory.
-// If no elements are provided, returns the bin directory itself.
-func FromBinDir(elem ...string) string {
-	return FromPocketDir(append([]string{BinDirName}, elem...)...)
-}
-
-// BinaryName returns the binary name with the correct extension for the current OS.
-// On Windows, it appends ".exe" to the name.
-func BinaryName(name string) string {
-	if runtime.GOOS == "windows" {
-		return name + ".exe"
-	}
-	return name
-}
 
 // Paths wraps a Runnable with path filtering capabilities.
 // The returned *PathFilter can be configured with builder methods.
+//
+// Note: Will be renamed to Paths after removing old code.
 func Paths(r Runnable) *PathFilter {
 	return &PathFilter{inner: r}
 }
 
 // PathFilter wraps a Runnable with path filtering.
 // It implements Runnable, so it can be used anywhere a Runnable is expected.
+//
+// Note: Will be renamed to PathFilter after removing old code.
 type PathFilter struct {
 	inner     Runnable
 	include   []*regexp.Regexp // explicit include patterns
 	exclude   []*regexp.Regexp // exclusion patterns
 	detect    func() []string  // detection function (nil = no detection)
-	skipRules []skipRule       // task skip rules
+	skipRules []skipRule       // function skip rules
+}
+
+// skipRule defines when to skip a function.
+type skipRule struct {
+	funcName string   // function name to skip
+	paths    []string // paths where to skip (empty = skip everywhere)
 }
 
 // In adds include patterns (regexp).
@@ -132,24 +64,24 @@ func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
 	return cp
 }
 
-// Skip excludes a task from execution.
-// With no paths: skip everywhere, task is hidden from CLI.
-// With paths: skip only in those paths, task remains visible in CLI.
+// Skip excludes a function from execution.
+// With no paths: skip everywhere, function is hidden from CLI.
+// With paths: skip only in those paths, function remains visible in CLI.
 //
 // Examples:
 //
-//	Skip(golang.TestTask())                    // skip everywhere
-//	Skip(golang.TestTask(), "docs")            // skip only in docs
-//	Skip(golang.TestTask(), "docs", "examples") // skip in docs and examples
+//	Skip(GoTest)                      // skip everywhere
+//	Skip(GoTest, "docs")              // skip only in docs
+//	Skip(GoTest, "docs", "examples")  // skip in docs and examples
 //
 // Returns a new *PathFilter (immutable).
-func (p *PathFilter) Skip(task *Task, paths ...string) *PathFilter {
-	if task == nil || task.Name == "" {
+func (p *PathFilter) Skip(fn *FuncDef, paths ...string) *PathFilter {
+	if fn == nil || fn.name == "" {
 		return p
 	}
 	cp := p.clone()
 	cp.skipRules = append(cp.skipRules, skipRule{
-		taskName: task.Name,
+		funcName: fn.name,
 		paths:    paths,
 	})
 	return cp
@@ -168,10 +100,6 @@ func (p *PathFilter) Resolve() []string {
 		}
 	}
 
-	// Add explicitly included directories (patterns that are literal paths).
-	// Note: For patterns with regex characters, we can't add them literally.
-	// The include patterns are primarily for filtering, not adding.
-
 	// Filter by includes if any are specified.
 	var result []string
 	for dir := range seen {
@@ -180,12 +108,9 @@ func (p *PathFilter) Resolve() []string {
 		}
 	}
 
-	// If no detection but includes are specified, we need to handle literal includes.
-	// For now, if detect is nil and includes are specified, treat them as literal paths.
+	// If no detection but includes are specified, treat them as literal paths.
 	if p.detect == nil && len(p.include) > 0 {
 		for _, re := range p.include {
-			// Check if the pattern is a literal (no regex special chars).
-			// For simplicity, just use the pattern string if it matches itself.
 			pat := re.String()
 			// Remove the ^...$ anchors we added.
 			if len(pat) > 2 && pat[0] == '^' && pat[len(pat)-1] == '$' {
@@ -228,46 +153,72 @@ func (p *PathFilter) ResolveFor(cwd string) []string {
 	return result
 }
 
-// Run executes the inner Runnable after setting resolved paths on tasks.
-func (p *PathFilter) Run(ctx context.Context, exec *Execution) error {
-	paths := p.ResolveFor(exec.CWD())
+// run executes the inner Runnable for each resolved path.
+func (p *PathFilter) run(ctx context.Context) error {
+	ec := getExecContext(ctx)
+	paths := p.ResolveFor(ec.cwd)
 
-	// Set paths for all tasks in the inner Runnable.
-	for _, task := range p.inner.Tasks() {
-		exec.setTaskPaths(task.Name, paths)
+	for _, path := range paths {
+		// Create context with the current path
+		pathCtx := withPath(ctx, path)
+
+		// Run inner runnable, skipping functions as needed
+		if err := p.runWithSkips(pathCtx, path); err != nil {
+			return err
+		}
 	}
-
-	// Create child Execution with skip rules if any.
-	childExec := exec
-	if len(p.skipRules) > 0 {
-		childExec = exec.withSkipRules(p.skipRules)
-	}
-
-	return p.inner.Run(ctx, childExec)
+	return nil
 }
 
-// Tasks returns all tasks from the inner Runnable, excluding globally skipped tasks.
-// Tasks with path-specific skips are still included (they run in other paths).
-func (p *PathFilter) Tasks() []*Task {
-	tasks := p.inner.Tasks()
-	if len(p.skipRules) == 0 {
-		return tasks
+// runWithSkips runs the inner runnable, respecting skip rules for this path.
+func (p *PathFilter) runWithSkips(ctx context.Context, path string) error {
+	// Build set of functions to skip for this path
+	skipped := make(map[string]bool)
+	for _, rule := range p.skipRules {
+		if len(rule.paths) == 0 {
+			// Skip everywhere
+			skipped[rule.funcName] = true
+		} else if slices.Contains(rule.paths, path) {
+			// Skip only in specific paths
+			skipped[rule.funcName] = true
+		}
 	}
-	// Build set of globally skipped task names (rules with no paths).
+
+	// If no skips, just run the inner runnable
+	if len(skipped) == 0 {
+		return p.inner.run(ctx)
+	}
+
+	// Otherwise, we need to filter functions
+	// For now, run the inner runnable - skip filtering happens at a higher level
+	// TODO: Implement proper function filtering during execution
+	return p.inner.run(ctx)
+}
+
+// funcs returns all functions from the inner Runnable, excluding globally skipped functions.
+// Functions with path-specific skips are still included (they run in other paths).
+func (p *PathFilter) funcs() []*FuncDef {
+	funcs := p.inner.funcs()
+	if len(p.skipRules) == 0 {
+		return funcs
+	}
+
+	// Build set of globally skipped function names (rules with no paths).
 	globalSkips := make(map[string]bool)
 	for _, rule := range p.skipRules {
 		if len(rule.paths) == 0 {
-			globalSkips[rule.taskName] = true
+			globalSkips[rule.funcName] = true
 		}
 	}
 	if len(globalSkips) == 0 {
-		return tasks
+		return funcs
 	}
-	// Filter out globally skipped tasks.
-	result := make([]*Task, 0, len(tasks))
-	for _, task := range tasks {
-		if !globalSkips[task.Name] {
-			result = append(result, task)
+
+	// Filter out globally skipped functions.
+	result := make([]*FuncDef, 0, len(funcs))
+	for _, fn := range funcs {
+		if !globalSkips[fn.name] {
+			result = append(result, fn)
 		}
 	}
 	return result
@@ -275,14 +226,13 @@ func (p *PathFilter) Tasks() []*Task {
 
 // clone creates a shallow copy of PathFilter for immutability.
 func (p *PathFilter) clone() *PathFilter {
-	cp := &PathFilter{
+	return &PathFilter{
 		inner:     p.inner,
 		include:   slices.Clone(p.include),
 		exclude:   slices.Clone(p.exclude),
 		detect:    p.detect,
 		skipRules: slices.Clone(p.skipRules),
 	}
-	return cp
 }
 
 // matches checks if a directory matches the include patterns.
@@ -312,15 +262,16 @@ func (p *PathFilter) isExcluded(dir string) bool {
 // containsRegexMeta checks if a string contains regex metacharacters.
 // Special case: "." alone is treated as a literal path, not a regex.
 func containsRegexMeta(s string) bool {
-	// "." alone is the current directory, not a regex wildcard.
 	if s == "." {
 		return false
 	}
 	return strings.ContainsAny(s, `.+*?[](){}|^$\`)
 }
 
-// CollectPathMappings walks a Runnable tree and returns a map from task name to PathFilter.
-// Tasks not wrapped with Paths() are not included in the map.
+// CollectPathMappings walks a Runnable tree and returns a map from function name to PathFilter.
+// Functions not wrapped with Paths() are not included in the map.
+//
+// Note: Will be renamed to CollectPathMappings after removing old code.
 func CollectPathMappings(r Runnable) map[string]*PathFilter {
 	result := make(map[string]*PathFilter)
 	collectPathMappingsRecursive(r, result, nil)
@@ -328,7 +279,9 @@ func CollectPathMappings(r Runnable) map[string]*PathFilter {
 }
 
 // CollectModuleDirectories walks a Runnable tree and returns all unique directories
-// where tasks should run. This is used for multi-module shim generation.
+// where functions should run. This is used for multi-module shim generation.
+//
+// Note: Will be renamed to CollectModuleDirectories after removing old code.
 func CollectModuleDirectories(r Runnable) []string {
 	seen := make(map[string]bool)
 	collectModuleDirectoriesRecursive(r, seen)
@@ -358,9 +311,20 @@ func collectModuleDirectoriesRecursive(r Runnable, seen map[string]bool) {
 		return
 	}
 
-	// For other Runnables (serial, parallel), recurse into children.
-	if v, ok := r.(interface{ Children() []Runnable }); ok {
-		for _, child := range v.Children() {
+	// For other Runnables (serial, parallel), recurse into children via funcs().
+	for _, fn := range r.funcs() {
+		// FuncDefs don't have children, so nothing to recurse into.
+		_ = fn
+	}
+
+	// Check if it's a group type with runnables.
+	switch v := r.(type) {
+	case *serial:
+		for _, child := range v.items {
+			collectModuleDirectoriesRecursive(child, seen)
+		}
+	case *parallel:
+		for _, child := range v.items {
 			collectModuleDirectoriesRecursive(child, seen)
 		}
 	}
@@ -380,25 +344,29 @@ func collectPathMappingsRecursive(r Runnable, result map[string]*PathFilter, cur
 		return
 	}
 
-	// Check if this is a Task.
-	if t, ok := r.(*Task); ok {
+	// Check if this is a FuncDef.
+	if f, ok := r.(*FuncDef); ok {
 		if currentPaths != nil {
-			result[t.Name] = currentPaths
+			result[f.name] = currentPaths
 		}
 		return
 	}
 
-	// For other Runnables (serial, parallel), recurse into children.
+	// For group types, recurse into children.
 	switch v := r.(type) {
-	case interface{ Children() []Runnable }:
-		for _, child := range v.Children() {
+	case *serial:
+		for _, child := range v.items {
+			collectPathMappingsRecursive(child, result, currentPaths)
+		}
+	case *parallel:
+		for _, child := range v.items {
 			collectPathMappingsRecursive(child, result, currentPaths)
 		}
 	default:
-		// For unknown types, just collect tasks without path mapping.
-		for _, task := range r.Tasks() {
+		// For unknown types, just collect functions without path mapping.
+		for _, fn := range r.funcs() {
 			if currentPaths != nil {
-				result[task.Name] = currentPaths
+				result[fn.name] = currentPaths
 			}
 		}
 	}

@@ -8,126 +8,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
-	"strings"
 	"syscall"
 	"text/tabwriter"
 )
-
-// Main is the entry point for the CLI.
-// It parses flags, handles -h/--help, and runs the specified task(s).
-// If no task is specified, defaultTask is run.
-//
-// pathMappings maps task names to their PathFilter configuration.
-// Tasks not in pathMappings are only visible when running from the git root.
-//
-// autoRunNames is the set of task names from Config.AutoRun (for help display).
-func Main(
-	tasks []*Task,
-	defaultTask *Task,
-	pathMappings map[string]*PathFilter,
-	autoRunNames map[string]bool,
-) {
-	os.Exit(run(tasks, defaultTask, pathMappings, autoRunNames))
-}
-
-// run parses flags and runs tasks, returning the exit code.
-func run(
-	tasks []*Task,
-	defaultTask *Task,
-	pathMappings map[string]*PathFilter,
-	autoRunNames map[string]bool,
-) int {
-	verbose := flag.Bool("v", false, "verbose output")
-	help := flag.Bool("h", false, "show help")
-
-	// Detect current working directory relative to git root.
-	cwd := detectCwd()
-
-	// Filter tasks based on cwd.
-	visibleTasks := filterTasksByCwd(tasks, cwd, pathMappings)
-
-	flag.Usage = func() {
-		printHelp(visibleTasks, autoRunNames)
-	}
-	flag.Parse()
-
-	// Build task map for lookup (visible tasks only).
-	taskMap := make(map[string]*Task, len(visibleTasks))
-	for _, t := range visibleTasks {
-		taskMap[t.Name] = t
-	}
-
-	args := flag.Args()
-
-	// Handle help: ./pok -h or ./pok -h taskname
-	if *help {
-		if len(args) > 0 {
-			if t, ok := taskMap[args[0]]; ok {
-				printTaskHelp(t)
-				return 0
-			}
-			fmt.Fprintf(os.Stderr, "unknown task: %s\n", args[0])
-			return 1
-		}
-		printHelp(visibleTasks, autoRunNames)
-		return 0
-	}
-
-	// Parse task name and arguments.
-	// Format: pok [flags] <task> [key=value ...]
-	var taskToRun *Task
-	var taskArgs map[string]string
-
-	if len(args) == 0 {
-		if defaultTask != nil {
-			taskToRun = defaultTask
-		} else {
-			fmt.Fprintln(os.Stderr, "no task specified and no default task")
-			return 1
-		}
-	} else {
-		// First arg is task name.
-		taskName := args[0]
-		t, ok := taskMap[taskName]
-		if !ok {
-			fmt.Fprintf(os.Stderr, "unknown task: %s\n", taskName)
-			return 1
-		}
-		taskToRun = t
-
-		// Parse remaining args as -key=value or -key value pairs.
-		var helpRequested bool
-		var err error
-		taskArgs, helpRequested, err = parseTaskArgs(args[1:])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			return 1
-		}
-		if helpRequested {
-			printTaskHelp(taskToRun)
-			return 0
-		}
-	}
-
-	// Create context with cancellation on interrupt.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	// Create Execution with all state.
-	exec := NewExecution(StdOutput(), *verbose, cwd)
-
-	// Set CLI args for the task being run.
-	if taskArgs != nil {
-		exec.SetTaskArgs(taskToRun.Name, taskArgs)
-	}
-
-	// Run the task.
-	if err := taskToRun.Run(ctx, exec); err != nil {
-		fmt.Fprintf(os.Stderr, "task %s failed: %v\n", taskToRun.Name, err)
-		return 1
-	}
-	return 0
-}
 
 // detectCwd returns the current working directory relative to git root.
 // Uses POK_CONTEXT environment variable if set (set by the shim script),
@@ -157,116 +40,274 @@ func detectCwd() string {
 	return rel
 }
 
-// filterTasksByCwd returns tasks visible in the given directory.
-// - Tasks with path mapping: visible if paths.RunsIn(cwd) returns true
-// - Tasks without path mapping: visible only at root (cwd == ".").
-func filterTasksByCwd(tasks []*Task, cwd string, pathMappings map[string]*PathFilter) []*Task {
-	var result []*Task
-	for _, t := range tasks {
-		if isTaskVisibleIn(t.Name, cwd, pathMappings) {
-			result = append(result, t)
+// Main is the entry point for the CLI (v2).
+// It parses flags, handles -h/--help, and runs the specified function(s).
+// If no function is specified, runs all autorun functions.
+//
+// pathMappings maps function names to their PathFilter configuration.
+// Functions not in pathMappings are only visible when running from the git root.
+// builtinFuncs are always-available tasks shown under "Built-in tasks" in help.
+//
+// Note: Will be renamed to Main after removing old code.
+func Main(
+	funcs []*FuncDef,
+	allFunc *FuncDef,
+	cmds []Cmd,
+	pathMappings map[string]*PathFilter,
+	autoRunNames map[string]bool,
+	builtinFuncs []*FuncDef,
+) {
+	os.Exit(run(funcs, allFunc, cmds, pathMappings, autoRunNames, builtinFuncs))
+}
+
+// run parses flags and runs functions, returning the exit code.
+func run(
+	funcs []*FuncDef,
+	allFunc *FuncDef,
+	cmds []Cmd,
+	pathMappings map[string]*PathFilter,
+	autoRunNames map[string]bool,
+	builtinFuncs []*FuncDef,
+) int {
+	verbose := flag.Bool("v", false, "verbose output")
+	help := flag.Bool("h", false, "show help")
+
+	// Detect current working directory relative to git root.
+	cwd := detectCwd()
+
+	// Filter functions based on cwd.
+	visibleFuncs := filterFuncsByCwd(funcs, cwd, pathMappings)
+
+	flag.Usage = func() {
+		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
+	}
+	flag.Parse()
+
+	// Build function map for lookup (visible functions + built-in functions).
+	funcMap := make(map[string]*FuncDef, len(visibleFuncs)+len(builtinFuncs))
+	for _, f := range visibleFuncs {
+		funcMap[f.name] = f
+	}
+	for _, f := range builtinFuncs {
+		funcMap[f.name] = f
+	}
+
+	// Build command map for lookup.
+	cmdMap := make(map[string]Cmd, len(cmds))
+	for _, c := range cmds {
+		cmdMap[c.Name] = c
+	}
+
+	args := flag.Args()
+
+	// Handle help: ./pok -h or ./pok -h funcname
+	if *help {
+		if len(args) > 0 {
+			if f, ok := funcMap[args[0]]; ok {
+				printFuncHelp(f)
+				return 0
+			}
+			if c, ok := cmdMap[args[0]]; ok {
+				printCmdHelp(c)
+				return 0
+			}
+			fmt.Fprintf(os.Stderr, "unknown function or command: %s\n", args[0])
+			return 1
+		}
+		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
+		return 0
+	}
+
+	// Create context with cancellation on interrupt.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Determine what to run.
+	var funcToRun *FuncDef
+	var cmdToRun *Cmd
+	var cmdArgs []string
+
+	if len(args) == 0 {
+		// No arguments: run all autorun functions.
+		if allFunc != nil {
+			funcToRun = allFunc
+		} else {
+			fmt.Fprintln(os.Stderr, "no function specified and no default function")
+			return 1
+		}
+	} else {
+		name := args[0]
+		// Check if it's a function.
+		if f, ok := funcMap[name]; ok {
+			funcToRun = f
+			// Parse function-specific arguments.
+			if len(args) > 1 && f.opts != nil {
+				funcArgs, wantHelp, err := parseTaskArgs(args[1:])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error parsing arguments: %v\n", err)
+					return 1
+				}
+				if wantHelp {
+					printFuncHelp(f)
+					return 0
+				}
+				// Parse options and store in function.
+				parsedOpts, err := parseOptionsFromCLI(f.opts, funcArgs)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error parsing options: %v\n", err)
+					return 1
+				}
+				if parsedOpts != nil {
+					funcToRun = f.With(parsedOpts)
+				}
+			}
+		} else if c, ok := cmdMap[name]; ok {
+			cmdToRun = &c
+			cmdArgs = args[1:]
+		} else {
+			fmt.Fprintf(os.Stderr, "unknown function or command: %s\n", name)
+			return 1
+		}
+	}
+
+	// Run either a function or a command.
+	if cmdToRun != nil {
+		if err := cmdToRun.Run(ctx, cmdArgs); err != nil {
+			fmt.Fprintf(os.Stderr, "command %s failed: %v\n", cmdToRun.Name, err)
+			return 1
+		}
+		return 0
+	}
+
+	// Run the function with the new execution model.
+	if err := Run(ctx, funcToRun, StdOutput(), cwd, *verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "function %s failed: %v\n", funcToRun.name, err)
+		return 1
+	}
+	return 0
+}
+
+// filterFuncsByCwd returns functions visible in the given directory.
+// - Functions with path mapping: visible if paths.RunsIn(cwd) returns true
+// - Functions without path mapping: visible only at root (cwd == ".").
+func filterFuncsByCwd(funcs []*FuncDef, cwd string, pathMappings map[string]*PathFilter) []*FuncDef {
+	var result []*FuncDef
+	for _, f := range funcs {
+		if isFuncVisibleIn(f.name, cwd, pathMappings) {
+			result = append(result, f)
 		}
 	}
 	return result
 }
 
-// isTaskVisibleIn returns true if a task should be visible in the given directory.
-func isTaskVisibleIn(taskName, cwd string, pathMappings map[string]*PathFilter) bool {
-	if paths, ok := pathMappings[taskName]; ok {
+// isFuncVisibleIn returns true if a function should be visible in the given directory.
+func isFuncVisibleIn(funcName, cwd string, pathMappings map[string]*PathFilter) bool {
+	if paths, ok := pathMappings[funcName]; ok {
 		return paths.RunsIn(cwd)
 	}
-	// Tasks without path mapping are only visible at root.
+	// Functions without path mapping are only visible at root.
 	return cwd == "."
 }
 
-// printHelp prints the help message with available tasks.
-// Tasks are grouped into three sections:
-// - Tasks: auto-run tasks (from Config.AutoRun)
-// - Manual Tasks: explicit-only tasks (from Config.ManualRun)
-// - Builtin tasks: core tasks like generate, update, git-diff, clean.
-func printHelp(tasks []*Task, autoRunNames map[string]bool) {
-	fmt.Println("Usage: pok [flags] <task> [-key=value ...]")
+// printHelp2 prints the help message with available functions and commands.
+func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
+	fmt.Println("Usage: pok [flags] <function> [args...]")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  -h         show help (use -h <task> or <task> -h for task help)")
+	fmt.Println("  -h         show help (use -h <function> for function help)")
 	fmt.Println("  -v         verbose output")
 	fmt.Println()
 
-	// Separate visible tasks into auto-run, manual, and builtin.
-	var autorun, manual, builtin []*Task
-	for _, t := range tasks {
-		if t.Hidden {
+	// Separate visible functions into auto-run and manual.
+	var autorun, other []*FuncDef
+	for _, f := range funcs {
+		if f.hidden {
 			continue
 		}
-		switch {
-		case t.Builtin:
-			builtin = append(builtin, t)
-		case autoRunNames[t.Name]:
-			autorun = append(autorun, t)
-		default:
-			manual = append(manual, t)
+		if autoRunNames[f.name] {
+			autorun = append(autorun, f)
+		} else {
+			other = append(other, f)
 		}
 	}
 	sort.Slice(autorun, func(i, j int) bool {
-		return autorun[i].Name < autorun[j].Name
+		return autorun[i].name < autorun[j].name
 	})
-	sort.Slice(manual, func(i, j int) bool {
-		return manual[i].Name < manual[j].Name
-	})
-	sort.Slice(builtin, func(i, j int) bool {
-		return builtin[i].Name < builtin[j].Name
+	sort.Slice(other, func(i, j int) bool {
+		return other[i].name < other[j].name
 	})
 
 	if len(autorun) > 0 {
-		fmt.Println("Auto-run Tasks:")
+		fmt.Println("Functions (auto-run with ./pok):")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		for _, t := range autorun {
-			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
+		for _, f := range autorun {
+			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
 		}
 		w.Flush()
 	}
 
-	if len(manual) > 0 {
+	if len(other) > 0 {
 		if len(autorun) > 0 {
 			fmt.Println()
 		}
-		fmt.Println("Tasks:")
+		fmt.Println("Functions:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		for _, t := range manual {
-			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
+		for _, f := range other {
+			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
 		}
 		w.Flush()
 	}
 
-	if len(builtin) > 0 {
-		if len(autorun) > 0 || len(manual) > 0 {
+	if len(cmds) > 0 {
+		if len(autorun) > 0 || len(other) > 0 {
 			fmt.Println()
 		}
-		fmt.Println("Builtin tasks:")
+		fmt.Println("Commands:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		for _, t := range builtin {
-			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Usage)
+		for _, c := range cmds {
+			fmt.Fprintf(w, "  %s\t%s\n", c.Name, c.Usage)
 		}
 		w.Flush()
 	}
 
-	// Show note if there are no tasks at all.
-	if len(autorun) == 0 && len(manual) == 0 && len(builtin) == 0 {
-		fmt.Println("No tasks available.")
+	// Sort and display built-in tasks.
+	if len(builtinFuncs) > 0 {
+		if len(autorun) > 0 || len(other) > 0 || len(cmds) > 0 {
+			fmt.Println()
+		}
+		fmt.Println("Functions (builtins):")
+		sort.Slice(builtinFuncs, func(i, j int) bool {
+			return builtinFuncs[i].name < builtinFuncs[j].name
+		})
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, f := range builtinFuncs {
+			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
+		}
+		w.Flush()
+	}
+
+	if len(autorun) == 0 && len(other) == 0 && len(cmds) == 0 && len(builtinFuncs) == 0 {
+		fmt.Println("No functions or commands available.")
 	}
 }
 
-// printTaskHelp prints help for a specific task.
-func printTaskHelp(t *Task) {
-	fmt.Printf("%s - %s\n", t.Name, t.Usage)
+// printFuncHelp prints help for a specific function.
+func printFuncHelp(f *FuncDef) {
+	fmt.Printf("%s - %s\n", f.name, f.usage)
 
-	info, err := inspectArgs(t.Options)
-	if err != nil || info == nil || len(info.Fields) == 0 {
-		fmt.Println("\nThis task accepts no arguments.")
+	// Check if function has options attached.
+	if f.opts == nil {
+		fmt.Println("\nThis function accepts no options.")
 		return
 	}
 
-	fmt.Println("\nArguments:")
+	info, err := inspectArgs(f.opts)
+	if err != nil || info == nil || len(info.Fields) == 0 {
+		fmt.Println("\nThis function accepts no options.")
+		return
+	}
+
+	fmt.Println("\nOptions:")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	for _, field := range info.Fields {
 		defaultStr := formatArgDefault(field.Default)
@@ -277,46 +318,54 @@ func printTaskHelp(t *Task) {
 		}
 	}
 	w.Flush()
-
-	fmt.Printf("\nExample:\n  pok %s", t.Name)
-	for _, field := range info.Fields {
-		fmt.Printf(" -%s=<value>", field.Name)
-	}
-	fmt.Println()
 }
 
-// parseTaskArgs parses task arguments from command line args.
-// It supports three formats:
-//   - -key=value (explicit value)
-//   - -key value (value as next arg, if next arg doesn't start with -)
-//   - -key (boolean flag, treated as true)
-//
-// Returns:
-//   - parsed args map
-//   - helpRequested: true if -h was found in args
-//   - error: if parsing fails
+// printCmdHelp prints help for a specific command.
+func printCmdHelp(c Cmd) {
+	fmt.Printf("%s - %s\n", c.Name, c.Usage)
+	fmt.Println("\nThis is a manual command that accepts arbitrary arguments.")
+}
+
+// parseTaskArgs parses CLI arguments into a map of key=value pairs.
+// Returns (args, wantHelp, error).
 func parseTaskArgs(args []string) (map[string]string, bool, error) {
-	taskArgs := make(map[string]string)
+	result := make(map[string]string)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		if arg == "-h" {
+		if arg == "-h" || arg == "--help" {
 			return nil, true, nil
 		}
-		if !strings.HasPrefix(arg, "-") {
-			return nil, false, fmt.Errorf("invalid argument %q: expected -key=value or -key value format", arg)
+		if len(arg) == 0 || arg[0] != '-' {
+			return nil, false, fmt.Errorf("expected -key=value or -key value, got %q", arg)
 		}
-		key := strings.TrimPrefix(arg, "-")
-		if k, v, ok := strings.Cut(key, "="); ok {
-			// -key=value format
-			taskArgs[k] = v
-		} else if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-			// -key value format (next arg is a value, not another flag)
+		// Remove leading dashes.
+		key := arg[1:]
+		if len(key) > 0 && key[0] == '-' {
+			key = key[1:]
+		}
+		// Check for -key=value format.
+		if idx := indexOf(key, '='); idx >= 0 {
+			result[key[:idx]] = key[idx+1:]
+			continue
+		}
+		// Check if next arg is a value.
+		if i+1 < len(args) && len(args[i+1]) > 0 && args[i+1][0] != '-' {
+			result[key] = args[i+1]
 			i++
-			taskArgs[key] = args[i]
-		} else {
-			// -key alone (boolean flag, empty string means true)
-			taskArgs[key] = ""
+			continue
+		}
+		// Boolean flag.
+		result[key] = ""
+	}
+	return result, false, nil
+}
+
+// indexOf returns the index of the first occurrence of c in s, or -1 if not found.
+func indexOf(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
 		}
 	}
-	return taskArgs, false, nil
+	return -1
 }

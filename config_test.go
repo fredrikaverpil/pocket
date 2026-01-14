@@ -53,77 +53,62 @@ func TestConfig_WithDefaults(t *testing.T) {
 	}
 }
 
-func TestSerial_Tasks(t *testing.T) {
+func TestSerial_Funcs(t *testing.T) {
 	t.Parallel()
 
-	task1 := &Task{
-		Name:  "test-format",
-		Usage: "format test files",
-		Action: func(_ context.Context, _ *TaskContext) error {
-			return nil
-		},
-	}
-	task2 := &Task{
-		Name:  "test-lint",
-		Usage: "lint test files",
-		Action: func(_ context.Context, _ *TaskContext) error {
-			return nil
-		},
-	}
+	fn1 := Func("test-format", "format test files", func(_ context.Context) error { return nil })
+	fn2 := Func("test-lint", "lint test files", func(_ context.Context) error { return nil })
 
-	runnable := Serial(task1, task2)
-
-	// Check tasks returns both tasks.
-	tasks := runnable.Tasks()
-	if len(tasks) != 2 {
-		t.Errorf("Tasks() length = %d, want 2", len(tasks))
+	runnable := Serial(fn1, fn2)
+	// Check funcs returns both funcs.
+	funcs := runnable.funcs()
+	if len(funcs) != 2 {
+		t.Errorf("funcs() length = %d, want 2", len(funcs))
 	}
 }
 
-func TestParallel_Tasks(t *testing.T) {
+func TestParallel_Funcs(t *testing.T) {
 	t.Parallel()
 
-	task1 := &Task{Name: "task1", Usage: "task 1"}
-	task2 := &Task{Name: "task2", Usage: "task 2"}
+	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
+	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
 
-	runnable := Parallel(task1, task2)
-
-	tasks := runnable.Tasks()
-	if len(tasks) != 2 {
-		t.Errorf("Tasks() length = %d, want 2", len(tasks))
+	runnable := Parallel(fn1, fn2)
+	funcs := runnable.funcs()
+	if len(funcs) != 2 {
+		t.Errorf("funcs() length = %d, want 2", len(funcs))
 	}
 }
 
-func TestConfig_Run(t *testing.T) {
+func TestConfig_AutoRun(t *testing.T) {
 	t.Parallel()
 
-	task1 := &Task{Name: "deploy", Usage: "deploy app"}
-	task2 := &Task{Name: "release", Usage: "release app"}
+	fn1 := Func("deploy", "deploy app", func(_ context.Context) error { return nil })
+	fn2 := Func("release", "release app", func(_ context.Context) error { return nil })
 
 	cfg := Config{
-		AutoRun: Serial(task1, task2),
+		AutoRun: Serial(fn1, fn2),
 	}
 
-	tasks := cfg.AutoRun.Tasks()
-	if len(tasks) != 2 {
-		t.Errorf("Run.Tasks() length = %d, want 2", len(tasks))
+	funcs := cfg.AutoRun.funcs()
+	if len(funcs) != 2 {
+		t.Errorf("AutoRun.funcs() length = %d, want 2", len(funcs))
 	}
 }
 
 func TestNested_Serial_Parallel(t *testing.T) {
 	t.Parallel()
 
-	task1 := &Task{Name: "task1", Usage: "task 1"}
-	task2 := &Task{Name: "task2", Usage: "task 2"}
-	task3 := &Task{Name: "task3", Usage: "task 3"}
+	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
+	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
+	fn3 := Func("fn3", "func 3", func(_ context.Context) error { return nil })
 
 	runnable := Serial(
-		task1,
-		Parallel(task2, task3),
+		fn1,
+		Parallel(fn2, fn3),
 	)
-
-	tasks := runnable.Tasks()
-	if len(tasks) != 3 {
-		t.Errorf("Tasks() length = %d, want 3", len(tasks))
+	funcs := runnable.funcs()
+	if len(funcs) != 3 {
+		t.Errorf("funcs() length = %d, want 3", len(funcs))
 	}
 }

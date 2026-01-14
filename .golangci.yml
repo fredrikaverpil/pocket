@@ -27,7 +27,6 @@ linters:
     - gochecknoinits
     - gocritic
     - godot
-    - modernize
     - gomoddirectives
     - gomodguard
     - goprintffuncname

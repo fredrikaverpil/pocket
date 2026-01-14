@@ -1,0 +1,255 @@
+package pocket
+
+import (
+	"context"
+	"io"
+	"sync"
+)
+
+// execMode controls how Serial/Parallel/Exec behave.
+type execMode int
+
+const (
+	// modeExecute is the default mode - actually run commands.
+	modeExecute execMode = iota
+	// modeCollect registers deps without executing, for plan generation.
+	modeCollect
+)
+
+// PlanStep represents a single step in the execution plan.
+type PlanStep struct {
+	Type     string      // "serial", "parallel", "func"
+	Name     string      // Function name
+	Usage    string      // Function usage/description
+	Hidden   bool        // Whether this is a hidden function
+	Deduped  bool        // Would be skipped due to deduplication
+	Path     string      // Path context for path-filtered execution
+	Children []*PlanStep // Nested steps (for serial/parallel groups)
+}
+
+// ExecutionPlan holds the complete plan collected during modeCollect.
+type ExecutionPlan struct {
+	mu    sync.Mutex
+	steps []*PlanStep
+	stack []*PlanStep // Current nesting stack during collection
+}
+
+// newExecutionPlan creates a new empty execution plan.
+func newExecutionPlan() *ExecutionPlan {
+	return &ExecutionPlan{
+		steps: make([]*PlanStep, 0),
+		stack: make([]*PlanStep, 0),
+	}
+}
+
+// AddFunc adds a function call to the plan.
+func (p *ExecutionPlan) AddFunc(name, usage string, hidden, deduped bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	step := &PlanStep{
+		Type:    "func",
+		Name:    name,
+		Usage:   usage,
+		Hidden:  hidden,
+		Deduped: deduped,
+	}
+	p.appendStep(step)
+	// Push onto stack so nested deps become children
+	p.stack = append(p.stack, step)
+}
+
+// PopFunc ends the current function's scope.
+func (p *ExecutionPlan) PopFunc() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.stack) > 0 {
+		p.stack = p.stack[:len(p.stack)-1]
+	}
+}
+
+// PushSerial starts a serial group.
+func (p *ExecutionPlan) PushSerial() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	step := &PlanStep{Type: "serial"}
+	p.appendStep(step)
+	p.stack = append(p.stack, step)
+}
+
+// PushParallel starts a parallel group.
+func (p *ExecutionPlan) PushParallel() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	step := &PlanStep{Type: "parallel"}
+	p.appendStep(step)
+	p.stack = append(p.stack, step)
+}
+
+// Pop ends the current group.
+func (p *ExecutionPlan) Pop() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.stack) > 0 {
+		p.stack = p.stack[:len(p.stack)-1]
+	}
+}
+
+// appendStep adds a step to the current context (root or nested).
+// Must be called with lock held.
+func (p *ExecutionPlan) appendStep(step *PlanStep) {
+	if len(p.stack) == 0 {
+		p.steps = append(p.steps, step)
+	} else {
+		parent := p.stack[len(p.stack)-1]
+		parent.Children = append(parent.Children, step)
+	}
+}
+
+// Steps returns the top-level steps in the plan.
+func (p *ExecutionPlan) Steps() []*PlanStep {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.steps
+}
+
+// Engine orchestrates plan collection and execution.
+type Engine struct {
+	root Runnable
+}
+
+// NewEngine creates an engine for the given runnable tree.
+func NewEngine(root Runnable) *Engine {
+	return &Engine{root: root}
+}
+
+// Plan collects the complete execution plan without running anything.
+func (e *Engine) Plan(ctx context.Context) (*ExecutionPlan, error) {
+	if e.root == nil {
+		return newExecutionPlan(), nil
+	}
+
+	plan := newExecutionPlan()
+	ec := &execContext{
+		mode:    modeCollect,
+		out:     discardOutput(),
+		cwd:     ".",
+		verbose: false,
+		opts:    make(map[string]any),
+		dedup:   newDedupState(),
+		plan:    plan,
+	}
+	ctx = withExecContext(ctx, ec)
+
+	// Walk the tree - functions run but register instead of execute
+	if err := e.root.run(ctx); err != nil {
+		return nil, err
+	}
+
+	return plan, nil
+}
+
+// Execute runs the tree with normal execution.
+func (e *Engine) Execute(ctx context.Context, out *Output, cwd string, verbose bool) error {
+	return Run(ctx, e.root, out, cwd, verbose)
+}
+
+// discardOutput returns an output that discards all writes.
+func discardOutput() *Output {
+	return &Output{Stdout: io.Discard, Stderr: io.Discard}
+}
+
+// Print outputs the execution plan tree.
+func (p *ExecutionPlan) Print(ctx context.Context, showHidden, showDedup bool) {
+	p.mu.Lock()
+	steps := p.steps
+	p.mu.Unlock()
+
+	printPlanSteps(ctx, steps, "  ", showHidden, showDedup)
+}
+
+// printPlanSteps recursively prints plan steps with indentation.
+func printPlanSteps(ctx context.Context, steps []*PlanStep, indent string, showHidden, showDedup bool) {
+	// Filter steps based on visibility options
+	visible := filterPlanSteps(steps, showHidden, showDedup)
+
+	for i, step := range visible {
+		last := i == len(visible)-1
+		connector := "├── "
+		if last {
+			connector = "└── "
+		}
+		childIndent := indent + "│   "
+		if last {
+			childIndent = indent + "    "
+		}
+
+		switch step.Type {
+		case "func":
+			label := step.Name
+			var annotations []string
+			if step.Hidden {
+				annotations = append(annotations, "hidden")
+			}
+			if step.Deduped {
+				annotations = append(annotations, "skipped")
+			}
+			if len(annotations) > 0 {
+				label += " (" + joinStrings(annotations, ", ") + ")"
+			}
+			if step.Usage != "" && !step.Hidden {
+				label += " - " + step.Usage
+			}
+			Printf(ctx, "%s%s%s\n", indent, connector, label)
+
+			// Print children (nested deps)
+			if len(step.Children) > 0 {
+				printPlanSteps(ctx, step.Children, childIndent, showHidden, showDedup)
+			}
+
+		case "serial":
+			filtered := filterPlanSteps(step.Children, showHidden, showDedup)
+			if len(filtered) == 0 {
+				continue
+			}
+			Printf(ctx, "%s%sSerial:\n", indent, connector)
+			printPlanSteps(ctx, step.Children, childIndent, showHidden, showDedup)
+
+		case "parallel":
+			filtered := filterPlanSteps(step.Children, showHidden, showDedup)
+			if len(filtered) == 0 {
+				continue
+			}
+			Printf(ctx, "%s%sParallel:\n", indent, connector)
+			printPlanSteps(ctx, step.Children, childIndent, showHidden, showDedup)
+		}
+	}
+}
+
+// filterPlanSteps filters steps based on visibility options.
+func filterPlanSteps(steps []*PlanStep, showHidden, showDedup bool) []*PlanStep {
+	result := make([]*PlanStep, 0, len(steps))
+	for _, step := range steps {
+		// Skip hidden unless showHidden is true
+		if step.Hidden && !showHidden {
+			continue
+		}
+		// Skip deduped unless showDedup is true
+		if step.Deduped && !showDedup {
+			continue
+		}
+		result = append(result, step)
+	}
+	return result
+}
+
+// joinStrings joins strings with a separator.
+func joinStrings(strs []string, sep string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	result := strs[0]
+	for _, s := range strs[1:] {
+		result += sep + s
+	}
+	return result
+}

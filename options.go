@@ -219,20 +219,6 @@ func FirstOrZero[T any](items ...T) T {
 	return zero
 }
 
-// GetOptions retrieves the typed options from TaskContext.
-// Returns the zero value of T if options are not set or wrong type.
-func GetOptions[T any](tc *TaskContext) T {
-	if tc.options == nil {
-		var zero T
-		return zero
-	}
-	if typed, ok := tc.options.(T); ok {
-		return typed
-	}
-	var zero T
-	return zero
-}
-
 // formatArgDefault formats a default value for display.
 func formatArgDefault(v any) string {
 	switch val := v.(type) {
