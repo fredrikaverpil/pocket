@@ -221,13 +221,10 @@ func (p *parallel) funcs() []*FuncDef {
 
 // shouldRun checks if a runnable should run (not already executed).
 // Marks it as executed if it should run.
+// Thread-safe for concurrent access from parallel execution.
 func shouldRun(ec *execContext, r Runnable) bool {
 	key := runnableKey(r)
-	if ec.executed[key] {
-		return false
-	}
-	ec.executed[key] = true
-	return true
+	return ec.dedup.shouldRun(key)
 }
 
 // runnableKey returns a unique key for deduplication.

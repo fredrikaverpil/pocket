@@ -4,17 +4,44 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"sync"
 )
 
 // execContext holds runtime state for function execution.
 // Stored in context.Context and accessed via helper functions.
 type execContext struct {
-	out      *Output          // where to write output
-	path     string           // current path for this invocation
-	cwd      string           // where CLI was invoked (relative to git root)
-	verbose  bool             // verbose mode enabled
-	opts     map[string]any   // func name -> options struct
-	executed map[uintptr]bool // tracks executed runnables for deduplication
+	out     *Output        // where to write output
+	path    string         // current path for this invocation
+	cwd     string         // where CLI was invoked (relative to git root)
+	verbose bool           // verbose mode enabled
+	opts    map[string]any // func name -> options struct
+	dedup   *dedupState    // shared deduplication state (thread-safe)
+}
+
+// dedupState tracks executed runnables for deduplication.
+// Shared across parallel executions with thread-safe access.
+type dedupState struct {
+	mu       sync.Mutex
+	executed map[uintptr]bool
+}
+
+// newDedupState creates a new deduplication state.
+func newDedupState() *dedupState {
+	return &dedupState{
+		executed: make(map[uintptr]bool),
+	}
+}
+
+// shouldRun checks if a runnable should run (not already executed).
+// Marks it as executed if it should run. Thread-safe.
+func (d *dedupState) shouldRun(key uintptr) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.executed[key] {
+		return false
+	}
+	d.executed[key] = true
+	return true
 }
 
 // contextKey is the type for context keys to avoid collisions.
@@ -27,11 +54,11 @@ const (
 // newExecContext creates a new execution context.
 func newExecContext(out *Output, cwd string, verbose bool) *execContext {
 	return &execContext{
-		out:      out,
-		cwd:      cwd,
-		verbose:  verbose,
-		opts:     make(map[string]any),
-		executed: make(map[uintptr]bool),
+		out:     out,
+		cwd:     cwd,
+		verbose: verbose,
+		opts:    make(map[string]any),
+		dedup:   newDedupState(),
 	}
 }
 
