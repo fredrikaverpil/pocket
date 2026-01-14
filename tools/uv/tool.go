@@ -46,7 +46,7 @@ func PipInstallRequirements(ctx context.Context, tc *pocket.TaskContext, venvPat
 // venvPython returns the path to the Python executable in a venv.
 // On Windows, it's Scripts\python.exe; on Unix, it's bin/python.
 func venvPython(venvPath string) string {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == pocket.Windows {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
@@ -55,42 +55,37 @@ func venvPython(venvPath string) string {
 func install(ctx context.Context, tc *pocket.TaskContext) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := pocket.BinaryName(name)
-
-	var format string
-	if runtime.GOOS == "windows" {
-		format = "zip"
-	} else {
-		format = "tar.gz"
-	}
+	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/astral-sh/uv/releases/download/%s/uv-%s.%s",
 		version,
 		platformArch(),
-		format,
+		pocket.DefaultArchiveFormat(),
 	)
 
-	return pocket.DownloadBinary(ctx, tc, url, pocket.DownloadOpts{
-		DestDir:      binDir,
-		Format:       format,
-		ExtractFiles: []string{binaryName},
-		Symlink:      true,
-	})
+	return pocket.Download(ctx, tc, url,
+		pocket.WithDestDir(binDir),
+		pocket.WithFormat(pocket.DefaultArchiveFormat()),
+		pocket.WithExtract(pocket.WithExtractFile(binaryName)),
+		pocket.WithSymlink(),
+		pocket.WithSkipIfExists(binaryPath),
+	)
 }
 
 func platformArch() string {
 	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "arm64" {
+	case pocket.Darwin:
+		if runtime.GOARCH == pocket.ARM64 {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case "linux":
-		if runtime.GOARCH == "arm64" {
+	case pocket.Linux:
+		if runtime.GOARCH == pocket.ARM64 {
 			return "aarch64-unknown-linux-gnu"
 		}
 		return "x86_64-unknown-linux-gnu"
-	case "windows":
+	case pocket.Windows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return fmt.Sprintf("%s-%s", runtime.GOARCH, runtime.GOOS)

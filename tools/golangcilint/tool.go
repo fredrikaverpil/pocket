@@ -5,7 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"runtime"
+	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket"
 )
@@ -34,38 +34,22 @@ var Tool = pocket.NewTool(name, version, install).
 func install(ctx context.Context, tc *pocket.TaskContext) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := pocket.BinaryName(name)
+	binaryPath := filepath.Join(binDir, binaryName)
 
-	var format string
-	if runtime.GOOS == "windows" {
-		format = "zip"
-	} else {
-		format = "tar.gz"
-	}
+	hostOS := pocket.HostOS()
+	hostArch := pocket.HostArch()
+	format := pocket.DefaultArchiveFormat()
 
 	url := fmt.Sprintf(
 		"https://github.com/golangci/golangci-lint/releases/download/v%s/golangci-lint-%s-%s-%s.%s",
-		version,
-		version,
-		runtime.GOOS,
-		archName(),
-		format,
+		version, version, hostOS, hostArch, format,
 	)
 
-	return pocket.DownloadBinary(ctx, tc, url, pocket.DownloadOpts{
-		DestDir:      binDir,
-		Format:       format,
-		ExtractFiles: []string{binaryName},
-		Symlink:      true,
-	})
-}
-
-func archName() string {
-	switch runtime.GOARCH {
-	case "amd64":
-		return "amd64"
-	case "arm64":
-		return "arm64"
-	default:
-		return runtime.GOARCH
-	}
+	return pocket.Download(ctx, tc, url,
+		pocket.WithDestDir(binDir),
+		pocket.WithFormat(format),
+		pocket.WithExtract(pocket.WithExtractFile(binaryName)),
+		pocket.WithSymlink(),
+		pocket.WithSkipIfExists(binaryPath),
+	)
 }

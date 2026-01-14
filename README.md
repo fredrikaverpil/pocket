@@ -147,6 +147,9 @@ package main
 
 import (
     "context"
+    "fmt"
+    "path/filepath"
+
     "github.com/fredrikaverpil/pocket"
 )
 
@@ -155,19 +158,53 @@ const myToolVersion = "1.0.0"
 var myTool = pocket.NewTool("mytool", myToolVersion, installMyTool)
 
 func installMyTool(ctx context.Context, tc *pocket.TaskContext) error {
-    // Option 1: Download binary from URL
-    return pocket.DownloadBinary(ctx, tc, "https://example.com/mytool.tar.gz", pocket.DownloadOpts{
-        DestDir: pocket.FromToolsDir("mytool", myToolVersion),
-        Format:  "tar.gz",
-        Symlink: true,
-    })
-    // Option 2: Go install
+    binDir := pocket.FromToolsDir("mytool", myToolVersion, "bin")
+    binaryName := pocket.BinaryName("mytool")
+    binaryPath := filepath.Join(binDir, binaryName)
+
+    // Explicit URL construction - visible and debuggable
+    hostOS := pocket.HostOS()
+    hostArch := pocket.HostArch()
+
+    url := fmt.Sprintf(
+        "https://github.com/owner/mytool/releases/download/v%s/mytool-%s-%s.tar.gz",
+        myToolVersion, hostOS, hostArch,
+    )
+
+    return pocket.Download(ctx, tc, url,
+        pocket.WithDestDir(binDir),
+        pocket.WithFormat("tar.gz"),
+        pocket.WithExtract(pocket.WithExtractFile(binaryName)),
+        pocket.WithSymlink(),
+        pocket.WithSkipIfExists(binaryPath),
+    )
+
+    // Alternative: Go install
     // return pocket.GoInstall(ctx, tc, "example.com/mytool", myToolVersion)
 }
 
 // Use in a task action
 func myAction(ctx context.Context, tc *pocket.TaskContext) error {
     return myTool.Exec(ctx, tc, "--flag", "arg")
+}
+```
+
+Tools with non-standard naming conventions can use explicit mappings:
+
+```go
+func installMyTool(ctx context.Context, tc *pocket.TaskContext) error {
+    // ...
+    hostOS := pocket.HostOS()
+    hostArch := pocket.HostArch()
+
+    // Some tools use different naming: darwin->macos, amd64->x86_64
+    if hostOS == pocket.Darwin {
+        hostOS = "macos"
+    }
+    hostArch = pocket.ArchToX8664(hostArch)  // amd64->x86_64, arm64->aarch64
+
+    url := fmt.Sprintf("https://example.com/tool-%s-%s.zip", hostOS, hostArch)
+    // ...
 }
 ```
 

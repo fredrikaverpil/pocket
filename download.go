@@ -1,127 +1,13 @@
 package pocket
 
 import (
-	"archive/tar"
-	"archive/zip"
-	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
-
-// DownloadOpts configures binary download and extraction.
-type DownloadOpts struct {
-	// DestDir is the directory to extract files to.
-	DestDir string
-	// Format specifies the archive format: "tar.gz", "tar", "zip", or "" for raw copy.
-	Format string
-	// ExtractFiles limits extraction to files matching these base names (flattened to DestDir).
-	ExtractFiles []string
-	// SkipIfExists skips download if this file already exists.
-	SkipIfExists string
-	// Symlink creates a symlink in .pocket/bin/ if true.
-	Symlink bool
-	// HTTPHeaders adds headers to the download request.
-	HTTPHeaders map[string]string
-}
-
-// DownloadBinary downloads and extracts a binary from a URL.
-// Progress and status messages are written to tc.Out.
-//
-// Example:
-//
-//	func install(ctx context.Context, tc *pocket.TaskContext) error {
-//	    return pocket.DownloadBinary(ctx, tc, url, pocket.DownloadOpts{
-//	        DestDir:      pocket.FromToolsDir("mytool", version, "bin"),
-//	        Format:       "tar.gz",
-//	        ExtractFiles: []string{pocket.BinaryName("mytool")},
-//	        Symlink:      true,
-//	    })
-//	}
-func DownloadBinary(ctx context.Context, tc *TaskContext, url string, opts DownloadOpts) error {
-	binaryName := ""
-	if len(opts.ExtractFiles) > 0 {
-		binaryName = opts.ExtractFiles[0]
-	}
-	binaryPath := filepath.Join(opts.DestDir, binaryName)
-
-	// Check if we can skip.
-	skipPath := opts.SkipIfExists
-	if skipPath == "" && binaryName != "" {
-		skipPath = binaryPath
-	}
-	if skipPath != "" {
-		if _, err := os.Stat(skipPath); err == nil {
-			// Already installed, just ensure symlink exists.
-			if opts.Symlink && binaryPath != "" {
-				if _, err := CreateSymlink(binaryPath); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}
-
-	// Create destination directory.
-	if opts.DestDir != "" {
-		if err := os.MkdirAll(opts.DestDir, 0o755); err != nil {
-			return fmt.Errorf("create destination dir: %w", err)
-		}
-	}
-
-	tc.Out.Printf("  Downloading %s\n", url)
-
-	// Download to temp file.
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	for k, v := range opts.HTTPHeaders {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("download: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download: status %d", resp.StatusCode)
-	}
-
-	tmpFile, err := os.CreateTemp("", "pocket-download-*")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
-
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("download: %w", err)
-	}
-	tmpFile.Close()
-
-	// Extract or copy.
-	if err := extractFile(tmpPath, opts); err != nil {
-		return err
-	}
-
-	// Create symlink if requested.
-	if opts.Symlink && binaryPath != "" {
-		if _, err := CreateSymlink(binaryPath); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 // GoInstall installs a Go binary using 'go install'.
 // The binary is installed to .pocket/tools/go/<pkg>/<version>/
@@ -137,7 +23,7 @@ func DownloadBinary(ctx context.Context, tc *TaskContext, url string, opts Downl
 func GoInstall(ctx context.Context, tc *TaskContext, pkg, version string) (string, error) {
 	// Determine binary name from package path.
 	binaryName := goBinaryName(pkg)
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == Windows {
 		binaryName += ".exe"
 	}
 
@@ -203,8 +89,8 @@ func CreateSymlink(binaryPath string) (string, error) {
 	}
 
 	// On Windows, copy the file instead of creating a symlink.
-	if runtime.GOOS == "windows" {
-		if err := copyFile(binaryPath, linkPath); err != nil {
+	if runtime.GOOS == Windows {
+		if err := CopyFile(binaryPath, linkPath); err != nil {
 			return "", fmt.Errorf("copy binary: %w", err)
 		}
 		return linkPath, nil
@@ -225,7 +111,7 @@ func CreateSymlink(binaryPath string) (string, error) {
 
 // VenvBinaryPath returns the cross-platform path to a binary in a Python venv.
 func VenvBinaryPath(venvDir, name string) string {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == Windows {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)
@@ -257,194 +143,6 @@ func isGoVersion(s string) bool {
 		}
 	}
 	return true
-}
-
-func extractFile(path string, opts DownloadOpts) error {
-	switch opts.Format {
-	case "tar.gz":
-		return extractTarGz(path, opts.DestDir, opts.ExtractFiles)
-	case "tar":
-		return extractTar(path, opts.DestDir, opts.ExtractFiles)
-	case "zip":
-		return extractZip(path, opts.DestDir, opts.ExtractFiles)
-	default:
-		// Just copy the file.
-		if opts.DestDir != "" {
-			dst := filepath.Join(opts.DestDir, filepath.Base(path))
-			return copyFile(path, dst)
-		}
-		return nil
-	}
-}
-
-func extractTarGz(src, destDir string, extractOnly []string) error {
-	f, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	gzr, err := gzip.NewReader(f)
-	if err != nil {
-		return err
-	}
-	defer gzr.Close()
-
-	return extractTarReader(tar.NewReader(gzr), destDir, extractOnly)
-}
-
-func extractTar(src, destDir string, extractOnly []string) error {
-	f, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return extractTarReader(tar.NewReader(f), destDir, extractOnly)
-}
-
-func extractTarReader(tr *tar.Reader, destDir string, extractOnly []string) error {
-	extractSet := make(map[string]bool)
-	for _, name := range extractOnly {
-		extractSet[name] = true
-	}
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		name := header.Name
-		baseName := filepath.Base(name)
-
-		// If extractOnly is set, only extract matching files (flattened).
-		if len(extractOnly) > 0 {
-			if !extractSet[baseName] {
-				continue
-			}
-			name = baseName
-		}
-
-		target := filepath.Join(destDir, name)
-
-		// Security check: ensure we don't escape destDir.
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)) {
-			return fmt.Errorf("invalid file path: %s", name)
-		}
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if len(extractOnly) > 0 {
-				continue
-			}
-			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
-				return err
-			}
-		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
-				return err
-			}
-			f.Close()
-		}
-	}
-	return nil
-}
-
-func extractZip(src, destDir string, extractOnly []string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	extractSet := make(map[string]bool)
-	for _, name := range extractOnly {
-		extractSet[name] = true
-	}
-
-	for _, f := range r.File {
-		name := f.Name
-		baseName := filepath.Base(name)
-
-		// If extractOnly is set, only extract matching files (flattened).
-		if len(extractOnly) > 0 {
-			if !extractSet[baseName] {
-				continue
-			}
-			name = baseName
-		}
-
-		target := filepath.Join(destDir, name)
-
-		// Security check.
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)) {
-			return fmt.Errorf("invalid file path: %s", name)
-		}
-
-		if f.FileInfo().IsDir() {
-			if len(extractOnly) > 0 {
-				continue
-			}
-			if err := os.MkdirAll(target, f.Mode()); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-
-		outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode())
-		if err != nil {
-			rc.Close()
-			return err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		rc.Close()
-		outFile.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-	return out.Chmod(0o755)
 }
 
 // ensureToolsGoMod creates .pocket/tools/go.mod if it doesn't exist.

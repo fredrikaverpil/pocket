@@ -5,7 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"runtime"
+	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket"
 )
@@ -34,42 +34,27 @@ var Tool = pocket.NewTool(name, version, install).
 func install(ctx context.Context, tc *pocket.TaskContext) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := pocket.BinaryName(name)
+	binaryPath := filepath.Join(binDir, binaryName)
+
+	hostOS := pocket.HostOS()
+	hostArch := pocket.HostArch()
+
+	// StyLua uses different naming: darwin->macos, amd64->x86_64, arm64->aarch64
+	if hostOS == pocket.Darwin {
+		hostOS = "macos"
+	}
+	hostArch = pocket.ArchToX8664(hostArch)
 
 	url := fmt.Sprintf(
 		"https://github.com/JohnnyMorganz/StyLua/releases/download/v%s/stylua-%s-%s.zip",
-		version,
-		osName(),
-		archName(),
+		version, hostOS, hostArch,
 	)
 
-	return pocket.DownloadBinary(ctx, tc, url, pocket.DownloadOpts{
-		DestDir:      binDir,
-		Format:       "zip",
-		ExtractFiles: []string{binaryName},
-		Symlink:      true,
-	})
-}
-
-func osName() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "macos"
-	case "linux":
-		return "linux"
-	case "windows":
-		return "windows"
-	default:
-		return runtime.GOOS
-	}
-}
-
-func archName() string {
-	switch runtime.GOARCH {
-	case "amd64":
-		return "x86_64"
-	case "arm64":
-		return "aarch64"
-	default:
-		return runtime.GOARCH
-	}
+	return pocket.Download(ctx, tc, url,
+		pocket.WithDestDir(binDir),
+		pocket.WithFormat("zip"),
+		pocket.WithExtract(pocket.WithExtractFile(binaryName)),
+		pocket.WithSymlink(),
+		pocket.WithSkipIfExists(binaryPath),
+	)
 }

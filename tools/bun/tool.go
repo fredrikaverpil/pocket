@@ -37,6 +37,7 @@ func BinaryPath(installDir, binaryName string) string {
 func install(ctx context.Context, tc *pocket.TaskContext) error {
 	binDir := pocket.FromToolsDir(name, version, "bin")
 	binaryName := pocket.BinaryName(name)
+	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/oven-sh/bun/releases/download/bun-v%s/bun-%s.zip",
@@ -44,27 +45,28 @@ func install(ctx context.Context, tc *pocket.TaskContext) error {
 		platformArch(),
 	)
 
-	return pocket.DownloadBinary(ctx, tc, url, pocket.DownloadOpts{
-		DestDir:      binDir,
-		Format:       "zip",
-		ExtractFiles: []string{binaryName},
-		Symlink:      true,
-	})
+	return pocket.Download(ctx, tc, url,
+		pocket.WithDestDir(binDir),
+		pocket.WithFormat("zip"),
+		pocket.WithExtract(pocket.WithExtractFile(binaryName)),
+		pocket.WithSymlink(),
+		pocket.WithSkipIfExists(binaryPath),
+	)
 }
 
 func platformArch() string {
 	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "arm64" {
+	case pocket.Darwin:
+		if runtime.GOARCH == pocket.ARM64 {
 			return "darwin-aarch64"
 		}
 		return "darwin-x64"
-	case "linux":
-		if runtime.GOARCH == "arm64" {
+	case pocket.Linux:
+		if runtime.GOARCH == pocket.ARM64 {
 			return "linux-aarch64"
 		}
 		return "linux-x64"
-	case "windows":
+	case pocket.Windows:
 		return "windows-x64"
 	default:
 		return fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH)
