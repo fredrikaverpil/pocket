@@ -88,6 +88,23 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	return cmd.Run()
 }
 
+// ExecIn runs an external command in a specific directory.
+// Use this when you need to run a command in a directory other than the current path.
+//
+// Example:
+//
+//	func updateDeps(ctx context.Context) error {
+//	    return pocket.ExecIn(ctx, ".pocket", "go", "mod", "tidy")
+//	}
+func ExecIn(ctx context.Context, dir string, name string, args ...string) error {
+	ec := getExecContext(ctx)
+	cmd := newCommand(ctx, name, args...)
+	cmd.Stdout = ec.out.Stdout
+	cmd.Stderr = ec.out.Stderr
+	cmd.Dir = dir
+	return cmd.Run()
+}
+
 // newCommand creates a new command with .pocket/bin prepended to PATH.
 func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	return commandBase(ctx, name, args...)

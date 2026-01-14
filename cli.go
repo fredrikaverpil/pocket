@@ -46,6 +46,7 @@ func detectCwd() string {
 //
 // pathMappings maps function names to their PathFilter configuration.
 // Functions not in pathMappings are only visible when running from the git root.
+// builtinFuncs are always-available tasks shown under "Built-in tasks" in help.
 //
 // Note: Will be renamed to Main after removing old code.
 func Main(
@@ -54,8 +55,9 @@ func Main(
 	cmds []Cmd,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
+	builtinFuncs []*FuncDef,
 ) {
-	os.Exit(run(funcs, allFunc, cmds, pathMappings, autoRunNames))
+	os.Exit(run(funcs, allFunc, cmds, pathMappings, autoRunNames, builtinFuncs))
 }
 
 // run parses flags and runs functions, returning the exit code.
@@ -65,6 +67,7 @@ func run(
 	cmds []Cmd,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
+	builtinFuncs []*FuncDef,
 ) int {
 	verbose := flag.Bool("v", false, "verbose output")
 	help := flag.Bool("h", false, "show help")
@@ -76,13 +79,16 @@ func run(
 	visibleFuncs := filterFuncsByCwd(funcs, cwd, pathMappings)
 
 	flag.Usage = func() {
-		printHelp2(visibleFuncs, cmds, autoRunNames)
+		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
 	}
 	flag.Parse()
 
-	// Build function map for lookup (visible functions only).
-	funcMap := make(map[string]*FuncDef, len(visibleFuncs))
+	// Build function map for lookup (visible functions + built-in functions).
+	funcMap := make(map[string]*FuncDef, len(visibleFuncs)+len(builtinFuncs))
 	for _, f := range visibleFuncs {
+		funcMap[f.name] = f
+	}
+	for _, f := range builtinFuncs {
 		funcMap[f.name] = f
 	}
 
@@ -108,7 +114,7 @@ func run(
 			fmt.Fprintf(os.Stderr, "unknown function or command: %s\n", args[0])
 			return 1
 		}
-		printHelp2(visibleFuncs, cmds, autoRunNames)
+		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
 		return 0
 	}
 
@@ -204,7 +210,7 @@ func isFuncVisibleIn(funcName, cwd string, pathMappings map[string]*PathFilter) 
 }
 
 // printHelp2 prints the help message with available functions and commands.
-func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool) {
+func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
 	fmt.Println("Usage: pok [flags] <function> [args...]")
 	fmt.Println()
 	fmt.Println("Flags:")
@@ -264,7 +270,23 @@ func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool) {
 		w.Flush()
 	}
 
-	if len(autorun) == 0 && len(other) == 0 && len(cmds) == 0 {
+	// Sort and display built-in tasks.
+	if len(builtinFuncs) > 0 {
+		if len(autorun) > 0 || len(other) > 0 || len(cmds) > 0 {
+			fmt.Println()
+		}
+		fmt.Println("Functions (builtins):")
+		sort.Slice(builtinFuncs, func(i, j int) bool {
+			return builtinFuncs[i].name < builtinFuncs[j].name
+		})
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, f := range builtinFuncs {
+			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
+		}
+		w.Flush()
+	}
+
+	if len(autorun) == 0 && len(other) == 0 && len(cmds) == 0 && len(builtinFuncs) == 0 {
 		fmt.Println("No functions or commands available.")
 	}
 }

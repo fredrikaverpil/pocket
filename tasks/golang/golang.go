@@ -19,9 +19,9 @@ var (
 	Lint = pocket.Func("go-lint", "run golangci-lint", lint).
 		With(LintOptions{})
 
-	// Test runs tests with race detection.
+	// Test runs tests with race detection and coverage.
 	Test = pocket.Func("go-test", "run Go tests", test).
-		With(TestOptions{Race: true})
+		With(TestOptions{Race: true, Coverage: true})
 
 	// Vulncheck runs govulncheck for vulnerability scanning.
 	Vulncheck = pocket.Func("go-vulncheck", "run govulncheck", vulncheck)
@@ -98,9 +98,10 @@ type LintOptions struct {
 
 // TestOptions configures the go-test task.
 type TestOptions struct {
-	Race    bool `arg:"race"    usage:"enable race detection (default: true)"`
-	Short   bool `arg:"short"   usage:"run short tests only"`
-	Verbose bool `arg:"verbose" usage:"verbose output"`
+	Race     bool `arg:"race"     usage:"enable race detection"`
+	Coverage bool `arg:"coverage" usage:"generate coverage.out in git root"`
+	Short    bool `arg:"short"    usage:"run short tests only"`
+	Verbose  bool `arg:"verbose"  usage:"verbose output"`
 }
 
 // Task implementations.
@@ -135,6 +136,10 @@ func test(ctx context.Context) error {
 	}
 	if opts.Race {
 		args = append(args, "-race")
+	}
+	if opts.Coverage {
+		coverPath := pocket.FromGitRoot("coverage.out")
+		args = append(args, "-coverprofile="+coverPath)
 	}
 	if opts.Short {
 		args = append(args, "-short")

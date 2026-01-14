@@ -13,6 +13,12 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
+func init() {
+	// Register GenerateAll with the pocket package to avoid import cycles.
+	// This allows runner.go to call GenerateAll without importing this package.
+	pocket.RegisterGenerateAll(GenerateAll)
+}
+
 //go:embed main.go.tmpl
 var MainTemplate []byte
 
