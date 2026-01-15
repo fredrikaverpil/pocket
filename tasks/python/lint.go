@@ -14,12 +14,12 @@ type LintOptions struct {
 }
 
 // Lint lints Python files using ruff check.
-var Lint = pocket.Func("py-lint", "lint Python files", lint).
-	With(LintOptions{})
+var Lint = pocket.Func("py-lint", "lint Python files", pocket.Serial(
+	ruff.Install,
+	lint,
+)).With(LintOptions{})
 
 func lint(ctx context.Context) error {
-	pocket.Serial(ctx, ruff.Install)
-
 	opts := pocket.Options[LintOptions](ctx)
 	configPath := opts.RuffConfig
 	if configPath == "" {

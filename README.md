@@ -102,7 +102,7 @@ var Lint = pocket.Func("lint", "run linter", lint)
 
 func lint(ctx context.Context) error {
     // Ensure tool is installed (runs once, even if called multiple times)
-    pocket.Serial(ctx, Install)
+    pocket.Serial(Install)
     return pocket.Exec(ctx, "tool", "lint", "./...")
 }
 ```
@@ -141,21 +141,24 @@ Commands run with proper output handling and respect the current path context.
 
 ### Serial and Parallel
 
-These have two modes based on the first argument:
-
-**Composition mode** (no context) - returns a Runnable. Used in your
-`.pocket/config.go`:
+Use `Serial` and `Parallel` to compose functions:
 
 ```go
 pocket.Serial(fn1, fn2, fn3)    // run in sequence
 pocket.Parallel(fn1, fn2, fn3)  // run concurrently
 ```
 
-**Execution mode** (with context) - runs immediately, used in tools and tasks:
+**With dependencies** - compose install dependencies into your function:
 
 ```go
-pocket.Serial(ctx, fn1, fn2)    // run dependencies in sequence
-pocket.Parallel(ctx, fn1, fn2)  // run dependencies concurrently
+var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+    linter.Install,  // runs first
+    lint,            // then the actual linting
+))
+
+func lint(ctx context.Context) error {
+    return pocket.Exec(ctx, linter.Name, "run", "./...")
+}
 ```
 
 > [!NOTE]
@@ -208,10 +211,12 @@ A task package provides related functions that use tools:
 // tasks/python/lint.go
 package python
 
-var Lint = pocket.Func("py-lint", "lint Python files", lint)
+var Lint = pocket.Func("py-lint", "lint Python files", pocket.Serial(
+    ruff.Install,  // ensure tool is installed first
+    lint,
+))
 
 func lint(ctx context.Context) error {
-    pocket.Serial(ctx, ruff.Install)  // ensure tool is installed
     return pocket.Exec(ctx, ruff.Name, "check", ".")  // run via Name constant
 }
 ```

@@ -33,7 +33,10 @@ func Version() string {
 }
 
 // Install ensures mdformat is available.
-var Install = pocket.Func("install:mdformat", "install mdformat", install).Hidden()
+var Install = pocket.Func("install:mdformat", "install mdformat", pocket.Serial(
+	uv.Install,
+	install,
+)).Hidden()
 
 func install(ctx context.Context) error {
 	// Use hash-based versioning: .pocket/tools/mdformat/<hash>/

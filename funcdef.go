@@ -124,39 +124,31 @@ func (f *FuncDef) Opts() any {
 	return f.opts
 }
 
+// Run executes this function with the given context.
+// This is useful for testing or programmatic execution.
+func (f *FuncDef) Run(ctx context.Context) error {
+	return f.run(ctx)
+}
+
 // run executes this function with the given context.
 // This is called by the framework - users should not call this directly.
-func (f *FuncDef) run(ctx context.Context) (err error) {
+func (f *FuncDef) run(ctx context.Context) error {
 	ec := getExecContext(ctx)
 
-	// Recover from depsError panics (from Serial/Parallel execution mode)
-	defer func() {
-		if r := recover(); r != nil {
-			if de, ok := r.(depsError); ok {
-				err = de.err
-			} else {
-				panic(r) // re-panic for other panics
-			}
-		}
-	}()
-
-	// In collect mode, register function and collect nested deps
+	// In collect mode, register function and collect nested deps from static tree
 	if ec.mode == modeCollect {
 		// Check if this would be deduplicated
 		deduped := !ec.dedup.shouldRun(runnableKey(f))
 		ec.plan.AddFunc(f.name, f.usage, f.hidden, deduped)
 		defer ec.plan.PopFunc()
 
-		// Inject options and run body to discover nested deps
-		if f.opts != nil {
-			ctx = withOptions(ctx, f.name, f.opts)
-		}
-		if f.fn != nil {
-			return f.fn(ctx)
-		}
+		// Only recurse into Runnable body - do NOT call function bodies
+		// This ensures collection is side-effect free and only sees static composition
 		if f.body != nil {
 			return f.body.run(ctx)
 		}
+		// Plain functions (f.fn) are not called during collection
+		// Their inline dependencies won't appear in the plan
 		return nil
 	}
 

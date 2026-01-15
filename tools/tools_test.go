@@ -1,6 +1,7 @@
 package tools_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -48,12 +49,17 @@ func TestTools(t *testing.T) {
 		t.Run(tool.name, func(t *testing.T) {
 			ctx := pocket.TestContext(out)
 
-			// Install the tool.
-			pocket.Serial(ctx, tool.install)
+			// Create a test function that installs and runs the tool.
+			// Compose the install dependency with the version check.
+			testFunc := pocket.Func("test:"+tool.name, "test "+tool.name, pocket.Serial(
+				tool.install,
+				func(fnCtx context.Context) error {
+					return pocket.Exec(fnCtx, tool.binary, tool.versionArgs...)
+				},
+			))
 
-			// Run the tool to verify it works.
-			if err := pocket.Exec(ctx, tool.binary, tool.versionArgs...); err != nil {
-				t.Fatalf("Exec %s %v: %v", tool.binary, tool.versionArgs, err)
+			if err := testFunc.Run(ctx); err != nil {
+				t.Fatalf("failed: %v", err)
 			}
 		})
 	}

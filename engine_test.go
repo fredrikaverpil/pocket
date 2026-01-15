@@ -66,11 +66,14 @@ func TestEngine_Plan_NestedDeps(t *testing.T) {
 		return nil
 	}).Hidden()
 
-	// Create a function that depends on install
-	lint := Func("lint", "lint code", func(ctx context.Context) error {
-		Serial(ctx, install)
-		return nil
-	})
+	// Create a function that depends on install using static composition
+	// (inline Serial() calls in function bodies are not visible in plan)
+	lint := Func("lint", "lint code", Serial(
+		install,
+		func(_ context.Context) error {
+			return nil
+		},
+	))
 
 	engine := NewEngine(lint)
 	plan, err := engine.Plan(context.Background())
@@ -102,9 +105,9 @@ func TestEngine_Plan_NestedDeps(t *testing.T) {
 		t.Errorf("expected type 'serial', got %q", serialStep.Type)
 	}
 
-	// Serial should contain the install function
+	// Serial should contain the install function (and anonymous function wrapper)
 	if len(serialStep.Children) != 1 {
-		t.Fatalf("expected 1 child in Serial, got %d", len(serialStep.Children))
+		t.Fatalf("expected 1 child in Serial (install), got %d", len(serialStep.Children))
 	}
 
 	installStep := serialStep.Children[0]
@@ -122,15 +125,15 @@ func TestEngine_Plan_Deduplication(t *testing.T) {
 		return nil
 	}).Hidden()
 
-	// Create two functions that both depend on install
-	fn1 := Func("fn1", "first", func(ctx context.Context) error {
-		Serial(ctx, install)
-		return nil
-	})
-	fn2 := Func("fn2", "second", func(ctx context.Context) error {
-		Serial(ctx, install)
-		return nil
-	})
+	// Create two functions that both depend on install using static composition
+	fn1 := Func("fn1", "first", Serial(
+		install,
+		func(_ context.Context) error { return nil },
+	))
+	fn2 := Func("fn2", "second", Serial(
+		install,
+		func(_ context.Context) error { return nil },
+	))
 
 	root := Serial(fn1, fn2)
 

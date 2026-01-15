@@ -7,77 +7,29 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// depsError wraps an error from Serial/Parallel execution mode.
-// The framework recovers this panic and converts it to an error.
-type depsError struct {
-	err error
-}
-
 // serial executes items sequentially.
 type serial struct {
 	items []Runnable
 }
 
-// Serial has two modes based on whether the first argument is a context.Context:
+// Serial composes items to run sequentially.
 //
-// Execution mode (first arg is context.Context):
-//
-//	pocket.Serial(ctx, install1, install2)
-//
-// Executes items sequentially with deduplication. Panics on error (framework recovers).
-//
-// Composition mode (first arg is NOT context.Context):
-//
-//	pocket.Serial(task1, task2, task3)
-//
-// Returns a Runnable for use in Config or nested composition.
+// Returns a Runnable that executes items in order. Use it to:
+//   - Define dependencies: Serial(Install, TaskImpl)
+//   - Compose tasks in Config: Serial(Format, Lint, Test)
 //
 // Items can be *FuncDef, Runnable, or func(context.Context) error.
+//
+// Example:
+//
+//	var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+//	    golangcilint.Install,
+//	    func(ctx context.Context) error {
+//	        return pocket.Exec(ctx, "golangci-lint", "run", "./...")
+//	    },
+//	))
 func Serial(items ...any) Runnable {
-	if len(items) == 0 {
-		return &serial{items: nil}
-	}
-
-	// Check if first item is context.Context (execution mode)
-	if ctx, ok := items[0].(context.Context); ok {
-		if err := executeSerial(ctx, items[1:]); err != nil {
-			panic(depsError{err})
-		}
-		return nil
-	}
-
-	// Composition mode - return Runnable
 	return &serial{items: toRunnables(items)}
-}
-
-// executeSerial runs items sequentially with deduplication.
-func executeSerial(ctx context.Context, items []any) error {
-	ec := getExecContext(ctx)
-
-	// In collect mode, register structure and recurse
-	if ec.mode == modeCollect {
-		ec.plan.PushSerial()
-		defer ec.plan.Pop()
-		for _, item := range items {
-			r := toRunnable(item)
-			if err := r.run(ctx); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// Execute mode - run with deduplication
-	for _, item := range items {
-		r := toRunnable(item)
-		if !shouldRun(ec, r) {
-			continue
-		}
-		if err := r.run(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *serial) run(ctx context.Context) error {
@@ -120,93 +72,22 @@ type parallel struct {
 	items []Runnable
 }
 
-// Parallel has two modes based on whether the first argument is a context.Context:
+// Parallel composes items to run concurrently.
 //
-// Execution mode (first arg is context.Context):
-//
-//	pocket.Parallel(ctx, test1, test2)
-//
-// Executes items concurrently with deduplication. Panics on error (framework recovers).
-//
-// Composition mode (first arg is NOT context.Context):
-//
-//	pocket.Parallel(task1, task2)
-//
-// Returns a Runnable for use in Config or nested composition.
+// Returns a Runnable that executes items in parallel. Use it to:
+//   - Run independent tasks concurrently: Parallel(Lint, Test)
+//   - Compose in Config: Parallel(task1, task2)
 //
 // Items can be *FuncDef, Runnable, or func(context.Context) error.
+//
+// Example:
+//
+//	var CI = pocket.Func("ci", "run CI", pocket.Parallel(
+//	    Lint,
+//	    Test,
+//	))
 func Parallel(items ...any) Runnable {
-	if len(items) == 0 {
-		return &parallel{items: nil}
-	}
-
-	// Check if first item is context.Context (execution mode)
-	if ctx, ok := items[0].(context.Context); ok {
-		if err := executeParallel(ctx, items[1:]); err != nil {
-			panic(depsError{err})
-		}
-		return nil
-	}
-
-	// Composition mode - return Runnable
 	return &parallel{items: toRunnables(items)}
-}
-
-// executeParallel runs items concurrently with deduplication.
-func executeParallel(ctx context.Context, items []any) error {
-	ec := getExecContext(ctx)
-
-	// In collect mode, register structure and recurse (sequentially for simplicity)
-	if ec.mode == modeCollect {
-		ec.plan.PushParallel()
-		defer ec.plan.Pop()
-		for _, item := range items {
-			r := toRunnable(item)
-			if err := r.run(ctx); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// Execute mode - run concurrently with deduplication
-	var toRun []Runnable
-	for _, item := range items {
-		r := toRunnable(item)
-		if shouldRun(ec, r) {
-			toRun = append(toRun, r)
-		}
-	}
-
-	if len(toRun) == 0 {
-		return nil
-	}
-	if len(toRun) == 1 {
-		return toRun[0].run(ctx)
-	}
-
-	buffers := make([]*bufferedOutput, len(toRun))
-	for i := range buffers {
-		buffers[i] = newBufferedOutput(ec.out)
-	}
-
-	g, gCtx := errgroup.WithContext(ctx)
-	for i, r := range toRun {
-		g.Go(func() error {
-			newEC := *ec
-			newEC.out = buffers[i].Output()
-			newCtx := withExecContext(gCtx, &newEC)
-			return r.run(newCtx)
-		})
-	}
-
-	err := g.Wait()
-
-	for _, buf := range buffers {
-		buf.Flush()
-	}
-
-	return err
 }
 
 func (p *parallel) run(ctx context.Context) error {

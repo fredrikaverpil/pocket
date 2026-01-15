@@ -31,7 +31,10 @@ var Config = pocket.ToolConfig{
 }
 
 // Install ensures ruff is available.
-var Install = pocket.Func("install:ruff", "install ruff", install).Hidden()
+var Install = pocket.Func("install:ruff", "install ruff", pocket.Serial(
+	uv.Install,
+	install,
+)).Hidden()
 
 func install(ctx context.Context) error {
 	venvDir := pocket.FromToolsDir("ruff", Version)

@@ -42,9 +42,8 @@ func install(ctx context.Context) error {
 
 // CreateVenv creates a Python virtual environment at the specified path.
 // If pythonVersion is empty, uv uses the default Python available.
+// NOTE: Callers must ensure uv.Install has been composed as a dependency.
 func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
-	pocket.Serial(ctx, Install)
-
 	args := []string{"venv"}
 	if pythonVersion != "" {
 		args = append(args, "--python", pythonVersion)
@@ -54,14 +53,14 @@ func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
 }
 
 // PipInstall installs a package into a virtual environment.
+// NOTE: Callers must ensure uv.Install has been composed as a dependency.
 func PipInstall(ctx context.Context, venvPath, pkg string) error {
-	pocket.Serial(ctx, Install)
 	return pocket.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
 }
 
 // PipInstallRequirements installs packages from a requirements.txt file.
+// NOTE: Callers must ensure uv.Install has been composed as a dependency.
 func PipInstallRequirements(ctx context.Context, venvPath, requirementsPath string) error {
-	pocket.Serial(ctx, Install)
 	return pocket.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), "-r", requirementsPath)
 }
 

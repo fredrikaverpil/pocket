@@ -20,7 +20,10 @@ const Version = "1.19.1"
 const pythonVersion = "3.12"
 
 // Install ensures mypy is available.
-var Install = pocket.Func("install:mypy", "install mypy", install).Hidden()
+var Install = pocket.Func("install:mypy", "install mypy", pocket.Serial(
+	uv.Install,
+	install,
+)).Hidden()
 
 func install(ctx context.Context) error {
 	venvDir := pocket.FromToolsDir("mypy", Version)

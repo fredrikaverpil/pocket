@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSerial_ExecutionMode(t *testing.T) {
+func TestSerial_Composition(t *testing.T) {
 	var executed []string
 
 	fn1 := func(_ context.Context) error {
@@ -17,13 +17,17 @@ func TestSerial_ExecutionMode(t *testing.T) {
 		return nil
 	}
 
-	// Create execution context
+	// Create a FuncDef using Serial for composition
+	testFunc := Func("test", "test", Serial(fn1, fn2))
+
+	// Create execution context and run
 	out := StdOutput()
 	ec := newExecContext(out, ".", false)
 	ctx := withExecContext(context.Background(), ec)
 
-	// Execute in serial - should work with plain functions
-	Serial(ctx, fn1, fn2)
+	if err := testFunc.run(ctx); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
 
 	if len(executed) != 2 {
 		t.Errorf("expected 2 executions, got %d", len(executed))
@@ -33,7 +37,7 @@ func TestSerial_ExecutionMode(t *testing.T) {
 	}
 }
 
-func TestParallel_ExecutionMode(t *testing.T) {
+func TestParallel_Composition(t *testing.T) {
 	executed := make(chan string, 2)
 
 	fn1 := func(_ context.Context) error {
@@ -45,13 +49,17 @@ func TestParallel_ExecutionMode(t *testing.T) {
 		return nil
 	}
 
-	// Create execution context
+	// Create a FuncDef using Parallel for composition
+	testFunc := Func("test", "test", Parallel(fn1, fn2))
+
+	// Create execution context and run
 	out := StdOutput()
 	ec := newExecContext(out, ".", false)
 	ctx := withExecContext(context.Background(), ec)
 
-	// Execute in parallel - should work with plain functions
-	Parallel(ctx, fn1, fn2)
+	if err := testFunc.run(ctx); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
 
 	close(executed)
 	results := make([]string, 0, 2)
@@ -61,5 +69,38 @@ func TestParallel_ExecutionMode(t *testing.T) {
 
 	if len(results) != 2 {
 		t.Errorf("expected 2 executions, got %d", len(results))
+	}
+}
+
+func TestSerial_WithDependency(t *testing.T) {
+	var executed []string
+
+	install := func(_ context.Context) error {
+		executed = append(executed, "install")
+		return nil
+	}
+	lint := func(_ context.Context) error {
+		executed = append(executed, "lint")
+		return nil
+	}
+
+	// Pattern: FuncDef with install dependency
+	installFunc := Func("install", "install tool", install).Hidden()
+	lintFunc := Func("lint", "run linter", Serial(installFunc, lint))
+
+	// Create execution context and run
+	out := StdOutput()
+	ec := newExecContext(out, ".", false)
+	ctx := withExecContext(context.Background(), ec)
+
+	if err := lintFunc.run(ctx); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if len(executed) != 2 {
+		t.Errorf("expected 2 executions, got %d", len(executed))
+	}
+	if executed[0] != "install" || executed[1] != "lint" {
+		t.Errorf("wrong execution order: %v", executed)
 	}
 }

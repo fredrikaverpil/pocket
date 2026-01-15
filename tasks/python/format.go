@@ -14,12 +14,12 @@ type FormatOptions struct {
 }
 
 // Format formats Python files using ruff format.
-var Format = pocket.Func("py-format", "format Python files", format).
-	With(FormatOptions{})
+var Format = pocket.Func("py-format", "format Python files", pocket.Serial(
+	ruff.Install,
+	format,
+)).With(FormatOptions{})
 
 func format(ctx context.Context) error {
-	pocket.Serial(ctx, ruff.Install)
-
 	opts := pocket.Options[FormatOptions](ctx)
 	configPath := opts.RuffConfig
 	if configPath == "" {

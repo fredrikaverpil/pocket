@@ -24,7 +24,10 @@ var defaultConfig []byte
 var defaultIgnore []byte
 
 // Install ensures prettier is available.
-var Install = pocket.Func("install:prettier", "install prettier", install).Hidden()
+var Install = pocket.Func("install:prettier", "install prettier", pocket.Serial(
+	bun.Install,
+	install,
+)).Hidden()
 
 func install(ctx context.Context) error {
 	installDir := pocket.FromToolsDir(Name, Version)
@@ -35,9 +38,6 @@ func install(ctx context.Context) error {
 		_, err := pocket.CreateSymlink(binary)
 		return err
 	}
-
-	// Ensure bun is installed.
-	pocket.Serial(ctx, bun.Install)
 
 	// Create install directory.
 	if err := os.MkdirAll(installDir, 0o755); err != nil {

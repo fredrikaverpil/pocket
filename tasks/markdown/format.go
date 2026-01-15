@@ -14,12 +14,12 @@ type FormatOptions struct {
 }
 
 // Format formats Markdown files using prettier.
-var Format = pocket.Func("md-format", "format Markdown files", format).
-	With(FormatOptions{})
+var Format = pocket.Func("md-format", "format Markdown files", pocket.Serial(
+	prettier.Install,
+	format,
+)).With(FormatOptions{})
 
 func format(ctx context.Context) error {
-	pocket.Serial(ctx, prettier.Install)
-
 	opts := pocket.Options[FormatOptions](ctx)
 
 	args := []string{}
