@@ -8,15 +8,15 @@ import (
 
 // TestOptions configures the go-test task.
 type TestOptions struct {
-	Race     bool `arg:"race"     usage:"enable race detection"`
-	Coverage bool `arg:"coverage" usage:"generate coverage.out in git root"`
-	Short    bool `arg:"short"    usage:"run short tests only"`
-	Verbose  bool `arg:"verbose"  usage:"verbose output"`
+	SkipRace     bool `arg:"skip-race"     usage:"disable race detection"`
+	SkipCoverage bool `arg:"skip-coverage" usage:"disable coverage generation"`
+	Short        bool `arg:"short"         usage:"run short tests only"`
+	Verbose      bool `arg:"verbose"       usage:"verbose output"`
 }
 
-// Test runs tests with race detection and coverage.
+// Test runs tests with race detection and coverage by default.
 var Test = pocket.Func("go-test", "run Go tests", test).
-	With(TestOptions{Race: true, Coverage: true})
+	With(TestOptions{})
 
 func test(ctx context.Context) error {
 	opts := pocket.Options[TestOptions](ctx)
@@ -25,10 +25,10 @@ func test(ctx context.Context) error {
 	if opts.Verbose {
 		args = append(args, "-v")
 	}
-	if opts.Race {
+	if !opts.SkipRace {
 		args = append(args, "-race")
 	}
-	if opts.Coverage {
+	if !opts.SkipCoverage {
 		coverPath := pocket.FromGitRoot("coverage.out")
 		args = append(args, "-coverprofile="+coverPath)
 	}

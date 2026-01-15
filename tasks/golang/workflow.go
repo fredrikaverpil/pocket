@@ -35,7 +35,7 @@ func WithTest(opts TestOptions) Option {
 //
 //	pocket.Paths(golang.Workflow(
 //	    golang.WithLint(golang.LintOptions{Config: ".golangci.yml"}),
-//	    golang.WithTest(golang.TestOptions{Race: false}),
+//	    golang.WithTest(golang.TestOptions{SkipRace: true}),
 //	)).DetectBy(golang.Detect())
 func Workflow(opts ...Option) pocket.Runnable {
 	var cfg config
