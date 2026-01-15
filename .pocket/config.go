@@ -12,7 +12,7 @@ import (
 var Config = pocket.Config{
 	AutoRun: pocket.Serial(
 		pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
-		pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()).Except("\\..+"),
+		pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()),
 	),
 	ManualRun: []pocket.Runnable{
 		Greet,
