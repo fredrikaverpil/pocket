@@ -31,8 +31,7 @@ import (
 type FuncDef struct {
 	name   string
 	usage  string
-	fn     func(context.Context) error // set when body is a plain function
-	body   Runnable                    // set when body is a Runnable composition
+	body   Runnable
 	opts   any
 	hidden bool
 }
@@ -56,21 +55,11 @@ func Func(name, usage string, body any) *FuncDef {
 		panic("pocket.Func: body is required")
 	}
 
-	f := &FuncDef{
+	return &FuncDef{
 		name:  name,
 		usage: usage,
+		body:  toRunnable(body),
 	}
-
-	switch b := body.(type) {
-	case func(context.Context) error:
-		f.fn = b
-	case Runnable:
-		f.body = b
-	default:
-		panic("pocket.Func: body must be func(context.Context) error or Runnable")
-	}
-
-	return f
 }
 
 // With returns a copy with options attached.
@@ -147,8 +136,7 @@ func (f *FuncDef) run(ctx context.Context) error {
 		if f.body != nil {
 			return f.body.run(ctx)
 		}
-		// Plain functions (f.fn) are not called during collection
-		// Their inline dependencies won't appear in the plan
+		// Plain functions are wrapped as funcRunnable and not called during collection
 		return nil
 	}
 
@@ -157,13 +145,10 @@ func (f *FuncDef) run(ctx context.Context) error {
 
 	// Inject options into context if present
 	if f.opts != nil {
-		ctx = withOptions(ctx, f.name, f.opts)
+		ctx = withOptions(ctx, f.opts)
 	}
 
-	// Execute either the plain function or the Runnable body
-	if f.fn != nil {
-		return f.fn(ctx)
-	}
+	// Execute the Runnable body
 	return f.body.run(ctx)
 }
 
@@ -198,4 +183,38 @@ func (f *FuncDef) funcs() []*FuncDef {
 type Runnable interface {
 	run(ctx context.Context) error
 	funcs() []*FuncDef
+}
+
+// toRunnables converts a slice of any to a slice of Runnable.
+func toRunnables(items []any) []Runnable {
+	result := make([]Runnable, 0, len(items))
+	for _, item := range items {
+		result = append(result, toRunnable(item))
+	}
+	return result
+}
+
+// toRunnable converts a single item to a Runnable.
+func toRunnable(item any) Runnable {
+	switch v := item.(type) {
+	case Runnable:
+		return v
+	case func(context.Context) error:
+		return &funcRunnable{fn: v}
+	default:
+		panic("pocket: item must be Runnable or func(context.Context) error")
+	}
+}
+
+// funcRunnable wraps a plain function as a Runnable.
+type funcRunnable struct {
+	fn func(context.Context) error
+}
+
+func (f *funcRunnable) run(ctx context.Context) error {
+	return f.fn(ctx)
+}
+
+func (f *funcRunnable) funcs() []*FuncDef {
+	return nil
 }

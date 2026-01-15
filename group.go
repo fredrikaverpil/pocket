@@ -169,40 +169,6 @@ func runnableKey(r Runnable) uintptr {
 	return reflect.ValueOf(r).Pointer()
 }
 
-// toRunnables converts a slice of any to a slice of Runnable.
-func toRunnables(items []any) []Runnable {
-	result := make([]Runnable, 0, len(items))
-	for _, item := range items {
-		result = append(result, toRunnable(item))
-	}
-	return result
-}
-
-// toRunnable converts a single item to a Runnable.
-func toRunnable(item any) Runnable {
-	switch v := item.(type) {
-	case Runnable:
-		return v
-	case func(context.Context) error:
-		return &funcRunnable{fn: v}
-	default:
-		panic("pocket: item must be Runnable or func(context.Context) error")
-	}
-}
-
-// funcRunnable wraps a plain function as a Runnable.
-type funcRunnable struct {
-	fn func(context.Context) error
-}
-
-func (f *funcRunnable) run(ctx context.Context) error {
-	return f.fn(ctx)
-}
-
-func (f *funcRunnable) funcs() []*FuncDef {
-	return nil
-}
-
 // runWithContext executes a Runnable with fresh execution context.
 func runWithContext(ctx context.Context, r Runnable, out *Output, cwd string, verbose bool) error {
 	ec := newExecContext(out, cwd, verbose)

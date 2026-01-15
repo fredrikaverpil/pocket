@@ -3,6 +3,7 @@ package pocket
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 )
 
@@ -15,7 +16,6 @@ type execContext struct {
 	path    string         // current path for this invocation
 	cwd     string         // where CLI was invoked (relative to git root)
 	verbose bool           // verbose mode enabled
-	opts    map[string]any // func name -> options struct
 	dedup   *dedupState    // shared deduplication state (thread-safe)
 }
 
@@ -59,7 +59,6 @@ func newExecContext(out *Output, cwd string, verbose bool) *execContext {
 		out:     out,
 		cwd:     cwd,
 		verbose: verbose,
-		opts:    make(map[string]any),
 		dedup:   newDedupState(),
 	}
 }
@@ -89,30 +88,51 @@ func withPath(ctx context.Context, path string) context.Context {
 }
 
 // withOptions stores options for a function in the context.
-func withOptions(ctx context.Context, name string, opts any) context.Context {
-	ec := getExecContext(ctx)
-	ec.opts[name] = opts
-	return ctx
+// It normalizes to the struct type if a pointer is provided.
+func withOptions(ctx context.Context, opts any) context.Context {
+	t := reflect.TypeOf(opts)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+		return context.WithValue(ctx, t, reflect.ValueOf(opts).Elem().Interface())
+	}
+	return context.WithValue(ctx, t, opts)
+}
+
+// Options retrieves typed options from the context.
+// It handles both struct and pointer types for T, always looking up the base struct type.
+func Options[T any](ctx context.Context) T {
+	var zero T
+	t := reflect.TypeOf(zero)
+	isPtr := t.Kind() == reflect.Pointer
+	if isPtr {
+		t = t.Elem()
+	}
+
+	val := ctx.Value(t)
+	if val == nil {
+		return zero
+	}
+
+	if isPtr {
+		// If T is *Struct, return a pointer to the stored Struct
+		rv := reflect.New(t)
+		rv.Elem().Set(reflect.ValueOf(val))
+		return rv.Interface().(T)
+	}
+
+	return val.(T)
 }
 
 // Exec runs an external command with output directed to the current context.
 // The command runs in the current path directory.
-//
-// Example:
-//
-//	func goFormat(ctx context.Context) error {
-//	    return pocket.Exec(ctx, "go", "fmt", "./...")
-//	}
 func Exec(ctx context.Context, name string, args ...string) error {
 	ec := getExecContext(ctx)
-	// In collect mode, don't execute - just return success
 	if ec.mode == modeCollect {
 		return nil
 	}
 	cmd := newCommand(ctx, name, args...)
 	cmd.Stdout = ec.out.Stdout
 	cmd.Stderr = ec.out.Stderr
-	// Always run from git root, or the specified path relative to it.
 	if ec.path != "" {
 		cmd.Dir = FromGitRoot(ec.path)
 	} else {
@@ -122,16 +142,8 @@ func Exec(ctx context.Context, name string, args ...string) error {
 }
 
 // ExecIn runs an external command in a specific directory.
-// Use this when you need to run a command in a directory other than the current path.
-//
-// Example:
-//
-//	func updateDeps(ctx context.Context) error {
-//	    return pocket.ExecIn(ctx, ".pocket", "go", "mod", "tidy")
-//	}
 func ExecIn(ctx context.Context, dir, name string, args ...string) error {
 	ec := getExecContext(ctx)
-	// In collect mode, don't execute - just return success
 	if ec.mode == modeCollect {
 		return nil
 	}
@@ -143,11 +155,6 @@ func ExecIn(ctx context.Context, dir, name string, args ...string) error {
 }
 
 // Printf writes formatted output to stdout.
-// In collect mode, this is a no-op.
-//
-// Example:
-//
-//	pocket.Printf(ctx, "Processing %s...\n", path)
 func Printf(ctx context.Context, format string, args ...any) {
 	ec := getExecContext(ctx)
 	if ec.mode == modeCollect {
@@ -157,11 +164,6 @@ func Printf(ctx context.Context, format string, args ...any) {
 }
 
 // Println writes a line to stdout.
-// In collect mode, this is a no-op.
-//
-// Example:
-//
-//	pocket.Println(ctx, "Done")
 func Println(ctx context.Context, args ...any) {
 	ec := getExecContext(ctx)
 	if ec.mode == modeCollect {
@@ -171,7 +173,6 @@ func Println(ctx context.Context, args ...any) {
 }
 
 // printTaskHeader writes the task execution header to output.
-// Format: ":: task-name" or ":: task-name [path]" when running in a specific path.
 func printTaskHeader(ctx context.Context, name string) {
 	ec := getExecContext(ctx)
 	if ec.path != "" && ec.path != "." {
@@ -181,39 +182,7 @@ func printTaskHeader(ctx context.Context, name string) {
 	}
 }
 
-// Options retrieves typed options from the context.
-// Returns zero value if no options are set.
-//
-// Example:
-//
-//	type LintOptions struct {
-//	    Config string
-//	}
-//
-//	func goLint(ctx context.Context) error {
-//	    opts := pocket.Options[LintOptions](ctx)
-//	    return pocket.Exec(ctx, "golangci-lint", "run", "-c", opts.Config)
-//	}
-func Options[T any](ctx context.Context) T {
-	ec := getExecContext(ctx)
-	// Search through all stored options for one matching type T
-	var zero T
-	for _, opts := range ec.opts {
-		if typed, ok := opts.(T); ok {
-			return typed
-		}
-	}
-	return zero
-}
-
 // Path returns the current execution path (relative to git root).
-// Returns "." if no path is set.
-//
-// Example:
-//
-//	func formatTask(ctx context.Context) error {
-//	    return pocket.Exec(ctx, "fmt", pocket.Path(ctx))
-//	}
 func Path(ctx context.Context) string {
 	ec := getExecContext(ctx)
 	if ec.path == "" {
@@ -233,13 +202,11 @@ func CWD(ctx context.Context) string {
 }
 
 // GetOutput returns the current output writers.
-// Use this when you need direct access to stdout/stderr writers.
 func GetOutput(ctx context.Context) *Output {
 	return getExecContext(ctx).out
 }
 
 // Errorf writes formatted output to stderr.
-// In collect mode, this is a no-op.
 func Errorf(ctx context.Context, format string, args ...any) {
 	ec := getExecContext(ctx)
 	if ec.mode == modeCollect {
@@ -249,17 +216,6 @@ func Errorf(ctx context.Context, format string, args ...any) {
 }
 
 // TestContext creates a context suitable for testing.
-// It sets up an execContext with the given output and working directory ".".
-//
-// Example:
-//
-//	func TestMyTask(t *testing.T) {
-//	    out := pocket.StdOutput()
-//	    ctx := pocket.TestContext(out)
-//	    if err := myTask(ctx); err != nil {
-//	        t.Fatal(err)
-//	    }
-//	}
 func TestContext(out *Output) context.Context {
 	ec := newExecContext(out, ".", false)
 	return withExecContext(context.Background(), ec)

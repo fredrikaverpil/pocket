@@ -135,7 +135,6 @@ func (e *Engine) Plan(ctx context.Context) (*ExecutionPlan, error) {
 		out:     discardOutput(),
 		cwd:     ".",
 		verbose: false,
-		opts:    make(map[string]any),
 		dedup:   newDedupState(),
 		plan:    plan,
 	}

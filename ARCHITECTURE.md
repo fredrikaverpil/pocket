@@ -77,15 +77,13 @@ A `FuncDef` represents a named function:
 type FuncDef struct {
     name   string                          // CLI command name
     usage  string                          // help text
-    fn     func(context.Context) error     // plain implementation
-    body   Runnable                        // OR composed body (Serial/Parallel)
-    opts   any                             // CLI options struct
+    body   Runnable                        // implementation (plain function or composition)
+    opts   any                             // default CLI options
     hidden bool                            // hide from help
 }
 ```
 
-A FuncDef has either `fn` (plain function) or `body` (composed Runnable), never
-both. When `body` is set, calling the function walks its entire subtree.
+A FuncDef wraps a `Runnable` body. Plain functions are automatically wrapped in an internal `funcRunnable` during creation via `Func()`. Calling the function walks its entire subtree.
 
 ### Composition
 
@@ -322,10 +320,11 @@ type execContext struct {
     path    string              // current path (set by PathFilter)
     cwd     string              // where CLI was invoked
     verbose bool                // verbose mode
-    opts    map[string]any      // function name → parsed options
     dedup   *dedupState         // shared deduplication state
 }
 ```
+
+Options are stored directly in the `context.Context` keyed by their type, ensuring thread-safety during parallel execution.
 
 ### Helpers
 
