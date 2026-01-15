@@ -47,8 +47,6 @@ func detectCwd() string {
 // pathMappings maps function names to their PathFilter configuration.
 // Functions not in pathMappings are only visible when running from the git root.
 // builtinFuncs are always-available tasks shown under "Built-in tasks" in help.
-//
-// Note: Will be renamed to Main after removing old code.
 func Main(
 	funcs []*FuncDef,
 	allFunc *FuncDef,

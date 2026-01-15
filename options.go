@@ -209,16 +209,6 @@ func convertCase(s string, sep byte) string {
 	return string(result)
 }
 
-// FirstOrZero returns the first element of items, or the zero value of T if empty.
-// This is useful for optional variadic parameters.
-func FirstOrZero[T any](items ...T) T {
-	if len(items) > 0 {
-		return items[0]
-	}
-	var zero T
-	return zero
-}
-
 // formatArgDefault formats a default value for display.
 func formatArgDefault(v any) string {
 	switch val := v.(type) {

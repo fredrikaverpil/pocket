@@ -176,16 +176,6 @@ func Println(ctx context.Context, args ...any) {
 	fmt.Fprintln(ec.out.Stdout, args...)
 }
 
-// Errorf writes formatted output to stderr.
-// In collect mode, this is a no-op.
-func Errorf(ctx context.Context, format string, args ...any) {
-	ec := getExecContext(ctx)
-	if ec.mode == modeCollect {
-		return
-	}
-	fmt.Fprintf(ec.out.Stderr, format, args...)
-}
-
 // printTaskHeader writes the task execution header to output.
 // Format: ":: task-name" or ":: task-name [path]" when running in a specific path.
 func printTaskHeader(ctx context.Context, name string) {
@@ -238,36 +228,30 @@ func Path(ctx context.Context) string {
 	return ec.path
 }
 
-// CWD returns where the CLI was invoked (relative to git root).
-func CWD(ctx context.Context) string {
-	return getExecContext(ctx).cwd
-}
-
 // Verbose returns whether verbose mode is enabled.
 func Verbose(ctx context.Context) bool {
 	return getExecContext(ctx).verbose
 }
 
-// Output returns the current output writers.
+// CWD returns where the CLI was invoked (relative to git root).
+func CWD(ctx context.Context) string {
+	return getExecContext(ctx).cwd
+}
+
+// GetOutput returns the current output writers.
 // Use this when you need direct access to stdout/stderr writers.
 func GetOutput(ctx context.Context) *Output {
 	return getExecContext(ctx).out
 }
 
-// TaskContext provides runtime data for functions.
-// This is a compatibility type for functions that need output writers.
-type TaskContext struct {
-	Path    string  // the path for this invocation (relative to git root)
-	Verbose bool    // verbose mode
-	Out     *Output // output writers
-}
-
-// Command creates an exec.Cmd with output wired to this context's output writers.
-func (tc *TaskContext) Command(ctx context.Context, name string, args ...string) *exec.Cmd {
-	cmd := newCommand(ctx, name, args...)
-	cmd.Stdout = tc.Out.Stdout
-	cmd.Stderr = tc.Out.Stderr
-	return cmd
+// Errorf writes formatted output to stderr.
+// In collect mode, this is a no-op.
+func Errorf(ctx context.Context, format string, args ...any) {
+	ec := getExecContext(ctx)
+	if ec.mode == modeCollect {
+		return
+	}
+	fmt.Fprintf(ec.out.Stderr, format, args...)
 }
 
 // TestContext creates a context suitable for testing.

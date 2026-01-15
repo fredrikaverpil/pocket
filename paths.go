@@ -9,16 +9,12 @@ import (
 
 // Paths wraps a Runnable with path filtering capabilities.
 // The returned *PathFilter can be configured with builder methods.
-//
-// Note: Will be renamed to Paths after removing old code.
 func Paths(r Runnable) *PathFilter {
 	return &PathFilter{inner: r}
 }
 
 // PathFilter wraps a Runnable with path filtering.
 // It implements Runnable, so it can be used anywhere a Runnable is expected.
-//
-// Note: Will be renamed to PathFilter after removing old code.
 type PathFilter struct {
 	inner     Runnable
 	include   []*regexp.Regexp // explicit include patterns
@@ -170,28 +166,10 @@ func (p *PathFilter) run(ctx context.Context) error {
 	return nil
 }
 
-// runWithSkips runs the inner runnable, respecting skip rules for this path.
-func (p *PathFilter) runWithSkips(ctx context.Context, path string) error {
-	// Build set of functions to skip for this path
-	skipped := make(map[string]bool)
-	for _, rule := range p.skipRules {
-		if len(rule.paths) == 0 {
-			// Skip everywhere
-			skipped[rule.funcName] = true
-		} else if slices.Contains(rule.paths, path) {
-			// Skip only in specific paths
-			skipped[rule.funcName] = true
-		}
-	}
-
-	// If no skips, just run the inner runnable
-	if len(skipped) == 0 {
-		return p.inner.run(ctx)
-	}
-
-	// Otherwise, we need to filter functions
-	// For now, run the inner runnable - skip filtering happens at a higher level
-	// TODO: Implement proper function filtering during execution
+// runWithSkips runs the inner runnable.
+// Skip filtering for visibility is handled by funcs().
+// TODO: Implement path-specific skip filtering during execution.
+func (p *PathFilter) runWithSkips(ctx context.Context, _ string) error {
 	return p.inner.run(ctx)
 }
 
@@ -270,8 +248,6 @@ func containsRegexMeta(s string) bool {
 
 // CollectPathMappings walks a Runnable tree and returns a map from function name to PathFilter.
 // Functions not wrapped with Paths() are not included in the map.
-//
-// Note: Will be renamed to CollectPathMappings after removing old code.
 func CollectPathMappings(r Runnable) map[string]*PathFilter {
 	result := make(map[string]*PathFilter)
 	collectPathMappingsRecursive(r, result, nil)
@@ -280,8 +256,6 @@ func CollectPathMappings(r Runnable) map[string]*PathFilter {
 
 // CollectModuleDirectories walks a Runnable tree and returns all unique directories
 // where functions should run. This is used for multi-module shim generation.
-//
-// Note: Will be renamed to CollectModuleDirectories after removing old code.
 func CollectModuleDirectories(r Runnable) []string {
 	seen := make(map[string]bool)
 	collectModuleDirectoriesRecursive(r, seen)
@@ -309,12 +283,6 @@ func collectModuleDirectoriesRecursive(r Runnable, seen map[string]bool) {
 		// Continue with the inner runnable.
 		collectModuleDirectoriesRecursive(p.inner, seen)
 		return
-	}
-
-	// For other Runnables (serial, parallel), recurse into children via funcs().
-	for _, fn := range r.funcs() {
-		// FuncDefs don't have children, so nothing to recurse into.
-		_ = fn
 	}
 
 	// Check if it's a group type with runnables.
