@@ -10,7 +10,7 @@ jobs:
   please:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: release-please config
         id: release-please-config
         run: |
