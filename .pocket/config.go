@@ -8,15 +8,14 @@ import (
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
+// Config is the pocket configuration for this project.
 var Config = pocket.Config{
-	// AutoRun: tasks that run on ./pok (no arguments).
-	AutoRun: pocket.Parallel(
-		pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-		pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
+	AutoRun: pocket.Serial(
+		pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
+		pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()),
 	),
-	// ManualRun: tasks that require ./pok <taskname>.
 	ManualRun: []pocket.Runnable{
-		greetTask,
+		Greet,
 	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
@@ -27,20 +26,26 @@ var Config = pocket.Config{
 
 // GreetOptions defines the options for the greet task.
 type GreetOptions struct {
-	Name string `usage:"name to greet"`
+	Name  string `arg:"name" usage:"name to greet"`
+	Count int    `arg:"count" usage:"number of times to greet"`
 }
 
-// greetAction is the action for the greet task.
-func greetAction(_ context.Context, tc *pocket.TaskContext) error {
-	opts := pocket.GetOptions[GreetOptions](tc)
+// Greet is a demo task that prints a greeting.
+var Greet = pocket.Func("greet", "print a greeting message", greet).
+	With(GreetOptions{Name: "world", Count: 1})
+
+func greet(ctx context.Context) error {
+	opts := pocket.Options[GreetOptions](ctx)
 	name := opts.Name
 	if name == "" {
 		name = "world"
 	}
-	tc.Out.Printf("Hello, %s!\n", name)
+	count := opts.Count
+	if count <= 0 {
+		count = 1
+	}
+	for i := 0; i < count; i++ {
+		pocket.Printf(ctx, "Hello, %s!\n", name)
+	}
 	return nil
 }
-
-// greetTask demonstrates the new task pattern.
-var greetTask = pocket.NewTask("greet", "print a greeting message", greetAction).
-	WithOptions(GreetOptions{Name: "world"})

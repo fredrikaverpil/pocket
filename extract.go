@@ -249,27 +249,3 @@ func resolveOutputName(fullPath, baseName string, cfg *extractConfig) (string, b
 
 	return "", false
 }
-
-// CopyFile copies src to dst with executable permissions (0755).
-func CopyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("open source: %w", err)
-	}
-	defer in.Close()
-
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("create parent directory: %w", err)
-	}
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return fmt.Errorf("create destination: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return fmt.Errorf("copy: %w", err)
-	}
-	return out.Chmod(0o755)
-}

@@ -1,5 +1,7 @@
 package pocket
 
+import "context"
+
 // Config defines the configuration for a project using pocket.
 type Config struct {
 	// AutoRun defines the execution tree for ./pok (no arguments).
@@ -9,8 +11,8 @@ type Config struct {
 	// Example:
 	//
 	//	AutoRun: pocket.Serial(
-	//	    pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-	//	    pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
+	//	    pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
+	//	    pocket.Paths(python.Workflow()).DetectBy(python.Detect()),
 	//	),
 	AutoRun Runnable
 
@@ -69,4 +71,19 @@ func (c Config) WithDefaults() Config {
 	c.Shim = &shim
 
 	return c
+}
+
+// Cmd defines a manual command that can be invoked with ./pok <name>.
+// Unlike auto-run functions, commands don't participate in path filtering
+// and are responsible for their own argument parsing.
+type Cmd struct {
+	// Name is the command name used on the CLI (e.g., "deploy").
+	Name string
+
+	// Usage is the short description shown in help output.
+	Usage string
+
+	// Run is the function to execute when the command is invoked.
+	// It receives the context and any remaining command-line arguments.
+	Run func(ctx context.Context, args []string) error
 }

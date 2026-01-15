@@ -51,7 +51,7 @@ func WithFormat(format string) DownloadOpt {
 //
 // Example:
 //
-//	Download(ctx, tc, url,
+//	Download(ctx, url,
 //	    WithExtract(WithRenameFile("tool-1.0.0/tool", "tool")),
 //	    WithExtract(WithExtractFile("LICENSE")),
 //	)
@@ -85,17 +85,17 @@ func WithHTTPHeader(key, value string) DownloadOpt {
 }
 
 // Download fetches a URL and optionally extracts it.
-// Progress and status messages are written to tc.Out.
+// Progress and status messages are written to the context's output.
 //
 // Example:
 //
-//	err := Download(ctx, tc, url,
+//	err := Download(ctx, url,
 //	    WithDestDir(binDir),
 //	    WithFormat("tar.gz"),
 //	    WithExtract(WithRenameFile("tool-1.0.0/tool", "tool")),
 //	    WithSymlink(),
 //	)
-func Download(ctx context.Context, tc *TaskContext, url string, opts ...DownloadOpt) error {
+func Download(ctx context.Context, url string, opts ...DownloadOpt) error {
 	cfg := newDownloadConfig(opts)
 
 	// Check if we can skip.
@@ -118,7 +118,7 @@ func Download(ctx context.Context, tc *TaskContext, url string, opts ...Download
 		}
 	}
 
-	tc.Out.Printf("  Downloading %s\n", url)
+	Printf(ctx, "  Downloading %s\n", url)
 
 	// Download to temp file.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -170,7 +170,7 @@ func Download(ctx context.Context, tc *TaskContext, url string, opts ...Download
 
 // FromLocal processes a local file (extract/copy) with the same options as Download.
 // Useful for processing pre-downloaded or bundled archives.
-func FromLocal(_ context.Context, tc *TaskContext, path string, opts ...DownloadOpt) error {
+func FromLocal(ctx context.Context, path string, opts ...DownloadOpt) error {
 	cfg := newDownloadConfig(opts)
 
 	// Check if we can skip.
@@ -192,7 +192,7 @@ func FromLocal(_ context.Context, tc *TaskContext, path string, opts ...Download
 		}
 	}
 
-	tc.Out.Printf("  Processing %s\n", path)
+	Printf(ctx, "  Processing %s\n", path)
 
 	// Process the file.
 	binaryPath, err := processFile(path, cfg)

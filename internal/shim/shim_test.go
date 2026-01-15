@@ -391,8 +391,8 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 
 	// Create a PathFilter that includes the module directories.
 	// This simulates what AutoDetect would produce.
-	mockTask := pocket.NewTask("mock", "mock task", func(_ context.Context, _ *pocket.TaskContext) error { return nil })
-	pathFilter := pocket.Paths(mockTask).In(moduleDirs...)
+	mockFunc := pocket.Func("mock", "mock func", func(_ context.Context) error { return nil })
+	pathFilter := pocket.Paths(mockFunc).In(moduleDirs...)
 
 	cfg := pocket.Config{
 		AutoRun: pathFilter,
@@ -494,8 +494,8 @@ func TestGenerateWithRoot_DeeplyNested(t *testing.T) {
 	}
 
 	// Create a PathFilter for the deep directory.
-	mockTask := pocket.NewTask("mock", "mock task", func(_ context.Context, _ *pocket.TaskContext) error { return nil })
-	pathFilter := pocket.Paths(mockTask).In(deepDir)
+	mockFunc := pocket.Func("mock", "mock func", func(_ context.Context) error { return nil })
+	pathFilter := pocket.Paths(mockFunc).In(deepDir)
 
 	cfg := pocket.Config{
 		AutoRun: pathFilter,

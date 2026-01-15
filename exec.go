@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -55,12 +56,29 @@ func initColorEnv() {
 func commandBase(ctx context.Context, name string, args ...string) *exec.Cmd {
 	colorEnvOnce.Do(initColorEnv)
 
-	cmd := exec.CommandContext(ctx, name, args...)
-	env := PrependPath(os.Environ(), FromBinDir())
+	binDir := FromBinDir()
+	env := PrependPath(os.Environ(), binDir)
 	env = append(env, colorEnvVars...)
+
+	// If name is not a path and exists in .pocket/bin/, use the full path.
+	// This is needed because exec.Command resolves the binary using os.Getenv("PATH")
+	// at creation time, before cmd.Env takes effect.
+	if !strings.ContainsAny(name, `/\`) {
+		if binPath := filepath.Join(binDir, name); fileExists(binPath) {
+			name = binPath
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Env = env
 	setGracefulShutdown(cmd)
 	return cmd
+}
+
+// fileExists returns true if the path exists and is not a directory.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // Command creates an exec.Cmd with PATH prepended with .pocket/bin,
