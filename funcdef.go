@@ -140,8 +140,10 @@ func (f *FuncDef) run(ctx context.Context) error {
 		return nil
 	}
 
-	// Execute mode - print task header
-	printTaskHeader(ctx, f.name)
+	// Execute mode - print task header (skip for hidden tasks)
+	if !f.hidden {
+		printTaskHeader(ctx, f.name)
+	}
 
 	// Inject options into context if present
 	if f.opts != nil {

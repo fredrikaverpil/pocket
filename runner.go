@@ -52,7 +52,9 @@ func RunConfig(cfg Config) {
 			// Run generate first (unless skipped).
 			if !cfg.SkipGenerate {
 				if generateAllFn == nil {
-					return fmt.Errorf("scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold")
+					return fmt.Errorf(
+						"scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold",
+					)
 				}
 				if _, err := generateAllFn(&cfg); err != nil {
 					return fmt.Errorf("generate: %w", err)
@@ -72,7 +74,7 @@ func RunConfig(cfg Config) {
 			}
 
 			return nil
-		})
+		}).Hidden()
 	}
 
 	// Add manual run functions (if any - ManualRun is []Runnable in old Config).
