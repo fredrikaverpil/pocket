@@ -5,6 +5,7 @@ package bun
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket"
@@ -64,4 +65,26 @@ func platformArch() string {
 // On Windows, it appends .exe to the binary name.
 func BinaryPath(installDir, binaryName string) string {
 	return filepath.Join(installDir, "node_modules", ".bin", pocket.BinaryName(binaryName))
+}
+
+// InstallFromLockfile installs dependencies from package.json and bun.lock in dir.
+// Requires both files for reproducible builds with exact dependency versions.
+// The --frozen-lockfile flag prevents modifications and enforces sync.
+//
+// To update a tool's lockfile:
+//  1. Update version in package.json
+//  2. cd tools/<name> && bun install && rm -rf node_modules
+//  3. git add package.json bun.lock
+func InstallFromLockfile(ctx context.Context, dir string) error {
+	packageJSON := filepath.Join(dir, "package.json")
+	lockfile := filepath.Join(dir, "bun.lock")
+
+	if _, err := os.Stat(packageJSON); err != nil {
+		return fmt.Errorf("package.json not found in %s: %w", dir, err)
+	}
+	if _, err := os.Stat(lockfile); err != nil {
+		return fmt.Errorf("bun.lock not found in %s: %w", dir, err)
+	}
+
+	return pocket.Exec(ctx, Name, "install", "--cwd", dir, "--frozen-lockfile")
 }

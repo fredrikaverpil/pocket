@@ -1,11 +1,14 @@
 // Package prettier provides prettier (code formatter) integration.
-// prettier is installed via bun into a local directory.
+// prettier is installed via bun into a local directory with locked dependencies.
 package prettier
 
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"os"
+	"path/filepath"
+	"sync"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/bun"
@@ -14,23 +17,49 @@ import (
 // Name is the binary name for prettier.
 const Name = "prettier"
 
-// renovate: datasource=npm depName=prettier
-const Version = "3.7.4"
-
 //go:embed prettierrc.json
 var defaultConfig []byte
 
 //go:embed prettierignore
 var defaultIgnore []byte
 
+//go:embed package.json
+var packageJSON []byte
+
+//go:embed bun.lock
+var lockfile []byte
+
+var (
+	versionOnce sync.Once
+	version     string
+)
+
+// Version returns the prettier version from package.json.
+func Version() string {
+	versionOnce.Do(func() {
+		var pkg struct {
+			Dependencies map[string]string `json:"dependencies"`
+		}
+		if err := json.Unmarshal(packageJSON, &pkg); err == nil {
+			version = pkg.Dependencies[Name]
+		}
+	})
+	return version
+}
+
 // Install ensures prettier is available.
+//
+// To update prettier version:
+//  1. Update version in package.json
+//  2. cd tools/prettier && bun install && rm -rf node_modules
+//  3. git add package.json bun.lock
 var Install = pocket.Func("install:prettier", "install prettier", pocket.Serial(
 	bun.Install,
 	install,
 )).Hidden()
 
 func install(ctx context.Context) error {
-	installDir := pocket.FromToolsDir(Name, Version)
+	installDir := pocket.FromToolsDir(Name, Version())
 	binary := bun.BinaryPath(installDir, Name)
 
 	// Skip if already installed.
@@ -39,13 +68,19 @@ func install(ctx context.Context) error {
 		return err
 	}
 
-	// Create install directory.
+	// Create install directory and write lockfile.
 	if err := os.MkdirAll(installDir, 0o755); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644); err != nil {
+		return err
+	}
 
-	// Install prettier using bun.
-	if err := pocket.Exec(ctx, bun.Name, "install", "--cwd", installDir, Name+"@"+Version); err != nil {
+	// Install prettier using bun with frozen lockfile.
+	if err := bun.InstallFromLockfile(ctx, installDir); err != nil {
 		return err
 	}
 
