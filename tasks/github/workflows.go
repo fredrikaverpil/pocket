@@ -22,6 +22,7 @@ type WorkflowsOptions struct {
 	SkipPR      bool `arg:"skip-pr"      usage:"exclude PR workflow"`
 	SkipRelease bool `arg:"skip-release" usage:"exclude release-please workflow"`
 	SkipStale   bool `arg:"skip-stale"   usage:"exclude stale workflow"`
+	SkipSync    bool `arg:"skip-sync"    usage:"exclude sync workflow"`
 }
 
 // PocketConfig holds configuration for the pocket workflow template.
@@ -89,6 +90,7 @@ func workflows(ctx context.Context) error {
 		{"pr.yml.tmpl", "pr.yml", nil, !opts.SkipPR},
 		{"release.yml.tmpl", "release.yml", nil, !opts.SkipRelease},
 		{"stale.yml.tmpl", "stale.yml", staleConfig, !opts.SkipStale},
+		{"sync.yml.tmpl", "sync.yml", nil, !opts.SkipSync},
 	}
 
 	copied := 0
