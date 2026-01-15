@@ -68,7 +68,7 @@ func RunConfig(cfg Config) {
 	}
 
 	// Call the CLI main function.
-	cliMain(allFuncs, allFunc, nil, pathMappings, autoRunNames, builtinFuncs)
+	cliMain(allFuncs, allFunc, pathMappings, autoRunNames, builtinFuncs)
 }
 
 // validateNoDuplicateFuncs checks that no two functions have the same name.

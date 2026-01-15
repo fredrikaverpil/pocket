@@ -50,19 +50,17 @@ func detectCwd() string {
 func cliMain(
 	funcs []*FuncDef,
 	allFunc *FuncDef,
-	cmds []Cmd,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
 	builtinFuncs []*FuncDef,
 ) {
-	os.Exit(cliRun(funcs, allFunc, cmds, pathMappings, autoRunNames, builtinFuncs))
+	os.Exit(cliRun(funcs, allFunc, pathMappings, autoRunNames, builtinFuncs))
 }
 
 // cliRun parses flags and runs functions, returning the exit code.
 func cliRun(
 	funcs []*FuncDef,
 	allFunc *FuncDef,
-	cmds []Cmd,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
 	builtinFuncs []*FuncDef,
@@ -77,7 +75,7 @@ func cliRun(
 	visibleFuncs := filterFuncsByCwd(funcs, cwd, pathMappings)
 
 	flag.Usage = func() {
-		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
+		printHelp(visibleFuncs, autoRunNames, builtinFuncs)
 	}
 	flag.Parse()
 
@@ -90,12 +88,6 @@ func cliRun(
 		funcMap[f.name] = f
 	}
 
-	// Build command map for lookup.
-	cmdMap := make(map[string]Cmd, len(cmds))
-	for _, c := range cmds {
-		cmdMap[c.Name] = c
-	}
-
 	args := flag.Args()
 
 	// Handle help: ./pok -h or ./pok -h funcname
@@ -105,14 +97,10 @@ func cliRun(
 				printFuncHelp(f)
 				return 0
 			}
-			if c, ok := cmdMap[args[0]]; ok {
-				printCmdHelp(c)
-				return 0
-			}
-			fmt.Fprintf(os.Stderr, "unknown function or command: %s\n", args[0])
+			fmt.Fprintf(os.Stderr, "unknown function: %s\n", args[0])
 			return 1
 		}
-		printHelp2(visibleFuncs, cmds, autoRunNames, builtinFuncs)
+		printHelp(visibleFuncs, autoRunNames, builtinFuncs)
 		return 0
 	}
 
@@ -122,8 +110,6 @@ func cliRun(
 
 	// Determine what to run.
 	var funcToRun *FuncDef
-	var cmdToRun *Cmd
-	var cmdArgs []string
 
 	if len(args) == 0 {
 		// No arguments: run all autorun functions.
@@ -159,25 +145,13 @@ func cliRun(
 					funcToRun = f.With(parsedOpts)
 				}
 			}
-		} else if c, ok := cmdMap[name]; ok {
-			cmdToRun = &c
-			cmdArgs = args[1:]
 		} else {
-			fmt.Fprintf(os.Stderr, "unknown function or command: %s\n", name)
+			fmt.Fprintf(os.Stderr, "unknown function: %s\n", name)
 			return 1
 		}
 	}
 
-	// Run either a function or a command.
-	if cmdToRun != nil {
-		if err := cmdToRun.Run(ctx, cmdArgs); err != nil {
-			fmt.Fprintf(os.Stderr, "command %s failed: %v\n", cmdToRun.Name, err)
-			return 1
-		}
-		return 0
-	}
-
-	// Run the function with the new execution model.
+	// Run the function.
 	if err := runWithContext(ctx, funcToRun, StdOutput(), cwd, *verbose); err != nil {
 		fmt.Fprintf(os.Stderr, "function %s failed: %v\n", funcToRun.name, err)
 		return 1
@@ -207,8 +181,8 @@ func isFuncVisibleIn(funcName, cwd string, pathMappings map[string]*PathFilter) 
 	return cwd == "."
 }
 
-// printHelp2 prints the help message with available functions and commands.
-func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
+// printHelp prints the help message with available functions.
+func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
 	fmt.Println("Usage: pok [flags] <function> [args...]")
 	fmt.Println()
 	fmt.Println("Flags:")
@@ -256,21 +230,9 @@ func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool, buil
 		w.Flush()
 	}
 
-	if len(cmds) > 0 {
-		if len(autorun) > 0 || len(other) > 0 {
-			fmt.Println()
-		}
-		fmt.Println("Commands:")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		for _, c := range cmds {
-			fmt.Fprintf(w, "  %s\t%s\n", c.Name, c.Usage)
-		}
-		w.Flush()
-	}
-
 	// Sort and display built-in tasks.
 	if len(builtinFuncs) > 0 {
-		if len(autorun) > 0 || len(other) > 0 || len(cmds) > 0 {
+		if len(autorun) > 0 || len(other) > 0 {
 			fmt.Println()
 		}
 		fmt.Println("Functions (builtins):")
@@ -284,8 +246,8 @@ func printHelp2(funcs []*FuncDef, cmds []Cmd, autoRunNames map[string]bool, buil
 		w.Flush()
 	}
 
-	if len(autorun) == 0 && len(other) == 0 && len(cmds) == 0 && len(builtinFuncs) == 0 {
-		fmt.Println("No functions or commands available.")
+	if len(autorun) == 0 && len(other) == 0 && len(builtinFuncs) == 0 {
+		fmt.Println("No functions available.")
 	}
 }
 
@@ -316,12 +278,6 @@ func printFuncHelp(f *FuncDef) {
 		}
 	}
 	w.Flush()
-}
-
-// printCmdHelp prints help for a specific command.
-func printCmdHelp(c Cmd) {
-	fmt.Printf("%s - %s\n", c.Name, c.Usage)
-	fmt.Println("\nThis is a manual command that accepts arbitrary arguments.")
 }
 
 // parseTaskArgs and other option parsing functions are in options.go,

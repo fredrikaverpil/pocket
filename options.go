@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // argField holds metadata about a single argument field.
@@ -168,7 +169,7 @@ func parseTaskArgs(args []string) (map[string]string, bool, error) {
 			key = key[1:]
 		}
 		// Check for -key=value format.
-		if idx := indexOf(key, '='); idx >= 0 {
+		if idx := strings.IndexByte(key, '='); idx >= 0 {
 			result[key[:idx]] = key[idx+1:]
 			continue
 		}
@@ -232,14 +233,4 @@ func toLowerDash(s string) string {
 		}
 	}
 	return string(result)
-}
-
-// indexOf returns the index of the first occurrence of c in s, or -1 if not found.
-func indexOf(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
 }

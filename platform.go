@@ -3,7 +3,6 @@ package pocket
 import (
 	"runtime"
 	"strings"
-	"unicode"
 )
 
 // OS name constants matching runtime.GOOS values.
@@ -100,16 +99,6 @@ func OSToTitle(os string) string {
 //	linux -> LINUX
 func OSToUpper(os string) string {
 	return strings.ToUpper(os)
-}
-
-// toInitialCap converts a string to initial capital (first letter uppercase).
-func toInitialCap(s string) string {
-	if s == "" {
-		return ""
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
 }
 
 // DefaultArchiveFormat returns the typical archive format for the current OS.

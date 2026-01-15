@@ -3,7 +3,6 @@ package pocket
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"sync"
 )
 
@@ -141,11 +140,6 @@ func ExecIn(ctx context.Context, dir, name string, args ...string) error {
 	cmd.Stderr = ec.out.Stderr
 	cmd.Dir = dir
 	return cmd.Run()
-}
-
-// newCommand creates a new command with .pocket/bin prepended to PATH.
-func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
-	return commandBase(ctx, name, args...)
 }
 
 // Printf writes formatted output to stdout.

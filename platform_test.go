@@ -90,23 +90,6 @@ func TestOSToUpper(t *testing.T) {
 	}
 }
 
-func Test_toInitialCap(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"darwin", "Darwin"},
-		{"macOS", "MacOS"},
-		{"", ""},
-	}
-	for _, tt := range tests {
-		if got := toInitialCap(tt.input); got != tt.want {
-			t.Errorf("toInitialCap(%q) = %q, want %q", tt.input, got, tt.want)
-		}
-	}
-}
-
 func TestDefaultArchiveFormatFor(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

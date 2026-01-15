@@ -3,6 +3,7 @@ package pocket
 import (
 	"context"
 	"io"
+	"strings"
 	"sync"
 )
 
@@ -194,7 +195,7 @@ func printPlanSteps(ctx context.Context, steps []*PlanStep, indent string, showH
 				annotations = append(annotations, "skipped")
 			}
 			if len(annotations) > 0 {
-				label += " (" + joinStrings(annotations, ", ") + ")"
+				label += " (" + strings.Join(annotations, ", ") + ")"
 			}
 			if step.Usage != "" && !step.Hidden {
 				label += " - " + step.Usage
@@ -238,18 +239,6 @@ func filterPlanSteps(steps []*PlanStep, showHidden, showDedup bool) []*PlanStep 
 			continue
 		}
 		result = append(result, step)
-	}
-	return result
-}
-
-// joinStrings joins strings with a separator.
-func joinStrings(strs []string, sep string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-	result := strs[0]
-	for _, s := range strs[1:] {
-		result += sep + s
 	}
 	return result
 }

@@ -284,8 +284,8 @@ pocket.Paths(golang.Workflow()).DetectBy(golang.Detect())
 // Exclude directories
 pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).Except("vendor")
 
-// Skip specific functions in specific paths
-pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).Skip(golang.Test, "docs")
+// Combine detection with filtering
+pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).In("services/.*").Except("testdata")
 ```
 
 ## Options

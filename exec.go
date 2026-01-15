@@ -52,9 +52,9 @@ func initColorEnv() {
 	colorEnvVars = computeColorEnv(isTTY, noColor)
 }
 
-// commandBase creates an exec.Cmd with common setup but no output configuration.
-// This is used internally by Command and TaskContext.Command.
-func commandBase(ctx context.Context, name string, args ...string) *exec.Cmd {
+// newCommand creates an exec.Cmd with common setup but no output configuration.
+// This is used internally by Exec, ExecIn, Command, and InstallGo.
+func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	colorEnvOnce.Do(initColorEnv)
 
 	binDir := FromBinDir()
@@ -103,7 +103,7 @@ func fileExists(path string) bool {
 // To redirect output (e.g., for buffering in parallel execution),
 // set cmd.Stdout and cmd.Stderr after creating the command.
 func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
-	cmd := commandBase(ctx, name, args...)
+	cmd := newCommand(ctx, name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd

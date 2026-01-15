@@ -16,17 +16,10 @@ func Paths(r Runnable) *PathFilter {
 // PathFilter wraps a Runnable with path filtering.
 // It implements Runnable, so it can be used anywhere a Runnable is expected.
 type PathFilter struct {
-	inner     Runnable
-	include   []*regexp.Regexp // explicit include patterns
-	exclude   []*regexp.Regexp // exclusion patterns
-	detect    func() []string  // detection function (nil = no detection)
-	skipRules []skipRule       // function skip rules
-}
-
-// skipRule defines when to skip a function.
-type skipRule struct {
-	funcName string   // function name to skip
-	paths    []string // paths where to skip (empty = skip everywhere)
+	inner   Runnable
+	include []*regexp.Regexp // explicit include patterns
+	exclude []*regexp.Regexp // exclusion patterns
+	detect  func() []string  // detection function (nil = no detection)
 }
 
 // In adds include patterns (regexp).
@@ -57,29 +50,6 @@ func (p *PathFilter) Except(patterns ...string) *PathFilter {
 func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
 	cp := p.clone()
 	cp.detect = fn
-	return cp
-}
-
-// Skip excludes a function from execution.
-// With no paths: skip everywhere, function is hidden from CLI.
-// With paths: skip only in those paths, function remains visible in CLI.
-//
-// Examples:
-//
-//	Skip(GoTest)                      // skip everywhere
-//	Skip(GoTest, "docs")              // skip only in docs
-//	Skip(GoTest, "docs", "examples")  // skip in docs and examples
-//
-// Returns a new *PathFilter (immutable).
-func (p *PathFilter) Skip(fn *FuncDef, paths ...string) *PathFilter {
-	if fn == nil || fn.name == "" {
-		return p
-	}
-	cp := p.clone()
-	cp.skipRules = append(cp.skipRules, skipRule{
-		funcName: fn.name,
-		paths:    paths,
-	})
 	return cp
 }
 
@@ -158,58 +128,26 @@ func (p *PathFilter) run(ctx context.Context) error {
 		// Create context with the current path
 		pathCtx := withPath(ctx, path)
 
-		// Run inner runnable, skipping functions as needed
-		if err := p.runWithSkips(pathCtx, path); err != nil {
+		// Run inner runnable
+		if err := p.inner.run(pathCtx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// runWithSkips runs the inner runnable.
-// Skip filtering for visibility is handled by funcs().
-// TODO: Implement path-specific skip filtering during execution.
-func (p *PathFilter) runWithSkips(ctx context.Context, _ string) error {
-	return p.inner.run(ctx)
-}
-
-// funcs returns all functions from the inner Runnable, excluding globally skipped functions.
-// Functions with path-specific skips are still included (they run in other paths).
+// funcs returns all functions from the inner Runnable.
 func (p *PathFilter) funcs() []*FuncDef {
-	funcs := p.inner.funcs()
-	if len(p.skipRules) == 0 {
-		return funcs
-	}
-
-	// Build set of globally skipped function names (rules with no paths).
-	globalSkips := make(map[string]bool)
-	for _, rule := range p.skipRules {
-		if len(rule.paths) == 0 {
-			globalSkips[rule.funcName] = true
-		}
-	}
-	if len(globalSkips) == 0 {
-		return funcs
-	}
-
-	// Filter out globally skipped functions.
-	result := make([]*FuncDef, 0, len(funcs))
-	for _, fn := range funcs {
-		if !globalSkips[fn.name] {
-			result = append(result, fn)
-		}
-	}
-	return result
+	return p.inner.funcs()
 }
 
 // clone creates a shallow copy of PathFilter for immutability.
 func (p *PathFilter) clone() *PathFilter {
 	return &PathFilter{
-		inner:     p.inner,
-		include:   slices.Clone(p.include),
-		exclude:   slices.Clone(p.exclude),
-		detect:    p.detect,
-		skipRules: slices.Clone(p.skipRules),
+		inner:   p.inner,
+		include: slices.Clone(p.include),
+		exclude: slices.Clone(p.exclude),
+		detect:  p.detect,
 	}
 }
 
