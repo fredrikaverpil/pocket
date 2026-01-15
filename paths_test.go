@@ -146,7 +146,7 @@ func TestPaths_RootOnly(t *testing.T) {
 	}
 }
 
-func TestCollectPathMappings(t *testing.T) {
+func Test_collectPathMappings(t *testing.T) {
 	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
 	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
 	fn3 := Func("fn3", "func 3", func(_ context.Context) error { return nil })
@@ -158,7 +158,7 @@ func TestCollectPathMappings(t *testing.T) {
 
 	// Create a serial runnable with wrapped and unwrapped funcs.
 	runnable := Serial(wrapped, fn3)
-	mappings := CollectPathMappings(runnable)
+	mappings := collectPathMappings(runnable)
 
 	// fn1 and fn2 should be in mappings (from wrapped Paths).
 	if _, ok := mappings["fn1"]; !ok {

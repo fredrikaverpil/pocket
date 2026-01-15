@@ -6,20 +6,6 @@ import (
 	"strconv"
 )
 
-// TaskOptions is the type for Task.Options fields.
-// It must be a struct with exported fields of type bool, string, or int.
-// Use struct tags to customize behavior:
-//   - `usage:"description"` - help text shown in CLI
-//   - `arg:"name"` - override the CLI flag name (default: derived from field name)
-//
-// Example:
-//
-//	type FormatOptions struct {
-//	    ConfigFile string `usage:"path to config file"`
-//	    Verbose    bool   `usage:"enable verbose output"`
-//	}
-type TaskOptions = any
-
 // argField holds metadata about a single argument field.
 type argField struct {
 	Name    string       // CLI name (from tag or field name)
@@ -37,13 +23,6 @@ type argsInfo struct {
 
 // inspectArgs extracts argument metadata from a struct using reflection.
 // The struct fields should have `arg` tags for CLI names and `usage` tags for descriptions.
-//
-// Example struct:
-//
-//	type TestOptions struct {
-//	    SkipRace   bool   `arg:"skip-race" usage:"skip race detection"`
-//	    LintConfig string `arg:"lint-config" usage:"path to config file"`
-//	}
 func inspectArgs(args any) (*argsInfo, error) {
 	if args == nil {
 		return nil, nil
@@ -81,7 +60,7 @@ func inspectArgs(args any) (*argsInfo, error) {
 		// Get CLI name from tag, or use lowercase field name.
 		name := field.Tag.Get("arg")
 		if name == "" {
-			name = toLowerCamel(field.Name)
+			name = toLowerDash(field.Name)
 		}
 		if name == "-" {
 			continue // skip this field
@@ -171,42 +150,38 @@ func parseOptionsFromCLI(template any, cliArgs map[string]string) (any, error) {
 	return result.Interface(), nil
 }
 
-// parseBool parses a boolean string value.
-// Accepts: "true", "false", "1", "0", "" (empty means true, for flag-style args).
-func parseBool(s string) (bool, error) {
-	switch s {
-	case "true", "1", "":
-		return true, nil
-	case "false", "0":
-		return false, nil
-	default:
-		return false, fmt.Errorf("must be true or false")
-	}
-}
-
-// toLowerCamel converts a PascalCase string to lower-case with dashes.
-// Example: "SkipRace" -> "skip-race".
-func toLowerCamel(s string) string {
-	return convertCase(s, '-')
-}
-
-// convertCase converts a PascalCase string to lower-case with the given separator.
-func convertCase(s string, sep byte) string {
-	if s == "" {
-		return ""
-	}
-	result := make([]byte, 0, len(s)+4)
-	for i, r := range s {
-		if r >= 'A' && r <= 'Z' {
-			if i > 0 {
-				result = append(result, sep)
-			}
-			result = append(result, byte(r+'a'-'A'))
-		} else {
-			result = append(result, byte(r))
+// parseTaskArgs parses CLI arguments into a map of key=value pairs.
+// Returns (args, wantHelp, error).
+func parseTaskArgs(args []string) (map[string]string, bool, error) {
+	result := make(map[string]string)
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "-h" || arg == "--help" {
+			return nil, true, nil
 		}
+		if len(arg) == 0 || arg[0] != '-' {
+			return nil, false, fmt.Errorf("expected -key=value or -key value, got %q", arg)
+		}
+		// Remove leading dashes.
+		key := arg[1:]
+		if len(key) > 0 && key[0] == '-' {
+			key = key[1:]
+		}
+		// Check for -key=value format.
+		if idx := indexOf(key, '='); idx >= 0 {
+			result[key[:idx]] = key[idx+1:]
+			continue
+		}
+		// Check if next arg is a value.
+		if i+1 < len(args) && len(args[i+1]) > 0 && args[i+1][0] != '-' {
+			result[key] = args[i+1]
+			i++
+			continue
+		}
+		// Boolean flag.
+		result[key] = ""
 	}
-	return string(result)
+	return result, false, nil
 }
 
 // formatArgDefault formats a default value for display.
@@ -224,4 +199,47 @@ func formatArgDefault(v any) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// parseBool parses a boolean string value.
+// Accepts: "true", "false", "1", "0", "" (empty means true, for flag-style args).
+func parseBool(s string) (bool, error) {
+	switch s {
+	case "true", "1", "":
+		return true, nil
+	case "false", "0":
+		return false, nil
+	default:
+		return false, fmt.Errorf("must be true or false")
+	}
+}
+
+// toLowerDash converts a PascalCase string to lower-case with dashes.
+// Example: "SkipRace" -> "skip-race".
+func toLowerDash(s string) string {
+	if s == "" {
+		return ""
+	}
+	result := make([]byte, 0, len(s)+4)
+	for i, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				result = append(result, '-')
+			}
+			result = append(result, byte(r+'a'-'A'))
+		} else {
+			result = append(result, byte(r))
+		}
+	}
+	return string(result)
+}
+
+// indexOf returns the index of the first occurrence of c in s, or -1 if not found.
+func indexOf(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
 }

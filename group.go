@@ -322,8 +322,8 @@ func (f *funcRunnable) funcs() []*FuncDef {
 	return nil
 }
 
-// Run executes a Runnable with fresh execution context.
-func Run(ctx context.Context, r Runnable, out *Output, cwd string, verbose bool) error {
+// runWithContext executes a Runnable with fresh execution context.
+func runWithContext(ctx context.Context, r Runnable, out *Output, cwd string, verbose bool) error {
 	ec := newExecContext(out, cwd, verbose)
 	ctx = withExecContext(ctx, ec)
 	return r.run(ctx)

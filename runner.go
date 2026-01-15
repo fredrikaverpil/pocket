@@ -39,7 +39,7 @@ func RunConfig(cfg Config) {
 
 	if cfg.AutoRun != nil {
 		allFuncs = cfg.AutoRun.funcs()
-		pathMappings = CollectPathMappings(cfg.AutoRun)
+		pathMappings = collectPathMappings(cfg.AutoRun)
 		for _, f := range allFuncs {
 			autoRunNames[f.name] = true
 		}
@@ -68,7 +68,7 @@ func RunConfig(cfg Config) {
 	}
 
 	// Call the CLI main function.
-	Main(allFuncs, allFunc, nil, pathMappings, autoRunNames, builtinFuncs)
+	cliMain(allFuncs, allFunc, nil, pathMappings, autoRunNames, builtinFuncs)
 }
 
 // validateNoDuplicateFuncs checks that no two functions have the same name.

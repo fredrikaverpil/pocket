@@ -246,9 +246,9 @@ func containsRegexMeta(s string) bool {
 	return strings.ContainsAny(s, `.+*?[](){}|^$\`)
 }
 
-// CollectPathMappings walks a Runnable tree and returns a map from function name to PathFilter.
+// collectPathMappings walks a Runnable tree and returns a map from function name to PathFilter.
 // Functions not wrapped with Paths() are not included in the map.
-func CollectPathMappings(r Runnable) map[string]*PathFilter {
+func collectPathMappings(r Runnable) map[string]*PathFilter {
 	result := make(map[string]*PathFilter)
 	collectPathMappingsRecursive(r, result, nil)
 	return result
@@ -298,7 +298,7 @@ func collectModuleDirectoriesRecursive(r Runnable, seen map[string]bool) {
 	}
 }
 
-// collectPathMappingsRecursive is the recursive helper for CollectPathMappings.
+// collectPathMappingsRecursive is the recursive helper for collectPathMappings.
 func collectPathMappingsRecursive(r Runnable, result map[string]*PathFilter, currentPaths *PathFilter) {
 	if r == nil {
 		return

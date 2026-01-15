@@ -102,9 +102,8 @@ func OSToUpper(os string) string {
 	return strings.ToUpper(os)
 }
 
-// ToInitialCap converts a string to initial capital (first letter uppercase).
-// This is an alias for OSToTitle but works on any string.
-func ToInitialCap(s string) string {
+// toInitialCap converts a string to initial capital (first letter uppercase).
+func toInitialCap(s string) string {
 	if s == "" {
 		return ""
 	}

@@ -90,7 +90,7 @@ func TestOSToUpper(t *testing.T) {
 	}
 }
 
-func TestToInitialCap(t *testing.T) {
+func Test_toInitialCap(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		input string
@@ -101,8 +101,8 @@ func TestToInitialCap(t *testing.T) {
 		{"", ""},
 	}
 	for _, tt := range tests {
-		if got := ToInitialCap(tt.input); got != tt.want {
-			t.Errorf("ToInitialCap(%q) = %q, want %q", tt.input, got, tt.want)
+		if got := toInitialCap(tt.input); got != tt.want {
+			t.Errorf("toInitialCap(%q) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
 }

@@ -40,14 +40,14 @@ func detectCwd() string {
 	return rel
 }
 
-// Main is the entry point for the CLI (v2).
+// cliMain is the entry point for the CLI.
 // It parses flags, handles -h/--help, and runs the specified function(s).
 // If no function is specified, runs all autorun functions.
 //
 // pathMappings maps function names to their PathFilter configuration.
 // Functions not in pathMappings are only visible when running from the git root.
 // builtinFuncs are always-available tasks shown under "Built-in tasks" in help.
-func Main(
+func cliMain(
 	funcs []*FuncDef,
 	allFunc *FuncDef,
 	cmds []Cmd,
@@ -55,11 +55,11 @@ func Main(
 	autoRunNames map[string]bool,
 	builtinFuncs []*FuncDef,
 ) {
-	os.Exit(run(funcs, allFunc, cmds, pathMappings, autoRunNames, builtinFuncs))
+	os.Exit(cliRun(funcs, allFunc, cmds, pathMappings, autoRunNames, builtinFuncs))
 }
 
-// run parses flags and runs functions, returning the exit code.
-func run(
+// cliRun parses flags and runs functions, returning the exit code.
+func cliRun(
 	funcs []*FuncDef,
 	allFunc *FuncDef,
 	cmds []Cmd,
@@ -178,7 +178,7 @@ func run(
 	}
 
 	// Run the function with the new execution model.
-	if err := Run(ctx, funcToRun, StdOutput(), cwd, *verbose); err != nil {
+	if err := runWithContext(ctx, funcToRun, StdOutput(), cwd, *verbose); err != nil {
 		fmt.Fprintf(os.Stderr, "function %s failed: %v\n", funcToRun.name, err)
 		return 1
 	}
@@ -324,46 +324,5 @@ func printCmdHelp(c Cmd) {
 	fmt.Println("\nThis is a manual command that accepts arbitrary arguments.")
 }
 
-// parseTaskArgs parses CLI arguments into a map of key=value pairs.
-// Returns (args, wantHelp, error).
-func parseTaskArgs(args []string) (map[string]string, bool, error) {
-	result := make(map[string]string)
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == "-h" || arg == "--help" {
-			return nil, true, nil
-		}
-		if len(arg) == 0 || arg[0] != '-' {
-			return nil, false, fmt.Errorf("expected -key=value or -key value, got %q", arg)
-		}
-		// Remove leading dashes.
-		key := arg[1:]
-		if len(key) > 0 && key[0] == '-' {
-			key = key[1:]
-		}
-		// Check for -key=value format.
-		if idx := indexOf(key, '='); idx >= 0 {
-			result[key[:idx]] = key[idx+1:]
-			continue
-		}
-		// Check if next arg is a value.
-		if i+1 < len(args) && len(args[i+1]) > 0 && args[i+1][0] != '-' {
-			result[key] = args[i+1]
-			i++
-			continue
-		}
-		// Boolean flag.
-		result[key] = ""
-	}
-	return result, false, nil
-}
-
-// indexOf returns the index of the first occurrence of c in s, or -1 if not found.
-func indexOf(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
+// parseTaskArgs and other option parsing functions are in options.go,
+// which delegates to internal/cli.

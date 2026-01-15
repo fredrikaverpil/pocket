@@ -119,6 +119,11 @@ func (f *FuncDef) IsHidden() bool {
 	return f.hidden
 }
 
+// Opts returns the function's options, or nil if none.
+func (f *FuncDef) Opts() any {
+	return f.opts
+}
+
 // run executes this function with the given context.
 // This is called by the framework - users should not call this directly.
 func (f *FuncDef) run(ctx context.Context) (err error) {
