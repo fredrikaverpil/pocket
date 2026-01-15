@@ -9,11 +9,11 @@ import (
 
 // LintOptions configures the go-lint task.
 type LintOptions struct {
-	Config string `arg:"config" usage:"path to golangci-lint config file"`
-	Fix    bool   `arg:"fix"    usage:"auto-fix issues"`
+	Config  string `arg:"config"   usage:"path to golangci-lint config file"`
+	SkipFix bool   `arg:"skip-fix" usage:"don't auto-fix issues"`
 }
 
-// Lint runs golangci-lint.
+// Lint runs golangci-lint with auto-fix enabled by default.
 var Lint = pocket.Func("go-lint", "run golangci-lint", pocket.Serial(
 	golangcilint.Install,
 	lint,
@@ -28,7 +28,7 @@ func lint(ctx context.Context) error {
 	} else if configPath, err := pocket.ConfigPath("golangci-lint", golangcilint.Config); err == nil && configPath != "" {
 		args = append(args, "-c", configPath)
 	}
-	if opts.Fix {
+	if !opts.SkipFix {
 		args = append(args, "--fix")
 	}
 	args = append(args, "./...")

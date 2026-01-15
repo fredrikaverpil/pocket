@@ -11,9 +11,10 @@ import (
 // LintOptions configures the py-lint task.
 type LintOptions struct {
 	RuffConfig string `arg:"ruff-config" usage:"path to ruff config file"`
+	SkipFix    bool   `arg:"skip-fix"    usage:"don't auto-fix issues"`
 }
 
-// Lint lints Python files using ruff check.
+// Lint lints Python files using ruff check with auto-fix enabled by default.
 var Lint = pocket.Func("py-lint", "lint Python files", pocket.Serial(
 	ruff.Install,
 	lint,
@@ -31,6 +32,9 @@ func lint(ctx context.Context) error {
 	}
 
 	args := []string{"check"}
+	if !opts.SkipFix {
+		args = append(args, "--fix")
+	}
 	if configPath != "" {
 		args = append(args, "--config", configPath)
 	}

@@ -32,7 +32,7 @@ func WithTest(opts TestOptions) Option {
 // Workflow returns a Runnable that executes all Python tasks.
 // Use pocket.Paths(python.Workflow()).DetectBy(python.Detect()) to enable path filtering.
 //
-// Execution order: format runs first, then lint and typecheck run in parallel, then test.
+// Execution order: format, lint, typecheck, then test (serial since format/lint modify files).
 //
 // Example with options:
 //
@@ -61,7 +61,8 @@ func Workflow(opts ...Option) pocket.Runnable {
 		testTask = Test.With(cfg.test)
 	}
 
-	return pocket.Serial(formatTask, pocket.Parallel(lintTask, Typecheck), testTask)
+	// Run format and lint in serial since both modify files
+	return pocket.Serial(formatTask, lintTask, Typecheck, testTask)
 }
 
 // Detect returns a detection function that finds Python projects.
