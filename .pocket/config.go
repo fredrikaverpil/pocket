@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/tasks/github"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
@@ -16,6 +17,7 @@ var Config = pocket.Config{
 	),
 	ManualRun: []pocket.Runnable{
 		Greet,
+		github.Workflows.With(github.WorkflowsOptions(github.WorkflowsOptions{Force: true})),
 	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
