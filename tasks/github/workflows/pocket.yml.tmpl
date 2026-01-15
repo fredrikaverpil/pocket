@@ -7,7 +7,11 @@ on:
 
 jobs:
   pocket:
-    runs-on: ubuntu-latest
+    runs-on: {{`${{ matrix.os }}`}}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [{{.Platforms}}]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go

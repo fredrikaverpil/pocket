@@ -26,6 +26,18 @@ type WorkflowsOptions struct {
 	Force   bool `arg:"force"   usage:"overwrite existing workflow files"`
 }
 
+// PocketConfig holds configuration for the pocket workflow template.
+type PocketConfig struct {
+	Platforms string // comma-separated list of platforms (e.g., "ubuntu-latest, macos-latest")
+}
+
+// DefaultPocketConfig returns the default pocket workflow configuration.
+func DefaultPocketConfig() PocketConfig {
+	return PocketConfig{
+		Platforms: "ubuntu-latest",
+	}
+}
+
 // StaleConfig holds configuration for the stale workflow template.
 type StaleConfig struct {
 	DaysBeforeStale int
@@ -72,10 +84,11 @@ func workflows(ctx context.Context) error {
 		include  bool
 	}
 
+	pocketConfig := DefaultPocketConfig()
 	staleConfig := DefaultStaleConfig()
 
 	workflowDefs := []workflowDef{
-		{"pocket.yml.tmpl", "pocket.yml", nil, includeAll || opts.Pocket},
+		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, includeAll || opts.Pocket},
 		{"pr.yml.tmpl", "pr.yml", nil, includeAll || opts.PR},
 		{"release.yml.tmpl", "release.yml", nil, includeAll || opts.Release},
 		{"stale.yml.tmpl", "stale.yml", staleConfig, includeAll || opts.Stale},
