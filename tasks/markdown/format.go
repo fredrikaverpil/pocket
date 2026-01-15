@@ -41,7 +41,7 @@ func format(ctx context.Context) error {
 
 	args = append(args, "**/*.md")
 
-	if err := pocket.Exec(ctx, prettier.Name, args...); err != nil {
+	if err := prettier.Exec(ctx, args...); err != nil {
 		return fmt.Errorf("prettier failed: %w", err)
 	}
 	return nil

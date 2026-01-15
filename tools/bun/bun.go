@@ -88,3 +88,15 @@ func InstallFromLockfile(ctx context.Context, dir string) error {
 
 	return pocket.Exec(ctx, Name, "install", "--cwd", dir, "--frozen-lockfile")
 }
+
+// Run executes a package installed via bun.
+// Instead of using the node_modules/.bin shim (which fails on Windows),
+// this runs the package's main script directly via bun as the runtime.
+func Run(ctx context.Context, installDir, packageName string, args ...string) error {
+	// Run the package's bin script directly with bun as the runtime.
+	// This avoids Windows shim issues while preserving the current working directory.
+	binPath := BinaryPath(installDir, packageName)
+	runArgs := []string{binPath}
+	runArgs = append(runArgs, args...)
+	return pocket.Exec(ctx, Name, runArgs...)
+}

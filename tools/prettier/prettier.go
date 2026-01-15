@@ -121,3 +121,10 @@ func EnsureIgnoreFile() (string, error) {
 	}
 	return ignoreFile, nil
 }
+
+// Exec runs prettier with the given arguments.
+// Uses bun.Run internally for cross-platform reliability (avoids Windows shim issues).
+func Exec(ctx context.Context, args ...string) error {
+	installDir := pocket.FromToolsDir(Name, Version())
+	return bun.Run(ctx, installDir, Name, args...)
+}

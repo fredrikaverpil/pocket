@@ -24,19 +24,21 @@ type toolTest struct {
 	install     *pocket.FuncDef
 	binary      string
 	versionArgs []string
+	// customExec is used for tools that need special execution (e.g., prettier via bun).
+	customExec func(ctx context.Context, args ...string) error
 }
 
 var tools = []toolTest{
-	{"golangci-lint", golangcilint.Install, golangcilint.Name, []string{"version"}},
-	{"govulncheck", govulncheck.Install, govulncheck.Name, []string{"-version"}},
-	{"uv", uv.Install, uv.Name, []string{"--version"}},
-	{"mdformat", mdformat.Install, mdformat.Name, []string{"--version"}},
-	{"ruff", ruff.Install, ruff.Name, []string{"--version"}},
-	{"mypy", mypy.Install, mypy.Name, []string{"--version"}},
-	{"basedpyright", basedpyright.Install, basedpyright.Name, []string{"--version"}},
-	{"stylua", stylua.Install, stylua.Name, []string{"--version"}},
-	{"bun", bun.Install, bun.Name, []string{"--version"}},
-	{"prettier", prettier.Install, prettier.Name, []string{"--version"}},
+	{"golangci-lint", golangcilint.Install, golangcilint.Name, []string{"version"}, nil},
+	{"govulncheck", govulncheck.Install, govulncheck.Name, []string{"-version"}, nil},
+	{"uv", uv.Install, uv.Name, []string{"--version"}, nil},
+	{"mdformat", mdformat.Install, mdformat.Name, []string{"--version"}, nil},
+	{"ruff", ruff.Install, ruff.Name, []string{"--version"}, nil},
+	{"mypy", mypy.Install, mypy.Name, []string{"--version"}, nil},
+	{"basedpyright", basedpyright.Install, basedpyright.Name, []string{"--version"}, nil},
+	{"stylua", stylua.Install, stylua.Name, []string{"--version"}, nil},
+	{"bun", bun.Install, bun.Name, []string{"--version"}, nil},
+	{"prettier", prettier.Install, prettier.Name, []string{"--version"}, prettier.Exec},
 }
 
 func TestTools(t *testing.T) {
@@ -54,6 +56,9 @@ func TestTools(t *testing.T) {
 			testFunc := pocket.Func("test:"+tool.name, "test "+tool.name, pocket.Serial(
 				tool.install,
 				func(fnCtx context.Context) error {
+					if tool.customExec != nil {
+						return tool.customExec(fnCtx, tool.versionArgs...)
+					}
 					return pocket.Exec(fnCtx, tool.binary, tool.versionArgs...)
 				},
 			))
