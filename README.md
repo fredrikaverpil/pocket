@@ -16,13 +16,11 @@ A cross-platform build system inspired by
 
 ## Features
 
+- **Zero-install**: The `./pok` shim bootstraps Go and all dependencies automatically
 - **Cross-platform**: Works on Windows, macOS, and Linux (no Makefiles)
-- **Function-based**: Define functions with `pocket.Func()`, compose with
-  `Serial()`/`Parallel()`
-- **Dependency management**: Functions can depend on other functions with
-  automatic deduplication
+- **Composable**: Define functions, compose with `Serial()`/`Parallel()` - Pocket handles the execution graph
+- **Monorepo-ready**: Auto-detects directories (by go.mod, pyproject.toml, etc.) with per-directory task visibility
 - **Tool management**: Downloads and caches tools in `.pocket/`
-- **Path filtering**: Run different functions in different directories
 
 ## Quickstart
 
@@ -38,7 +36,7 @@ This creates `.pocket/` and `./pok` (the wrapper script).
 
 ### Your first function
 
-Edit `.pocket/config.go`:
+Edit `.pocket/config.go` and add a task to your config's `ManualRun`:
 
 ```go
 package main
@@ -68,13 +66,14 @@ func hello(ctx context.Context) error {
 ./pok hello     # run function
 ./pok hello -h  # show help for function (options, usage)
 ./pok -v hello  # run with verbose output
-./pok plan      # show execution tree (add -hidden to see install deps)
 ```
 
 ### Composition
 
-Create multiple functions and compose them in `AutoRun` with `Serial()` and
-`Parallel()` for controlled execution order:
+This is where Pocket shines. Compose functions in `AutoRun` with `Serial()` and
+`Parallel()` for controlled execution order. Combined with path filtering,
+Pocket generates "pok" shims in each detected directory with fine-grained
+control over which tasks are available at each location.
 
 ```go
 var Config = pocket.Config{
@@ -89,7 +88,10 @@ var Config = pocket.Config{
 }
 ```
 
-Running `./pok` without arguments executes the entire `AutoRun` tree.
+```bash
+./pok       # run entire AutoRun tree
+./pok plan  # show execution tree (useful for debugging composition)
+```
 
 ### Dependencies
 
