@@ -7,10 +7,79 @@ import (
 	"strings"
 )
 
-// Paths wraps a Runnable with path filtering capabilities.
-// The returned *PathFilter can be configured with builder methods.
-func Paths(r Runnable) *PathFilter {
-	return &PathFilter{inner: r}
+// PathOpt configures path filtering behavior for RunIn.
+type PathOpt func(*PathFilter)
+
+// RunIn wraps a Runnable with path filtering.
+// Use options to control where the Runnable executes.
+//
+// Example:
+//
+//	pocket.RunIn(golang.Tasks(),
+//	    pocket.Detect(golang.Detect()),
+//	    pocket.Include("services/.*"),
+//	    pocket.Exclude("vendor"),
+//	)
+func RunIn(r Runnable, opts ...PathOpt) *PathFilter {
+	pf := &PathFilter{inner: r}
+	for _, opt := range opts {
+		opt(pf)
+	}
+	return pf
+}
+
+// Detect sets a detection function that returns directories
+// where the Runnable should execute.
+// The function should return directories relative to git root.
+func Detect(fn func() []string) PathOpt {
+	return func(pf *PathFilter) {
+		pf.detect = fn
+	}
+}
+
+// Include adds patterns (regex) for directories to include.
+// Directories matching any pattern are included.
+func Include(patterns ...string) PathOpt {
+	return func(pf *PathFilter) {
+		for _, pat := range patterns {
+			pf.include = append(pf.include, regexp.MustCompile("^"+pat+"$"))
+		}
+	}
+}
+
+// Exclude adds patterns (regex) for directories to exclude.
+// Directories matching any pattern are excluded from results.
+func Exclude(patterns ...string) PathOpt {
+	return func(pf *PathFilter) {
+		for _, pat := range patterns {
+			pf.exclude = append(pf.exclude, regexp.MustCompile("^"+pat+"$"))
+		}
+	}
+}
+
+// Skip configures a task to be skipped in specific paths.
+// If no paths are specified, the task is skipped everywhere within this filter.
+// Paths support regex patterns matched against the current execution path.
+//
+// To make skipped tasks available for manual execution, add them to ManualRun
+// with a different name using WithName():
+//
+//	AutoRun: pocket.RunIn(golang.Tasks(),
+//	    pocket.Detect(golang.Detect()),
+//	    pocket.Skip(golang.Test, "services/api", "services/worker"),
+//	),
+//	ManualRun: []pocket.Runnable{
+//	    pocket.RunIn(golang.Test.WithName("integration-test"),
+//	        pocket.Include("services/api", "services/worker"),
+//	    ),
+//	}
+func Skip(task *TaskDef, paths ...string) PathOpt {
+	return func(pf *PathFilter) {
+		if pf.skipTasks == nil {
+			pf.skipTasks = make(map[string][]string)
+		}
+		pf.skipTasks[task.Name()] = append(pf.skipTasks[task.Name()], paths...)
+	}
 }
 
 // PathFilter wraps a Runnable with path filtering.
@@ -21,60 +90,6 @@ type PathFilter struct {
 	exclude   []*regexp.Regexp    // exclusion patterns
 	detect    func() []string     // detection function (nil = no detection)
 	skipTasks map[string][]string // task name -> paths to skip in (empty = skip everywhere)
-}
-
-// In adds include patterns (regexp).
-// Directories matching any pattern are included.
-// Returns a new *PathFilter (immutable).
-func (p *PathFilter) In(patterns ...string) *PathFilter {
-	cp := p.clone()
-	for _, pat := range patterns {
-		cp.include = append(cp.include, regexp.MustCompile("^"+pat+"$"))
-	}
-	return cp
-}
-
-// Except adds exclude patterns (regexp).
-// Directories matching any pattern are excluded from results.
-// Returns a new *PathFilter (immutable).
-func (p *PathFilter) Except(patterns ...string) *PathFilter {
-	cp := p.clone()
-	for _, pat := range patterns {
-		cp.exclude = append(cp.exclude, regexp.MustCompile("^"+pat+"$"))
-	}
-	return cp
-}
-
-// DetectBy sets a custom detection function.
-// The function should return directories relative to git root.
-// Returns a new *PathFilter (immutable).
-func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
-	cp := p.clone()
-	cp.detect = fn
-	return cp
-}
-
-// SkipTask configures a task to be skipped in specific paths.
-// If no paths are specified, the task is skipped everywhere within this PathFilter.
-// Paths support regex patterns matched against the current execution path.
-// Returns a new *PathFilter (immutable).
-//
-// To make skipped tasks available for manual execution, add them to ManualRun
-// with a different name using WithName():
-//
-//	AutoRun: pocket.Paths(golang.Tasks()).
-//	    DetectBy(golang.Detect()).
-//	    SkipTask(golang.Test, "services/api", "services/worker"),
-//	ManualRun: []pocket.Runnable{
-//	    pocket.Paths(golang.Test.WithName("integration-test")).In("services/api", "services/worker"),
-//	}
-func (p *PathFilter) SkipTask(task *TaskDef, paths ...string) *PathFilter {
-	cp := p.clone()
-	if cp.skipTasks == nil {
-		cp.skipTasks = make(map[string][]string)
-	}
-	cp.skipTasks[task.Name()] = append(cp.skipTasks[task.Name()], paths...)
-	return cp
 }
 
 // Resolve returns all directories where this Runnable should run.
@@ -195,22 +210,6 @@ func (p *PathFilter) funcs() []*TaskDef {
 	return p.inner.funcs()
 }
 
-// clone creates a shallow copy of PathFilter for immutability.
-func (p *PathFilter) clone() *PathFilter {
-	cp := &PathFilter{
-		inner:   p.inner,
-		include: slices.Clone(p.include),
-		exclude: slices.Clone(p.exclude),
-		detect:  p.detect,
-	}
-	if p.skipTasks != nil {
-		cp.skipTasks = make(map[string][]string, len(p.skipTasks))
-		for k, v := range p.skipTasks {
-			cp.skipTasks[k] = slices.Clone(v)
-		}
-	}
-	return cp
-}
 
 // matches checks if a directory matches the include patterns.
 // If no include patterns are specified, all directories match.

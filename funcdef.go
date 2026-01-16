@@ -230,7 +230,7 @@ func (f *TaskDef) funcs() []*TaskDef {
 //   - pocket.Task() for individual functions
 //   - pocket.Serial() for sequential execution
 //   - pocket.Parallel() for concurrent execution
-//   - pocket.Paths() for path filtering
+//   - pocket.RunIn() for path filtering
 type Runnable interface {
 	run(ctx context.Context) error
 	funcs() []*TaskDef

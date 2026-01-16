@@ -25,18 +25,18 @@ func WithTest(opts TestOptions) Option {
 }
 
 // Tasks returns all Go tasks composed as a Runnable.
-// Use this with pocket.Paths().DetectBy() for auto-detection.
+// Use this with pocket.RunIn() and pocket.Detect() for auto-detection.
 //
 // Example:
 //
-//	pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+//	pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect()))
 //
 // Example with options:
 //
-//	pocket.Paths(golang.Tasks(
+//	pocket.RunIn(golang.Tasks(
 //	    golang.WithLint(golang.LintOptions{Config: ".golangci.yml"}),
 //	    golang.WithTest(golang.TestOptions{SkipRace: true}),
-//	)).DetectBy(golang.Detect())
+//	), pocket.Detect(golang.Detect()))
 func Tasks(opts ...Option) pocket.Runnable {
 	var cfg config
 	for _, opt := range opts {

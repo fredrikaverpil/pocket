@@ -226,8 +226,8 @@ func TestFilterFuncsByCwd(t *testing.T) {
 	// Create path mappings.
 	// fn1 runs in proj1, fn2 runs in root.
 	mappings := map[string]*PathFilter{
-		"fn1": Paths(fn1).In("proj1"),
-		"fn2": Paths(fn2).In("."),
+		"fn1": RunIn(fn1, Include("proj1")),
+		"fn2": RunIn(fn2, Include(".")),
 	}
 
 	funcs := []*TaskDef{fn1, fn2, fn3}
@@ -259,8 +259,8 @@ func TestIsFuncVisibleIn(t *testing.T) {
 	fn := Task("dummy", "dummy", func(_ context.Context) error { return nil })
 
 	mappings := map[string]*PathFilter{
-		"fn1": Paths(fn).In("proj1", "proj2"),
-		"fn2": Paths(fn).In("."),
+		"fn1": RunIn(fn, Include("proj1", "proj2")),
+		"fn2": RunIn(fn, Include(".")),
 	}
 
 	tests := []struct {
@@ -287,11 +287,11 @@ func TestIsFuncVisibleIn(t *testing.T) {
 	}
 }
 
-// TestFilterFuncsByCwd_ManualRunPaths tests that ManualRun tasks with Paths
+// TestFilterFuncsByCwd_ManualRunPaths tests that ManualRun tasks with RunIn
 // are visible from subdirectory shims. This simulates the documented pattern:
 //
-//	AutoRun: pocket.Paths(golang.Tasks()).DetectBy(...).SkipTask(golang.Test, "services/api"),
-//	ManualRun: []pocket.Runnable{pocket.Paths(golang.Test).In("services/api")},
+//	AutoRun: pocket.RunIn(golang.Tasks(), pocket.Detect(...), pocket.Skip(golang.Test, "services/api")),
+//	ManualRun: []pocket.Runnable{pocket.RunIn(golang.Test, pocket.Include("services/api"))},
 //
 // The ManualRun task should be visible when running from services/api/pok.
 func TestFilterFuncsByCwd_ManualRunPaths(t *testing.T) {
@@ -301,14 +301,14 @@ func TestFilterFuncsByCwd_ManualRunPaths(t *testing.T) {
 	formatTask := Task("go-format", "format Go files", func(_ context.Context) error { return nil })
 	lintTask := Task("go-lint", "lint Go files", func(_ context.Context) error { return nil })
 
-	// Simulate ManualRun task (test) that runs in services/api via Paths().In().
+	// Simulate ManualRun task (test) that runs in services/api via RunIn with Include.
 	testTask := Task("go-test", "test Go files", func(_ context.Context) error { return nil })
 
 	// Build path mappings as runner.go would:
 	// - AutoRun contributes format and lint with paths ["services/api"]
 	// - ManualRun contributes test with paths ["services/api"]
-	autoRunMappings := collectPathMappings(Paths(Serial(formatTask, lintTask)).In("services/api"))
-	manualRunMappings := collectPathMappings(Paths(testTask).In("services/api"))
+	autoRunMappings := collectPathMappings(RunIn(Serial(formatTask, lintTask), Include("services/api")))
+	manualRunMappings := collectPathMappings(RunIn(testTask, Include("services/api")))
 
 	// Merge mappings (as runner.go does).
 	pathMappings := make(map[string]*PathFilter)

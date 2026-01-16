@@ -130,10 +130,10 @@ Tasks are defined in Go code with `Serial()` and `Parallel()` execution control.
 ```go
 var Config = pocket.Config{
     AutoRun: pocket.Serial(
-        // DetectBy finds all go.mod and pyproject.toml locations
+        // Detect finds all go.mod and pyproject.toml locations
         // and runs these task groups in each
-        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
+        pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
+        pocket.RunIn(python.Tasks(), pocket.Detect(python.Detect())),
     ),
 }
 ```

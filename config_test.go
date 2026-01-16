@@ -184,12 +184,12 @@ func TestFuncDef_Chaining(t *testing.T) {
 }
 
 // TestSkipTaskWithManualRun_WithName verifies the documented pattern of using
-// SkipTask + ManualRun with WithName to avoid duplicate function names.
+// Skip + ManualRun with WithName to avoid duplicate function names.
 //
 // Pattern:
 //
-//	AutoRun: pocket.Paths(golang.Tasks()).SkipTask(golang.Test, "services/api"),
-//	ManualRun: []pocket.Runnable{pocket.Paths(golang.Test.WithName("integration-test")).In("services/api")},
+//	AutoRun: pocket.RunIn(golang.Tasks(), pocket.Include("services/api"), pocket.Skip(golang.Test, "services/api")),
+//	ManualRun: []pocket.Runnable{pocket.RunIn(golang.Test.WithName("integration-test"), pocket.Include("services/api"))},
 func TestSkipTaskWithManualRun_WithName(t *testing.T) {
 	t.Parallel()
 
@@ -200,9 +200,9 @@ func TestSkipTaskWithManualRun_WithName(t *testing.T) {
 
 	// Use WithName to give the ManualRun task a distinct name
 	cfg := Config{
-		AutoRun: Paths(workflow).In("services/api").SkipTask(testTask, "services/api"),
+		AutoRun: RunIn(workflow, Include("services/api"), Skip(testTask, "services/api")),
 		ManualRun: []Runnable{
-			Paths(testTask.WithName("integration-test")).In("services/api"),
+			RunIn(testTask.WithName("integration-test"), Include("services/api")),
 		},
 	}
 

@@ -357,8 +357,8 @@ var Config = pocket.Config{
     // AutoRun executes on ./pok (no arguments)
     AutoRun: pocket.Serial(
         // Use task collections with auto-detection
-        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-        pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
+        pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
+        pocket.RunIn(markdown.Tasks(), pocket.Detect(markdown.Detect())),
     ),
 
     // ManualRun requires explicit ./pok <name>
@@ -377,26 +377,30 @@ task.
 
 ## Path Filtering
 
-For e.g. monorepos, use `Paths()` to control where tasks run:
+For e.g. monorepos, use `RunIn()` to control where tasks run:
 
 ```go
 // Run in specific directories
-pocket.Paths(myTask).In("services/api", "services/web")
+pocket.RunIn(myTask, pocket.Include("services/api", "services/web"))
 
 // Auto-detect directories containing go.mod
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
+pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect()))
 
 // Exclude directories
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Except("vendor")
+pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect()), pocket.Exclude("vendor"))
 
 // Combine detection with filtering
-pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).In("services/.*").Except("testdata")
+pocket.RunIn(golang.Tasks(),
+    pocket.Detect(golang.Detect()),
+    pocket.Include("services/.*"),
+    pocket.Exclude("testdata"),
+)
 ```
 
 ### Skipping Tasks in Specific Paths
 
-While `Except()` excludes entire task compositions from directories, use
-`SkipTask()` to skip specific tasks within a composition. This controls which
+While `Exclude()` excludes entire task compositions from directories, use
+`Skip()` to skip specific tasks within a composition. This controls which
 tasks run in each detected directory - it doesn't modify the task's arguments.
 
 For example, in a monorepo with multiple Go services (each with their own
@@ -404,13 +408,16 @@ For example, in a monorepo with multiple Go services (each with their own
 
 ```go
 var Config = pocket.Config{
-    AutoRun: pocket.Paths(golang.Tasks()).
-        DetectBy(golang.Detect()).
-        SkipTask(golang.Test, "services/api", "services/worker"),
+    AutoRun: pocket.RunIn(golang.Tasks(),
+        pocket.Detect(golang.Detect()),
+        pocket.Skip(golang.Test, "services/api", "services/worker"),
+    ),
 
     // Make skipped tests available under a different name
     ManualRun: []pocket.Runnable{
-        pocket.Paths(golang.Test.WithName("integration-test")).In("services/api", "services/worker"),
+        pocket.RunIn(golang.Test.WithName("integration-test"),
+            pocket.Include("services/api", "services/worker"),
+        ),
     },
 }
 ```
@@ -535,13 +542,14 @@ pocket.GoVersionFromDir("dir")    // read Go version from go.mod
 ```go
 var Config = pocket.Config{
     // AutoRun: runs on ./pok (no arguments)
-    AutoRun: pocket.Paths(golang.Tasks()).
-        DetectBy(golang.Detect()).
-        SkipTask(golang.Test, "services/worker"),
+    AutoRun: pocket.RunIn(golang.Tasks(),
+        pocket.Detect(golang.Detect()),
+        pocket.Skip(golang.Test, "services/worker"),
+    ),
 
     // ManualRun: requires ./pok <name>
     ManualRun: []pocket.Runnable{
-        pocket.Paths(golang.Test.WithName("slow-test")).In("services/worker"),
+        pocket.RunIn(golang.Test.WithName("slow-test"), pocket.Include("services/worker")),
     },
 
     // Shim: configure wrapper scripts

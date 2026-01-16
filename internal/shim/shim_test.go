@@ -392,7 +392,7 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 	// Create a PathFilter that includes the module directories.
 	// This simulates what AutoDetect would produce.
 	mockFunc := pocket.Task("mock", "mock func", func(_ context.Context) error { return nil })
-	pathFilter := pocket.Paths(mockFunc).In(moduleDirs...)
+	pathFilter := pocket.RunIn(mockFunc, pocket.Include(moduleDirs...))
 
 	cfg := pocket.Config{
 		AutoRun: pathFilter,
@@ -495,7 +495,7 @@ func TestGenerateWithRoot_DeeplyNested(t *testing.T) {
 
 	// Create a PathFilter for the deep directory.
 	mockFunc := pocket.Task("mock", "mock func", func(_ context.Context) error { return nil })
-	pathFilter := pocket.Paths(mockFunc).In(deepDir)
+	pathFilter := pocket.RunIn(mockFunc, pocket.Include(deepDir))
 
 	cfg := pocket.Config{
 		AutoRun: pathFilter,
@@ -555,12 +555,12 @@ func TestGenerateWithRoot_ManualRunWithPaths(t *testing.T) {
 
 	// AutoRun detects all services, ManualRun has a path-filtered task.
 	// This simulates the documented pattern:
-	//   AutoRun: pocket.Paths(golang.Tasks()).DetectBy(...).SkipTask(golang.Test, "services/api", "services/worker"),
-	//   ManualRun: []pocket.Runnable{pocket.Paths(golang.Test).In("services/api", "services/worker")},
+	//   AutoRun: pocket.RunIn(golang.Tasks(), pocket.Detect(...), pocket.Skip(golang.Test, "services/api", "services/worker")),
+	//   ManualRun: []pocket.Runnable{pocket.RunIn(golang.Test, pocket.Include("services/api", "services/worker"))},
 	cfg := pocket.Config{
-		AutoRun: pocket.Paths(autoFunc).In(moduleDirs...),
+		AutoRun: pocket.RunIn(autoFunc, pocket.Include(moduleDirs...)),
 		ManualRun: []pocket.Runnable{
-			pocket.Paths(manualFunc).In("services/api", "services/worker"),
+			pocket.RunIn(manualFunc, pocket.Include("services/api", "services/worker")),
 		},
 		Shim: &pocket.ShimConfig{
 			Name:  "pok",
@@ -618,9 +618,9 @@ func TestGenerateWithRoot_ManualRunOnlyPaths(t *testing.T) {
 	// ManualRun has paths that are NOT in AutoRun.
 	// Shims should still be generated at those paths so users can run ./pok benchmark there.
 	cfg := pocket.Config{
-		AutoRun: autoFunc, // No Paths wrapper, runs at root only
+		AutoRun: autoFunc, // No RunIn wrapper, runs at root only
 		ManualRun: []pocket.Runnable{
-			pocket.Paths(benchFunc).In("benchmarks", "integration-tests"),
+			pocket.RunIn(benchFunc, pocket.Include("benchmarks", "integration-tests")),
 		},
 		Shim: &pocket.ShimConfig{
 			Name:  "pok",
