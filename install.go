@@ -81,9 +81,12 @@ type ToolConfig struct {
 }
 
 // ConfigPath returns the path to a tool's config file.
-// It checks for user config files in the repo root first,
-// then falls back to writing the bundled default config.
 //
+// For each path in UserFiles:
+//   - Absolute paths are checked as-is (use FromGitRoot() for repo-root configs)
+//   - Relative paths are checked in the task's current directory (from Path(ctx))
+//
+// If no user config is found, writes DefaultData to .pocket/tools/<name>/<DefaultFile>.
 // Returns empty string and no error if cfg is empty.
 //
 // Example:
@@ -95,22 +98,29 @@ type ToolConfig struct {
 //	}
 //
 //	func lint(ctx context.Context) error {
-//	    configPath, err := pocket.ConfigPath("golangci-lint", golangciConfig)
+//	    configPath, err := pocket.ConfigPath(ctx, "golangci-lint", golangciConfig)
 //	    if err != nil {
 //	        return err
 //	    }
 //	    return pocket.Exec(ctx, "golangci-lint", "run", "-c", configPath)
 //	}
-func ConfigPath(toolName string, cfg ToolConfig) (string, error) {
+func ConfigPath(ctx context.Context, toolName string, cfg ToolConfig) (string, error) {
 	if len(cfg.UserFiles) == 0 && cfg.DefaultFile == "" {
 		return "", nil
 	}
 
-	// Check for user config in repo root.
+	// Check for user config files.
+	// Absolute paths are used as-is, relative paths are resolved from task CWD.
+	cwd := FromGitRoot(Path(ctx))
 	for _, configName := range cfg.UserFiles {
-		repoConfig := FromGitRoot(configName)
-		if _, err := os.Stat(repoConfig); err == nil {
-			return repoConfig, nil
+		var configPath string
+		if filepath.IsAbs(configName) {
+			configPath = configName
+		} else {
+			configPath = filepath.Join(cwd, configName)
+		}
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath, nil
 		}
 	}
 
@@ -161,66 +171,6 @@ func isGoVersion(s string) bool {
 		}
 	}
 	return true
-}
-
-// InstallCargoGit installs a Rust binary using 'cargo install --git'.
-// The binary is installed to .pocket/tools/cargo/<name>/<version>/
-// and symlinked to .pocket/bin/.
-// Requires cargo to be installed on the system.
-//
-// Example:
-//
-//	func installTool(ctx context.Context) error {
-//	    return pocket.InstallCargoGit(ctx, "https://github.com/org/tool", "tool", "v1.0.0")
-//	}
-func InstallCargoGit(ctx context.Context, repo, name, version string) error {
-	binaryName := name
-	if runtime.GOOS == Windows {
-		binaryName += ".exe"
-	}
-
-	// Destination directory: .pocket/tools/cargo/<name>/<version>/
-	toolDir := FromToolsDir("cargo", name, version)
-	binaryPath := filepath.Join(toolDir, binaryName)
-
-	// Check if already installed.
-	if _, err := os.Stat(binaryPath); err == nil {
-		// Already installed, ensure symlink exists.
-		if _, err := CreateSymlink(binaryPath); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// Create tool directory.
-	if err := os.MkdirAll(toolDir, 0o755); err != nil {
-		return fmt.Errorf("create tool dir: %w", err)
-	}
-
-	// Run cargo install --git with CARGO_HOME set.
-	Printf(ctx, "  cargo install --git %s %s\n", repo, name)
-
-	ec := getExecContext(ctx)
-	cmd := newCommand(ctx, "cargo", "install", "--git", repo, name, "--root", toolDir)
-	cmd.Stdout = ec.out.Stdout
-	cmd.Stderr = ec.out.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("cargo install %s: %w", name, err)
-	}
-
-	// cargo install --root creates a bin subdirectory
-	installedPath := filepath.Join(toolDir, "bin", binaryName)
-	if _, err := os.Stat(installedPath); err != nil {
-		return fmt.Errorf("binary not found at %s: %w", installedPath, err)
-	}
-
-	// Create symlink to the binary in the bin subdirectory.
-	if _, err := CreateSymlink(installedPath); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // VenvBinaryPath returns the cross-platform path to a binary in a Python venv.

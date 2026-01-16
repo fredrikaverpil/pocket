@@ -30,7 +30,7 @@ func format(ctx context.Context) error {
 	}
 
 	// Add config if available (use absolute path)
-	if configPath, err := pocket.ConfigPath("prettier", prettier.Config); err == nil && configPath != "" {
+	if configPath, err := pocket.ConfigPath(ctx, "prettier", prettier.Config); err == nil && configPath != "" {
 		args = append(args, "--config", configPath)
 	}
 

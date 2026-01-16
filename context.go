@@ -224,15 +224,6 @@ func GetOutput(ctx context.Context) *Output {
 	return getExecContext(ctx).out
 }
 
-// Errorf writes formatted output to stderr.
-func Errorf(ctx context.Context, format string, args ...any) {
-	ec := getExecContext(ctx)
-	if ec.mode == modeCollect {
-		return
-	}
-	fmt.Fprintf(ec.out.Stderr, format, args...)
-}
-
 // TestContext creates a context suitable for testing.
 func TestContext(out *Output) context.Context {
 	ec := newExecContext(out, ".", false)

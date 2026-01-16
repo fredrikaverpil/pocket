@@ -24,7 +24,7 @@ func format(ctx context.Context) error {
 	configPath := opts.RuffConfig
 	if configPath == "" {
 		var err error
-		configPath, err = pocket.ConfigPath("ruff", ruff.Config)
+		configPath, err = pocket.ConfigPath(ctx, "ruff", ruff.Config)
 		if err != nil {
 			return fmt.Errorf("get ruff config: %w", err)
 		}

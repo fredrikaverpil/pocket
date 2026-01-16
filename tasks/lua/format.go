@@ -24,7 +24,7 @@ func format(ctx context.Context) error {
 	configPath := opts.StyluaConfig
 	if configPath == "" {
 		var err error
-		configPath, err = pocket.ConfigPath("stylua", stylua.Config)
+		configPath, err = pocket.ConfigPath(ctx, "stylua", stylua.Config)
 		if err != nil {
 			return fmt.Errorf("get stylua config: %w", err)
 		}

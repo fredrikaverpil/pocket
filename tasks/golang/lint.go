@@ -28,7 +28,7 @@ func lint(ctx context.Context) error {
 	}
 	if opts.Config != "" {
 		args = append(args, "-c", opts.Config)
-	} else if configPath, err := pocket.ConfigPath("golangci-lint", golangcilint.Config); err == nil && configPath != "" {
+	} else if configPath, err := pocket.ConfigPath(ctx, "golangci-lint", golangcilint.Config); err == nil && configPath != "" {
 		args = append(args, "-c", configPath)
 	}
 	if !opts.SkipFix {
