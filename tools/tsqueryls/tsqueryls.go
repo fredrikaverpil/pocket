@@ -3,7 +3,6 @@
 package tsqueryls
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -18,9 +17,12 @@ const Name = "ts_query_ls"
 const Version = "3.15.1"
 
 // Install ensures ts_query_ls is available.
-var Install = pocket.Func("install:ts_query_ls", "install ts_query_ls", install).Hidden()
+var Install = pocket.Task("install:ts_query_ls", "install ts_query_ls",
+	installTSQueryLs(),
+	pocket.AsHidden(),
+)
 
-func install(ctx context.Context) error {
+func installTSQueryLs() pocket.Runnable {
 	binDir := pocket.FromToolsDir("ts_query_ls", Version, "bin")
 	binaryName := pocket.BinaryName("ts_query_ls")
 	binaryPath := filepath.Join(binDir, binaryName)
@@ -36,7 +38,7 @@ func install(ctx context.Context) error {
 		Version, platform, ext,
 	)
 
-	return pocket.Download(ctx, url,
+	return pocket.Download(url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat(ext),
 		pocket.WithExtract(pocket.WithExtractFile(binaryName)),

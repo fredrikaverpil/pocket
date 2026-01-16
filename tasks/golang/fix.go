@@ -7,13 +7,15 @@ import (
 )
 
 // Fix runs go fix to update code for newer Go versions.
-var Fix = pocket.Func("go-fix", "update code for newer Go versions", fix)
+var Fix = pocket.Task("go-fix", "update code for newer Go versions", fixCmd())
 
-func fix(ctx context.Context) error {
-	args := []string{"fix"}
-	if pocket.Verbose(ctx) {
-		args = append(args, "-v")
-	}
-	args = append(args, "./...")
-	return pocket.Exec(ctx, "go", args...)
+func fixCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		args := []string{"fix"}
+		if pocket.Verbose(ctx) {
+			args = append(args, "-v")
+		}
+		args = append(args, "./...")
+		return pocket.Exec(ctx, "go", args...)
+	})
 }

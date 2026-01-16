@@ -18,11 +18,11 @@ type serial struct {
 //   - Define dependencies: Serial(Install, TaskImpl)
 //   - Compose tasks in Config: Serial(Format, Lint, Test)
 //
-// Items can be *FuncDef, Runnable, or func(context.Context) error.
+// Items can be *TaskDef, Runnable, or func(context.Context) error.
 //
 // Example:
 //
-//	var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+//	var Lint = pocket.Task("lint", "run linter", pocket.Serial(
 //	    golangcilint.Install,
 //	    func(ctx context.Context) error {
 //	        return pocket.Exec(ctx, "golangci-lint", "run", "./...")
@@ -59,8 +59,8 @@ func (s *serial) run(ctx context.Context) error {
 	return nil
 }
 
-func (s *serial) funcs() []*FuncDef {
-	all := make([]*FuncDef, 0, len(s.items))
+func (s *serial) funcs() []*TaskDef {
+	all := make([]*TaskDef, 0, len(s.items))
 	for _, r := range s.items {
 		all = append(all, r.funcs()...)
 	}
@@ -78,11 +78,11 @@ type parallel struct {
 //   - Run independent tasks concurrently: Parallel(Lint, Test)
 //   - Compose in Config: Parallel(task1, task2)
 //
-// Items can be *FuncDef, Runnable, or func(context.Context) error.
+// Items can be *TaskDef, Runnable, or func(context.Context) error.
 //
 // Example:
 //
-//	var CI = pocket.Func("ci", "run CI", pocket.Parallel(
+//	var CI = pocket.Task("ci", "run CI", pocket.Parallel(
 //	    Lint,
 //	    Test,
 //	))
@@ -148,8 +148,8 @@ func (p *parallel) run(ctx context.Context) error {
 	return err
 }
 
-func (p *parallel) funcs() []*FuncDef {
-	all := make([]*FuncDef, 0, len(p.items))
+func (p *parallel) funcs() []*TaskDef {
+	all := make([]*TaskDef, 0, len(p.items))
 	for _, r := range p.items {
 		all = append(all, r.funcs()...)
 	}

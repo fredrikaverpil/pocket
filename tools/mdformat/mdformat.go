@@ -33,40 +33,42 @@ func Version() string {
 }
 
 // Install ensures mdformat is available.
-var Install = pocket.Func("install:mdformat", "install mdformat", pocket.Serial(
+var Install = pocket.Task("install:mdformat", "install mdformat", pocket.Serial(
 	uv.Install,
-	install,
-)).Hidden()
+	installMdformat(),
+), pocket.AsHidden())
 
-func install(ctx context.Context) error {
-	// Use hash-based versioning: .pocket/tools/mdformat/<hash>/
-	venvDir := pocket.FromToolsDir("mdformat", Version())
-	binary := uv.BinaryPath(venvDir, "mdformat")
+func installMdformat() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		// Use hash-based versioning: .pocket/tools/mdformat/<hash>/
+		venvDir := pocket.FromToolsDir("mdformat", Version())
+		binary := uv.BinaryPath(venvDir, "mdformat")
 
-	// Skip if already installed.
-	if _, err := os.Stat(binary); err == nil {
-		// Ensure symlink/copy exists.
+		// Skip if already installed.
+		if _, err := os.Stat(binary); err == nil {
+			// Ensure symlink/copy exists.
+			_, err := pocket.CreateSymlink(binary)
+			return err
+		}
+
+		// Create virtual environment with Python 3.13+ for --exclude support.
+		if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
+			return err
+		}
+
+		// Write requirements.txt to venv dir.
+		reqPath := filepath.Join(venvDir, "requirements.txt")
+		if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
+			return err
+		}
+
+		// Install from requirements.txt.
+		if err := uv.PipInstallRequirements(ctx, venvDir, reqPath); err != nil {
+			return err
+		}
+
+		// Create symlink (or copy on Windows) to .pocket/bin/.
 		_, err := pocket.CreateSymlink(binary)
 		return err
-	}
-
-	// Create virtual environment with Python 3.13+ for --exclude support.
-	if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
-		return err
-	}
-
-	// Write requirements.txt to venv dir.
-	reqPath := filepath.Join(venvDir, "requirements.txt")
-	if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
-		return err
-	}
-
-	// Install from requirements.txt.
-	if err := uv.PipInstallRequirements(ctx, venvDir, reqPath); err != nil {
-		return err
-	}
-
-	// Create symlink (or copy on Windows) to .pocket/bin/.
-	_, err := pocket.CreateSymlink(binary)
-	return err
+	})
 }

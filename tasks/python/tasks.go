@@ -36,16 +36,16 @@ func WithTest(opts TestOptions) Option {
 }
 
 // Tasks returns a Runnable that executes all Python tasks.
-// Use pocket.Paths(python.Tasks()).DetectBy(python.Detect()) to enable path filtering.
+// Use pocket.RunIn(python.Tasks(), pocket.Detect(python.Detect())) to enable path filtering.
 //
 // Execution order: format, lint, typecheck, then test (serial since format/lint modify files).
 //
 // Example with options:
 //
-//	pocket.Paths(python.Tasks(
+//	pocket.RunIn(python.Tasks(
 //	    python.WithFormat(python.FormatOptions{RuffConfig: "ruff.toml"}),
 //	    python.WithTest(python.TestOptions{SkipCoverage: true}),
-//	)).DetectBy(python.Detect())
+//	), pocket.Detect(python.Detect()))
 func Tasks(opts ...Option) pocket.Runnable {
 	var cfg config
 	for _, opt := range opts {
@@ -55,22 +55,22 @@ func Tasks(opts ...Option) pocket.Runnable {
 	// Sync task with Python version
 	syncTask := Sync
 	if cfg.pythonVersion != "" {
-		syncTask = Sync.With(SyncOptions{PythonVersion: cfg.pythonVersion})
+		syncTask = pocket.WithOpts(Sync, SyncOptions{PythonVersion: cfg.pythonVersion})
 	}
 
 	formatTask := Format
 	if cfg.format != (FormatOptions{}) {
-		formatTask = Format.With(cfg.format)
+		formatTask = pocket.WithOpts(Format, cfg.format)
 	}
 
 	lintTask := Lint
 	if cfg.lint != (LintOptions{}) {
-		lintTask = Lint.With(cfg.lint)
+		lintTask = pocket.WithOpts(Lint, cfg.lint)
 	}
 
 	testTask := Test
 	if cfg.test != (TestOptions{}) {
-		testTask = Test.With(cfg.test)
+		testTask = pocket.WithOpts(Test, cfg.test)
 	}
 
 	// Run sync first, then format, lint, typecheck, test (serial since format/lint modify files)
@@ -82,7 +82,7 @@ func Tasks(opts ...Option) pocket.Runnable {
 //
 // Usage:
 //
-//	pocket.Paths(python.Tasks()).DetectBy(python.Detect())
+//	pocket.RunIn(python.Tasks(), pocket.Detect(python.Detect()))
 func Detect() func() []string {
 	return func() []string {
 		return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")

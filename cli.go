@@ -48,22 +48,22 @@ func detectCwd() string {
 // Functions not in pathMappings are only visible when running from the git root.
 // builtinFuncs are always-available tasks shown under "Built-in tasks" in help.
 func cliMain(
-	funcs []*FuncDef,
-	allFunc *FuncDef,
+	funcs []*TaskDef,
+	allFunc *TaskDef,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
-	builtinFuncs []*FuncDef,
+	builtinFuncs []*TaskDef,
 ) {
 	os.Exit(cliRun(funcs, allFunc, pathMappings, autoRunNames, builtinFuncs))
 }
 
 // cliRun parses flags and runs functions, returning the exit code.
 func cliRun(
-	funcs []*FuncDef,
-	allFunc *FuncDef,
+	funcs []*TaskDef,
+	allFunc *TaskDef,
 	pathMappings map[string]*PathFilter,
 	autoRunNames map[string]bool,
-	builtinFuncs []*FuncDef,
+	builtinFuncs []*TaskDef,
 ) int {
 	verbose := flag.Bool("v", false, "verbose output")
 	help := flag.Bool("h", false, "show help")
@@ -80,7 +80,7 @@ func cliRun(
 	flag.Parse()
 
 	// Build function map for lookup (visible functions + built-in functions).
-	funcMap := make(map[string]*FuncDef, len(visibleFuncs)+len(builtinFuncs))
+	funcMap := make(map[string]*TaskDef, len(visibleFuncs)+len(builtinFuncs))
 	for _, f := range visibleFuncs {
 		funcMap[f.name] = f
 	}
@@ -109,7 +109,7 @@ func cliRun(
 	defer stop()
 
 	// Determine what to run.
-	var funcToRun *FuncDef
+	var funcToRun *TaskDef
 
 	if len(args) == 0 {
 		// No arguments: run all autorun functions.
@@ -142,7 +142,7 @@ func cliRun(
 					return 1
 				}
 				if parsedOpts != nil {
-					funcToRun = f.With(parsedOpts)
+					funcToRun = WithOpts(f, parsedOpts)
 				}
 			}
 		} else {
@@ -162,8 +162,8 @@ func cliRun(
 // filterFuncsByCwd returns functions visible in the given directory.
 // - Functions with path mapping: visible if paths.RunsIn(cwd) returns true
 // - Functions without path mapping: visible only at root (cwd == ".").
-func filterFuncsByCwd(funcs []*FuncDef, cwd string, pathMappings map[string]*PathFilter) []*FuncDef {
-	var result []*FuncDef
+func filterFuncsByCwd(funcs []*TaskDef, cwd string, pathMappings map[string]*PathFilter) []*TaskDef {
+	var result []*TaskDef
 	for _, f := range funcs {
 		if isFuncVisibleIn(f.name, cwd, pathMappings) {
 			result = append(result, f)
@@ -182,7 +182,7 @@ func isFuncVisibleIn(funcName, cwd string, pathMappings map[string]*PathFilter) 
 }
 
 // printHelp prints the help message with available functions.
-func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
+func printHelp(funcs []*TaskDef, autoRunNames map[string]bool, builtinFuncs []*TaskDef) {
 	fmt.Println("Usage: pok [flags] <task> [args...]")
 	fmt.Println()
 	fmt.Println("Flags:")
@@ -191,7 +191,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 	fmt.Println()
 
 	// Separate visible tasks into auto-run and manual.
-	var autorun, other []*FuncDef
+	var autorun, other []*TaskDef
 	for _, f := range funcs {
 		if f.hidden {
 			continue
@@ -252,7 +252,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 }
 
 // printFuncHelp prints help for a specific function.
-func printFuncHelp(f *FuncDef) {
+func printFuncHelp(f *TaskDef) {
 	fmt.Printf("%s - %s\n", f.name, f.usage)
 
 	// Check if function has options attached.

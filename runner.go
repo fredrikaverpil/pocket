@@ -33,7 +33,7 @@ func RunConfig(cfg Config) {
 	cfg = cfg.WithDefaults()
 
 	// Collect all functions and path mappings from AutoRun.
-	var allFuncs []*FuncDef
+	var allFuncs []*TaskDef
 	pathMappings := make(map[string]*PathFilter)
 	autoRunNames := make(map[string]bool)
 
@@ -46,9 +46,9 @@ func RunConfig(cfg Config) {
 	}
 
 	// Create an "all" function that runs generate → AutoRun → git-diff.
-	var allFunc *FuncDef
+	var allFunc *TaskDef
 	if cfg.AutoRun != nil {
-		allFunc = Func("all", "run all tasks", func(ctx context.Context) error {
+		allFunc = Task("all", "run all tasks", func(ctx context.Context) error {
 			// Run generate first (unless skipped).
 			if !cfg.SkipGenerate {
 				if generateAllFn == nil {
@@ -74,11 +74,11 @@ func RunConfig(cfg Config) {
 			}
 
 			return nil
-		}).Hidden()
+		}, AsHidden())
 	}
 
 	// Add manual run functions and their path mappings.
-	// Note: If the same FuncDef appears in both AutoRun and ManualRun,
+	// Note: If the same TaskDef appears in both AutoRun and ManualRun,
 	// validateNoDuplicateFuncs will error. Use WithName() to give
 	// ManualRun tasks distinct names.
 	for _, r := range cfg.ManualRun {
@@ -104,7 +104,7 @@ func RunConfig(cfg Config) {
 
 // validateNoDuplicateFuncs checks that no two functions have the same name.
 // Returns an error listing all duplicates found.
-func validateNoDuplicateFuncs(funcs, builtinFuncs []*FuncDef) error {
+func validateNoDuplicateFuncs(funcs, builtinFuncs []*TaskDef) error {
 	seen := make(map[string]bool)
 	var duplicates []string
 
@@ -137,10 +137,10 @@ type planOptions struct {
 
 // builtinTasks returns the built-in tasks that are always available.
 // These include: clean, generate, git-diff, plan, update.
-func builtinTasks(cfg *Config) []*FuncDef {
-	return []*FuncDef{
+func builtinTasks(cfg *Config) []*TaskDef {
+	return []*TaskDef{
 		// plan: show the execution tree
-		Func("plan", "show the execution tree and shim locations", func(ctx context.Context) error {
+		Task("plan", "show the execution tree and shim locations", func(ctx context.Context) error {
 			opts := Options[planOptions](ctx)
 
 			// Print AutoRun tree using Engine
@@ -174,10 +174,10 @@ func builtinTasks(cfg *Config) []*FuncDef {
 			}
 
 			return nil
-		}).With(planOptions{}),
+		}, Opts(planOptions{})),
 
 		// clean: remove .pocket/tools and .pocket/bin directories
-		Func("clean", "remove .pocket/tools and .pocket/bin directories", func(ctx context.Context) error {
+		Task("clean", "remove .pocket/tools and .pocket/bin directories", func(ctx context.Context) error {
 			toolsDir := FromToolsDir()
 			if _, err := os.Stat(toolsDir); err == nil {
 				if err := os.RemoveAll(toolsDir); err != nil {
@@ -196,7 +196,7 @@ func builtinTasks(cfg *Config) []*FuncDef {
 		}),
 
 		// generate: regenerate all generated files (main.go, shim)
-		Func("generate", "regenerate all generated files (main.go, shim)", func(ctx context.Context) error {
+		Task("generate", "regenerate all generated files (main.go, shim)", func(ctx context.Context) error {
 			if generateAllFn == nil {
 				return fmt.Errorf("scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold")
 			}
@@ -213,7 +213,7 @@ func builtinTasks(cfg *Config) []*FuncDef {
 		}),
 
 		// git-diff: fail if there are uncommitted changes
-		Func("git-diff", "fail if there are uncommitted changes", func(ctx context.Context) error {
+		Task("git-diff", "fail if there are uncommitted changes", func(ctx context.Context) error {
 			if err := Exec(ctx, "git", "diff", "--exit-code"); err != nil {
 				return fmt.Errorf("uncommitted changes detected; please commit or stage your changes")
 			}
@@ -221,7 +221,7 @@ func builtinTasks(cfg *Config) []*FuncDef {
 		}),
 
 		// update: update pocket dependency and regenerate files
-		Func("update", "update pocket dependency and regenerate files", func(ctx context.Context) error {
+		Task("update", "update pocket dependency and regenerate files", func(ctx context.Context) error {
 			verbose := Verbose(ctx)
 			pocketDir := FromPocketDir()
 

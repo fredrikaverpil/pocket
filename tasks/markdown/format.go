@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/prettier"
@@ -14,37 +13,36 @@ type FormatOptions struct {
 }
 
 // Format formats Markdown files using prettier.
-var Format = pocket.Func("md-format", "format Markdown files", pocket.Serial(
-	prettier.Install,
-	format,
-)).With(FormatOptions{})
+var Format = pocket.Task("md-format", "format Markdown files",
+	pocket.Serial(prettier.Install, formatCmd()),
+	pocket.Opts(FormatOptions{}),
+)
 
-func format(ctx context.Context) error {
-	opts := pocket.Options[FormatOptions](ctx)
+func formatCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[FormatOptions](ctx)
 
-	args := []string{}
-	if opts.Check {
-		args = append(args, "--check")
-	} else {
-		args = append(args, "--write")
-	}
+		args := []string{}
+		if opts.Check {
+			args = append(args, "--check")
+		} else {
+			args = append(args, "--write")
+		}
 
-	// Add config if available (use absolute path)
-	if configPath, err := pocket.ConfigPath(ctx, "prettier", prettier.Config); err == nil && configPath != "" {
-		args = append(args, "--config", configPath)
-	}
+		// Add config if available (use absolute path)
+		if configPath, err := pocket.ConfigPath(ctx, "prettier", prettier.Config); err == nil && configPath != "" {
+			args = append(args, "--config", configPath)
+		}
 
-	// Add ignore file if available (use absolute path)
-	if ignorePath, err := prettier.EnsureIgnoreFile(); err == nil {
-		args = append(args, "--ignore-path", ignorePath)
-	}
+		// Add ignore file if available (use absolute path)
+		if ignorePath, err := prettier.EnsureIgnoreFile(); err == nil {
+			args = append(args, "--ignore-path", ignorePath)
+		}
 
-	// Use absolute path pattern since prettier runs from install directory
-	pattern := pocket.FromGitRoot("**/*.md")
-	args = append(args, pattern)
+		// Use absolute path pattern since prettier runs from install directory
+		pattern := pocket.FromGitRoot("**/*.md")
+		args = append(args, pattern)
 
-	if err := prettier.Exec(ctx, args...); err != nil {
-		return fmt.Errorf("prettier failed: %w", err)
-	}
-	return nil
+		return prettier.Exec(ctx, args...)
+	})
 }

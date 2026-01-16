@@ -18,9 +18,12 @@ const Name = "nvim"
 const Version = "0.11.5"
 
 // Install ensures nvim is available.
-var Install = pocket.Func("install:nvim", "install neovim", install).Hidden()
+var Install = pocket.Task("install:nvim", "install neovim",
+	installNvim(),
+	pocket.AsHidden(),
+)
 
-func install(ctx context.Context) error {
+func installNvim() pocket.Runnable {
 	binDir := pocket.FromToolsDir("nvim", Version)
 	binaryName := pocket.BinaryName("nvim")
 
@@ -40,21 +43,19 @@ func install(ctx context.Context) error {
 	binaryInArchive := filepath.Join(archiveDir, "bin", binaryName)
 	extractedBinaryPath := filepath.Join(binDir, archiveDir, "bin", binaryName)
 
-	if err := pocket.Download(ctx, url,
-		pocket.WithDestDir(binDir),
-		pocket.WithFormat(ext),
-		pocket.WithExtract(pocket.WithExtractFile(binaryInArchive)),
-		pocket.WithSkipIfExists(extractedBinaryPath),
-	); err != nil {
-		return err
-	}
-
-	// Create symlink to the binary inside the extracted directory.
-	if _, err := pocket.CreateSymlink(extractedBinaryPath); err != nil {
-		return err
-	}
-
-	return nil
+	return pocket.Serial(
+		pocket.Download(url,
+			pocket.WithDestDir(binDir),
+			pocket.WithFormat(ext),
+			pocket.WithExtract(pocket.WithExtractFile(binaryInArchive)),
+			pocket.WithSkipIfExists(extractedBinaryPath),
+		),
+		// Create symlink to the binary inside the extracted directory.
+		pocket.Do(func(_ context.Context) error {
+			_, err := pocket.CreateSymlink(extractedBinaryPath)
+			return err
+		}),
+	)
 }
 
 func platformArch() string {

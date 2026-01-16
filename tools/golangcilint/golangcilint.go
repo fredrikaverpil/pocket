@@ -1,11 +1,7 @@
 // Package golangcilint provides golangci-lint integration.
 package golangcilint
 
-import (
-	"context"
-
-	"github.com/fredrikaverpil/pocket"
-)
+import "github.com/fredrikaverpil/pocket"
 
 // Name is the binary name for golangci-lint.
 const Name = "golangci-lint"
@@ -14,11 +10,10 @@ const Name = "golangci-lint"
 const Version = "v2.0.2"
 
 // Install ensures golangci-lint is available.
-var Install = pocket.Func("install:golangci-lint", "install golangci-lint", install).Hidden()
-
-func install(ctx context.Context) error {
-	return pocket.InstallGo(ctx, "github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version)
-}
+var Install = pocket.Task("install:golangci-lint", "install golangci-lint",
+	pocket.InstallGo("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version),
+	pocket.AsHidden(),
+)
 
 // Config for golangci-lint configuration file lookup.
 var Config = pocket.ToolConfig{

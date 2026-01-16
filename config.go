@@ -9,20 +9,20 @@ type Config struct {
 	// Example:
 	//
 	//	AutoRun: pocket.Serial(
-	//	    pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-	//	    pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
+	//	    pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
+	//	    pocket.RunIn(python.Tasks(), pocket.Detect(python.Detect())),
 	//	),
 	AutoRun Runnable
 
 	// ManualRun registers additional tasks that only run when explicitly
 	// invoked with ./pok <taskname>. These tasks appear in ./pok -h under
-	// "Manual Tasks" and support the same wrappers as AutoRun (Paths, etc.).
+	// "Manual Tasks" and support the same wrappers as AutoRun (RunIn, etc.).
 	//
 	// Example:
 	//
 	//	ManualRun: []pocket.Runnable{
 	//	    deployTask,
-	//	    pocket.Paths(benchmarkTask).In("services/api"),
+	//	    pocket.RunIn(benchmarkTask, pocket.Include("services/api")),
 	//	},
 	ManualRun []Runnable
 

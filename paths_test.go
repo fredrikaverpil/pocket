@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestPaths_In(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).In("proj1", "proj2")
+func TestRunIn_Include(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn, Include("proj1", "proj2"))
 
 	resolved := p.Resolve()
 	if len(resolved) != 2 {
@@ -24,11 +24,14 @@ func TestPaths_In(t *testing.T) {
 	}
 }
 
-func TestPaths_Except(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).DetectBy(func() []string {
-		return []string{"proj1", "proj2", "vendor"}
-	}).Except("vendor")
+func TestRunIn_Exclude(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn,
+		Detect(func() []string {
+			return []string{"proj1", "proj2", "vendor"}
+		}),
+		Exclude("vendor"),
+	)
 
 	resolved := p.Resolve()
 	if len(resolved) != 2 {
@@ -39,11 +42,11 @@ func TestPaths_Except(t *testing.T) {
 	}
 }
 
-func TestPaths_DetectBy(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).DetectBy(func() []string {
+func TestRunIn_Detect(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn, Detect(func() []string {
 		return []string{"a", "b", "c"}
-	})
+	}))
 
 	resolved := p.Resolve()
 	if len(resolved) != 3 {
@@ -51,11 +54,11 @@ func TestPaths_DetectBy(t *testing.T) {
 	}
 }
 
-func TestPaths_DetectBy_ReturnsCorrectPaths(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).DetectBy(func() []string {
+func TestRunIn_Detect_ReturnsCorrectPaths(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn, Detect(func() []string {
 		return []string{"mod1", "mod2"}
-	})
+	}))
 
 	resolved := p.Resolve()
 	if len(resolved) != 2 {
@@ -63,9 +66,9 @@ func TestPaths_DetectBy_ReturnsCorrectPaths(t *testing.T) {
 	}
 }
 
-func TestPaths_NoDetect_ReturnsEmpty(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn) // no detection set
+func TestRunIn_NoDetect_ReturnsEmpty(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn) // no detection set
 
 	resolved := p.Resolve()
 	if len(resolved) != 0 {
@@ -73,11 +76,14 @@ func TestPaths_NoDetect_ReturnsEmpty(t *testing.T) {
 	}
 }
 
-func TestPaths_CombineDetectAndInclude(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).DetectBy(func() []string {
-		return []string{"detected1", "detected2"}
-	}).In("detected1") // filter to only detected1
+func TestRunIn_CombineDetectAndInclude(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn,
+		Detect(func() []string {
+			return []string{"detected1", "detected2"}
+		}),
+		Include("detected1"), // filter to only detected1
+	)
 
 	resolved := p.Resolve()
 	if len(resolved) != 1 {
@@ -88,24 +94,9 @@ func TestPaths_CombineDetectAndInclude(t *testing.T) {
 	}
 }
 
-func TestPaths_Immutability(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p1 := Paths(fn).In("proj1")
-	p2 := p1.In("proj2")
-
-	// p1 should still only have proj1
-	if p1.RunsIn("proj2") {
-		t.Error("p1 should not include proj2 (immutability violated)")
-	}
-	// p2 should have both
-	if !p2.RunsIn("proj1") || !p2.RunsIn("proj2") {
-		t.Error("p2 should include both proj1 and proj2")
-	}
-}
-
-func TestPaths_Funcs(t *testing.T) {
-	fn := Func("test-func", "test func", func(_ context.Context) error { return nil })
-	p := Paths(fn).In(".")
+func TestRunIn_Funcs(t *testing.T) {
+	fn := Task("test-func", "test func", func(_ context.Context) error { return nil })
+	p := RunIn(fn, Include("."))
 
 	funcs := p.funcs()
 	if len(funcs) != 1 {
@@ -116,11 +107,14 @@ func TestPaths_Funcs(t *testing.T) {
 	}
 }
 
-func TestPaths_RegexPatterns(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).DetectBy(func() []string {
-		return []string{"services/api", "services/web", "tools/cli"}
-	}).In("services/.*")
+func TestRunIn_RegexPatterns(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn,
+		Detect(func() []string {
+			return []string{"services/api", "services/web", "tools/cli"}
+		}),
+		Include("services/.*"),
+	)
 
 	resolved := p.Resolve()
 	if len(resolved) != 2 {
@@ -134,9 +128,9 @@ func TestPaths_RegexPatterns(t *testing.T) {
 	}
 }
 
-func TestPaths_RootOnly(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	p := Paths(fn).In(".")
+func TestRunIn_RootOnly(t *testing.T) {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	p := RunIn(fn, Include("."))
 
 	if !p.RunsIn(".") {
 		t.Error("expected RunsIn(.) to be true")
@@ -147,27 +141,27 @@ func TestPaths_RootOnly(t *testing.T) {
 }
 
 func Test_collectPathMappings(t *testing.T) {
-	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
-	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
-	fn3 := Func("fn3", "func 3", func(_ context.Context) error { return nil })
+	fn1 := Task("fn1", "func 1", func(_ context.Context) error { return nil })
+	fn2 := Task("fn2", "func 2", func(_ context.Context) error { return nil })
+	fn3 := Task("fn3", "func 3", func(_ context.Context) error { return nil })
 
-	// Wrap fn1 and fn2 with Paths().DetectBy().
-	wrapped := Paths(Serial(fn1, fn2)).DetectBy(func() []string {
+	// Wrap fn1 and fn2 with RunIn and Detect.
+	wrapped := RunIn(Serial(fn1, fn2), Detect(func() []string {
 		return []string{"proj1", "proj2"}
-	})
+	}))
 
 	// Create a serial runnable with wrapped and unwrapped funcs.
 	runnable := Serial(wrapped, fn3)
 	mappings := collectPathMappings(runnable)
 
-	// fn1 and fn2 should be in mappings (from wrapped Paths).
+	// fn1 and fn2 should be in mappings (from wrapped RunIn).
 	if _, ok := mappings["fn1"]; !ok {
 		t.Error("expected fn1 to be in mappings")
 	}
 	if _, ok := mappings["fn2"]; !ok {
 		t.Error("expected fn2 to be in mappings")
 	}
-	// fn3 should NOT be in mappings (not wrapped with Paths).
+	// fn3 should NOT be in mappings (not wrapped with RunIn).
 	if _, ok := mappings["fn3"]; ok {
 		t.Error("expected fn3 to NOT be in mappings")
 	}
@@ -182,10 +176,10 @@ func Test_collectPathMappings(t *testing.T) {
 }
 
 func TestCollectModuleDirectories(t *testing.T) {
-	fn := Func("test", "test", func(_ context.Context) error { return nil })
-	wrapped := Paths(fn).DetectBy(func() []string {
+	fn := Task("test", "test", func(_ context.Context) error { return nil })
+	wrapped := RunIn(fn, Detect(func() []string {
 		return []string{"proj1", "proj2"}
-	})
+	}))
 
 	dirs := CollectModuleDirectories(wrapped)
 

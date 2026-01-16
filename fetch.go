@@ -84,18 +84,27 @@ func WithHTTPHeader(key, value string) DownloadOpt {
 	}
 }
 
-// Download fetches a URL and optionally extracts it.
+// Download creates a Runnable that fetches a URL and optionally extracts it.
 // Progress and status messages are written to the context's output.
 //
 // Example:
 //
-//	err := Download(ctx, url,
-//	    WithDestDir(binDir),
-//	    WithFormat("tar.gz"),
-//	    WithExtract(WithRenameFile("tool-1.0.0/tool", "tool")),
-//	    WithSymlink(),
-//	)
-func Download(ctx context.Context, url string, opts ...DownloadOpt) error {
+//	var Install = pocket.Task("install:tool", "install tool",
+//	    pocket.Download(url,
+//	        pocket.WithDestDir(binDir),
+//	        pocket.WithFormat("tar.gz"),
+//	        pocket.WithExtract(pocket.WithRenameFile("tool-1.0.0/tool", "tool")),
+//	        pocket.WithSymlink(),
+//	    ),
+//	).Hidden()
+func Download(url string, opts ...DownloadOpt) Runnable {
+	return Do(func(ctx context.Context) error {
+		return download(ctx, url, opts...)
+	})
+}
+
+// download is the internal implementation of Download.
+func download(ctx context.Context, url string, opts ...DownloadOpt) error {
 	cfg := newDownloadConfig(opts)
 
 	// Check if we can skip.
@@ -168,9 +177,16 @@ func Download(ctx context.Context, url string, opts ...DownloadOpt) error {
 	return nil
 }
 
-// FromLocal processes a local file (extract/copy) with the same options as Download.
+// FromLocal creates a Runnable that processes a local file (extract/copy).
 // Useful for processing pre-downloaded or bundled archives.
-func FromLocal(ctx context.Context, path string, opts ...DownloadOpt) error {
+func FromLocal(path string, opts ...DownloadOpt) Runnable {
+	return Do(func(ctx context.Context) error {
+		return fromLocal(ctx, path, opts...)
+	})
+}
+
+// fromLocal is the internal implementation of FromLocal.
+func fromLocal(ctx context.Context, path string, opts ...DownloadOpt) error {
 	cfg := newDownloadConfig(opts)
 
 	// Check if we can skip.

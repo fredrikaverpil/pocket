@@ -2,7 +2,6 @@ package python
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/ruff"
@@ -14,30 +13,28 @@ type FormatOptions struct {
 }
 
 // Format formats Python files using ruff format.
-var Format = pocket.Func("py-format", "format Python files", pocket.Serial(
-	ruff.Install,
-	format,
-)).With(FormatOptions{})
+var Format = pocket.Task("py-format", "format Python files",
+	pocket.Serial(ruff.Install, formatCmd()),
+	pocket.Opts(FormatOptions{}),
+)
 
-func format(ctx context.Context) error {
-	opts := pocket.Options[FormatOptions](ctx)
-	configPath := opts.RuffConfig
-	if configPath == "" {
-		var err error
-		configPath, err = pocket.ConfigPath(ctx, "ruff", ruff.Config)
-		if err != nil {
-			return fmt.Errorf("get ruff config: %w", err)
+func formatCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[FormatOptions](ctx)
+		configPath := opts.RuffConfig
+		if configPath == "" {
+			configPath, _ = pocket.ConfigPath(ctx, "ruff", ruff.Config)
 		}
-	}
 
-	args := []string{"format"}
-	if pocket.Verbose(ctx) {
-		args = append(args, "--verbose")
-	}
-	if configPath != "" {
-		args = append(args, "--config", configPath)
-	}
-	args = append(args, pocket.Path(ctx))
+		args := []string{"format"}
+		if pocket.Verbose(ctx) {
+			args = append(args, "--verbose")
+		}
+		if configPath != "" {
+			args = append(args, "--config", configPath)
+		}
+		args = append(args, pocket.Path(ctx))
 
-	return pocket.Exec(ctx, ruff.Name, args...)
+		return pocket.Exec(ctx, ruff.Name, args...)
+	})
 }

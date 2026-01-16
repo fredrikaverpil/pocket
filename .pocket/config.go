@@ -11,10 +11,10 @@ import (
 
 // Config is the pocket configuration for this project.
 var Config = pocket.Config{
-	AutoRun: pocket.Serial(
-		pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-		pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
-		github.Workflows.With(github.WorkflowsOptions{SkipPocket: true}),
+	AutoRun: pocket.Parallel(
+		pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
+		pocket.RunIn(markdown.Tasks(), pocket.Detect(markdown.Detect())),
+		pocket.WithOpts(github.Workflows, github.WorkflowsOptions{SkipPocket: true}),
 	),
 	ManualRun: []pocket.Runnable{
 		Greet,
@@ -33,8 +33,8 @@ type GreetOptions struct {
 }
 
 // Greet is a demo task that prints a greeting.
-var Greet = pocket.Func("greet", "print a greeting message", greet).
-	With(GreetOptions{Name: "world", Count: 1})
+var Greet = pocket.Task("greet", "print a greeting message", greet,
+	pocket.Opts(GreetOptions{Name: "world", Count: 1}))
 
 func greet(ctx context.Context) error {
 	opts := pocket.Options[GreetOptions](ctx)

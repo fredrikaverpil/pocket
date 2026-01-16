@@ -18,9 +18,12 @@ const Name = "bun"
 const Version = "1.3.6"
 
 // Install ensures bun is available.
-var Install = pocket.Func("install:bun", "ensure bun is available", install).Hidden()
+var Install = pocket.Task("install:bun", "ensure bun is available",
+	installBun(),
+	pocket.AsHidden(),
+)
 
-func install(ctx context.Context) error {
+func installBun() pocket.Runnable {
 	binDir := pocket.FromToolsDir(Name, Version, "bin")
 	binaryName := pocket.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
@@ -30,7 +33,7 @@ func install(ctx context.Context) error {
 		Version, platformArch(),
 	)
 
-	return pocket.Download(ctx, url,
+	return pocket.Download(url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat("zip"),
 		pocket.WithExtract(pocket.WithExtractFile(binaryName)),

@@ -7,11 +7,11 @@ import (
 )
 
 // Tasks returns all markdown tasks composed as a Runnable.
-// Use this with pocket.Paths().DetectBy() for auto-detection.
+// Use this with pocket.RunIn() and pocket.Detect() for auto-detection.
 //
 // Example:
 //
-//	pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect())
+//	pocket.RunIn(markdown.Tasks(), pocket.Detect(markdown.Detect()))
 func Tasks() pocket.Runnable {
 	return Format
 }

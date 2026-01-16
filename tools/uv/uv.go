@@ -17,9 +17,12 @@ const Name = "uv"
 const Version = "0.7.13"
 
 // Install ensures uv is available.
-var Install = pocket.Func("install:uv", "install uv", install).Hidden()
+var Install = pocket.Task("install:uv", "install uv",
+	installUV(),
+	pocket.AsHidden(),
+)
 
-func install(ctx context.Context) error {
+func installUV() pocket.Runnable {
 	binDir := pocket.FromToolsDir("uv", Version, "bin")
 	binaryName := pocket.BinaryName("uv")
 	binaryPath := filepath.Join(binDir, binaryName)
@@ -31,7 +34,7 @@ func install(ctx context.Context) error {
 		pocket.DefaultArchiveFormat(),
 	)
 
-	return pocket.Download(ctx, url,
+	return pocket.Download(url,
 		pocket.WithDestDir(binDir),
 		pocket.WithFormat(pocket.DefaultArchiveFormat()),
 		pocket.WithExtract(pocket.WithExtractFile(binaryName)),

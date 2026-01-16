@@ -9,17 +9,23 @@ import (
 	"strings"
 )
 
-// InstallGo installs a Go binary using 'go install'.
+// InstallGo creates a Runnable that installs a Go binary using 'go install'.
 // The binary is installed to .pocket/tools/go/<pkg>/<version>/
 // and symlinked to .pocket/bin/.
 //
 // Example:
 //
-//	func installLinter(ctx context.Context) error {
-//	    pocket.Printf(ctx, "Installing golangci-lint %s...\n", version)
-//	    return pocket.InstallGo(ctx, "github.com/golangci/golangci-lint/cmd/golangci-lint", version)
-//	}
-func InstallGo(ctx context.Context, pkg, version string) error {
+//	var Install = pocket.Task("install:linter", "install linter",
+//	    pocket.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", version),
+//	).Hidden()
+func InstallGo(pkg, version string) Runnable {
+	return Do(func(ctx context.Context) error {
+		return installGo(ctx, pkg, version)
+	})
+}
+
+// installGo is the internal implementation of InstallGo.
+func installGo(ctx context.Context, pkg, version string) error {
 	// Determine binary name from package path.
 	binaryName := goBinaryName(pkg)
 	if runtime.GOOS == Windows {

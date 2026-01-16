@@ -21,7 +21,7 @@ import (
 // toolTest defines a tool to test.
 type toolTest struct {
 	name        string
-	install     *pocket.FuncDef
+	install     *pocket.TaskDef
 	binary      string
 	versionArgs []string
 	// customExec is used for tools that need special execution (e.g., prettier via bun).
@@ -53,7 +53,7 @@ func TestTools(t *testing.T) {
 
 			// Create a test function that installs and runs the tool.
 			// Compose the install dependency with the version check.
-			testFunc := pocket.Func("test:"+tool.name, "test "+tool.name, pocket.Serial(
+			testFunc := pocket.Task("test:"+tool.name, "test "+tool.name, pocket.Serial(
 				tool.install,
 				func(fnCtx context.Context) error {
 					if tool.customExec != nil {

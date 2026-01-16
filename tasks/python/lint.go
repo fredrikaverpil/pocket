@@ -2,7 +2,6 @@ package python
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/ruff"
@@ -15,33 +14,31 @@ type LintOptions struct {
 }
 
 // Lint lints Python files using ruff check with auto-fix enabled by default.
-var Lint = pocket.Func("py-lint", "lint Python files", pocket.Serial(
-	ruff.Install,
-	lint,
-)).With(LintOptions{})
+var Lint = pocket.Task("py-lint", "lint Python files",
+	pocket.Serial(ruff.Install, lintCmd()),
+	pocket.Opts(LintOptions{}),
+)
 
-func lint(ctx context.Context) error {
-	opts := pocket.Options[LintOptions](ctx)
-	configPath := opts.RuffConfig
-	if configPath == "" {
-		var err error
-		configPath, err = pocket.ConfigPath(ctx, "ruff", ruff.Config)
-		if err != nil {
-			return fmt.Errorf("get ruff config: %w", err)
+func lintCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[LintOptions](ctx)
+		configPath := opts.RuffConfig
+		if configPath == "" {
+			configPath, _ = pocket.ConfigPath(ctx, "ruff", ruff.Config)
 		}
-	}
 
-	args := []string{"check"}
-	if pocket.Verbose(ctx) {
-		args = append(args, "--verbose")
-	}
-	if !opts.SkipFix {
-		args = append(args, "--fix")
-	}
-	if configPath != "" {
-		args = append(args, "--config", configPath)
-	}
-	args = append(args, pocket.Path(ctx))
+		args := []string{"check"}
+		if pocket.Verbose(ctx) {
+			args = append(args, "--verbose")
+		}
+		if !opts.SkipFix {
+			args = append(args, "--fix")
+		}
+		if configPath != "" {
+			args = append(args, "--config", configPath)
+		}
+		args = append(args, pocket.Path(ctx))
 
-	return pocket.Exec(ctx, ruff.Name, args...)
+		return pocket.Exec(ctx, ruff.Name, args...)
+	})
 }

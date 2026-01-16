@@ -42,7 +42,7 @@ require container isolation or enterprise-scale features.
 - **Monorepos with structure** — Auto-detection finds all Go modules, Python
   projects, etc. and runs consistent task groups across them
 - **Path filtering** — Control which tasks are visible in which directories
-  (`Paths().In("services/api")`)
+  (`RunIn(task, Include("services/api"))`)
 - **CI simplicity** — Your CI just runs `./pok`; no tool installation steps
 
 ### When to look elsewhere
@@ -115,7 +115,7 @@ Tasks are defined in Go code with `Serial()` and `Parallel()` execution control.
 - Automatic tool downloading and caching in `.pocket/`
 - Auto-detection of project types (Go modules, Python projects, etc.)
 - Task groups that run consistently across all detected locations
-- Path filtering for monorepos (`Paths().In()`, `Paths().DetectBy()`)
+- Path filtering for monorepos (`RunIn()`, `Detect()`, `Include()`)
 - Bootstrap shim (`./pok`) that auto-installs Go if needed
 - Bundled task packages for Go, Python, Lua, Markdown
 
@@ -130,10 +130,10 @@ Tasks are defined in Go code with `Serial()` and `Parallel()` execution control.
 ```go
 var Config = pocket.Config{
     AutoRun: pocket.Serial(
-        // DetectBy finds all go.mod and pyproject.toml locations
+        // Detect finds all go.mod and pyproject.toml locations
         // and runs these task groups in each
-        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
-        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
+        pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
+        pocket.RunIn(python.Tasks(), pocket.Detect(python.Detect())),
     ),
 }
 ```

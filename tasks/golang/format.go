@@ -13,21 +13,25 @@ type FormatOptions struct {
 }
 
 // Format formats Go code using golangci-lint fmt.
-var Format = pocket.Func("go-format", "format Go code", pocket.Serial(
-	golangcilint.Install,
-	format,
-)).With(FormatOptions{})
+var Format = pocket.Task("go-format", "format Go code",
+	pocket.Serial(golangcilint.Install, formatCmd()),
+	pocket.Opts(FormatOptions{}),
+)
 
-func format(ctx context.Context) error {
-	opts := pocket.Options[FormatOptions](ctx)
+func formatCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[FormatOptions](ctx)
 
-	args := []string{"fmt"}
-	if opts.Config != "" {
-		args = append(args, "-c", opts.Config)
-	} else if configPath, err := pocket.ConfigPath(ctx, "golangci-lint", golangcilint.Config); err == nil && configPath != "" {
-		args = append(args, "-c", configPath)
-	}
-	args = append(args, "./...")
+		args := []string{"fmt"}
+		if opts.Config != "" {
+			args = append(args, "-c", opts.Config)
+		} else if configPath, err := pocket.ConfigPath(ctx, "golangci-lint", golangcilint.Config); err == nil {
+			if configPath != "" {
+				args = append(args, "-c", configPath)
+			}
+		}
+		args = append(args, "./...")
 
-	return pocket.Exec(ctx, golangcilint.Name, args...)
+		return pocket.Exec(ctx, golangcilint.Name, args...)
+	})
 }

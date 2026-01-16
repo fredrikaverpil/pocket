@@ -10,47 +10,47 @@ func TestValidateNoDuplicateFuncs(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		funcs    []*FuncDef
-		builtins []*FuncDef
+		funcs    []*TaskDef
+		builtins []*TaskDef
 		wantErr  bool
 		errMsg   string
 	}{
 		{
 			name:     "no duplicates",
-			funcs:    []*FuncDef{Func("a", "task a", noop), Func("b", "task b", noop)},
-			builtins: []*FuncDef{Func("c", "task c", noop)},
+			funcs:    []*TaskDef{Task("a", "task a", noop), Task("b", "task b", noop)},
+			builtins: []*TaskDef{Task("c", "task c", noop)},
 			wantErr:  false,
 		},
 		{
 			name:     "duplicate user funcs",
-			funcs:    []*FuncDef{Func("a", "task a", noop), Func("b", "task b", noop), Func("a", "task a dup", noop)},
-			builtins: []*FuncDef{},
+			funcs:    []*TaskDef{Task("a", "task a", noop), Task("b", "task b", noop), Task("a", "task a dup", noop)},
+			builtins: []*TaskDef{},
 			wantErr:  true,
 			errMsg:   "duplicate function names: a",
 		},
 		{
 			name:     "user func conflicts with builtin",
-			funcs:    []*FuncDef{Func("clean", "my clean", noop)},
-			builtins: []*FuncDef{Func("clean", "builtin clean", noop)},
+			funcs:    []*TaskDef{Task("clean", "my clean", noop)},
+			builtins: []*TaskDef{Task("clean", "builtin clean", noop)},
 			wantErr:  true,
 			errMsg:   "duplicate function names: clean (conflicts with builtin)",
 		},
 		{
 			name: "multiple duplicates",
-			funcs: []*FuncDef{
-				Func("a", "a1", noop),
-				Func("a", "a2", noop),
-				Func("b", "b1", noop),
-				Func("b", "b2", noop),
+			funcs: []*TaskDef{
+				Task("a", "a1", noop),
+				Task("a", "a2", noop),
+				Task("b", "b1", noop),
+				Task("b", "b2", noop),
 			},
-			builtins: []*FuncDef{},
+			builtins: []*TaskDef{},
 			wantErr:  true,
 			errMsg:   "duplicate function names: a, b",
 		},
 		{
 			name:     "empty lists",
-			funcs:    []*FuncDef{},
-			builtins: []*FuncDef{},
+			funcs:    []*TaskDef{},
+			builtins: []*TaskDef{},
 			wantErr:  false,
 		},
 	}

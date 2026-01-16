@@ -2,7 +2,6 @@ package lua
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
@@ -14,32 +13,34 @@ type FormatOptions struct {
 }
 
 // Format formats Lua files using stylua.
-var Format = pocket.Func("lua-format", "format Lua files", pocket.Serial(
-	stylua.Install,
-	format,
-)).With(FormatOptions{})
+var Format = pocket.Task("lua-format", "format Lua files",
+	pocket.Serial(stylua.Install, formatCmd()),
+	pocket.Opts(FormatOptions{}),
+)
 
-func format(ctx context.Context) error {
-	opts := pocket.Options[FormatOptions](ctx)
-	configPath := opts.StyluaConfig
-	if configPath == "" {
-		var err error
-		configPath, err = pocket.ConfigPath(ctx, "stylua", stylua.Config)
-		if err != nil {
-			return fmt.Errorf("get stylua config: %w", err)
+func formatCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[FormatOptions](ctx)
+		configPath := opts.StyluaConfig
+		if configPath == "" {
+			var err error
+			configPath, err = pocket.ConfigPath(ctx, "stylua", stylua.Config)
+			if err != nil {
+				configPath = "" // ignore error, proceed without config
+			}
 		}
-	}
 
-	absDir := pocket.FromGitRoot(pocket.Path(ctx))
+		absDir := pocket.FromGitRoot(pocket.Path(ctx))
 
-	args := []string{}
-	if pocket.Verbose(ctx) {
-		args = append(args, "--verbose")
-	}
-	if configPath != "" {
-		args = append(args, "-f", configPath)
-	}
-	args = append(args, absDir)
+		args := []string{}
+		if pocket.Verbose(ctx) {
+			args = append(args, "--verbose")
+		}
+		if configPath != "" {
+			args = append(args, "-f", configPath)
+		}
+		args = append(args, absDir)
 
-	return pocket.Exec(ctx, stylua.Name, args...)
+		return pocket.Exec(ctx, stylua.Name, args...)
+	})
 }

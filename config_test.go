@@ -56,8 +56,8 @@ func TestConfig_WithDefaults(t *testing.T) {
 func TestSerial_Funcs(t *testing.T) {
 	t.Parallel()
 
-	fn1 := Func("test-format", "format test files", func(_ context.Context) error { return nil })
-	fn2 := Func("test-lint", "lint test files", func(_ context.Context) error { return nil })
+	fn1 := Task("test-format", "format test files", func(_ context.Context) error { return nil })
+	fn2 := Task("test-lint", "lint test files", func(_ context.Context) error { return nil })
 
 	runnable := Serial(fn1, fn2)
 	// Check funcs returns both funcs.
@@ -70,8 +70,8 @@ func TestSerial_Funcs(t *testing.T) {
 func TestParallel_Funcs(t *testing.T) {
 	t.Parallel()
 
-	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
-	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
+	fn1 := Task("fn1", "func 1", func(_ context.Context) error { return nil })
+	fn2 := Task("fn2", "func 2", func(_ context.Context) error { return nil })
 
 	runnable := Parallel(fn1, fn2)
 	funcs := runnable.funcs()
@@ -83,8 +83,8 @@ func TestParallel_Funcs(t *testing.T) {
 func TestConfig_AutoRun(t *testing.T) {
 	t.Parallel()
 
-	fn1 := Func("deploy", "deploy app", func(_ context.Context) error { return nil })
-	fn2 := Func("release", "release app", func(_ context.Context) error { return nil })
+	fn1 := Task("deploy", "deploy app", func(_ context.Context) error { return nil })
+	fn2 := Task("release", "release app", func(_ context.Context) error { return nil })
 
 	cfg := Config{
 		AutoRun: Serial(fn1, fn2),
@@ -99,9 +99,9 @@ func TestConfig_AutoRun(t *testing.T) {
 func TestNested_Serial_Parallel(t *testing.T) {
 	t.Parallel()
 
-	fn1 := Func("fn1", "func 1", func(_ context.Context) error { return nil })
-	fn2 := Func("fn2", "func 2", func(_ context.Context) error { return nil })
-	fn3 := Func("fn3", "func 3", func(_ context.Context) error { return nil })
+	fn1 := Task("fn1", "func 1", func(_ context.Context) error { return nil })
+	fn2 := Task("fn2", "func 2", func(_ context.Context) error { return nil })
+	fn3 := Task("fn3", "func 3", func(_ context.Context) error { return nil })
 
 	runnable := Serial(
 		fn1,
@@ -113,12 +113,12 @@ func TestNested_Serial_Parallel(t *testing.T) {
 	}
 }
 
-// TestFuncDef_WithName verifies that WithName creates a copy with a new name.
-func TestFuncDef_WithName(t *testing.T) {
+// TestFuncDef_Clone_Named verifies that Clone with Named creates a copy with a new name.
+func TestFuncDef_Clone_Named(t *testing.T) {
 	t.Parallel()
 
-	original := Func("go-test", "run tests", func(_ context.Context) error { return nil })
-	renamed := original.WithName("integration-test")
+	original := Task("go-test", "run tests", func(_ context.Context) error { return nil })
+	renamed := Clone(original, Named("integration-test"))
 
 	// Verify names are different
 	if original.Name() != "go-test" {
@@ -139,12 +139,12 @@ func TestFuncDef_WithName(t *testing.T) {
 	}
 }
 
-// TestFuncDef_WithUsage verifies that WithUsage creates a copy with new help text.
-func TestFuncDef_WithUsage(t *testing.T) {
+// TestFuncDef_Clone_Usage verifies that Clone with Usage creates a copy with new help text.
+func TestFuncDef_Clone_Usage(t *testing.T) {
 	t.Parallel()
 
-	original := Func("go-test", "run tests", func(_ context.Context) error { return nil })
-	modified := original.WithUsage("run unit tests only")
+	original := Task("go-test", "run tests", func(_ context.Context) error { return nil })
+	modified := Clone(original, Usage("run unit tests only"))
 
 	// Verify usages are different
 	if original.Usage() != "run tests" {
@@ -160,12 +160,12 @@ func TestFuncDef_WithUsage(t *testing.T) {
 	}
 }
 
-// TestFuncDef_Chaining verifies that WithName and WithUsage can be chained.
-func TestFuncDef_Chaining(t *testing.T) {
+// TestFuncDef_Clone_Multiple verifies that Clone accepts multiple options.
+func TestFuncDef_Clone_Multiple(t *testing.T) {
 	t.Parallel()
 
-	original := Func("go-test", "run tests", func(_ context.Context) error { return nil })
-	chained := original.WithName("integration-test").WithUsage("run integration tests").Hidden()
+	original := Task("go-test", "run tests", func(_ context.Context) error { return nil })
+	chained := Clone(original, Named("integration-test"), Usage("run integration tests"), AsHidden())
 
 	if chained.Name() != "integration-test" {
 		t.Errorf("name wrong: got %q", chained.Name())
@@ -184,30 +184,30 @@ func TestFuncDef_Chaining(t *testing.T) {
 }
 
 // TestSkipTaskWithManualRun_WithName verifies the documented pattern of using
-// SkipTask + ManualRun with WithName to avoid duplicate function names.
+// Skip + ManualRun with WithName to avoid duplicate function names.
 //
 // Pattern:
 //
-//	AutoRun: pocket.Paths(golang.Tasks()).SkipTask(golang.Test, "services/api"),
-//	ManualRun: []pocket.Runnable{pocket.Paths(golang.Test.WithName("integration-test")).In("services/api")},
+//	AutoRun: pocket.RunIn(golang.Tasks(), pocket.Include("services/api"), pocket.Skip(golang.Test, "services/api")),
+//	ManualRun: []pocket.Runnable{pocket.RunIn(golang.Test.WithName("integration-test"), pocket.Include("services/api"))},
 func TestSkipTaskWithManualRun_WithName(t *testing.T) {
 	t.Parallel()
 
 	// Simulate golang.Test and golang.Workflow
-	testTask := Func("go-test", "test", func(_ context.Context) error { return nil })
-	formatTask := Func("go-format", "format", func(_ context.Context) error { return nil })
+	testTask := Task("go-test", "test", func(_ context.Context) error { return nil })
+	formatTask := Task("go-format", "format", func(_ context.Context) error { return nil })
 	workflow := Serial(formatTask, testTask)
 
-	// Use WithName to give the ManualRun task a distinct name
+	// Use Clone with Named to give the ManualRun task a distinct name
 	cfg := Config{
-		AutoRun: Paths(workflow).In("services/api").SkipTask(testTask, "services/api"),
+		AutoRun: RunIn(workflow, Include("services/api"), Skip(testTask, "services/api")),
 		ManualRun: []Runnable{
-			Paths(testTask.WithName("integration-test")).In("services/api"),
+			RunIn(Clone(testTask, Named("integration-test")), Include("services/api")),
 		},
 	}
 
 	// Collect funcs as runner.go does
-	var allFuncs []*FuncDef
+	var allFuncs []*TaskDef
 	if cfg.AutoRun != nil {
 		allFuncs = append(allFuncs, cfg.AutoRun.funcs()...)
 	}
