@@ -14,13 +14,13 @@ type LintOptions struct {
 }
 
 // Lint lints Python files using ruff check with auto-fix enabled by default.
-var Lint = pocket.Func("py-lint", "lint Python files", pocket.Serial(
+var Lint = pocket.Task("py-lint", "lint Python files", pocket.Serial(
 	ruff.Install,
 	lintCmd(),
 )).With(LintOptions{})
 
 func lintCmd() pocket.Runnable {
-	return pocket.RunWith(ruff.Name, func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[LintOptions](ctx)
 		configPath := opts.RuffConfig
 		if configPath == "" {
@@ -39,6 +39,6 @@ func lintCmd() pocket.Runnable {
 		}
 		args = append(args, pocket.Path(ctx))
 
-		return args
+		return pocket.Exec(ctx, ruff.Name, args...)
 	})
 }

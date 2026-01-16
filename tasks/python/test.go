@@ -14,7 +14,7 @@ type TestOptions struct {
 
 // Test runs Python tests using pytest with coverage by default.
 // Requires pytest and coverage as project dependencies in pyproject.toml.
-var Test = pocket.Func("py-test", "run Python tests", pocket.Serial(
+var Test = pocket.Task("py-test", "run Python tests", pocket.Serial(
 	uv.Install,
 	pocket.Run(uv.Name, "sync", "--all-groups"),
 	testCmd(),

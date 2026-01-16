@@ -7,7 +7,7 @@ import (
 
 func TestEngine_Plan_Simple(t *testing.T) {
 	// Create a simple function
-	fn := Func("test", "test function", func(_ context.Context) error {
+	fn := Task("test", "test function", func(_ context.Context) error {
 		return nil
 	})
 
@@ -34,8 +34,8 @@ func TestEngine_Plan_Simple(t *testing.T) {
 }
 
 func TestEngine_Plan_Serial(t *testing.T) {
-	fn1 := Func("fn1", "first", func(_ context.Context) error { return nil })
-	fn2 := Func("fn2", "second", func(_ context.Context) error { return nil })
+	fn1 := Task("fn1", "first", func(_ context.Context) error { return nil })
+	fn2 := Task("fn2", "second", func(_ context.Context) error { return nil })
 
 	// Create serial composition
 	root := Serial(fn1, fn2)
@@ -62,13 +62,13 @@ func TestEngine_Plan_Serial(t *testing.T) {
 
 func TestEngine_Plan_NestedDeps(t *testing.T) {
 	// Create a hidden install function
-	install := Func("install:tool", "install", func(_ context.Context) error {
+	install := Task("install:tool", "install", func(_ context.Context) error {
 		return nil
 	}).Hidden()
 
 	// Create a function that depends on install using static composition
 	// (inline Serial() calls in function bodies are not visible in plan)
-	lint := Func("lint", "lint code", Serial(
+	lint := Task("lint", "lint code", Serial(
 		install,
 		func(_ context.Context) error {
 			return nil
@@ -121,16 +121,16 @@ func TestEngine_Plan_NestedDeps(t *testing.T) {
 
 func TestEngine_Plan_Deduplication(t *testing.T) {
 	// Create a shared dependency
-	install := Func("install:shared", "install", func(_ context.Context) error {
+	install := Task("install:shared", "install", func(_ context.Context) error {
 		return nil
 	}).Hidden()
 
 	// Create two functions that both depend on install using static composition
-	fn1 := Func("fn1", "first", Serial(
+	fn1 := Task("fn1", "first", Serial(
 		install,
 		func(_ context.Context) error { return nil },
 	))
-	fn2 := Func("fn2", "second", Serial(
+	fn2 := Task("fn2", "second", Serial(
 		install,
 		func(_ context.Context) error { return nil },
 	))

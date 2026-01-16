@@ -27,7 +27,7 @@ execute tasks or visualize the plan.
 ┌─────────────────────────────────────────────────────────────┐
 │                     Runnable Tree Walk                      │
 │                                                             │
-│   Serial ──► Paths ──► Serial ──► FuncDef ──► Serial       │
+│   Serial ──► Paths ──► Serial ──► TaskDef ──► Serial       │
 │                                       │                     │
 │                                       ▼                     │
 │                                   Install ──► fn            │
@@ -42,7 +42,7 @@ methods to prevent external implementations:
 ```go
 type Runnable interface {
     run(ctx context.Context) error  // execute this runnable
-    funcs() []*FuncDef              // collect all named functions
+    funcs() []*TaskDef              // collect all named functions
 }
 ```
 
@@ -53,39 +53,37 @@ Eight types implement Runnable:
                                   │
        ┌──────────┬───────────────┼───────────────┬──────────┐
        │          │               │               │          │
-   FuncDef     serial         parallel       PathFilter   ...
+   TaskDef     serial         parallel       PathFilter   ...
        │          │               │               │
        └─ named   └─ sequential   └─ concurrent   └─ directory-filtered
 
 Additional internal types:
    commandRunnable       - static command (Run)
-   commandWithArgsRunnable - dynamic args (RunWith)
-   doRunnable            - arbitrary Go code (Do)
+   doRunnable            - dynamic commands, arbitrary Go code (Do)
    funcRunnable          - plain function wrapper
 ```
 
-| Type                      | Purpose                                       |
-| ------------------------- | --------------------------------------------- |
-| `FuncDef`                 | Named function with implementation            |
-| `serial`                  | Sequential execution of children              |
-| `parallel`                | Concurrent execution of children              |
-| `PathFilter`              | Wraps a Runnable with directory-based filters |
-| `commandRunnable`         | Execute external command with static args     |
-| `commandWithArgsRunnable` | Execute command with dynamic args             |
-| `doRunnable`              | Execute arbitrary Go code                     |
-| `funcRunnable`            | Internal wrapper for plain functions          |
+| Type              | Purpose                                       |
+| ----------------- | --------------------------------------------- |
+| `TaskDef`         | Named function with implementation            |
+| `serial`          | Sequential execution of children              |
+| `parallel`        | Concurrent execution of children              |
+| `PathFilter`      | Wraps a Runnable with directory-based filters |
+| `commandRunnable` | Execute external command with static args     |
+| `doRunnable`      | Execute dynamic commands or arbitrary Go code |
+| `funcRunnable`    | Internal wrapper for plain functions          |
 
-The three command types (`Run`, `RunWith`, `Do`) are the primary building blocks
-for task implementations. They enable purely compositional task definitions where
-tree construction has no side effects - all execution happens when the engine
-walks the tree.
+The two command types (`Run`, `Do`) are the primary building blocks for task
+implementations. They enable purely compositional task definitions where tree
+construction has no side effects - all execution happens when the engine walks
+the tree.
 
-### FuncDef
+### TaskDef
 
-A `FuncDef` represents a named function:
+A `TaskDef` represents a named function:
 
 ```go
-type FuncDef struct {
+type TaskDef struct {
     name   string                          // CLI command name
     usage  string                          // help text
     body   Runnable                        // implementation (plain function or composition)
@@ -94,8 +92,8 @@ type FuncDef struct {
 }
 ```
 
-A FuncDef wraps a `Runnable` body. Plain functions are automatically wrapped in
-an internal `funcRunnable` during creation via `Func()`. Calling the function
+A TaskDef wraps a `Runnable` body. Plain functions are automatically wrapped in
+an internal `funcRunnable` during creation via `Task()`. Calling the function
 walks its entire subtree.
 
 ### Composition
@@ -121,7 +119,7 @@ all complete, preventing interleaved output.
 
 ### Command Runnables
 
-Three types provide the primary building blocks for task implementations:
+Two types provide the primary building blocks for task implementations:
 
 **`Run(name, args...)`** - Static command with fixed arguments:
 
@@ -131,33 +129,23 @@ pocket.Run("go", "build", "./...")
 
 Creates a `commandRunnable` that executes immediately during tree walk.
 
-**`RunWith(name, argsFn)`** - Command with dynamically computed arguments:
+**`Do(fn)`** - Dynamic commands or arbitrary Go code:
 
 ```go
-pocket.RunWith("golangci-lint", func(ctx context.Context) []string {
+pocket.Do(func(ctx context.Context) error {
     args := []string{"run"}
     if pocket.Verbose(ctx) {
         args = append(args, "-v")
     }
-    return args
+    return pocket.Exec(ctx, "golangci-lint", args...)
 })
 ```
 
-Creates a `commandWithArgsRunnable`. The `argsFn` is called at execution time
-with full context access (options, path, verbose flag).
+Creates a `doRunnable`. Use this for dynamic arguments, file I/O, complex logic,
+or multiple sequential commands. The function has full context access (options,
+path, verbose flag).
 
-**`Do(fn)`** - Escape hatch for arbitrary Go code:
-
-```go
-pocket.Do(func(ctx context.Context) error {
-    // file I/O, complex logic, multiple sequential commands
-    return nil
-})
-```
-
-Creates a `doRunnable` for operations that don't fit the command pattern.
-
-All three types are no-ops in collect mode (plan generation), ensuring tree
+Both types are no-ops in collect mode (plan generation), ensuring tree
 construction is pure and side-effect free.
 
 ### Error Handling
@@ -181,7 +169,7 @@ cancellation and clean up.
       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ RunConfig(cfg)                                              │
-│   1. Collect all FuncDefs from AutoRun tree                 │
+│   1. Collect all TaskDefs from AutoRun tree                 │
 │   2. Build path mappings (func name → PathFilter)           │
 │   3. Add ManualRun functions                                │
 │   4. Add built-in tasks (plan, clean, generate, update)     │
@@ -206,7 +194,7 @@ cancellation and clean up.
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Runnable.run(ctx)                                           │
-│   FuncDef:   print header → execute fn or body.run()        │
+│   TaskDef:   print header → execute fn or body.run()        │
 │   serial:    for each child → run(ctx) sequentially         │
 │   parallel:  for each child → run(ctx) concurrently         │
 │   PathFilter: for each path → set path context → inner.run()│
@@ -408,12 +396,12 @@ const Name = "mytool"           // binary name for pocket.Run
 const Version = "1.0.0"         // pinned version
 
 // Simple: Go tools use InstallGo directly
-var Install = pocket.Func("install:mytool", "install mytool",
+var Install = pocket.Task("install:mytool", "install mytool",
     pocket.InstallGo("github.com/org/mytool", Version),
 ).Hidden()
 
 // Complex: Download-based tools use Download
-var Install = pocket.Func("install:mytool", "install mytool",
+var Install = pocket.Task("install:mytool", "install mytool",
     pocket.Download(downloadURL(),
         pocket.WithDestDir(destDir()),
         pocket.WithFormat(pocket.DefaultArchiveFormat()),
@@ -441,18 +429,18 @@ var Install = pocket.Func("install:mytool", "install mytool",
 Tasks depend on tools via Serial composition:
 
 ```go
-var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+var Lint = pocket.Task("lint", "run linter", pocket.Serial(
     mytool.Install,  // ensure installed first
     lintCmd(),       // then run the task
 ))
 
 func lintCmd() pocket.Runnable {
-    return pocket.RunWith(mytool.Name, func(ctx context.Context) []string {
+    return pocket.Do(func(ctx context.Context) error {
         args := []string{"check"}
         if pocket.Verbose(ctx) {
             args = append(args, "-v")
         }
-        return args
+        return pocket.Exec(ctx, mytool.Name, args...)
     })
 }
 ```
@@ -677,7 +665,7 @@ paths := Paths(fn).In("a").Except("b")
 The same code tree handles both execution and planning by checking mode:
 
 ```go
-func (f *FuncDef) run(ctx context.Context) error {
+func (f *TaskDef) run(ctx context.Context) error {
     ec := getExecContext(ctx)
     if ec.mode == modeCollect {
         // register in plan, walk body only

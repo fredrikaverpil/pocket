@@ -20,7 +20,7 @@ const Version = "1.37.0"
 const pythonVersion = "3.12"
 
 // Install ensures basedpyright is available.
-var Install = pocket.Func("install:basedpyright", "install basedpyright", pocket.Serial(
+var Install = pocket.Task("install:basedpyright", "install basedpyright", pocket.Serial(
 	uv.Install,
 	installBasedpyright(),
 )).Hidden()

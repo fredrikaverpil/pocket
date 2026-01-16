@@ -13,13 +13,13 @@ type FormatOptions struct {
 }
 
 // Format formats Lua files using stylua.
-var Format = pocket.Func("lua-format", "format Lua files", pocket.Serial(
+var Format = pocket.Task("lua-format", "format Lua files", pocket.Serial(
 	stylua.Install,
 	formatCmd(),
 )).With(FormatOptions{})
 
 func formatCmd() pocket.Runnable {
-	return pocket.RunWith(stylua.Name, func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[FormatOptions](ctx)
 		configPath := opts.StyluaConfig
 		if configPath == "" {
@@ -41,6 +41,6 @@ func formatCmd() pocket.Runnable {
 		}
 		args = append(args, absDir)
 
-		return args
+		return pocket.Exec(ctx, stylua.Name, args...)
 	})
 }

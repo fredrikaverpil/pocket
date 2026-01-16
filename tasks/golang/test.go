@@ -14,11 +14,11 @@ type TestOptions struct {
 }
 
 // Test runs tests with race detection and coverage by default.
-var Test = pocket.Func("go-test", "run Go tests", testCmd()).
+var Test = pocket.Task("go-test", "run Go tests", testCmd()).
 	With(TestOptions{})
 
 func testCmd() pocket.Runnable {
-	return pocket.RunWith("go", func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[TestOptions](ctx)
 
 		args := []string{"test"}
@@ -37,6 +37,6 @@ func testCmd() pocket.Runnable {
 		}
 		args = append(args, "./...")
 
-		return args
+		return pocket.Exec(ctx, "go", args...)
 	})
 }

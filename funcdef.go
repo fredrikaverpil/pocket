@@ -4,45 +4,44 @@ import (
 	"context"
 )
 
-// FuncDef represents a named function that can be executed.
-// Create with pocket.Func() - this is the only way to create runnable functions.
+// TaskDef represents a named function that can be executed.
+// Create with pocket.Task() - this is the only way to create runnable functions.
 //
 // The body can be:
 //   - pocket.Run(name, args...) - static command
-//   - pocket.RunWith(name, argsFn) - command with dynamic args
-//   - pocket.Do(fn) - arbitrary Go code
+//   - pocket.Do(fn) - dynamic commands or arbitrary Go code
 //   - pocket.Serial(...) or pocket.Parallel(...) - compositions
 //
 // Example:
 //
 //	// Simple: static command
-//	var Format = pocket.Func("go-format", "format Go code",
+//	var Format = pocket.Task("go-format", "format Go code",
 //	    pocket.Run("go", "fmt", "./..."),
 //	)
 //
 //	// Composed: install dependency then run
-//	var Lint = pocket.Func("go-lint", "run linter", pocket.Serial(
+//	var Lint = pocket.Task("go-lint", "run linter", pocket.Serial(
 //	    InstallLinter,
 //	    pocket.Run("golangci-lint", "run", "./..."),
 //	))
 //
 //	// Dynamic: args computed at runtime
-//	var Test = pocket.Func("go-test", "run tests", testCmd())
+//	var Test = pocket.Task("go-test", "run tests", testCmd())
 //	func testCmd() pocket.Runnable {
-//	    return pocket.RunWith("go", func(ctx context.Context) []string {
+//	    return pocket.Do(func(ctx context.Context) error {
 //	        args := []string{"test"}
 //	        if pocket.Verbose(ctx) {
 //	            args = append(args, "-v")
 //	        }
-//	        return append(args, "./...")
+//	        return pocket.Exec(ctx, "go", append(args, "./...")...)
 //	    })
 //	}
 //
 //	// Hidden: tool installers
-//	var InstallLinter = pocket.Func("install:linter", "install linter",
+//	var InstallLinter = pocket.Task("install:linter", "install linter",
 //	    pocket.InstallGo("github.com/org/linter", "v1.0.0"),
 //	).Hidden()
-type FuncDef struct {
+type TaskDef struct {
 	name   string
 	usage  string
 	body   Runnable
@@ -50,15 +49,15 @@ type FuncDef struct {
 	hidden bool
 }
 
-// Func creates a new function definition.
-// This is the only way to create functions that can be used with Serial/Parallel.
+// Task creates a new named task.
+// This is the primary way to create tasks that appear in the CLI.
 //
 // The name is used for CLI commands (e.g., "go-format" becomes ./pok go-format).
 // The usage is displayed in help output.
 // The body can be:
-//   - Runnable - from Run, RunWith, Do, Serial, Parallel
+//   - Runnable - from Run, Do, Serial, Parallel
 //   - func(context.Context) error - legacy, wrapped automatically
-func Func(name, usage string, body any) *FuncDef {
+func Task(name, usage string, body any) *TaskDef {
 	if name == "" {
 		panic("pocket.Func: name is required")
 	}
@@ -69,7 +68,7 @@ func Func(name, usage string, body any) *FuncDef {
 		panic("pocket.Func: body is required")
 	}
 
-	return &FuncDef{
+	return &TaskDef{
 		name:  name,
 		usage: usage,
 		body:  toRunnable(body),
@@ -85,14 +84,14 @@ func Func(name, usage string, body any) *FuncDef {
 //	    Config string
 //	}
 //
-//	var Format = pocket.Func("format", "format code", formatImpl).
+//	var Format = pocket.Task("format", "format code", formatImpl).
 //	    With(FormatOptions{Config: ".golangci.yml"})
 //
 //	func formatImpl(ctx context.Context) error {
 //	    opts := pocket.Options[FormatOptions](ctx)
 //	    // use opts.Config
 //	}
-func (f *FuncDef) With(opts any) *FuncDef {
+func (f *TaskDef) With(opts any) *TaskDef {
 	cp := *f
 	cp.opts = opts
 	return &cp
@@ -101,7 +100,7 @@ func (f *FuncDef) With(opts any) *FuncDef {
 // Hidden returns a copy marked as hidden from CLI help.
 // Hidden functions can still be executed but don't appear in ./pok -h.
 // Use this for internal functions like tool installers.
-func (f *FuncDef) Hidden() *FuncDef {
+func (f *TaskDef) Hidden() *TaskDef {
 	cp := *f
 	cp.hidden = true
 	return &cp
@@ -114,9 +113,9 @@ func (f *FuncDef) Hidden() *FuncDef {
 // Example:
 //
 //	golang.Test.WithName("integration-test")  // same task, different CLI name
-func (f *FuncDef) WithName(name string) *FuncDef {
+func (f *TaskDef) WithName(name string) *TaskDef {
 	if name == "" {
-		panic("pocket.FuncDef.WithName: name is required")
+		panic("pocket.TaskDef.WithName: name is required")
 	}
 	cp := *f
 	cp.name = name
@@ -129,9 +128,9 @@ func (f *FuncDef) WithName(name string) *FuncDef {
 // Example:
 //
 //	golang.Test.WithName("integration-test").WithUsage("run integration tests")
-func (f *FuncDef) WithUsage(usage string) *FuncDef {
+func (f *TaskDef) WithUsage(usage string) *TaskDef {
 	if usage == "" {
-		panic("pocket.FuncDef.WithUsage: usage is required")
+		panic("pocket.TaskDef.WithUsage: usage is required")
 	}
 	cp := *f
 	cp.usage = usage
@@ -139,34 +138,34 @@ func (f *FuncDef) WithUsage(usage string) *FuncDef {
 }
 
 // Name returns the function's CLI name.
-func (f *FuncDef) Name() string {
+func (f *TaskDef) Name() string {
 	return f.name
 }
 
 // Usage returns the function's help text.
-func (f *FuncDef) Usage() string {
+func (f *TaskDef) Usage() string {
 	return f.usage
 }
 
 // IsHidden returns whether the function is hidden from CLI help.
-func (f *FuncDef) IsHidden() bool {
+func (f *TaskDef) IsHidden() bool {
 	return f.hidden
 }
 
 // Opts returns the function's options, or nil if none.
-func (f *FuncDef) Opts() any {
+func (f *TaskDef) Opts() any {
 	return f.opts
 }
 
 // Run executes this function with the given context.
 // This is useful for testing or programmatic execution.
-func (f *FuncDef) Run(ctx context.Context) error {
+func (f *TaskDef) Run(ctx context.Context) error {
 	return f.run(ctx)
 }
 
 // run executes this function with the given context.
 // This is called by the framework - users should not call this directly.
-func (f *FuncDef) run(ctx context.Context) error {
+func (f *TaskDef) run(ctx context.Context) error {
 	ec := getExecContext(ctx)
 
 	// In collect mode, register function and collect nested deps from static tree
@@ -206,16 +205,16 @@ func (f *FuncDef) run(ctx context.Context) error {
 
 // funcs returns all named functions in this definition's dependency tree.
 // For a plain function, returns just itself.
-// For a Runnable body, traverses the tree to collect all FuncDefs.
-func (f *FuncDef) funcs() []*FuncDef {
-	var result []*FuncDef
+// For a Runnable body, traverses the tree to collect all TaskDefs.
+func (f *TaskDef) funcs() []*TaskDef {
+	var result []*TaskDef
 
 	// Include self if not hidden
 	if !f.hidden {
 		result = append(result, f)
 	}
 
-	// If body is a Runnable, collect its nested FuncDefs
+	// If body is a Runnable, collect its nested TaskDefs
 	if f.body != nil {
 		result = append(result, f.body.funcs()...)
 	}
@@ -225,16 +224,16 @@ func (f *FuncDef) funcs() []*FuncDef {
 
 // Runnable is the interface for anything that can be executed.
 // It uses unexported methods to prevent external implementation,
-// ensuring only pocket types (FuncDef, serial, parallel, PathFilter) can satisfy it.
+// ensuring only pocket types (TaskDef, serial, parallel, PathFilter) can satisfy it.
 //
 // Users create Runnables via:
-//   - pocket.Func() for individual functions
+//   - pocket.Task() for individual functions
 //   - pocket.Serial() for sequential execution
 //   - pocket.Parallel() for concurrent execution
 //   - pocket.Paths() for path filtering
 type Runnable interface {
 	run(ctx context.Context) error
-	funcs() []*FuncDef
+	funcs() []*TaskDef
 }
 
 // toRunnables converts a slice of any to a slice of Runnable.
@@ -267,7 +266,7 @@ func (f *funcRunnable) run(ctx context.Context) error {
 	return f.fn(ctx)
 }
 
-func (f *funcRunnable) funcs() []*FuncDef {
+func (f *funcRunnable) funcs() []*TaskDef {
 	return nil
 }
 
@@ -293,7 +292,7 @@ func (c *commandRunnable) run(ctx context.Context) error {
 	return cmd.Run()
 }
 
-func (c *commandRunnable) funcs() []*FuncDef {
+func (c *commandRunnable) funcs() []*TaskDef {
 	return nil
 }
 
@@ -306,54 +305,6 @@ func (c *commandRunnable) funcs() []*FuncDef {
 //	pocket.Run("golangci-lint", "run", "--fix", "./...")
 func Run(name string, args ...string) Runnable {
 	return &commandRunnable{name: name, args: args}
-}
-
-// commandWithArgsRunnable executes a command with dynamically evaluated arguments.
-type commandWithArgsRunnable struct {
-	name   string
-	argsFn func(context.Context) []string
-}
-
-func (c *commandWithArgsRunnable) run(ctx context.Context) error {
-	ec := getExecContext(ctx)
-	if ec.mode == modeCollect {
-		return nil
-	}
-	args := c.argsFn(ctx)
-	cmd := newCommand(ctx, c.name, args...)
-	cmd.Stdout = ec.out.Stdout
-	cmd.Stderr = ec.out.Stderr
-	if ec.path != "" {
-		cmd.Dir = FromGitRoot(ec.path)
-	} else {
-		cmd.Dir = GitRoot()
-	}
-	return cmd.Run()
-}
-
-func (c *commandWithArgsRunnable) funcs() []*FuncDef {
-	return nil
-}
-
-// RunWith creates a Runnable that executes an external command with dynamic arguments.
-// The args function is called at execution time with full context,
-// allowing access to Options[T], Path, Verbose, etc.
-//
-// Example:
-//
-//	pocket.RunWith("golangci-lint", func(ctx context.Context) []string {
-//	    opts := pocket.Options[LintOptions](ctx)
-//	    args := []string{"run"}
-//	    if pocket.Verbose(ctx) {
-//	        args = append(args, "-v")
-//	    }
-//	    if opts.Config != "" {
-//	        args = append(args, "-c", opts.Config)
-//	    }
-//	    return append(args, "./...")
-//	})
-func RunWith(name string, argsFn func(context.Context) []string) Runnable {
-	return &commandWithArgsRunnable{name: name, argsFn: argsFn}
 }
 
 // doRunnable wraps arbitrary Go code as a Runnable.
@@ -369,7 +320,7 @@ func (d *doRunnable) run(ctx context.Context) error {
 	return d.fn(ctx)
 }
 
-func (d *doRunnable) funcs() []*FuncDef {
+func (d *doRunnable) funcs() []*TaskDef {
 	return nil
 }
 

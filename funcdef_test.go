@@ -33,51 +33,6 @@ func TestRun_ExecutesCommand(t *testing.T) {
 	}
 }
 
-func TestRunWith_DynamicArgs(t *testing.T) {
-	var capturedArgs []string
-
-	// Create a RunWith that captures args for testing
-	cmd := RunWith("test-cmd", func(ctx context.Context) []string {
-		opts := Options[testOptions](ctx)
-		args := []string{"base"}
-		if opts.Extra != "" {
-			args = append(args, opts.Extra)
-		}
-		capturedArgs = args
-		return args
-	})
-
-	// Should return nil funcs (leaf node)
-	if funcs := cmd.funcs(); len(funcs) != 0 {
-		t.Errorf("RunWith.funcs() = %v, want empty", funcs)
-	}
-
-	// Should skip in collect mode (args function not called)
-	out := StdOutput()
-	plan := newExecutionPlan()
-	ec := &execContext{
-		mode:  modeCollect,
-		out:   out,
-		cwd:   ".",
-		dedup: newDedupState(),
-		plan:  plan,
-	}
-	ctx := withExecContext(context.Background(), ec)
-
-	if err := cmd.run(ctx); err != nil {
-		t.Errorf("RunWith.run() in collect mode = %v, want nil", err)
-	}
-
-	// Args function should NOT have been called in collect mode
-	if capturedArgs != nil {
-		t.Error("RunWith args function was called in collect mode, should be skipped")
-	}
-}
-
-type testOptions struct {
-	Extra string
-}
-
 func TestDo_ExecutesFunction(t *testing.T) {
 	executed := false
 
@@ -156,12 +111,12 @@ func TestDo_ComposesWithSerial(t *testing.T) {
 }
 
 func TestRun_ComposesWithFuncDef(t *testing.T) {
-	// Test that Run can be used as the body of a FuncDef
+	// Test that Run can be used as the body of a TaskDef
 	// This will fail to execute (no such command) but tests composition
 
-	taskFunc := Func("test-task", "run test command", Run("echo", "hello"))
+	taskFunc := Task("test-task", "run test command", Run("echo", "hello"))
 
-	// Should have the FuncDef in funcs
+	// Should have the TaskDef in funcs
 	funcs := taskFunc.funcs()
 	if len(funcs) != 1 {
 		t.Errorf("expected 1 func, got %d", len(funcs))

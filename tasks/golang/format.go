@@ -13,13 +13,13 @@ type FormatOptions struct {
 }
 
 // Format formats Go code using golangci-lint fmt.
-var Format = pocket.Func("go-format", "format Go code", pocket.Serial(
+var Format = pocket.Task("go-format", "format Go code", pocket.Serial(
 	golangcilint.Install,
 	formatCmd(),
 )).With(FormatOptions{})
 
 func formatCmd() pocket.Runnable {
-	return pocket.RunWith(golangcilint.Name, func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[FormatOptions](ctx)
 
 		args := []string{"fmt"}
@@ -30,6 +30,6 @@ func formatCmd() pocket.Runnable {
 		}
 		args = append(args, "./...")
 
-		return args
+		return pocket.Exec(ctx, golangcilint.Name, args...)
 	})
 }

@@ -11,7 +11,7 @@ import (
 
 // Config is the pocket configuration for this project.
 var Config = pocket.Config{
-	AutoRun: pocket.Serial(
+	AutoRun: pocket.Parallel(
 		pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
 		pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
 		github.Workflows.With(github.WorkflowsOptions{SkipPocket: true}),
@@ -33,7 +33,7 @@ type GreetOptions struct {
 }
 
 // Greet is a demo task that prints a greeting.
-var Greet = pocket.Func("greet", "print a greeting message", greet).
+var Greet = pocket.Task("greet", "print a greeting message", greet).
 	With(GreetOptions{Name: "world", Count: 1})
 
 func greet(ctx context.Context) error {

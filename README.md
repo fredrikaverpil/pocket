@@ -1,7 +1,7 @@
 # pocket
 
 A cross-platform build system inspired by
-[Sage](https://github.com/einride/sage). Define functions, compose them with
+[Sage](https://github.com/einride/sage). Define tasks, compose them with
 `Serial`/`Parallel`, and let pocket handle tool installation.
 
 > [!NOTE]
@@ -19,8 +19,8 @@ A cross-platform build system inspired by
 - **Zero-install**: The `./pok` shim bootstraps Go and all dependencies
   automatically
 - **Cross-platform**: Works on Windows, macOS, and Linux (no Makefiles)
-- **Composable**: Define functions, compose with `Serial()`/`Parallel()` -
-  Pocket handles the execution graph
+- **Composable**: Define tasks, compose with `Serial()`/`Parallel()` - Pocket
+  handles the execution graph
 - **Monorepo-ready**: Auto-detects directories (by go.mod, pyproject.toml, etc.)
   with per-directory task visibility
 - **Tool management**: Downloads and caches tools in `.pocket/`
@@ -53,7 +53,7 @@ var Config = pocket.Config{
     ManualRun: []pocket.Runnable{Hello},
 }
 
-var Hello = pocket.Func("hello", "say hello", hello)
+var Hello = pocket.Task("hello", "say hello", hello)
 
 func hello(ctx context.Context) error {
     if pocket.Verbose(ctx) {
@@ -73,7 +73,7 @@ func hello(ctx context.Context) error {
 
 ### Composition
 
-This is where Pocket shines. Compose functions in `AutoRun` with `Serial()` and
+This is where Pocket shines. Compose tasks in `AutoRun` with `Serial()` and
 `Parallel()` for controlled execution order. Combined with path filtering,
 Pocket generates "pok" shims in each detected directory with fine-grained
 control over which tasks are available at each location.
@@ -98,15 +98,15 @@ var Config = pocket.Config{
 
 ### Dependencies
 
-Functions can depend on other functions. Dependencies are deduplicated
-automatically - each function runs at most once per execution.
+Tasks can depend on other tasks. Dependencies are deduplicated automatically -
+each task runs at most once per execution.
 
 ```go
-var Install = pocket.Func("install:tool", "install tool",
+var Install = pocket.Task("install:tool", "install tool",
     pocket.InstallGo("github.com/org/tool", "v1.0.0"),
 ).Hidden()
 
-var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+var Lint = pocket.Task("lint", "run linter", pocket.Serial(
     Install,  // runs first (deduplicated across the tree)
     pocket.Run("tool", "lint", "./..."),
 ))
@@ -114,46 +114,45 @@ var Lint = pocket.Func("lint", "run linter", pocket.Serial(
 
 ## Concepts
 
-### Functions
+### Tasks
 
-Everything in Pocket is a function created with `pocket.Func()`. Functions are
-the building block - they become **tasks** when exposed via CLI, or **tools**
-when they install binaries:
+The core abstraction is `Runnable` - anything that can be executed. Tasks are
+named Runnables created with `pocket.Task()` that appear in the CLI:
 
 ```go
 // Simple: static command
-var MyFunc = pocket.Func("name", "description",
-    pocket.Run("cmd", "arg1", "arg2"),
+var Format = pocket.Task("format", "format code",
+    pocket.Run("go", "fmt", "./..."),
 )
 
 // Composed: multiple steps
-var Build = pocket.Func("build", "build the project", pocket.Serial(
+var Build = pocket.Task("build", "build the project", pocket.Serial(
     Install,
     pocket.Run("go", "build", "./..."),
 ))
 
 // Dynamic: args computed at runtime
-var Lint = pocket.Func("lint", "run linter", lintCmd())
+var Lint = pocket.Task("lint", "run linter", lintCmd())
 
 func lintCmd() pocket.Runnable {
-    return pocket.RunWith("golangci-lint", func(ctx context.Context) []string {
+    return pocket.Do(func(ctx context.Context) error {
         args := []string{"run"}
         if pocket.Verbose(ctx) {
             args = append(args, "-v")
         }
-        return args
+        return pocket.Exec(ctx, "golangci-lint", args...)
     })
 }
 ```
 
-Functions can be:
+Tasks can be:
 
-- **Visible**: Shown in `./pok -h` as tasks, callable from CLI
+- **Visible**: Shown in `./pok -h`, callable from CLI
 - **Hidden**: Not shown in help, used as dependencies (`.Hidden()`)
 
 ### Executing Commands
 
-Pocket provides three ways to run external commands:
+Pocket provides two ways to run external commands:
 
 **`Run(name, args...)`** - Static command with fixed arguments:
 
@@ -161,29 +160,21 @@ Pocket provides three ways to run external commands:
 pocket.Run("go", "fmt", "./...")
 ```
 
-**`RunWith(name, argsFn)`** - Dynamic arguments computed at runtime:
+**`Do(fn)`** - Dynamic commands or arbitrary Go code:
 
 ```go
-pocket.RunWith("go", func(ctx context.Context) []string {
+pocket.Do(func(ctx context.Context) error {
     args := []string{"test"}
     if pocket.Verbose(ctx) {
         args = append(args, "-v")
     }
-    return args
+    return pocket.Exec(ctx, "go", args...)
 })
 ```
 
-**`Do(fn)`** - Escape hatch for arbitrary Go code:
-
-```go
-pocket.Do(func(ctx context.Context) error {
-    // complex logic, file I/O, multiple commands
-    return nil
-})
-```
-
-All commands run with proper output handling and respect the current path
-context. They're no-ops in collect mode (plan generation).
+Use `Do` for dynamic arguments, complex logic, file I/O, or multiple commands.
+Both run with proper output handling and respect the current path context.
+They're no-ops in collect mode (plan generation).
 
 ### Serial and Parallel
 
@@ -194,31 +185,31 @@ pocket.Serial(fn1, fn2, fn3)    // run in sequence
 pocket.Parallel(fn1, fn2, fn3)  // run concurrently
 ```
 
-**With dependencies** - compose install dependencies into your function:
+**With dependencies** - compose install dependencies into your task:
 
 ```go
-var Lint = pocket.Func("lint", "run linter", pocket.Serial(
+var Lint = pocket.Task("lint", "run linter", pocket.Serial(
     linter.Install,  // runs first (deduplicated)
     lintCmd(),       // then the actual linting
 ))
 
 func lintCmd() pocket.Runnable {
-    return pocket.RunWith(linter.Name, func(ctx context.Context) []string {
+    return pocket.Do(func(ctx context.Context) error {
         args := []string{"run"}
         if pocket.Verbose(ctx) {
             args = append(args, "-v")
         }
-        return args
+        return pocket.Exec(ctx, linter.Name, args...)
     })
 }
 ```
 
 > [!NOTE]
 >
-> Be careful when using `pocket.Parallel()`. Only parallelize functions that
-> don't conflict - typically read-only operations like linting or testing.
-> Functions that mutate files (formatters, code generators) should run in serial
-> before other functions read those files.
+> Be careful when using `pocket.Parallel()`. Only parallelize tasks that don't
+> conflict - typically read-only operations like linting or testing. Tasks that
+> mutate files (formatters, code generators) should run in serial before other
+> tasks read those files.
 
 ### Tools vs Tasks
 
@@ -230,8 +221,8 @@ use those binaries to do work.
 
 A tool package ensures a binary is available. It exports:
 
-- `Name` - the binary name (used with `pocket.Run`)
-- `Install` - a hidden function that downloads/installs the binary
+- `Name` - the binary name (used with `pocket.Run` or `pocket.Exec`)
+- `Install` - a hidden task that downloads/installs the binary
 - `Config` (optional) - configuration file lookup settings
 
 ```go
@@ -242,7 +233,7 @@ const Name = "golangci-lint"
 const Version = "v2.0.2"
 
 // For Go tools: use InstallGo directly
-var Install = pocket.Func("install:golangci-lint", "install golangci-lint",
+var Install = pocket.Task("install:golangci-lint", "install golangci-lint",
     pocket.InstallGo("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version),
 ).Hidden()
 
@@ -262,7 +253,7 @@ package stylua
 const Name = "stylua"
 const Version = "v2.0.2"
 
-var Install = pocket.Func("install:stylua", "install stylua",
+var Install = pocket.Task("install:stylua", "install stylua",
     pocket.Download(downloadURL(),
         pocket.WithDestDir(destDir()),
         pocket.WithFormat(pocket.DefaultArchiveFormat()),
@@ -275,19 +266,19 @@ var Install = pocket.Func("install:stylua", "install stylua",
 
 #### 2. Task Package
 
-A task package provides related functions that use tools:
+A task package provides related tasks that use tools:
 
 ```go
 // tasks/golang/lint.go
 package golang
 
-var Lint = pocket.Func("go-lint", "run golangci-lint", pocket.Serial(
+var Lint = pocket.Task("go-lint", "run golangci-lint", pocket.Serial(
     golangcilint.Install,  // ensure tool is installed first
     lintCmd(),             // then run linting
 )).With(LintOptions{})
 
 func lintCmd() pocket.Runnable {
-    return pocket.RunWith(golangcilint.Name, func(ctx context.Context) []string {
+    return pocket.Do(func(ctx context.Context) error {
         opts := pocket.Options[LintOptions](ctx)
         args := []string{"run"}
         if pocket.Verbose(ctx) {
@@ -296,7 +287,8 @@ func lintCmd() pocket.Runnable {
         if !opts.SkipFix {
             args = append(args, "--fix")
         }
-        return args
+        args = append(args, "./...")
+        return pocket.Exec(ctx, golangcilint.Name, args...)
     })
 }
 ```
@@ -321,7 +313,7 @@ func Detect() func() []string {
 | Type     | Purpose         | Exports                              | Example            |
 | -------- | --------------- | ------------------------------------ | ------------------ |
 | **Tool** | Installs binary | `Name`, `Install`, optional `Config` | ruff, golangcilint |
-| **Task** | Uses tools      | FuncDefs + `Tasks()` + `Detect()`    | python, golang     |
+| **Task** | Uses tools      | TaskDefs + `Tasks()` + `Detect()`    | python, golang     |
 
 #### 3. Tool Configuration
 
@@ -376,20 +368,20 @@ var Config = pocket.Config{
     },
 }
 
-var Deploy = pocket.Func("deploy", "deploy to production", deploy)
-var Release = pocket.Func("release", "create a release", release)
+var Deploy = pocket.Task("deploy", "deploy to production", deploy)
+var Release = pocket.Task("release", "create a release", release)
 ```
 
 Running `./pok` executes AutoRun. Running `./pok deploy` executes the Deploy
-function.
+task.
 
 ## Path Filtering
 
-For e.g. monorepos, use `Paths()` to control where functions run:
+For e.g. monorepos, use `Paths()` to control where tasks run:
 
 ```go
 // Run in specific directories
-pocket.Paths(myFunc).In("services/api", "services/web")
+pocket.Paths(myTask).In("services/api", "services/web")
 
 // Auto-detect directories containing go.mod
 pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
@@ -433,7 +425,7 @@ avoids duplicate names when the same task appears in both AutoRun and ManualRun.
 
 ## Options
 
-Functions can accept options:
+Tasks can accept options:
 
 ```go
 type DeployOptions struct {
@@ -441,7 +433,7 @@ type DeployOptions struct {
     DryRun bool   `arg:"dry-run" usage:"print without executing"`
 }
 
-var Deploy = pocket.Func("deploy", "deploy to environment", deploy).
+var Deploy = pocket.Task("deploy", "deploy to environment", deploy).
     With(DeployOptions{Env: "staging"})
 
 func deploy(ctx context.Context) error {
@@ -466,13 +458,12 @@ func deploy(ctx context.Context) error {
 
 ```go
 // Composition
-pocket.Serial(fn1, fn2, fn3)     // run in sequence
-pocket.Parallel(fn1, fn2, fn3)   // run concurrently
+pocket.Serial(task1, task2, task3)     // run in sequence
+pocket.Parallel(task1, task2, task3)   // run concurrently
 
 // Command execution (returns Runnable)
-pocket.Run("cmd", "arg1", "arg2")                  // static command
-pocket.RunWith("cmd", func(ctx) []string)          // dynamic arguments
-pocket.Do(func(ctx) error)                         // arbitrary Go code
+pocket.Run("cmd", "arg1", "arg2")     // static command
+pocket.Do(func(ctx) error)            // dynamic commands, arbitrary Go code
 
 // Lower-level execution (inside Do() closures)
 pocket.Exec(ctx, "cmd", "arg1", "arg2")       // run command in current path
@@ -483,7 +474,7 @@ pocket.Println(ctx, "message")                // line output to stdout
 
 // Context
 pocket.Options[T](ctx)        // get typed options from context
-pocket.Path(ctx)              // current path (for path-filtered functions)
+pocket.Path(ctx)              // current path (for path-filtered tasks)
 pocket.Verbose(ctx)           // whether -v flag is set
 pocket.CWD(ctx)               // where CLI was invoked (relative to git root)
 

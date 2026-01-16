@@ -26,7 +26,7 @@ var Config = pocket.ToolConfig{
 }
 
 // Install ensures stylua is available.
-var Install = pocket.Func("install:stylua", "install stylua", installStylua()).Hidden()
+var Install = pocket.Task("install:stylua", "install stylua", installStylua()).Hidden()
 
 func installStylua() pocket.Runnable {
 	binDir := pocket.FromToolsDir("stylua", Version, "bin")

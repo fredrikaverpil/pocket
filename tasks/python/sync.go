@@ -13,13 +13,13 @@ type SyncOptions struct {
 }
 
 // Sync installs Python dependencies using uv sync.
-var Sync = pocket.Func("py-sync", "install Python dependencies", pocket.Serial(
+var Sync = pocket.Task("py-sync", "install Python dependencies", pocket.Serial(
 	uv.Install,
 	syncCmd(),
 )).With(SyncOptions{})
 
 func syncCmd() pocket.Runnable {
-	return pocket.RunWith(uv.Name, func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[SyncOptions](ctx)
 
 		args := []string{"sync"}
@@ -30,6 +30,6 @@ func syncCmd() pocket.Runnable {
 			args = append(args, "--python", opts.PythonVersion)
 		}
 
-		return args
+		return pocket.Exec(ctx, uv.Name, args...)
 	})
 }

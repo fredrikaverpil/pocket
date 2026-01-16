@@ -68,7 +68,7 @@ func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
 //	ManualRun: []pocket.Runnable{
 //	    pocket.Paths(golang.Test.WithName("integration-test")).In("services/api", "services/worker"),
 //	}
-func (p *PathFilter) SkipTask(task *FuncDef, paths ...string) *PathFilter {
+func (p *PathFilter) SkipTask(task *TaskDef, paths ...string) *PathFilter {
 	cp := p.clone()
 	if cp.skipTasks == nil {
 		cp.skipTasks = make(map[string][]string)
@@ -191,7 +191,7 @@ func (p *PathFilter) mergeSkipRules(ctx context.Context) context.Context {
 }
 
 // funcs returns all functions from the inner Runnable.
-func (p *PathFilter) funcs() []*FuncDef {
+func (p *PathFilter) funcs() []*TaskDef {
 	return p.inner.funcs()
 }
 
@@ -311,8 +311,8 @@ func collectPathMappingsRecursive(r Runnable, result map[string]*PathFilter, cur
 		return
 	}
 
-	// Check if this is a FuncDef.
-	if f, ok := r.(*FuncDef); ok {
+	// Check if this is a TaskDef.
+	if f, ok := r.(*TaskDef); ok {
 		if currentPaths != nil {
 			result[f.name] = currentPaths
 		}

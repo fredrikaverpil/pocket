@@ -18,7 +18,7 @@ const Name = "bun"
 const Version = "1.3.6"
 
 // Install ensures bun is available.
-var Install = pocket.Func("install:bun", "ensure bun is available", installBun()).Hidden()
+var Install = pocket.Task("install:bun", "ensure bun is available", installBun()).Hidden()
 
 func installBun() pocket.Runnable {
 	binDir := pocket.FromToolsDir(Name, Version, "bin")

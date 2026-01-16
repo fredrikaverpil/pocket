@@ -10,6 +10,6 @@ const Name = "govulncheck"
 const Version = "v1.1.4"
 
 // Install ensures govulncheck is available.
-var Install = pocket.Func("install:govulncheck", "install govulncheck",
+var Install = pocket.Task("install:govulncheck", "install govulncheck",
 	pocket.InstallGo("golang.org/x/vuln/cmd/govulncheck", Version),
 ).Hidden()

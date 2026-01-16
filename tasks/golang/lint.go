@@ -14,13 +14,13 @@ type LintOptions struct {
 }
 
 // Lint runs golangci-lint with auto-fix enabled by default.
-var Lint = pocket.Func("go-lint", "run golangci-lint", pocket.Serial(
+var Lint = pocket.Task("go-lint", "run golangci-lint", pocket.Serial(
 	golangcilint.Install,
 	lintCmd(),
 )).With(LintOptions{})
 
 func lintCmd() pocket.Runnable {
-	return pocket.RunWith(golangcilint.Name, func(ctx context.Context) []string {
+	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[LintOptions](ctx)
 
 		args := []string{"run"}
@@ -37,6 +37,6 @@ func lintCmd() pocket.Runnable {
 		}
 		args = append(args, "./...")
 
-		return args
+		return pocket.Exec(ctx, golangcilint.Name, args...)
 	})
 }

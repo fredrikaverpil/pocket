@@ -17,7 +17,7 @@ const Name = "uv"
 const Version = "0.7.13"
 
 // Install ensures uv is available.
-var Install = pocket.Func("install:uv", "install uv", installUV()).Hidden()
+var Install = pocket.Task("install:uv", "install uv", installUV()).Hidden()
 
 func installUV() pocket.Runnable {
 	binDir := pocket.FromToolsDir("uv", Version, "bin")

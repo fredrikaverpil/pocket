@@ -54,7 +54,7 @@ func Version() string {
 //  1. Update version in package.json
 //  2. cd tools/prettier && bun install && rm -rf node_modules
 //  3. git add package.json bun.lock
-var Install = pocket.Func("install:prettier", "install prettier", pocket.Serial(
+var Install = pocket.Task("install:prettier", "install prettier", pocket.Serial(
 	bun.Install,
 	installPrettier(),
 )).Hidden()

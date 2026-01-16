@@ -391,7 +391,7 @@ func TestGenerateWithRoot_MultiModule(t *testing.T) {
 
 	// Create a PathFilter that includes the module directories.
 	// This simulates what AutoDetect would produce.
-	mockFunc := pocket.Func("mock", "mock func", func(_ context.Context) error { return nil })
+	mockFunc := pocket.Task("mock", "mock func", func(_ context.Context) error { return nil })
 	pathFilter := pocket.Paths(mockFunc).In(moduleDirs...)
 
 	cfg := pocket.Config{
@@ -494,7 +494,7 @@ func TestGenerateWithRoot_DeeplyNested(t *testing.T) {
 	}
 
 	// Create a PathFilter for the deep directory.
-	mockFunc := pocket.Func("mock", "mock func", func(_ context.Context) error { return nil })
+	mockFunc := pocket.Task("mock", "mock func", func(_ context.Context) error { return nil })
 	pathFilter := pocket.Paths(mockFunc).In(deepDir)
 
 	cfg := pocket.Config{
@@ -550,8 +550,8 @@ func TestGenerateWithRoot_ManualRunWithPaths(t *testing.T) {
 	}
 
 	// Create functions for AutoRun and ManualRun.
-	autoFunc := pocket.Func("auto-task", "auto task", func(_ context.Context) error { return nil })
-	manualFunc := pocket.Func("manual-task", "manual task", func(_ context.Context) error { return nil })
+	autoFunc := pocket.Task("auto-task", "auto task", func(_ context.Context) error { return nil })
+	manualFunc := pocket.Task("manual-task", "manual task", func(_ context.Context) error { return nil })
 
 	// AutoRun detects all services, ManualRun has a path-filtered task.
 	// This simulates the documented pattern:
@@ -612,8 +612,8 @@ func TestGenerateWithRoot_ManualRunOnlyPaths(t *testing.T) {
 	}
 
 	// Create a simple AutoRun (root only) and ManualRun with path-filtered tasks.
-	autoFunc := pocket.Func("build", "build project", func(_ context.Context) error { return nil })
-	benchFunc := pocket.Func("benchmark", "run benchmarks", func(_ context.Context) error { return nil })
+	autoFunc := pocket.Task("build", "build project", func(_ context.Context) error { return nil })
+	benchFunc := pocket.Task("benchmark", "run benchmarks", func(_ context.Context) error { return nil })
 
 	// ManualRun has paths that are NOT in AutoRun.
 	// Shims should still be generated at those paths so users can run ./pok benchmark there.

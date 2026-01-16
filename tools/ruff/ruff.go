@@ -31,7 +31,7 @@ var Config = pocket.ToolConfig{
 }
 
 // Install ensures ruff is available.
-var Install = pocket.Func("install:ruff", "install ruff", pocket.Serial(
+var Install = pocket.Task("install:ruff", "install ruff", pocket.Serial(
 	uv.Install,
 	installRuff(),
 )).Hidden()

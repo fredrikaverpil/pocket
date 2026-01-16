@@ -33,7 +33,7 @@ func Version() string {
 }
 
 // Install ensures mdformat is available.
-var Install = pocket.Func("install:mdformat", "install mdformat", pocket.Serial(
+var Install = pocket.Task("install:mdformat", "install mdformat", pocket.Serial(
 	uv.Install,
 	installMdformat(),
 )).Hidden()

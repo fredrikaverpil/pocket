@@ -15,7 +15,7 @@ import (
 //
 // Example:
 //
-//	var Install = pocket.Func("install:linter", "install linter",
+//	var Install = pocket.Task("install:linter", "install linter",
 //	    pocket.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", version),
 //	).Hidden()
 func InstallGo(pkg, version string) Runnable {

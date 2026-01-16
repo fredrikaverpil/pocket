@@ -18,7 +18,7 @@ const Name = "nvim"
 const Version = "0.11.5"
 
 // Install ensures nvim is available.
-var Install = pocket.Func("install:nvim", "install neovim", installNvim()).Hidden()
+var Install = pocket.Task("install:nvim", "install neovim", installNvim()).Hidden()
 
 func installNvim() pocket.Runnable {
 	binDir := pocket.FromToolsDir("nvim", Version)

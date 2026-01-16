@@ -17,8 +17,8 @@ func TestSerial_Composition(t *testing.T) {
 		return nil
 	}
 
-	// Create a FuncDef using Serial for composition
-	testFunc := Func("test", "test", Serial(fn1, fn2))
+	// Create a TaskDef using Serial for composition
+	testFunc := Task("test", "test", Serial(fn1, fn2))
 
 	// Create execution context and run
 	out := StdOutput()
@@ -49,8 +49,8 @@ func TestParallel_Composition(t *testing.T) {
 		return nil
 	}
 
-	// Create a FuncDef using Parallel for composition
-	testFunc := Func("test", "test", Parallel(fn1, fn2))
+	// Create a TaskDef using Parallel for composition
+	testFunc := Task("test", "test", Parallel(fn1, fn2))
 
 	// Create execution context and run
 	out := StdOutput()
@@ -85,8 +85,8 @@ func TestOptions_ShadowingPanics(t *testing.T) {
 	}
 
 	// Create nested FuncDefs that both use the same options type
-	innerFunc := Func("inner", "inner func", inner).With(SharedOptions{Value: "inner"})
-	outerFunc := Func("outer", "outer func", Serial(innerFunc, outer)).With(SharedOptions{Value: "outer"})
+	innerFunc := Task("inner", "inner func", inner).With(SharedOptions{Value: "inner"})
+	outerFunc := Task("outer", "outer func", Serial(innerFunc, outer)).With(SharedOptions{Value: "outer"})
 
 	// Create execution context and run - should panic
 	out := StdOutput()
@@ -114,9 +114,9 @@ func TestSerial_WithDependency(t *testing.T) {
 		return nil
 	}
 
-	// Pattern: FuncDef with install dependency
-	installFunc := Func("install", "install tool", install).Hidden()
-	lintFunc := Func("lint", "run linter", Serial(installFunc, lint))
+	// Pattern: TaskDef with install dependency
+	installFunc := Task("install", "install tool", install).Hidden()
+	lintFunc := Task("lint", "run linter", Serial(installFunc, lint))
 
 	// Create execution context and run
 	out := StdOutput()

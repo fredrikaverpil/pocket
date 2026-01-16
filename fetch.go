@@ -89,7 +89,7 @@ func WithHTTPHeader(key, value string) DownloadOpt {
 //
 // Example:
 //
-//	var Install = pocket.Func("install:tool", "install tool",
+//	var Install = pocket.Task("install:tool", "install tool",
 //	    pocket.Download(url,
 //	        pocket.WithDestDir(binDir),
 //	        pocket.WithFormat("tar.gz"),

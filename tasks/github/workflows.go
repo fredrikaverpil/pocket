@@ -55,7 +55,7 @@ func DefaultStaleConfig() StaleConfig {
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
 // By default, all workflows are copied. Use flags to select specific ones.
-var Workflows = pocket.Func("github-workflows", "bootstrap GitHub workflow files", workflowsCmd()).
+var Workflows = pocket.Task("github-workflows", "bootstrap GitHub workflow files", workflowsCmd()).
 	With(WorkflowsOptions{})
 
 func workflowsCmd() pocket.Runnable {
