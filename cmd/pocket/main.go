@@ -57,7 +57,7 @@ func runInit() error {
 
 	// Create go.mod
 	fmt.Println("  Creating .pocket/go.mod")
-	if err := runCommand(".pocket", "go", "mod", "init", "pok"); err != nil {
+	if err := runCommand(".pocket", "go", "mod", "init", "pocket"); err != nil {
 		return fmt.Errorf("go mod init: %w", err)
 	}
 
