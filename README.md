@@ -275,7 +275,8 @@ func lint(ctx context.Context) error {
 
 `ConfigPath` checks each path in `UserFiles`:
 
-- **Relative paths** are resolved from the task's current directory (`Path(ctx)`)
+- **Relative paths** are resolved from the task's current directory
+  (`Path(ctx)`)
 - **Absolute paths** are used as-is (use `FromGitRoot()` for repo-root configs)
 
 If no user config is found, it writes `DefaultData` to
