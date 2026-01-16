@@ -183,14 +183,14 @@ func isFuncVisibleIn(funcName, cwd string, pathMappings map[string]*PathFilter) 
 
 // printHelp prints the help message with available functions.
 func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*FuncDef) {
-	fmt.Println("Usage: pok [flags] <function> [args...]")
+	fmt.Println("Usage: pok [flags] <task> [args...]")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  -h         show help (use -h <function> for function help)")
+	fmt.Println("  -h         show help (use -h <task> for task help)")
 	fmt.Println("  -v         verbose output")
 	fmt.Println()
 
-	// Separate visible functions into auto-run and manual.
+	// Separate visible tasks into auto-run and manual.
 	var autorun, other []*FuncDef
 	for _, f := range funcs {
 		if f.hidden {
@@ -210,7 +210,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 	})
 
 	if len(autorun) > 0 {
-		fmt.Println("Functions (auto-run with ./pok):")
+		fmt.Println("Tasks (auto-run):")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for _, f := range autorun {
 			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
@@ -222,7 +222,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 		if len(autorun) > 0 {
 			fmt.Println()
 		}
-		fmt.Println("Functions:")
+		fmt.Println("Tasks (manual):")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for _, f := range other {
 			fmt.Fprintf(w, "  %s\t%s\n", f.name, f.usage)
@@ -235,7 +235,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 		if len(autorun) > 0 || len(other) > 0 {
 			fmt.Println()
 		}
-		fmt.Println("Functions (builtins):")
+		fmt.Println("Tasks (built-in):")
 		sort.Slice(builtinFuncs, func(i, j int) bool {
 			return builtinFuncs[i].name < builtinFuncs[j].name
 		})
@@ -247,7 +247,7 @@ func printHelp(funcs []*FuncDef, autoRunNames map[string]bool, builtinFuncs []*F
 	}
 
 	if len(autorun) == 0 && len(other) == 0 && len(builtinFuncs) == 0 {
-		fmt.Println("No functions available.")
+		fmt.Println("No tasks available.")
 	}
 }
 
