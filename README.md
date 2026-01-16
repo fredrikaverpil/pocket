@@ -389,7 +389,7 @@ func deploy(ctx context.Context) error {
 
 ## Reference
 
-### Helper Functions
+### Helpers
 
 ```go
 // Composition
