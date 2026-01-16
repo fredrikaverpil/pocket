@@ -114,8 +114,8 @@ Serial(Install, lint)          Parallel(Lint, Test)
                                (concurrent)
 ```
 
-Parallel execution buffers output per-goroutine and flushes sequentially after
-all complete, preventing interleaved output.
+Parallel execution buffers output per-goroutine and flushes each buffer
+immediately when its task completes, preventing interleaved output.
 
 ### Command Runnables
 
@@ -523,16 +523,21 @@ Parallel execution prevents interleaved output:
 │   │ buffer 1 │         │ buffer 2 │                 │
 │   └────┬─────┘         └────┬─────┘                 │
 │        │                    │                       │
-│        │ (wait for all)     │                       │
-│        ▼                    ▼                       │
-│   ┌──────────────────────────────┐                  │
-│   │ flush buffer 1, then buffer 2│                  │
-│   └──────────────────────────────┘                  │
+│        ▼ (done first)       │                       │
+│   ┌────────────┐            │                       │
+│   │ flush buf 1│ ◄──────────┼─── flushMu (mutex)    │
+│   └────────────┘            │                       │
+│                             ▼ (done second)         │
+│                        ┌────────────┐               │
+│                        │ flush buf 2│               │
+│                        └────────────┘               │
 └─────────────────────────────────────────────────────┘
 ```
 
-Each goroutine gets a `bufferedOutput` that captures writes. After all complete,
-buffers are flushed sequentially to maintain deterministic output order.
+Each goroutine gets a `bufferedOutput` that captures writes. When a task
+completes, its buffer is flushed immediately. A mutex ensures flushes don't
+interleave, so each task's output prints atomically. Output order reflects
+completion order, providing immediate feedback as tasks finish.
 
 ## Shim Generation
 
