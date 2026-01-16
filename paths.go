@@ -62,7 +62,7 @@ func (p *PathFilter) DetectBy(fn func() []string) *PathFilter {
 // To make skipped tasks available for manual execution, add them to ManualRun
 // with a different name using WithName():
 //
-//	AutoRun: pocket.Paths(golang.Workflow()).
+//	AutoRun: pocket.Paths(golang.Tasks()).
 //	    DetectBy(golang.Detect()).
 //	    SkipTask(golang.Test, "services/api", "services/worker"),
 //	ManualRun: []pocket.Runnable{

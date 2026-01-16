@@ -188,7 +188,7 @@ func TestFuncDef_Chaining(t *testing.T) {
 //
 // Pattern:
 //
-//	AutoRun: pocket.Paths(golang.Workflow()).SkipTask(golang.Test, "services/api"),
+//	AutoRun: pocket.Paths(golang.Tasks()).SkipTask(golang.Test, "services/api"),
 //	ManualRun: []pocket.Runnable{pocket.Paths(golang.Test.WithName("integration-test")).In("services/api")},
 func TestSkipTaskWithManualRun_WithName(t *testing.T) {
 	t.Parallel()

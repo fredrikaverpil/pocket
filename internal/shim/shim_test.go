@@ -555,7 +555,7 @@ func TestGenerateWithRoot_ManualRunWithPaths(t *testing.T) {
 
 	// AutoRun detects all services, ManualRun has a path-filtered task.
 	// This simulates the documented pattern:
-	//   AutoRun: pocket.Paths(golang.Workflow()).DetectBy(...).SkipTask(golang.Test, "services/api", "services/worker"),
+	//   AutoRun: pocket.Paths(golang.Tasks()).DetectBy(...).SkipTask(golang.Test, "services/api", "services/worker"),
 	//   ManualRun: []pocket.Runnable{pocket.Paths(golang.Test).In("services/api", "services/worker")},
 	cfg := pocket.Config{
 		AutoRun: pocket.Paths(autoFunc).In(moduleDirs...),

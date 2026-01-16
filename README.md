@@ -223,13 +223,13 @@ func lint(ctx context.Context) error {
 }
 ```
 
-The `Workflow()` function composes tasks, and `Detect()` enables auto-discovery:
+The `Tasks()` function composes tasks, and `Detect()` enables auto-discovery:
 
 ```go
 // tasks/python/workflow.go
 package python
 
-func Workflow() pocket.Runnable {
+func Tasks() pocket.Runnable {
     return pocket.Serial(Format, Lint)
 }
 
@@ -243,7 +243,7 @@ func Detect() func() []string {
 | Type     | Purpose         | Exports                              | Example            |
 | -------- | --------------- | ------------------------------------ | ------------------ |
 | **Tool** | Installs binary | `Name`, `Install`, optional `Config` | ruff, golangcilint |
-| **Task** | Uses tools      | FuncDefs + `Workflow()` + `Detect()` | python, golang     |
+| **Task** | Uses tools      | FuncDefs + `Tasks()` + `Detect()`    | python, golang     |
 
 ### Config Usage
 
@@ -254,8 +254,8 @@ var Config = pocket.Config{
     // AutoRun executes on ./pok (no arguments)
     AutoRun: pocket.Serial(
         // Use task collections with auto-detection
-        pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
-        pocket.Paths(markdown.Workflow()).DetectBy(markdown.Detect()),
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+        pocket.Paths(markdown.Tasks()).DetectBy(markdown.Detect()),
     ),
 
     // ManualRun requires explicit ./pok <name>
@@ -281,28 +281,27 @@ For e.g. monorepos, use `Paths()` to control where functions run:
 pocket.Paths(myFunc).In("services/api", "services/web")
 
 // Auto-detect directories containing go.mod
-pocket.Paths(golang.Workflow()).DetectBy(golang.Detect())
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect())
 
 // Exclude directories
-pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).Except("vendor")
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).Except("vendor")
 
 // Combine detection with filtering
-pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()).In("services/.*").Except("testdata")
+pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()).In("services/.*").Except("testdata")
 ```
 
 ### Skipping Tasks in Specific Paths
 
-While `Except()` excludes entire workflows from directories, use `SkipTask()` to
-skip specific tasks within a workflow. This controls which tasks from the
-workflow run in each detected directory - it doesn't modify the task's
-arguments.
+While `Except()` excludes entire task compositions from directories, use
+`SkipTask()` to skip specific tasks within a composition. This controls which
+tasks run in each detected directory - it doesn't modify the task's arguments.
 
 For example, in a monorepo with multiple Go services (each with their own
 `go.mod`), you might want to skip slow tests in certain services:
 
 ```go
 var Config = pocket.Config{
-    AutoRun: pocket.Paths(golang.Workflow()).
+    AutoRun: pocket.Paths(golang.Tasks()).
         DetectBy(golang.Detect()).
         SkipTask(golang.Test, "services/api", "services/worker"),
 
@@ -314,7 +313,7 @@ var Config = pocket.Config{
 ```
 
 Here `services/api/` and `services/worker/` are separate Go modules detected by
-`golang.Detect()`. The full workflow (format, lint, vulncheck) runs in all
+`golang.Detect()`. All composed tasks (format, lint, vulncheck) run in all
 detected modules, but `go-test` is skipped in those two. The skipped tests are
 available as `integration-test` when run from those directories.
 
@@ -384,7 +383,7 @@ pocket.ConfigPath("tool", config)              // find/create config file
 ```go
 var Config = pocket.Config{
     // AutoRun: runs on ./pok (no arguments)
-    AutoRun: pocket.Paths(golang.Workflow()).
+    AutoRun: pocket.Paths(golang.Tasks()).
         DetectBy(golang.Detect()).
         SkipTask(golang.Test, "services/worker"),
 

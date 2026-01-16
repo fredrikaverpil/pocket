@@ -17,18 +17,18 @@ func WithFormat(opts FormatOptions) Option {
 	return func(c *config) { c.format = opts }
 }
 
-// Workflow returns a Runnable that executes all Lua tasks.
+// Tasks returns a Runnable that executes all Lua tasks.
 // Runs from repository root since Lua files are typically scattered.
-// Use pocket.Paths(lua.Workflow()).DetectBy(lua.Detect()) to enable path filtering.
+// Use pocket.Paths(lua.Tasks()).DetectBy(lua.Detect()) to enable path filtering.
 //
 // Execution order: format runs first, then lint.
 //
 // Example with options:
 //
-//	pocket.Paths(lua.Workflow(
+//	pocket.Paths(lua.Tasks(
 //	    lua.WithFormat(lua.FormatOptions{StyluaConfig: ".stylua.toml"}),
 //	)).DetectBy(lua.Detect())
-func Workflow(opts ...Option) pocket.Runnable {
+func Tasks(opts ...Option) pocket.Runnable {
 	var cfg config
 	for _, opt := range opts {
 		opt(&cfg)
@@ -47,7 +47,7 @@ func Workflow(opts ...Option) pocket.Runnable {
 //
 // Usage:
 //
-//	pocket.Paths(lua.Workflow()).DetectBy(lua.Detect())
+//	pocket.Paths(lua.Tasks()).DetectBy(lua.Detect())
 func Detect() func() []string {
 	return func() []string {
 		return []string{"."}

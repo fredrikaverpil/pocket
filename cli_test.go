@@ -290,7 +290,7 @@ func TestIsFuncVisibleIn(t *testing.T) {
 // TestFilterFuncsByCwd_ManualRunPaths tests that ManualRun tasks with Paths
 // are visible from subdirectory shims. This simulates the documented pattern:
 //
-//	AutoRun: pocket.Paths(golang.Workflow()).DetectBy(...).SkipTask(golang.Test, "services/api"),
+//	AutoRun: pocket.Paths(golang.Tasks()).DetectBy(...).SkipTask(golang.Test, "services/api"),
 //	ManualRun: []pocket.Runnable{pocket.Paths(golang.Test).In("services/api")},
 //
 // The ManualRun task should be visible when running from services/api/pok.

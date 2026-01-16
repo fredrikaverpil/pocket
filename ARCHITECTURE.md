@@ -14,8 +14,8 @@ execute tasks or visualize the plan.
 │                        pocket.Config                        │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ AutoRun: Serial(                                    │   │
-│  │   Paths(golang.Workflow()).DetectBy(golang.Detect())│   │
-│  │   Paths(python.Workflow()).DetectBy(python.Detect())│   │
+│  │   Paths(golang.Tasks()).DetectBy(golang.Detect())   │   │
+│  │   Paths(python.Tasks()).DetectBy(python.Detect())   │   │
 │  │ )                                                   │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────┐                                       │
@@ -256,7 +256,7 @@ type PathFilter struct {
 PathFilter uses immutable builders that return new copies:
 
 ```go
-Paths(golang.Workflow()).
+Paths(golang.Tasks()).
     DetectBy(golang.Detect()).  // auto-detect directories
     In("services/.*").          // include pattern
     Except("vendor").           // exclude pattern

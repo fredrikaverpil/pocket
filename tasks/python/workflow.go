@@ -35,18 +35,18 @@ func WithTest(opts TestOptions) Option {
 	return func(c *config) { c.test = opts }
 }
 
-// Workflow returns a Runnable that executes all Python tasks.
-// Use pocket.Paths(python.Workflow()).DetectBy(python.Detect()) to enable path filtering.
+// Tasks returns a Runnable that executes all Python tasks.
+// Use pocket.Paths(python.Tasks()).DetectBy(python.Detect()) to enable path filtering.
 //
 // Execution order: format, lint, typecheck, then test (serial since format/lint modify files).
 //
 // Example with options:
 //
-//	pocket.Paths(python.Workflow(
+//	pocket.Paths(python.Tasks(
 //	    python.WithFormat(python.FormatOptions{RuffConfig: "ruff.toml"}),
 //	    python.WithTest(python.TestOptions{SkipCoverage: true}),
 //	)).DetectBy(python.Detect())
-func Workflow(opts ...Option) pocket.Runnable {
+func Tasks(opts ...Option) pocket.Runnable {
 	var cfg config
 	for _, opt := range opts {
 		opt(&cfg)
@@ -82,7 +82,7 @@ func Workflow(opts ...Option) pocket.Runnable {
 //
 // Usage:
 //
-//	pocket.Paths(python.Workflow()).DetectBy(python.Detect())
+//	pocket.Paths(python.Tasks()).DetectBy(python.Detect())
 func Detect() func() []string {
 	return func() []string {
 		return pocket.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")

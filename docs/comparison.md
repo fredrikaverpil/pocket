@@ -132,8 +132,8 @@ var Config = pocket.Config{
     AutoRun: pocket.Serial(
         // DetectBy finds all go.mod and pyproject.toml locations
         // and runs these task groups in each
-        pocket.Paths(golang.Workflow()).DetectBy(golang.Detect()),
-        pocket.Paths(python.Workflow()).DetectBy(python.Detect()),
+        pocket.Paths(golang.Tasks()).DetectBy(golang.Detect()),
+        pocket.Paths(python.Tasks()).DetectBy(python.Detect()),
     ),
 }
 ```
