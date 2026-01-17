@@ -139,9 +139,10 @@ func validateNoDuplicateFuncs(funcs, builtinFuncs []*TaskDef) error {
 
 // planOptions configures the plan command.
 type planOptions struct {
-	Hidden bool `arg:"hidden" usage:"show hidden functions (e.g., install tasks)"`
-	Dedup  bool `arg:"dedup"  usage:"show deduplicated items that would be skipped"`
-	JSON   bool `arg:"json"   usage:"output as JSON for machine consumption"`
+	Hidden  bool   `arg:"hidden"  usage:"show hidden functions (e.g., install tasks)"`
+	Dedup   bool   `arg:"dedup"   usage:"show deduplicated items that would be skipped"`
+	JSON    bool   `arg:"json"    usage:"output as JSON for machine consumption"`
+	Outfile string `arg:"outfile" usage:"write JSON output to file (implies -json)"`
 }
 
 // builtinTasks returns the built-in tasks that are always available.
@@ -152,17 +153,32 @@ func builtinTasks(cfg *Config) []*TaskDef {
 		Task("plan", "show the execution tree and shim locations", func(ctx context.Context) error {
 			opts := Options[planOptions](ctx)
 
-			// JSON output mode
-			if opts.JSON {
+			// JSON output mode (-json or -outfile)
+			if opts.JSON || opts.Outfile != "" {
 				plan, err := BuildIntrospectPlan(*cfg)
 				if err != nil {
 					return fmt.Errorf("plan: %w", err)
 				}
 				data, err := json.MarshalIndent(plan, "", "  ")
 				if err != nil {
-					return fmt.Errorf("plan: %w", err)
+					return fmt.Errorf("plan: marshal: %w", err)
 				}
-				Printf(ctx, "%s\n", data)
+
+				// Validate the JSON output by unmarshaling it back
+				var validate IntrospectPlan
+				if err := json.Unmarshal(data, &validate); err != nil {
+					return fmt.Errorf("plan: validate: %w", err)
+				}
+
+				// Write to file or stdout
+				if opts.Outfile != "" {
+					if err := os.WriteFile(opts.Outfile, append(data, '\n'), 0o644); err != nil {
+						return fmt.Errorf("plan: write %s: %w", opts.Outfile, err)
+					}
+					Printf(ctx, "Wrote %s\n", opts.Outfile)
+				} else {
+					Printf(ctx, "%s\n", data)
+				}
 				return nil
 			}
 
@@ -197,7 +213,7 @@ func builtinTasks(cfg *Config) []*TaskDef {
 			}
 
 			return nil
-		}, Opts(planOptions{})),
+		}, Opts(planOptions{}), AsSilent()),
 
 		// clean: remove .pocket/tools and .pocket/bin directories
 		Task("clean", "remove .pocket/tools and .pocket/bin directories", func(ctx context.Context) error {

@@ -213,6 +213,7 @@ func WithOpts(task *TaskDef, opts any) *TaskDef {
 		body:   task.body,
 		opts:   opts,
 		hidden: task.hidden,
+		silent: task.silent,
 	}
 }
 
@@ -234,6 +235,7 @@ func Clone(task *TaskDef, opts ...TaskOpt) *TaskDef {
 		body:   task.body,
 		opts:   task.opts,
 		hidden: task.hidden,
+		silent: task.silent,
 	}
 	for _, opt := range opts {
 		opt(td)
