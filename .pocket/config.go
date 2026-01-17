@@ -18,6 +18,7 @@ var Config = pocket.Config{
 	),
 	ManualRun: []pocket.Runnable{
 		Greet,
+		github.CI,
 	},
 	Shim: &pocket.ShimConfig{
 		Posix:      true,
