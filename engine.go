@@ -231,11 +231,6 @@ func (e *Engine) Plan(ctx context.Context) (*ExecutionPlan, error) {
 	return plan, nil
 }
 
-// Execute runs the tree with normal execution.
-func (e *Engine) Execute(ctx context.Context, out *Output, cwd string, verbose bool) error {
-	return runWithContext(ctx, e.root, out, cwd, verbose)
-}
-
 // discardOutput returns an output that discards all writes.
 func discardOutput() *Output {
 	return &Output{Stdout: io.Discard, Stderr: io.Discard}
