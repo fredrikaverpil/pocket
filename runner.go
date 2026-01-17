@@ -2,6 +2,7 @@ package pocket
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -133,6 +134,7 @@ func validateNoDuplicateFuncs(funcs, builtinFuncs []*TaskDef) error {
 type planOptions struct {
 	Hidden bool `arg:"hidden" usage:"show hidden functions (e.g., install tasks)"`
 	Dedup  bool `arg:"dedup"  usage:"show deduplicated items that would be skipped"`
+	JSON   bool `arg:"json"   usage:"output as JSON for machine consumption"`
 }
 
 // builtinTasks returns the built-in tasks that are always available.
@@ -142,6 +144,20 @@ func builtinTasks(cfg *Config) []*TaskDef {
 		// plan: show the execution tree
 		Task("plan", "show the execution tree and shim locations", func(ctx context.Context) error {
 			opts := Options[planOptions](ctx)
+
+			// JSON output mode
+			if opts.JSON {
+				plan, err := BuildExportPlan(*cfg)
+				if err != nil {
+					return fmt.Errorf("plan: %w", err)
+				}
+				data, err := json.MarshalIndent(plan, "", "  ")
+				if err != nil {
+					return fmt.Errorf("plan: %w", err)
+				}
+				Printf(ctx, "%s\n", data)
+				return nil
+			}
 
 			// Print AutoRun tree using Engine
 			if cfg.AutoRun != nil {
@@ -219,20 +235,6 @@ func builtinTasks(cfg *Config) []*TaskDef {
 			}
 			return nil
 		}),
-
-		// export: output task list as JSON
-		Task("export", "export task list as JSON", func(ctx context.Context) error {
-			if cfg.AutoRun == nil {
-				Printf(ctx, "[]\n")
-				return nil
-			}
-			data, err := ExportJSON(cfg.AutoRun)
-			if err != nil {
-				return fmt.Errorf("export: %w", err)
-			}
-			Printf(ctx, "%s\n", data)
-			return nil
-		}, AsSilent()),
 
 		// update: update pocket dependency and regenerate files
 		Task("update", "update pocket dependency and regenerate files", func(ctx context.Context) error {

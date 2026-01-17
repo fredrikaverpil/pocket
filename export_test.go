@@ -131,78 +131,122 @@ func TestCollectTasks_Nil(t *testing.T) {
 	}
 }
 
-func TestExportJSON_Simple(t *testing.T) {
+func TestBuildExportPlan_Simple(t *testing.T) {
 	fn := Task("build", "build project", func(_ context.Context) error {
 		return nil
 	})
 
-	data, err := ExportJSON(fn)
+	cfg := Config{AutoRun: fn}
+	export, err := BuildExportPlan(cfg)
 	if err != nil {
-		t.Fatalf("ExportJSON() failed: %v", err)
+		t.Fatalf("BuildExportPlan() failed: %v", err)
 	}
 
-	// Verify it's valid JSON
-	var tasks []TaskInfo
-	if err := json.Unmarshal(data, &tasks); err != nil {
-		t.Fatalf("failed to unmarshal JSON: %v", err)
+	if len(export.AutoRun) != 1 {
+		t.Fatalf("expected 1 step in AutoRun, got %d", len(export.AutoRun))
+	}
+	if export.AutoRun[0].Name != "build" {
+		t.Errorf("expected name 'build', got %q", export.AutoRun[0].Name)
+	}
+	if export.AutoRun[0].Type != "func" {
+		t.Errorf("expected type 'func', got %q", export.AutoRun[0].Type)
 	}
 
-	if len(tasks) != 1 {
-		t.Fatalf("expected 1 task, got %d", len(tasks))
+	// Verify it marshals to valid JSON
+	data, err := json.MarshalIndent(export, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal to JSON: %v", err)
 	}
-	if tasks[0].Name != "build" {
-		t.Errorf("expected name 'build', got %q", tasks[0].Name)
+	if len(data) == 0 {
+		t.Error("expected non-empty JSON output")
 	}
 }
 
-func TestExportJSON_Empty(t *testing.T) {
-	data, err := ExportJSON(nil)
+func TestBuildExportPlan_Empty(t *testing.T) {
+	cfg := Config{}
+	export, err := BuildExportPlan(cfg)
 	if err != nil {
-		t.Fatalf("ExportJSON() failed: %v", err)
+		t.Fatalf("BuildExportPlan() failed: %v", err)
 	}
 
-	// Should be valid JSON (null or empty array)
-	var tasks []TaskInfo
-	if err := json.Unmarshal(data, &tasks); err != nil {
-		t.Fatalf("failed to unmarshal JSON: %v", err)
+	if len(export.AutoRun) != 0 {
+		t.Errorf("expected 0 AutoRun steps, got %d", len(export.AutoRun))
 	}
-
-	if len(tasks) != 0 {
-		t.Errorf("expected 0 tasks, got %d", len(tasks))
+	if len(export.ManualRun) != 0 {
+		t.Errorf("expected 0 ManualRun tasks, got %d", len(export.ManualRun))
 	}
 }
 
-func TestExportJSON_MultipleTasks(t *testing.T) {
+func TestBuildExportPlan_TreeStructure(t *testing.T) {
 	root := Serial(
 		Task("format", "format code", func(_ context.Context) error { return nil }),
-		Task("lint", "lint code", func(_ context.Context) error { return nil }),
-		Task("test", "run tests", func(_ context.Context) error { return nil }),
+		Parallel(
+			Task("lint", "lint code", func(_ context.Context) error { return nil }),
+			Task("test", "run tests", func(_ context.Context) error { return nil }),
+		),
 	)
 
-	data, err := ExportJSON(root)
+	cfg := Config{AutoRun: root}
+	export, err := BuildExportPlan(cfg)
 	if err != nil {
-		t.Fatalf("ExportJSON() failed: %v", err)
+		t.Fatalf("BuildExportPlan() failed: %v", err)
 	}
 
-	var tasks []TaskInfo
-	if err := json.Unmarshal(data, &tasks); err != nil {
-		t.Fatalf("failed to unmarshal JSON: %v", err)
+	// Should have serial at root with format and parallel children
+	if len(export.AutoRun) != 1 {
+		t.Fatalf("expected 1 root step, got %d", len(export.AutoRun))
 	}
 
-	if len(tasks) != 3 {
-		t.Fatalf("expected 3 tasks, got %d", len(tasks))
+	serial := export.AutoRun[0]
+	if serial.Type != "serial" {
+		t.Errorf("expected root type 'serial', got %q", serial.Type)
+	}
+	if len(serial.Children) != 2 {
+		t.Fatalf("expected 2 children in serial, got %d", len(serial.Children))
 	}
 
-	// Verify JSON structure
-	for _, task := range tasks {
-		if task.Name == "" {
-			t.Error("task name should not be empty")
-		}
-		if task.Usage == "" {
-			t.Error("task usage should not be empty")
-		}
-		if len(task.Paths) == 0 {
-			t.Error("task paths should not be empty")
-		}
+	// First child: format func
+	if serial.Children[0].Type != "func" || serial.Children[0].Name != "format" {
+		t.Errorf("expected first child to be func 'format', got %s %s",
+			serial.Children[0].Type, serial.Children[0].Name)
+	}
+
+	// Second child: parallel with lint and test
+	parallel := serial.Children[1]
+	if parallel.Type != "parallel" {
+		t.Errorf("expected second child type 'parallel', got %q", parallel.Type)
+	}
+	if len(parallel.Children) != 2 {
+		t.Fatalf("expected 2 children in parallel, got %d", len(parallel.Children))
+	}
+}
+
+func TestBuildExportPlan_ManualRun(t *testing.T) {
+	autoRun := Task("lint", "lint code", func(_ context.Context) error { return nil })
+	manualTask := Task("deploy", "deploy app", func(_ context.Context) error { return nil })
+
+	cfg := Config{
+		AutoRun:   autoRun,
+		ManualRun: []Runnable{manualTask},
+	}
+	export, err := BuildExportPlan(cfg)
+	if err != nil {
+		t.Fatalf("BuildExportPlan() failed: %v", err)
+	}
+
+	// AutoRun should have lint
+	if len(export.AutoRun) != 1 {
+		t.Fatalf("expected 1 AutoRun step, got %d", len(export.AutoRun))
+	}
+	if export.AutoRun[0].Name != "lint" {
+		t.Errorf("expected AutoRun name 'lint', got %q", export.AutoRun[0].Name)
+	}
+
+	// ManualRun should have deploy as flat list
+	if len(export.ManualRun) != 1 {
+		t.Fatalf("expected 1 ManualRun task, got %d", len(export.ManualRun))
+	}
+	if export.ManualRun[0].Name != "deploy" {
+		t.Errorf("expected ManualRun name 'deploy', got %q", export.ManualRun[0].Name)
 	}
 }

@@ -2,7 +2,6 @@ package pocket
 
 import (
 	"context"
-	"encoding/json"
 )
 
 // TaskInfo represents a task for export.
@@ -12,6 +11,14 @@ type TaskInfo struct {
 	Usage  string   `json:"usage"`            // Description/help text
 	Paths  []string `json:"paths,omitempty"`  // Directories this task runs in
 	Hidden bool     `json:"hidden,omitempty"` // Whether task is hidden from help
+}
+
+// ExportPlan represents the full export structure.
+// AutoRun shows the compositional tree structure (serial/parallel).
+// ManualRun shows tasks as a flat list.
+type ExportPlan struct {
+	AutoRun   []*PlanStep `json:"autoRun,omitempty"`
+	ManualRun []TaskInfo  `json:"manualRun,omitempty"`
 }
 
 // CollectTasks extracts task information from a Runnable tree.
@@ -38,9 +45,27 @@ func CollectTasks(r Runnable) []TaskInfo {
 	return plan.Tasks(pathMappings)
 }
 
-// ExportJSON exports task information as JSON bytes.
-// This is the underlying implementation for the export command.
-func ExportJSON(r Runnable) ([]byte, error) {
-	tasks := CollectTasks(r)
-	return json.MarshalIndent(tasks, "", "  ")
+// BuildExportPlan builds the export plan structure from config.
+// This captures the full tree structure for AutoRun and flat list for ManualRun.
+// The caller is responsible for JSON marshaling.
+func BuildExportPlan(cfg Config) (ExportPlan, error) {
+	export := ExportPlan{}
+
+	// Export AutoRun as tree structure
+	if cfg.AutoRun != nil {
+		engine := NewEngine(cfg.AutoRun)
+		plan, err := engine.Plan(context.Background())
+		if err != nil {
+			return export, err
+		}
+		export.AutoRun = plan.Steps()
+	}
+
+	// Export ManualRun as flat list
+	for _, r := range cfg.ManualRun {
+		tasks := CollectTasks(r)
+		export.ManualRun = append(export.ManualRun, tasks...)
+	}
+
+	return export, nil
 }
