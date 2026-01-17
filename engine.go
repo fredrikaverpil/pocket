@@ -19,13 +19,13 @@ const (
 
 // PlanStep represents a single step in the execution plan.
 type PlanStep struct {
-	Type     string      // "serial", "parallel", "func"
-	Name     string      // Function name
-	Usage    string      // Function usage/description
-	Hidden   bool        // Whether this is a hidden function
-	Deduped  bool        // Would be skipped due to deduplication
-	Path     string      // Path context for path-filtered execution
-	Children []*PlanStep // Nested steps (for serial/parallel groups)
+	Type     string      `json:"type"`               // "serial", "parallel", "func"
+	Name     string      `json:"name,omitempty"`     // Function name
+	Usage    string      `json:"usage,omitempty"`    // Function usage/description
+	Hidden   bool        `json:"hidden,omitempty"`   // Whether this is a hidden function
+	Deduped  bool        `json:"deduped,omitempty"`  // Would be skipped due to deduplication
+	Path     string      `json:"path,omitempty"`     // Path context for path-filtered execution
+	Children []*PlanStep `json:"children,omitempty"` // Nested steps (for serial/parallel groups)
 }
 
 // ExecutionPlan holds the complete plan collected during modeCollect.
@@ -111,6 +111,65 @@ func (p *ExecutionPlan) Steps() []*PlanStep {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.steps
+}
+
+// Tasks flattens the execution plan into a list of TaskInfo.
+// This extracts all func steps from the tree, combining with path information
+// from the provided pathMappings. Tasks without path mappings get ["."].
+func (p *ExecutionPlan) Tasks(pathMappings map[string]*PathFilter) []TaskInfo {
+	p.mu.Lock()
+	steps := p.steps
+	p.mu.Unlock()
+
+	var result []TaskInfo
+	seen := make(map[string]bool) // deduplicate by name
+	collectTasksFromSteps(steps, pathMappings, &result, seen)
+	return result
+}
+
+// collectTasksFromSteps recursively extracts TaskInfo from plan steps.
+func collectTasksFromSteps(
+	steps []*PlanStep,
+	pathMappings map[string]*PathFilter,
+	result *[]TaskInfo,
+	seen map[string]bool,
+) {
+	for _, step := range steps {
+		switch step.Type {
+		case "func":
+			// Skip if already seen (deduplication across plan tree)
+			if seen[step.Name] {
+				continue
+			}
+			seen[step.Name] = true
+
+			info := TaskInfo{
+				Name:   step.Name,
+				Usage:  step.Usage,
+				Hidden: step.Hidden,
+			}
+
+			// Get paths from mapping, default to ["."] for root-only tasks
+			if pf, ok := pathMappings[step.Name]; ok {
+				info.Paths = pf.Resolve()
+			} else {
+				info.Paths = []string{"."}
+			}
+
+			*result = append(*result, info)
+
+			// Recurse into nested deps
+			if len(step.Children) > 0 {
+				collectTasksFromSteps(step.Children, pathMappings, result, seen)
+			}
+
+		case "serial", "parallel":
+			// Recurse into children
+			if len(step.Children) > 0 {
+				collectTasksFromSteps(step.Children, pathMappings, result, seen)
+			}
+		}
+	}
 }
 
 // Engine orchestrates plan collection and execution.

@@ -38,9 +38,15 @@ func TestCollectTasks_Hidden(t *testing.T) {
 
 	tasks := CollectTasks(fn)
 
-	// Hidden tasks are not included in funcs() output
-	if len(tasks) != 0 {
-		t.Fatalf("expected 0 tasks (hidden excluded), got %d", len(tasks))
+	// Hidden tasks are included with Hidden=true (for CI filtering)
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+	if !tasks[0].Hidden {
+		t.Error("expected task to be marked as hidden")
+	}
+	if tasks[0].Name != "install:tool" {
+		t.Errorf("expected name 'install:tool', got %q", tasks[0].Name)
 	}
 }
 
@@ -95,12 +101,25 @@ func TestCollectTasks_WithNestedDeps(t *testing.T) {
 
 	tasks := CollectTasks(lint)
 
-	// Only the visible task should be included
-	if len(tasks) != 1 {
-		t.Fatalf("expected 1 task (hidden excluded), got %d", len(tasks))
+	// Both tasks are included (hidden with Hidden=true)
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(tasks))
 	}
+
+	// First should be lint (visible)
 	if tasks[0].Name != "lint" {
-		t.Errorf("expected task 'lint', got %q", tasks[0].Name)
+		t.Errorf("expected first task 'lint', got %q", tasks[0].Name)
+	}
+	if tasks[0].Hidden {
+		t.Error("lint should not be hidden")
+	}
+
+	// Second should be install:tool (hidden)
+	if tasks[1].Name != "install:tool" {
+		t.Errorf("expected second task 'install:tool', got %q", tasks[1].Name)
+	}
+	if !tasks[1].Hidden {
+		t.Error("install:tool should be hidden")
 	}
 }
 

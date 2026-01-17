@@ -1,6 +1,9 @@
 package pocket
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 // TaskInfo represents a task for export.
 // This is the public type used by the export API for CI/CD integration.
@@ -12,35 +15,27 @@ type TaskInfo struct {
 }
 
 // CollectTasks extracts task information from a Runnable tree.
-// This walks the tree and returns all TaskDefs with their path mappings.
+// This uses Engine.Plan() internally to collect tasks without executing them,
+// then combines with path mappings from the static tree structure.
 // Tasks without RunIn() wrappers get ["."] (root only).
 func CollectTasks(r Runnable) []TaskInfo {
 	if r == nil {
 		return nil
 	}
 
-	pathMappings := collectPathMappings(r)
-	funcs := r.funcs()
-
-	result := make([]TaskInfo, 0, len(funcs))
-	for _, f := range funcs {
-		info := TaskInfo{
-			Name:   f.name,
-			Usage:  f.usage,
-			Hidden: f.hidden,
-		}
-
-		// Get paths from mapping, default to ["."] for root-only tasks
-		if pf, ok := pathMappings[f.name]; ok {
-			info.Paths = pf.Resolve()
-		} else {
-			info.Paths = []string{"."}
-		}
-
-		result = append(result, info)
+	// Use Engine.Plan() to collect execution plan (this includes hidden tasks)
+	engine := NewEngine(r)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		// Fall back to empty on error (shouldn't happen in practice)
+		return nil
 	}
 
-	return result
+	// Collect path mappings from static tree structure
+	pathMappings := collectPathMappings(r)
+
+	// Extract flattened task list from plan
+	return plan.Tasks(pathMappings)
 }
 
 // ExportJSON exports task information as JSON bytes.
