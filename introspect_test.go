@@ -149,15 +149,15 @@ func TestCollectTasks_Nil(t *testing.T) {
 	}
 }
 
-func TestBuildExportPlan_Simple(t *testing.T) {
+func TestBuildIntrospectPlan_Simple(t *testing.T) {
 	fn := Task("build", "build project", func(_ context.Context) error {
 		return nil
 	})
 
 	cfg := Config{AutoRun: fn}
-	export, err := BuildExportPlan(cfg)
+	export, err := BuildIntrospectPlan(cfg)
 	if err != nil {
-		t.Fatalf("BuildExportPlan() failed: %v", err)
+		t.Fatalf("BuildIntrospectPlan() failed: %v", err)
 	}
 
 	if len(export.AutoRun) != 1 {
@@ -180,11 +180,11 @@ func TestBuildExportPlan_Simple(t *testing.T) {
 	}
 }
 
-func TestBuildExportPlan_Empty(t *testing.T) {
+func TestBuildIntrospectPlan_Empty(t *testing.T) {
 	cfg := Config{}
-	export, err := BuildExportPlan(cfg)
+	export, err := BuildIntrospectPlan(cfg)
 	if err != nil {
-		t.Fatalf("BuildExportPlan() failed: %v", err)
+		t.Fatalf("BuildIntrospectPlan() failed: %v", err)
 	}
 
 	if len(export.AutoRun) != 0 {
@@ -195,7 +195,7 @@ func TestBuildExportPlan_Empty(t *testing.T) {
 	}
 }
 
-func TestBuildExportPlan_TreeStructure(t *testing.T) {
+func TestBuildIntrospectPlan_TreeStructure(t *testing.T) {
 	root := Serial(
 		Task("format", "format code", func(_ context.Context) error { return nil }),
 		Parallel(
@@ -205,9 +205,9 @@ func TestBuildExportPlan_TreeStructure(t *testing.T) {
 	)
 
 	cfg := Config{AutoRun: root}
-	export, err := BuildExportPlan(cfg)
+	export, err := BuildIntrospectPlan(cfg)
 	if err != nil {
-		t.Fatalf("BuildExportPlan() failed: %v", err)
+		t.Fatalf("BuildIntrospectPlan() failed: %v", err)
 	}
 
 	// Should have serial at root with format and parallel children
@@ -239,7 +239,7 @@ func TestBuildExportPlan_TreeStructure(t *testing.T) {
 	}
 }
 
-func TestBuildExportPlan_ManualRun(t *testing.T) {
+func TestBuildIntrospectPlan_ManualRun(t *testing.T) {
 	autoRun := Task("lint", "lint code", func(_ context.Context) error { return nil })
 	manualTask := Task("deploy", "deploy app", func(_ context.Context) error { return nil })
 
@@ -247,9 +247,9 @@ func TestBuildExportPlan_ManualRun(t *testing.T) {
 		AutoRun:   autoRun,
 		ManualRun: []Runnable{manualTask},
 	}
-	export, err := BuildExportPlan(cfg)
+	export, err := BuildIntrospectPlan(cfg)
 	if err != nil {
-		t.Fatalf("BuildExportPlan() failed: %v", err)
+		t.Fatalf("BuildIntrospectPlan() failed: %v", err)
 	}
 
 	// AutoRun should have lint

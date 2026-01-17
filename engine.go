@@ -43,8 +43,8 @@ func newExecutionPlan() *ExecutionPlan {
 	}
 }
 
-// AddFunc adds a function call to the plan.
-func (p *ExecutionPlan) AddFunc(name, usage string, hidden, deduped bool) {
+// addFunc adds a function call to the plan.
+func (p *ExecutionPlan) addFunc(name, usage string, hidden, deduped bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	step := &PlanStep{
@@ -59,8 +59,8 @@ func (p *ExecutionPlan) AddFunc(name, usage string, hidden, deduped bool) {
 	p.stack = append(p.stack, step)
 }
 
-// PopFunc ends the current function's scope.
-func (p *ExecutionPlan) PopFunc() {
+// popFunc ends the current function's scope.
+func (p *ExecutionPlan) popFunc() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.stack) > 0 {
@@ -68,8 +68,8 @@ func (p *ExecutionPlan) PopFunc() {
 	}
 }
 
-// PushSerial starts a serial group.
-func (p *ExecutionPlan) PushSerial() {
+// pushSerial starts a serial group.
+func (p *ExecutionPlan) pushSerial() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	step := &PlanStep{Type: "serial"}
@@ -77,8 +77,8 @@ func (p *ExecutionPlan) PushSerial() {
 	p.stack = append(p.stack, step)
 }
 
-// PushParallel starts a parallel group.
-func (p *ExecutionPlan) PushParallel() {
+// pushParallel starts a parallel group.
+func (p *ExecutionPlan) pushParallel() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	step := &PlanStep{Type: "parallel"}
@@ -86,8 +86,8 @@ func (p *ExecutionPlan) PushParallel() {
 	p.stack = append(p.stack, step)
 }
 
-// Pop ends the current group.
-func (p *ExecutionPlan) Pop() {
+// pop ends the current group.
+func (p *ExecutionPlan) pop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.stack) > 0 {

@@ -256,8 +256,8 @@ func (f *TaskDef) run(ctx context.Context) error {
 	if ec.mode == modeCollect {
 		// Check if this would be deduplicated
 		deduped := !ec.dedup.shouldRun(runnableKey(f))
-		ec.plan.AddFunc(f.name, f.usage, f.hidden, deduped)
-		defer ec.plan.PopFunc()
+		ec.plan.addFunc(f.name, f.usage, f.hidden, deduped)
+		defer ec.plan.popFunc()
 
 		// Only recurse into Runnable body - do NOT call function bodies
 		// This ensures collection is side-effect free and only sees static composition

@@ -4,8 +4,8 @@ import (
 	"context"
 )
 
-// TaskInfo represents a task for export.
-// This is the public type used by the export API for CI/CD integration.
+// TaskInfo represents a task for introspection.
+// This is the public type used by the introspection API for CI/CD integration.
 type TaskInfo struct {
 	Name   string   `json:"name"`             // CLI command name
 	Usage  string   `json:"usage"`            // Description/help text
@@ -13,10 +13,10 @@ type TaskInfo struct {
 	Hidden bool     `json:"hidden,omitempty"` // Whether task is hidden from help
 }
 
-// ExportPlan represents the full export structure.
+// IntrospectPlan represents the full introspection structure.
 // AutoRun shows the compositional tree structure (serial/parallel).
 // ManualRun shows tasks as a flat list.
-type ExportPlan struct {
+type IntrospectPlan struct {
 	AutoRun   []*PlanStep `json:"autoRun,omitempty"`
 	ManualRun []TaskInfo  `json:"manualRun,omitempty"`
 }
@@ -44,30 +44,30 @@ func CollectTasks(r Runnable) ([]TaskInfo, error) {
 	return plan.Tasks(pathMappings), nil
 }
 
-// BuildExportPlan builds the export plan structure from config.
+// BuildIntrospectPlan builds the introspection plan structure from config.
 // This captures the full tree structure for AutoRun and flat list for ManualRun.
 // The caller is responsible for JSON marshaling.
-func BuildExportPlan(cfg Config) (ExportPlan, error) {
-	export := ExportPlan{}
+func BuildIntrospectPlan(cfg Config) (IntrospectPlan, error) {
+	result := IntrospectPlan{}
 
-	// Export AutoRun as tree structure
+	// Collect AutoRun as tree structure
 	if cfg.AutoRun != nil {
 		engine := NewEngine(cfg.AutoRun)
-		plan, err := engine.Plan(context.Background())
+		execPlan, err := engine.Plan(context.Background())
 		if err != nil {
-			return export, err
+			return result, err
 		}
-		export.AutoRun = plan.Steps()
+		result.AutoRun = execPlan.Steps()
 	}
 
-	// Export ManualRun as flat list
+	// Collect ManualRun as flat list
 	for _, r := range cfg.ManualRun {
 		tasks, err := CollectTasks(r)
 		if err != nil {
-			return export, err
+			return result, err
 		}
-		export.ManualRun = append(export.ManualRun, tasks...)
+		result.ManualRun = append(result.ManualRun, tasks...)
 	}
 
-	return export, nil
+	return result, nil
 }

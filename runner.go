@@ -147,7 +147,7 @@ func builtinTasks(cfg *Config) []*TaskDef {
 
 			// JSON output mode
 			if opts.JSON {
-				plan, err := BuildExportPlan(*cfg)
+				plan, err := BuildIntrospectPlan(*cfg)
 				if err != nil {
 					return fmt.Errorf("plan: %w", err)
 				}

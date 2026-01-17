@@ -592,6 +592,74 @@ var Config = pocket.Config{
 }
 ```
 
+### Introspection
+
+The introspection API lets you analyze the task tree without executing it. This
+is useful for CI/CD integration (e.g., generating GitHub Actions matrices).
+
+```go
+// Collect task info from a Runnable tree
+tasks, err := pocket.CollectTasks(autoRun)
+// Returns []pocket.TaskInfo with Name, Usage, Paths, Hidden
+
+// Build full introspection plan from Config
+plan, err := pocket.BuildIntrospectPlan(cfg)
+// Returns pocket.IntrospectPlan with AutoRun tree and ManualRun flat list
+```
+
+**Types:**
+
+```go
+// TaskInfo represents a task for introspection
+type TaskInfo struct {
+    Name   string   `json:"name"`             // CLI command name
+    Usage  string   `json:"usage"`            // Description/help text
+    Paths  []string `json:"paths,omitempty"`  // Directories this task runs in
+    Hidden bool     `json:"hidden,omitempty"` // Whether task is hidden from help
+}
+
+// IntrospectPlan represents the full introspection structure
+type IntrospectPlan struct {
+    AutoRun   []*PlanStep `json:"autoRun,omitempty"`   // Tree structure
+    ManualRun []TaskInfo  `json:"manualRun,omitempty"` // Flat list
+}
+
+// PlanStep represents a node in the execution tree
+type PlanStep struct {
+    Type     string      `json:"type"`               // "serial", "parallel", "func"
+    Name     string      `json:"name,omitempty"`     // Task name (for "func" type)
+    Usage    string      `json:"usage,omitempty"`    // Task description
+    Hidden   bool        `json:"hidden,omitempty"`   // Hidden from help
+    Deduped  bool        `json:"deduped,omitempty"`  // Would be skipped (dedup)
+    Path     string      `json:"path,omitempty"`     // Path context
+    Children []*PlanStep `json:"children,omitempty"` // Nested steps
+}
+```
+
+**CLI access:**
+
+```bash
+./pok plan -json  # outputs IntrospectPlan as JSON
+```
+
+**Example: GitHub Actions matrix generation:**
+
+```go
+// tasks/github/matrix.go
+func MatrixTask(autoRun pocket.Runnable, cfg MatrixConfig) *pocket.TaskDef {
+    return pocket.Task("gha-matrix", "output GitHub Actions matrix JSON",
+        pocket.Do(func(ctx context.Context) error {
+            tasks, err := pocket.CollectTasks(autoRun)
+            if err != nil {
+                return err
+            }
+            // Generate matrix entries from tasks...
+            return nil
+        }),
+    )
+}
+```
+
 ## Documentation
 
 - [Architecture](architecture.md) - Internal design: execution model, shim

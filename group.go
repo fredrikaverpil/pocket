@@ -38,8 +38,8 @@ func (s *serial) run(ctx context.Context) error {
 
 	// In collect mode, register structure and recurse
 	if ec.mode == modeCollect {
-		ec.plan.PushSerial()
-		defer ec.plan.Pop()
+		ec.plan.pushSerial()
+		defer ec.plan.pop()
 		for _, r := range s.items {
 			if err := r.run(ctx); err != nil {
 				return err
@@ -100,8 +100,8 @@ func (p *parallel) run(ctx context.Context) error {
 
 	// In collect mode, register structure and recurse (sequentially for simplicity)
 	if ec.mode == modeCollect {
-		ec.plan.PushParallel()
-		defer ec.plan.Pop()
+		ec.plan.pushParallel()
+		defer ec.plan.pop()
 		for _, r := range p.items {
 			if err := r.run(ctx); err != nil {
 				return err
