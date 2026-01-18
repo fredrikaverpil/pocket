@@ -3,9 +3,3 @@
 // See: https://github.com/fredrikaverpil/pocket#configuration
 
 package main
-
-import "github.com/fredrikaverpil/pocket/tasks"
-
-func main() {
-	tasks.Run(Config)
-}
