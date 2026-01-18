@@ -48,11 +48,35 @@ func (p *parallel) run(ctx context.Context) error {
 		return nil
 	}
 
+	// Check if context is already canceled
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(p.runnables))
 
 	// Start all runnables concurrently
 	for _, r := range p.runnables {
+		// Check context before starting each goroutine
+		select {
+		case <-ctx.Done():
+			// Context canceled, don't start more goroutines
+			// Wait for already-started ones to finish
+			wg.Wait()
+			close(errChan)
+			// Return context error or first runnable error
+			select {
+			case err := <-errChan:
+				return err
+			default:
+				return ctx.Err()
+			}
+		default:
+		}
+
 		wg.Add(1)
 		go func(runnable Runnable) {
 			defer wg.Done()

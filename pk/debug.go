@@ -3,6 +3,7 @@ package pk
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -18,7 +19,14 @@ func BuildAndShowPlan(ctx context.Context, root Runnable) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Found %d tasks:\n", len(p.Tasks)))
 
-	for i, task := range p.Tasks {
+	// Sort tasks by name for deterministic output
+	sortedTasks := make([]*Task, len(p.Tasks))
+	copy(sortedTasks, p.Tasks)
+	sort.Slice(sortedTasks, func(i, j int) bool {
+		return sortedTasks[i].Name() < sortedTasks[j].Name()
+	})
+
+	for i, task := range sortedTasks {
 		sb.WriteString(fmt.Sprintf("  %d. %s", i+1, task.Name()))
 
 		// Show resolved path info if available

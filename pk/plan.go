@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"sort"
 )
 
 // plan represents the execution plan created from a Config.
@@ -18,11 +19,9 @@ type plan struct {
 	Tasks []*Task
 
 	// PathMappings maps task names to their execution directories.
-	// TODO: Will be populated during filesystem analysis.
 	PathMappings map[string]pathInfo
 
 	// ModuleDirectories lists directories where shims should be generated.
-	// TODO: Will be derived from PathMappings.
 	ModuleDirectories []string
 }
 
@@ -127,7 +126,21 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 		}
 
 	case *pathFilter:
-		// Path filter wrapper - set context and walk inner
+		// Path filter wrapper - resolve paths, cache on pathFilter, then walk inner
+		resolvedPaths, err := resolvePathPatterns(
+			pc.gitRoot,
+			v.includePaths,
+			v.excludePaths,
+		)
+		if err != nil {
+			// If resolution fails, use include patterns as-is
+			resolvedPaths = v.includePaths
+		}
+
+		// Cache resolved paths on the pathFilter for execution
+		v.resolvedPaths = resolvedPaths
+
+		// Set context and walk inner
 		previousPath := pc.currentPath
 		pc.currentPath = v
 		if err := pc.walk(ctx, v.inner); err != nil {
@@ -157,6 +170,9 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 			}
 		}
 	}
+
+	// Sort for deterministic output
+	sort.Strings(dirs)
 
 	return dirs
 }

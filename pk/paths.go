@@ -29,6 +29,9 @@ func WithExcludePath(pattern string) PathOption {
 // Detect sets a detection function that returns candidate directories.
 // The function should traverse the filesystem and return paths where
 // the task should run (e.g., directories containing go.mod files).
+//
+// NOTE: This is currently stored but not used in path resolution.
+// Reserved for future auto-detection functionality.
 func Detect(fn func() []string) PathOption {
 	return func(pf *pathFilter) {
 		pf.detect = fn
@@ -56,28 +59,29 @@ func WithOptions(r Runnable, opts ...PathOption) Runnable {
 // It determines which directories to execute in based on detection
 // functions and include/exclude patterns.
 type pathFilter struct {
-	inner        Runnable
-	includePaths []string
-	excludePaths []string
-	detect       func() []string
+	inner         Runnable
+	includePaths  []string
+	excludePaths  []string
+	detect        func() []string
+	resolvedPaths []string // Cached resolved paths from plan building
 }
 
 // run implements the Runnable interface.
-// It resolves paths and executes the inner Runnable for each path.
+// It executes the inner Runnable for each resolved path.
+// Paths are resolved during plan building and cached in resolvedPaths.
 func (pf *pathFilter) run(ctx context.Context) error {
-	// Find git root
-	gitRoot := findGitRoot()
+	// Use cached resolved paths from plan building
+	resolvedPaths := pf.resolvedPaths
 
-	// Resolve paths against filesystem
-	resolvedPaths, err := resolvePathPatterns(gitRoot, pf.includePaths, pf.excludePaths)
-	if err != nil {
-		// If resolution fails, fall back to running at root
-		resolvedPaths = []string{"."}
-	}
-
-	// If no paths resolved, run at root
+	// If no cached paths (shouldn't happen if plan was built), resolve now
 	if len(resolvedPaths) == 0 {
-		resolvedPaths = []string{"."}
+		gitRoot := findGitRoot()
+		var err error
+		resolvedPaths, err = resolvePathPatterns(gitRoot, pf.includePaths, pf.excludePaths)
+		if err != nil || len(resolvedPaths) == 0 {
+			// Fall back to running at root
+			resolvedPaths = []string{"."}
+		}
 	}
 
 	// Execute inner Runnable for each resolved path

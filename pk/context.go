@@ -8,6 +8,8 @@ type contextKey int
 const (
 	// pathKey is the context key for the current execution path
 	pathKey contextKey = iota
+	// planKey is the context key for the execution plan
+	planKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -23,4 +25,19 @@ func PathFromContext(ctx context.Context) string {
 		return path
 	}
 	return "."
+}
+
+// withPlan returns a new context with the given plan set.
+// This is used internally to pass the plan through execution.
+func withPlan(ctx context.Context, p *plan) context.Context {
+	return context.WithValue(ctx, planKey, p)
+}
+
+// planFromContext returns the execution plan from the context.
+// Returns nil if no plan is set.
+func planFromContext(ctx context.Context) *plan {
+	if p, ok := ctx.Value(planKey).(*plan); ok {
+		return p
+	}
+	return nil
 }

@@ -4,11 +4,26 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+)
+
+var (
+	gitRootOnce  sync.Once
+	gitRootCache string
 )
 
 // findGitRoot walks up from the current directory to find the git repository root.
 // Returns "." if not in a git repository.
+// The result is cached after the first call for performance.
 func findGitRoot() string {
+	gitRootOnce.Do(func() {
+		gitRootCache = doFindGitRoot()
+	})
+	return gitRootCache
+}
+
+// doFindGitRoot performs the actual git root discovery.
+func doFindGitRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "."
