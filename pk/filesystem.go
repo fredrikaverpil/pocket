@@ -82,8 +82,8 @@ func walkDirectories(gitRoot string) ([]string, error) {
 			return filepath.SkipDir
 		}
 
-		// Skip vendor, node_modules, .pocket
-		if base == "vendor" || base == "node_modules" || base == ".pocket" {
+		// Skip vendor and node_modules
+		if base == "vendor" || base == "node_modules" {
 			return filepath.SkipDir
 		}
 
@@ -113,46 +113,3 @@ func matchPattern(path, pattern string) bool {
 	return false
 }
 
-// resolvePathPatterns takes include/exclude patterns and returns
-// the list of actual directories that match.
-func resolvePathPatterns(gitRoot string, includePaths, excludePaths []string) ([]string, error) {
-	// Walk filesystem to get all directories
-	allDirs, err := walkDirectories(gitRoot)
-	if err != nil {
-		return nil, err
-	}
-
-	// If no include patterns, start with all directories
-	var candidates []string
-	if len(includePaths) == 0 {
-		// No include patterns means "run everywhere" (just root)
-		candidates = []string{"."}
-	} else {
-		// Filter by include patterns
-		for _, dir := range allDirs {
-			for _, pattern := range includePaths {
-				if matchPattern(dir, pattern) {
-					candidates = append(candidates, dir)
-					break
-				}
-			}
-		}
-	}
-
-	// Apply exclude patterns
-	var result []string
-	for _, dir := range candidates {
-		excluded := false
-		for _, pattern := range excludePaths {
-			if matchPattern(dir, pattern) {
-				excluded = true
-				break
-			}
-		}
-		if !excluded {
-			result = append(result, dir)
-		}
-	}
-
-	return result, nil
-}

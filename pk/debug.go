@@ -1,7 +1,6 @@
 package pk
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,8 +9,8 @@ import (
 // BuildAndShowPlan creates a plan and returns a string representation
 // showing tasks and their resolved path mappings.
 // This is a temporary debug function for development.
-func BuildAndShowPlan(ctx context.Context, root Runnable) string {
-	p, err := NewPlan(ctx, root)
+func BuildAndShowPlan(root Runnable) string {
+	p, err := NewPlan(root)
 	if err != nil {
 		return fmt.Sprintf("Error building plan: %v", err)
 	}

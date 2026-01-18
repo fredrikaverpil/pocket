@@ -15,7 +15,7 @@ func Execute(ctx context.Context, r Runnable) error {
 	}
 
 	// Build plan once
-	p, err := NewPlan(ctx, r)
+	p, err := NewPlan(r)
 	if err != nil {
 		return err
 	}

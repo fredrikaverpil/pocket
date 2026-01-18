@@ -31,7 +31,7 @@ func RunMain(cfg *Config) {
 
 	// Build the plan
 	fmt.Println("=== Building Plan ===")
-	planInfo := pk.BuildAndShowPlan(ctx, cfg.Root)
+	planInfo := pk.BuildAndShowPlan(cfg.Root)
 	fmt.Println(planInfo)
 
 	// Execute the configuration

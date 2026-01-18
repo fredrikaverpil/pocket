@@ -12,9 +12,8 @@ import (
 var Config = &core.Config{
 	Root: pk.Serial(
 		Hello,
-		ShowDir, // Runs at root (no WithOptions)
 		pk.WithOptions(
-			ShowDir,
+			ShowDirMulti,
 			pk.WithIncludePath("services"),
 			pk.WithIncludePath("pkg"),
 		),
@@ -44,9 +43,9 @@ var Hello = pk.NewTask("hello", func(ctx context.Context, opts map[string]any) e
 	return nil
 }).With("name", "Pocket v2")
 
-// ShowDir executes "pwd" to show the current directory.
+// ShowDirMulti executes "pwd" to show the current directory.
 // This proves that tasks are actually executing in the correct directories.
-var ShowDir = pk.NewTask("show-dir", func(ctx context.Context, opts map[string]any) error {
+var ShowDirMulti = pk.NewTask("show-dir", func(ctx context.Context, opts map[string]any) error {
 	path := pk.PathFromContext(ctx)
 
 	// Run pwd using the command helper

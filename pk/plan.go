@@ -1,7 +1,7 @@
 package pk
 
 import (
-	"context"
+	"fmt"
 	"sort"
 )
 
@@ -36,7 +36,7 @@ type pathInfo struct {
 // NewPlan creates an execution plan from a Config root.
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
-func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
+func NewPlan(root Runnable) (*plan, error) {
 	if root == nil {
 		return &plan{
 			Root:              nil,
@@ -49,14 +49,22 @@ func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
 	// Find git root once for the entire plan
 	gitRoot := findGitRoot()
 
+	// Walk filesystem once for the entire plan
+	allDirs, err := walkDirectories(gitRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	collector := &planCollector{
 		tasks:        make([]*Task, 0),
+		taskNames:    make(map[string]bool),
 		pathMappings: make(map[string]pathInfo),
 		currentPath:  nil,
 		gitRoot:      gitRoot,
+		allDirs:      allDirs,
 	}
 
-	if err := collector.walk(ctx, root); err != nil {
+	if err := collector.walk(root); err != nil {
 		return nil, err
 	}
 
@@ -74,13 +82,51 @@ func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
 // planCollector is the internal state for walking the tree
 type planCollector struct {
 	tasks        []*Task
+	taskNames    map[string]bool    // Track seen task names for duplicate detection
 	pathMappings map[string]pathInfo
 	currentPath  *pathFilter // Current path context during tree walk
 	gitRoot      string      // Git repository root
+	allDirs      []string    // Cached directory list from filesystem walk
+}
+
+// filterPaths applies include/exclude patterns to the cached directory list.
+func (pc *planCollector) filterPaths(includePaths, excludePaths []string) []string {
+	// If no include patterns, default to root only
+	var candidates []string
+	if len(includePaths) == 0 {
+		candidates = []string{"."}
+	} else {
+		// Filter by include patterns
+		for _, dir := range pc.allDirs {
+			for _, pattern := range includePaths {
+				if matchPattern(dir, pattern) {
+					candidates = append(candidates, dir)
+					break
+				}
+			}
+		}
+	}
+
+	// Apply exclude patterns
+	var result []string
+	for _, dir := range candidates {
+		excluded := false
+		for _, pattern := range excludePaths {
+			if matchPattern(dir, pattern) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			result = append(result, dir)
+		}
+	}
+
+	return result
 }
 
 // walk recursively traverses the Runnable tree
-func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
+func (pc *planCollector) walk(r Runnable) error {
 	if r == nil {
 		return nil
 	}
@@ -88,31 +134,27 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 	// Type switch on the concrete Runnable types
 	switch v := r.(type) {
 	case *Task:
+		// Check for duplicate task names
+		if pc.taskNames[v.name] {
+			return fmt.Errorf("duplicate task name: %q", v.name)
+		}
+		pc.taskNames[v.name] = true
+
 		// Leaf node - collect the task
 		pc.tasks = append(pc.tasks, v)
 
 		// Record path mapping if we're inside a pathFilter
+		// (uses already-resolved paths from the pathFilter)
 		if pc.currentPath != nil {
-			// Resolve paths against filesystem
-			resolvedPaths, err := resolvePathPatterns(
-				pc.gitRoot,
-				pc.currentPath.includePaths,
-				pc.currentPath.excludePaths,
-			)
-			if err != nil {
-				// If resolution fails, use include patterns as-is
-				resolvedPaths = pc.currentPath.includePaths
-			}
-
 			pc.pathMappings[v.name] = pathInfo{
-				ResolvedPaths: resolvedPaths,
+				ResolvedPaths: pc.currentPath.resolvedPaths,
 			}
 		}
 
 	case *serial:
 		// Composition node - walk children sequentially
 		for _, child := range v.runnables {
-			if err := pc.walk(ctx, child); err != nil {
+			if err := pc.walk(child); err != nil {
 				return err
 			}
 		}
@@ -120,30 +162,19 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 	case *parallel:
 		// Composition node - walk children (order doesn't matter for collection)
 		for _, child := range v.runnables {
-			if err := pc.walk(ctx, child); err != nil {
+			if err := pc.walk(child); err != nil {
 				return err
 			}
 		}
 
 	case *pathFilter:
-		// Path filter wrapper - resolve paths, cache on pathFilter, then walk inner
-		resolvedPaths, err := resolvePathPatterns(
-			pc.gitRoot,
-			v.includePaths,
-			v.excludePaths,
-		)
-		if err != nil {
-			// If resolution fails, use include patterns as-is
-			resolvedPaths = v.includePaths
-		}
-
-		// Cache resolved paths on the pathFilter for execution
-		v.resolvedPaths = resolvedPaths
+		// Path filter wrapper - resolve paths using cached dirs, then walk inner
+		v.resolvedPaths = pc.filterPaths(v.includePaths, v.excludePaths)
 
 		// Set context and walk inner
 		previousPath := pc.currentPath
 		pc.currentPath = v
-		if err := pc.walk(ctx, v.inner); err != nil {
+		if err := pc.walk(v.inner); err != nil {
 			return err
 		}
 		pc.currentPath = previousPath

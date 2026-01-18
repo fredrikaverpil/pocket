@@ -29,15 +29,8 @@ func PathFromContext(ctx context.Context) string {
 
 // withPlan returns a new context with the given plan set.
 // This is used internally to pass the plan through execution.
+// NOTE: Currently the plan is stored but not retrieved during execution,
+// as pathFilters use their cached resolvedPaths directly. Kept for future use.
 func withPlan(ctx context.Context, p *plan) context.Context {
 	return context.WithValue(ctx, planKey, p)
-}
-
-// planFromContext returns the execution plan from the context.
-// Returns nil if no plan is set.
-func planFromContext(ctx context.Context) *plan {
-	if p, ok := ctx.Value(planKey).(*plan); ok {
-		return p
-	}
-	return nil
 }
