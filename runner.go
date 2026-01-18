@@ -216,17 +216,21 @@ func builtinTasks(cfg *Config) []*TaskDef {
 		}, Opts(planOptions{}), AsSilent()),
 
 		// clean: remove .pocket/tools, .pocket/bin, and .pocket/venvs directories
-		Task("clean", "remove .pocket/tools, .pocket/bin, and .pocket/venvs directories", func(ctx context.Context) error {
-			for _, dir := range []string{FromToolsDir(), FromBinDir(), FromPocketDir("venvs")} {
-				if _, err := os.Stat(dir); err == nil {
-					if err := os.RemoveAll(dir); err != nil {
-						return fmt.Errorf("remove %s: %w", dir, err)
+		Task(
+			"clean",
+			"remove .pocket/tools, .pocket/bin, and .pocket/venvs directories",
+			func(ctx context.Context) error {
+				for _, dir := range []string{FromToolsDir(), FromBinDir(), FromPocketDir("venvs")} {
+					if _, err := os.Stat(dir); err == nil {
+						if err := os.RemoveAll(dir); err != nil {
+							return fmt.Errorf("remove %s: %w", dir, err)
+						}
+						Printf(ctx, "Removed %s\n", dir)
 					}
-					Printf(ctx, "Removed %s\n", dir)
 				}
-			}
-			return nil
-		}),
+				return nil
+			},
+		),
 
 		// generate: regenerate all generated files (main.go, shim)
 		Task("generate", "regenerate all generated files (main.go, shim)", func(ctx context.Context) error {

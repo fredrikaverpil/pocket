@@ -162,7 +162,16 @@ func (p *parallel) funcs() []*TaskDef {
 // shouldRun checks if a runnable should run (not already executed).
 // Marks it as executed if it should run.
 // Thread-safe for concurrent access from parallel execution.
+//
+// Only TaskDef is deduplicated - inner runnables (doRunnable, commandRunnable, etc.)
+// always run because they represent the actual work that their parent task performs.
+// Without this, Clone(task, Opts(...)) variants would incorrectly skip work because
+// they share the same inner runnable pointers.
 func shouldRun(ec *execContext, r Runnable) bool {
+	// Only deduplicate TaskDef - inner runnables always run
+	if _, ok := r.(*TaskDef); !ok {
+		return true
+	}
 	key := runnableKey(r)
 	return ec.dedup.shouldRun(key)
 }
