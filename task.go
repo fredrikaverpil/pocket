@@ -289,24 +289,6 @@ func (f *TaskDef) run(ctx context.Context) error {
 	return f.body.run(ctx)
 }
 
-// funcs returns all named functions in this definition's dependency tree.
-// For a plain function, returns just itself.
-// For a Runnable body, traverses the tree to collect all TaskDefs.
-func (f *TaskDef) funcs() []*TaskDef {
-	var result []*TaskDef
-
-	// Include self if not hidden
-	if !f.hidden {
-		result = append(result, f)
-	}
-
-	// If body is a Runnable, collect its nested TaskDefs
-	if f.body != nil {
-		result = append(result, f.body.funcs()...)
-	}
-
-	return result
-}
 
 // Runnable is the interface for anything that can be executed.
 // It uses unexported methods to prevent external implementation,
@@ -319,7 +301,6 @@ func (f *TaskDef) funcs() []*TaskDef {
 //   - pocket.RunIn() for path filtering
 type Runnable interface {
 	run(ctx context.Context) error
-	funcs() []*TaskDef
 }
 
 // toRunnables converts a slice of any to a slice of Runnable.
@@ -352,10 +333,6 @@ func (f *funcRunnable) run(ctx context.Context) error {
 	return f.fn(ctx)
 }
 
-func (f *funcRunnable) funcs() []*TaskDef {
-	return nil
-}
-
 // commandRunnable executes an external command with static arguments.
 type commandRunnable struct {
 	name string
@@ -376,10 +353,6 @@ func (c *commandRunnable) run(ctx context.Context) error {
 		cmd.Dir = GitRoot()
 	}
 	return cmd.Run()
-}
-
-func (c *commandRunnable) funcs() []*TaskDef {
-	return nil
 }
 
 // Run creates a Runnable that executes an external command.
@@ -404,10 +377,6 @@ func (d *doRunnable) run(ctx context.Context) error {
 		return nil
 	}
 	return d.fn(ctx)
-}
-
-func (d *doRunnable) funcs() []*TaskDef {
-	return nil
 }
 
 // Do creates a Runnable from a function.

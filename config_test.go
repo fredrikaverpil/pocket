@@ -53,30 +53,40 @@ func TestConfig_WithDefaults(t *testing.T) {
 	}
 }
 
-func TestSerial_Funcs(t *testing.T) {
+func TestSerial_TaskDefs(t *testing.T) {
 	t.Parallel()
 
 	fn1 := Task("test-format", "format test files", func(_ context.Context) error { return nil })
 	fn2 := Task("test-lint", "lint test files", func(_ context.Context) error { return nil })
 
 	runnable := Serial(fn1, fn2)
-	// Check funcs returns both funcs.
-	funcs := runnable.funcs()
+	// Check Engine.Plan().TaskDefs() returns both funcs.
+	engine := NewEngine(runnable)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 2 {
-		t.Errorf("funcs() length = %d, want 2", len(funcs))
+		t.Errorf("TaskDefs() length = %d, want 2", len(funcs))
 	}
 }
 
-func TestParallel_Funcs(t *testing.T) {
+func TestParallel_TaskDefs(t *testing.T) {
 	t.Parallel()
 
 	fn1 := Task("fn1", "func 1", func(_ context.Context) error { return nil })
 	fn2 := Task("fn2", "func 2", func(_ context.Context) error { return nil })
 
 	runnable := Parallel(fn1, fn2)
-	funcs := runnable.funcs()
+	engine := NewEngine(runnable)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 2 {
-		t.Errorf("funcs() length = %d, want 2", len(funcs))
+		t.Errorf("TaskDefs() length = %d, want 2", len(funcs))
 	}
 }
 
@@ -90,9 +100,14 @@ func TestConfig_AutoRun(t *testing.T) {
 		AutoRun: Serial(fn1, fn2),
 	}
 
-	funcs := cfg.AutoRun.funcs()
+	engine := NewEngine(cfg.AutoRun)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 2 {
-		t.Errorf("AutoRun.funcs() length = %d, want 2", len(funcs))
+		t.Errorf("AutoRun TaskDefs() length = %d, want 2", len(funcs))
 	}
 }
 
@@ -107,9 +122,14 @@ func TestNested_Serial_Parallel(t *testing.T) {
 		fn1,
 		Parallel(fn2, fn3),
 	)
-	funcs := runnable.funcs()
+	engine := NewEngine(runnable)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 3 {
-		t.Errorf("funcs() length = %d, want 3", len(funcs))
+		t.Errorf("TaskDefs() length = %d, want 3", len(funcs))
 	}
 }
 
@@ -183,6 +203,41 @@ func TestFuncDef_Clone_Multiple(t *testing.T) {
 	}
 }
 
+// TestSkipEverywhere verifies that Skip(task) with no paths excludes the task from TaskDefs.
+func TestSkipEverywhere(t *testing.T) {
+	t.Parallel()
+
+	task1 := Task("task1", "task 1", func(_ context.Context) error { return nil })
+	task2 := Task("task2", "task 2", func(_ context.Context) error { return nil })
+	workflow := Serial(task1, task2)
+
+	// Skip task2 everywhere (no paths specified)
+	runnable := RunIn(workflow, Include("."), Skip(task2))
+
+	engine := NewEngine(runnable)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+
+	funcs := plan.TaskDefs()
+
+	// Should only have task1, not task2
+	if len(funcs) != 1 {
+		t.Errorf("expected 1 func, got %d", len(funcs))
+	}
+	if len(funcs) > 0 && funcs[0].name != "task1" {
+		t.Errorf("expected task1, got %s", funcs[0].name)
+	}
+
+	// Verify task2 is not in the list
+	for _, f := range funcs {
+		if f.name == "task2" {
+			t.Error("task2 should be excluded (skipped everywhere)")
+		}
+	}
+}
+
 // TestSkipTaskWithManualRun_WithName verifies the documented pattern of using
 // Skip + ManualRun with WithName to avoid duplicate function names.
 //
@@ -206,13 +261,23 @@ func TestSkipTaskWithManualRun_WithName(t *testing.T) {
 		},
 	}
 
-	// Collect funcs as runner.go does
+	// Collect TaskDefs as runner.go does via Engine.Plan().TaskDefs()
 	var allFuncs []*TaskDef
 	if cfg.AutoRun != nil {
-		allFuncs = append(allFuncs, cfg.AutoRun.funcs()...)
+		engine := NewEngine(cfg.AutoRun)
+		plan, err := engine.Plan(context.Background())
+		if err != nil {
+			t.Fatalf("Engine.Plan() for AutoRun failed: %v", err)
+		}
+		allFuncs = append(allFuncs, plan.TaskDefs()...)
 	}
 	for _, r := range cfg.ManualRun {
-		allFuncs = append(allFuncs, r.funcs()...)
+		engine := NewEngine(r)
+		plan, err := engine.Plan(context.Background())
+		if err != nil {
+			t.Fatalf("Engine.Plan() for ManualRun failed: %v", err)
+		}
+		allFuncs = append(allFuncs, plan.TaskDefs()...)
 	}
 
 	// Count occurrences of each function name

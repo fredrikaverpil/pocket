@@ -37,6 +37,7 @@ type ExecutionPlan struct {
 	currentPaths *PathFilter            // Current PathFilter context during collection
 	taskDefs     []*TaskDef             // Collected TaskDefs (visible ones only)
 	seenDefs     map[string]bool        // Track seen task names for deduplication
+	skipRules    map[string][]string    // Current skip rules from PathFilter (task name -> paths)
 }
 
 // newExecutionPlan creates a new empty execution plan.
@@ -71,19 +72,53 @@ func (p *ExecutionPlan) addFunc(td *TaskDef, deduped bool) {
 	}
 
 	// Collect TaskDef (deduplicated by name, only non-hidden visible tasks)
-	if !p.seenDefs[td.name] && !td.hidden {
+	// Also filter out tasks that are skipped everywhere (empty paths = skip everywhere)
+	if !p.seenDefs[td.name] && !td.hidden && !p.isSkippedEverywhere(td.name) {
 		p.seenDefs[td.name] = true
 		p.taskDefs = append(p.taskDefs, td)
 	}
 }
 
+// isSkippedEverywhere returns true if a task is skipped everywhere (Skip with no paths).
+func (p *ExecutionPlan) isSkippedEverywhere(taskName string) bool {
+	if p.skipRules == nil {
+		return false
+	}
+	paths, exists := p.skipRules[taskName]
+	// Skipped everywhere = exists with empty paths
+	return exists && len(paths) == 0
+}
+
+// pathContext holds the previous PathFilter context for restoration.
+type pathContext struct {
+	paths     *PathFilter
+	skipRules map[string][]string
+}
+
 // setPathContext sets the current PathFilter context for subsequent addFunc calls.
-func (p *ExecutionPlan) setPathContext(pf *PathFilter) *PathFilter {
+// Returns the previous context for restoration.
+func (p *ExecutionPlan) setPathContext(pf *PathFilter) pathContext {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	prev := p.currentPaths
+	prev := pathContext{
+		paths:     p.currentPaths,
+		skipRules: p.skipRules,
+	}
 	p.currentPaths = pf
+	if pf != nil && pf.skipTasks != nil {
+		p.skipRules = pf.skipTasks
+	} else {
+		p.skipRules = nil
+	}
 	return prev
+}
+
+// restorePathContext restores a previous path context.
+func (p *ExecutionPlan) restorePathContext(prev pathContext) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.currentPaths = prev.paths
+	p.skipRules = prev.skipRules
 }
 
 // PathMappings returns the collected path mappings.

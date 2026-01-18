@@ -60,13 +60,6 @@ func (s *serial) run(ctx context.Context) error {
 	return nil
 }
 
-func (s *serial) funcs() []*TaskDef {
-	all := make([]*TaskDef, 0, len(s.items))
-	for _, r := range s.items {
-		all = append(all, r.funcs()...)
-	}
-	return all
-}
 
 // parallel executes items concurrently.
 type parallel struct {
@@ -151,13 +144,6 @@ func (p *parallel) run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (p *parallel) funcs() []*TaskDef {
-	all := make([]*TaskDef, 0, len(p.items))
-	for _, r := range p.items {
-		all = append(all, r.funcs()...)
-	}
-	return all
-}
 
 // shouldRun checks if a runnable should run (not already executed).
 // Marks it as executed if it should run.

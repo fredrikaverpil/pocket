@@ -94,11 +94,16 @@ func TestRunIn_CombineDetectAndInclude(t *testing.T) {
 	}
 }
 
-func TestRunIn_Funcs(t *testing.T) {
+func TestRunIn_TaskDefs(t *testing.T) {
 	fn := Task("test-func", "test func", func(_ context.Context) error { return nil })
 	p := RunIn(fn, Include("."))
 
-	funcs := p.funcs()
+	engine := NewEngine(p)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 1 {
 		t.Errorf("expected 1 func, got %d", len(funcs))
 	}

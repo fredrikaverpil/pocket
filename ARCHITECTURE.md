@@ -36,13 +36,12 @@ execute tasks or visualize the plan.
 
 ## Core Abstraction: Runnable
 
-The `Runnable` interface is the foundation of pocket. It has two unexported
-methods to prevent external implementations:
+The `Runnable` interface is the foundation of pocket. It has one unexported
+method to prevent external implementations:
 
 ```go
 type Runnable interface {
-    run(ctx context.Context) error  // execute this runnable
-    funcs() []*TaskDef              // collect all named functions
+    run(ctx context.Context) error  // execute this runnable (or collect in plan mode)
 }
 ```
 
@@ -696,7 +695,7 @@ These tasks are always available:
 
 ### Unexported Interface Methods
 
-The `Runnable` interface uses unexported methods (`run`, `funcs`) to prevent
+The `Runnable` interface uses an unexported method (`run`) to prevent
 external implementations, ensuring only pocket's types can be Runnables.
 
 ### Functional Options
@@ -736,15 +735,11 @@ subsystems. Rather than having separate walks for CLI population, visibility,
 and shim generation:
 
 ```go
-// Before: Three separate walks, could drift
-funcs := cfg.AutoRun.funcs()                    // Walk 1
-pathMappings := engine.Plan().PathMappings()    // Walk 2
-dirs := CollectModuleDirectories(cfg.AutoRun)   // Walk 3
-
-// After: Single walk, all data derived consistently
-plan := engine.Plan()
-funcs := plan.TaskDefs()           // Same walk
-pathMappings := plan.PathMappings() // Same walk
+// Single walk via Engine.Plan() - all data derived consistently
+engine := NewEngine(cfg.AutoRun)
+plan, _ := engine.Plan(ctx)
+funcs := plan.TaskDefs()           // Collected during walk
+pathMappings := plan.PathMappings() // Collected during walk
 dirs := plan.ModuleDirectories()   // Derived from PathMappings
 ```
 

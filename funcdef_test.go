@@ -7,14 +7,9 @@ import (
 
 func TestRun_ExecutesCommand(t *testing.T) {
 	// Run is hard to test without executing real commands,
-	// so we test that it creates the right structure and skips in collect mode.
+	// so we test that it skips in collect mode.
 
 	cmd := Run("echo", "hello")
-
-	// Should return nil funcs (leaf node)
-	if funcs := cmd.funcs(); len(funcs) != 0 {
-		t.Errorf("Run.funcs() = %v, want empty", funcs)
-	}
 
 	// Should skip in collect mode
 	out := StdOutput()
@@ -40,11 +35,6 @@ func TestDo_ExecutesFunction(t *testing.T) {
 		executed = true
 		return nil
 	})
-
-	// Should return nil funcs (leaf node)
-	if funcs := fn.funcs(); len(funcs) != 0 {
-		t.Errorf("Do.funcs() = %v, want empty", funcs)
-	}
 
 	// Should skip in collect mode
 	out := StdOutput()
@@ -116,8 +106,13 @@ func TestRun_ComposesWithFuncDef(t *testing.T) {
 
 	taskFunc := Task("test-task", "run test command", Run("echo", "hello"))
 
-	// Should have the TaskDef in funcs
-	funcs := taskFunc.funcs()
+	// Should have the TaskDef in plan.TaskDefs()
+	engine := NewEngine(taskFunc)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	funcs := plan.TaskDefs()
 	if len(funcs) != 1 {
 		t.Errorf("expected 1 func, got %d", len(funcs))
 	}
