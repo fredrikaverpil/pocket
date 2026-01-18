@@ -214,7 +214,6 @@ func (p *PathFilter) mergeSkipRules(ctx context.Context) context.Context {
 	return withExecContext(ctx, &newEC)
 }
 
-
 // matches checks if a directory matches the include patterns.
 // If no include patterns are specified, all directories match.
 func (p *PathFilter) matches(dir string) bool {

@@ -289,7 +289,6 @@ func (f *TaskDef) run(ctx context.Context) error {
 	return f.body.run(ctx)
 }
 
-
 // Runnable is the interface for anything that can be executed.
 // It uses unexported methods to prevent external implementation,
 // ensuring only pocket types (TaskDef, serial, parallel, PathFilter) can satisfy it.

@@ -60,7 +60,6 @@ func (s *serial) run(ctx context.Context) error {
 	return nil
 }
 
-
 // parallel executes items concurrently.
 type parallel struct {
 	items []Runnable
@@ -144,7 +143,6 @@ func (p *parallel) run(ctx context.Context) error {
 	return g.Wait()
 }
 
-
 // shouldRun checks if a runnable should run (not already executed).
 // Marks it as executed if it should run.
 // Thread-safe for concurrent access from parallel execution.
@@ -168,8 +166,8 @@ func runnableKey(r Runnable) uintptr {
 }
 
 // runWithContext executes a Runnable with fresh execution context.
-func runWithContext(ctx context.Context, r Runnable, out *Output, cwd string, verbose bool) error {
-	ec := newExecContext(out, cwd, verbose)
+func runWithContext(ctx context.Context, r Runnable, out *Output, cwd string, verbose bool, configPlan *ConfigPlan) error {
+	ec := newExecContext(out, cwd, verbose, configPlan)
 	ctx = withExecContext(ctx, ec)
 	return r.run(ctx)
 }

@@ -136,7 +136,7 @@ func cliRun(plan *ConfigPlan) int {
 	}
 
 	// Run the function.
-	if err := runWithContext(ctx, funcToRun, StdOutput(), cwd, *verbose); err != nil {
+	if err := runWithContext(ctx, funcToRun, StdOutput(), cwd, *verbose, plan); err != nil {
 		fmt.Fprintf(os.Stderr, "function %s failed: %v\n", funcToRun.name, err)
 		return 1
 	}

@@ -29,7 +29,9 @@ var toolsGoModTemplate string
 // Creates one-time files (config.go, .gitignore) if they don't exist.
 // Always regenerates main.go and shim.
 // Returns the list of generated shim paths relative to the git root.
-func GenerateAll(cfg *pocket.Config) ([]string, error) {
+// Uses cached ModuleDirectories from ConfigPlan (avoids re-walking trees).
+func GenerateAll(plan *pocket.ConfigPlan) ([]string, error) {
+	cfg := plan.Config
 	pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
 
 	// Ensure .pocket/ exists
@@ -66,13 +68,12 @@ func GenerateAll(cfg *pocket.Config) ([]string, error) {
 		}
 	}
 
-	// Always regenerate shim(s).
-	// Use provided config or a minimal default for initial scaffold.
+	// Always regenerate shim(s) using cached ModuleDirectories.
 	shimCfg := pocket.Config{}
 	if cfg != nil {
 		shimCfg = *cfg
 	}
-	shimPaths, err := shim.Generate(shimCfg)
+	shimPaths, err := shim.GenerateWithDirs(shimCfg, plan.ModuleDirectories)
 	if err != nil {
 		return nil, err
 	}

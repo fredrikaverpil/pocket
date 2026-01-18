@@ -57,7 +57,7 @@ func TestDo_ExecutesFunction(t *testing.T) {
 	}
 
 	// Should execute in execute mode
-	ec = newExecContext(out, ".", false)
+	ec = newExecContext(out, ".", false, nil)
 	ctx = withExecContext(context.Background(), ec)
 
 	if err := fn.run(ctx); err != nil {
@@ -85,7 +85,7 @@ func TestDo_ComposesWithSerial(t *testing.T) {
 	composed := Serial(step1, step2)
 
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	if err := composed.run(ctx); err != nil {

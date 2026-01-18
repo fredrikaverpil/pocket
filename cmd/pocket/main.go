@@ -77,7 +77,12 @@ func runInit() error {
 			PowerShell: runtime.GOOS == "windows",
 		},
 	}
-	if _, err := scaffold.GenerateAll(cfg); err != nil {
+	// Create minimal ConfigPlan for initial scaffold (just root directory)
+	plan := &pocket.ConfigPlan{
+		Config:            cfg,
+		ModuleDirectories: []string{"."},
+	}
+	if _, err := scaffold.GenerateAll(plan); err != nil {
 		return fmt.Errorf("generating scaffold: %w", err)
 	}
 

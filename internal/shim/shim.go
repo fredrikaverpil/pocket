@@ -42,14 +42,57 @@ type shimType struct {
 // Generate creates or updates wrapper scripts for all contexts.
 // It generates shims at the root and one in each unique module directory.
 // Returns the list of generated shim paths relative to the git root.
+// NOTE: Prefer GenerateWithDirs when ModuleDirectories are already computed.
 func Generate(cfg pocket.Config) ([]string, error) {
 	return GenerateWithRoot(cfg, pocket.GitRoot())
+}
+
+// GenerateWithDirs creates wrapper scripts using pre-computed module directories.
+// This avoids re-walking the Runnable trees when directories are already known.
+// Returns the list of generated shim paths relative to the git root.
+func GenerateWithDirs(cfg pocket.Config, moduleDirs []string) ([]string, error) {
+	return generateWithRootAndDirs(cfg, pocket.GitRoot(), moduleDirs)
 }
 
 // GenerateWithRoot creates or updates wrapper scripts for all contexts
 // using the specified root directory. This is useful for testing.
 // Returns the list of generated shim paths relative to the root directory.
 func GenerateWithRoot(cfg pocket.Config, rootDir string) ([]string, error) {
+	cfg = cfg.WithDefaults()
+
+	// Collect all module directories from the config (AutoRun + ManualRun).
+	// Uses Engine.Plan() to derive directories from path mappings (single walk).
+	moduleDirSet := make(map[string]bool)
+	moduleDirSet["."] = true // Always include root.
+
+	if cfg.AutoRun != nil {
+		engine := pocket.NewEngine(cfg.AutoRun)
+		if plan, err := engine.Plan(context.Background()); err == nil {
+			for _, dir := range plan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
+		}
+	}
+	for _, r := range cfg.ManualRun {
+		engine := pocket.NewEngine(r)
+		if plan, err := engine.Plan(context.Background()); err == nil {
+			for _, dir := range plan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
+		}
+	}
+
+	moduleDirs := make([]string, 0, len(moduleDirSet))
+	for dir := range moduleDirSet {
+		moduleDirs = append(moduleDirs, dir)
+	}
+	slices.Sort(moduleDirs)
+
+	return generateWithRootAndDirs(cfg, rootDir, moduleDirs)
+}
+
+// generateWithRootAndDirs generates shims using pre-computed module directories.
+func generateWithRootAndDirs(cfg pocket.Config, rootDir string, moduleDirs []string) ([]string, error) {
 	cfg = cfg.WithDefaults()
 
 	goVersion, err := pocket.GoVersionFromDir(filepath.Join(rootDir, pocket.DirName))
@@ -86,34 +129,6 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) ([]string, error) {
 			extension: ".ps1",
 		})
 	}
-
-	// Collect all module directories from the config (AutoRun + ManualRun).
-	// Uses Engine.Plan() to derive directories from path mappings (single walk).
-	moduleDirSet := make(map[string]bool)
-	moduleDirSet["."] = true // Always include root.
-
-	if cfg.AutoRun != nil {
-		engine := pocket.NewEngine(cfg.AutoRun)
-		if plan, err := engine.Plan(context.Background()); err == nil {
-			for _, dir := range plan.ModuleDirectories() {
-				moduleDirSet[dir] = true
-			}
-		}
-	}
-	for _, r := range cfg.ManualRun {
-		engine := pocket.NewEngine(r)
-		if plan, err := engine.Plan(context.Background()); err == nil {
-			for _, dir := range plan.ModuleDirectories() {
-				moduleDirSet[dir] = true
-			}
-		}
-	}
-
-	moduleDirs := make([]string, 0, len(moduleDirSet))
-	for dir := range moduleDirSet {
-		moduleDirs = append(moduleDirs, dir)
-	}
-	slices.Sort(moduleDirs)
 
 	// Generate each shim type at each module directory.
 	var generatedPaths []string

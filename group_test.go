@@ -22,7 +22,7 @@ func TestSerial_Composition(t *testing.T) {
 
 	// Create execution context and run
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	if err := testFunc.run(ctx); err != nil {
@@ -54,7 +54,7 @@ func TestParallel_Composition(t *testing.T) {
 
 	// Create execution context and run
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	if err := testFunc.run(ctx); err != nil {
@@ -90,7 +90,7 @@ func TestOptions_ShadowingPanics(t *testing.T) {
 
 	// Create execution context and run - should panic
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	defer func() {
@@ -120,7 +120,7 @@ func TestSerial_WithDependency(t *testing.T) {
 
 	// Create execution context and run
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	if err := lintFunc.run(ctx); err != nil {
@@ -175,7 +175,7 @@ func TestParallel_ClonedTasksWithDifferentOptions(t *testing.T) {
 
 	// Create execution context and run
 	out := StdOutput()
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	ctx := withExecContext(context.Background(), ec)
 
 	if err := parallelTasks.run(ctx); err != nil {

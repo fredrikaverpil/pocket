@@ -12,14 +12,15 @@ import (
 // execContext holds runtime state for function execution.
 // Stored in context.Context and accessed via helper functions.
 type execContext struct {
-	mode      execMode            // execution mode (execute or collect)
-	plan      *ExecutionPlan      // plan being collected (only in modeCollect)
-	out       *Output             // where to write output
-	path      string              // current path for this invocation
-	cwd       string              // where CLI was invoked (relative to git root)
-	verbose   bool                // verbose mode enabled
-	dedup     *dedupState         // shared deduplication state (thread-safe)
-	skipRules map[string][]string // task name -> paths to skip in (empty = skip everywhere)
+	mode       execMode            // execution mode (execute or collect)
+	plan       *ExecutionPlan      // plan being collected (only in modeCollect)
+	configPlan *ConfigPlan         // the full config plan (for tasks that need it)
+	out        *Output             // where to write output
+	path       string              // current path for this invocation
+	cwd        string              // where CLI was invoked (relative to git root)
+	verbose    bool                // verbose mode enabled
+	dedup      *dedupState         // shared deduplication state (thread-safe)
+	skipRules  map[string][]string // task name -> paths to skip in (empty = skip everywhere)
 }
 
 // dedupState tracks executed runnables for deduplication.
@@ -56,13 +57,14 @@ const (
 )
 
 // newExecContext creates a new execution context.
-func newExecContext(out *Output, cwd string, verbose bool) *execContext {
+func newExecContext(out *Output, cwd string, verbose bool, configPlan *ConfigPlan) *execContext {
 	return &execContext{
-		mode:    modeExecute, // explicit for clarity (default is execute)
-		out:     out,
-		cwd:     cwd,
-		verbose: verbose,
-		dedup:   newDedupState(),
+		mode:       modeExecute, // explicit for clarity (default is execute)
+		configPlan: configPlan,
+		out:        out,
+		cwd:        cwd,
+		verbose:    verbose,
+		dedup:      newDedupState(),
 	}
 }
 
@@ -226,8 +228,14 @@ func GetOutput(ctx context.Context) *Output {
 
 // TestContext creates a context suitable for testing.
 func TestContext(out *Output) context.Context {
-	ec := newExecContext(out, ".", false)
+	ec := newExecContext(out, ".", false, nil)
 	return withExecContext(context.Background(), ec)
+}
+
+// GetConfigPlan returns the ConfigPlan from context.
+// Returns nil if not set (e.g., in collect mode or testing).
+func GetConfigPlan(ctx context.Context) *ConfigPlan {
+	return getExecContext(ctx).configPlan
 }
 
 // shouldSkipTask checks if a task should be skipped based on skip rules.

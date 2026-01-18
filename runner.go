@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
 // GenerateAllFunc is the function signature for scaffold.GenerateAll.
 // This is set by internal/scaffold at init time to avoid import cycles.
-type GenerateAllFunc func(cfg *Config) ([]string, error)
+// Accepts ConfigPlan to reuse cached ModuleDirectories (avoids re-walking trees).
+type GenerateAllFunc func(plan *ConfigPlan) ([]string, error)
 
 // generateAllFn is the registered scaffold function.
 // Set by internal/scaffold.init() via RegisterGenerateAll.
@@ -35,6 +37,10 @@ type ConfigPlan struct {
 	AllTask *TaskDef
 	// BuiltinTasks are always-available tasks (plan, clean, generate, etc.)
 	BuiltinTasks []*TaskDef
+	// ModuleDirectories are all directories where shims should be generated
+	ModuleDirectories []string
+	// Config is the original configuration (for builtin tasks that need it)
+	Config *Config
 }
 
 // BuildConfigPlan walks the Config's task trees and collects all data needed
@@ -44,7 +50,12 @@ func BuildConfigPlan(cfg Config) *ConfigPlan {
 		Tasks:        make([]*TaskDef, 0),
 		AutoRunNames: make(map[string]bool),
 		PathMappings: make(map[string]*PathFilter),
+		Config:       &cfg,
 	}
+
+	// Collect module directories from all trees
+	moduleDirSet := make(map[string]bool)
+	moduleDirSet["."] = true // Always include root
 
 	// Phase 1: Walk AutoRun tree
 	if cfg.AutoRun != nil {
@@ -52,6 +63,9 @@ func BuildConfigPlan(cfg Config) *ConfigPlan {
 		if execPlan, err := engine.Plan(context.Background()); err == nil {
 			plan.Tasks = execPlan.TaskDefs()
 			plan.PathMappings = execPlan.PathMappings()
+			for _, dir := range execPlan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
 		}
 		for _, f := range plan.Tasks {
 			plan.AutoRunNames[f.name] = true
@@ -67,7 +81,8 @@ func BuildConfigPlan(cfg Config) *ConfigPlan {
 						"scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold",
 					)
 				}
-				if _, err := generateAllFn(&cfg); err != nil {
+				configPlan := GetConfigPlan(ctx)
+				if _, err := generateAllFn(configPlan); err != nil {
 					return fmt.Errorf("generate: %w", err)
 				}
 			}
@@ -91,8 +106,18 @@ func BuildConfigPlan(cfg Config) *ConfigPlan {
 			for name, pf := range execPlan.PathMappings() {
 				plan.PathMappings[name] = pf
 			}
+			for _, dir := range execPlan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
 		}
 	}
+
+	// Convert module directories set to sorted slice
+	plan.ModuleDirectories = make([]string, 0, len(moduleDirSet))
+	for dir := range moduleDirSet {
+		plan.ModuleDirectories = append(plan.ModuleDirectories, dir)
+	}
+	slices.Sort(plan.ModuleDirectories)
 
 	// Phase 4: Add built-in tasks
 	plan.BuiltinTasks = builtinTasks(&cfg)
@@ -248,7 +273,8 @@ func builtinTasks(cfg *Config) []*TaskDef {
 			if generateAllFn == nil {
 				return fmt.Errorf("scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold")
 			}
-			shimPaths, err := generateAllFn(cfg)
+			configPlan := GetConfigPlan(ctx)
+			shimPaths, err := generateAllFn(configPlan)
 			if err != nil {
 				return err
 			}
@@ -302,7 +328,8 @@ func builtinTasks(cfg *Config) []*TaskDef {
 			if generateAllFn == nil {
 				return fmt.Errorf("scaffold not registered; import github.com/fredrikaverpil/pocket/internal/scaffold")
 			}
-			if _, err := generateAllFn(cfg); err != nil {
+			configPlan := GetConfigPlan(ctx)
+			if _, err := generateAllFn(configPlan); err != nil {
 				return err
 			}
 

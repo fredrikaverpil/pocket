@@ -235,8 +235,8 @@ func TestGenerateMatrix_ShimForPlatform(t *testing.T) {
 		{"windows-latest", "powershell", "cmd", ".\\pok.cmd"},
 		{"windows-2022", "powershell", "ps1", ".\\pok.ps1"},
 		{"windows-2022", "powershell", "cmd", ".\\pok.cmd"},
-		{"windows-latest", "bash", "ps1", "./pok"},  // bash ignores windowsShim
-		{"windows-latest", "bash", "cmd", "./pok"},  // bash ignores windowsShim
+		{"windows-latest", "bash", "ps1", "./pok"}, // bash ignores windowsShim
+		{"windows-latest", "bash", "cmd", "./pok"}, // bash ignores windowsShim
 		{"ubuntu-22.04", "bash", "ps1", "./pok"},
 	}
 
@@ -388,8 +388,8 @@ func TestGetTaskOverride(t *testing.T) {
 	}
 
 	tests := []struct {
-		taskName       string
-		wantMatch      bool
+		taskName        string
+		wantMatch       bool
 		wantSkipGitDiff bool
 	}{
 		{"py-test:3.9", true, true},
@@ -411,7 +411,12 @@ func TestGetTaskOverride(t *testing.T) {
 				t.Errorf("getTaskOverride(%q) match=%v, want match=%v", tt.taskName, gotMatch, tt.wantMatch)
 			}
 			if override.SkipGitDiff != tt.wantSkipGitDiff {
-				t.Errorf("getTaskOverride(%q) SkipGitDiff=%v, want %v", tt.taskName, override.SkipGitDiff, tt.wantSkipGitDiff)
+				t.Errorf(
+					"getTaskOverride(%q) SkipGitDiff=%v, want %v",
+					tt.taskName,
+					override.SkipGitDiff,
+					tt.wantSkipGitDiff,
+				)
 			}
 		})
 	}

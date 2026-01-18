@@ -186,11 +186,13 @@ cancellation and clean up.
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ ConfigPlan (all CLI-ready data in one struct)               │
-│   Tasks        []*TaskDef           - all collected tasks   │
-│   AutoRunNames map[string]bool      - which are auto-run    │
-│   PathMappings map[string]*PathFilter - visibility info     │
-│   AllTask      *TaskDef             - hidden "all" task     │
-│   BuiltinTasks []*TaskDef           - plan, clean, etc.     │
+│   Tasks             []*TaskDef         - all collected tasks│
+│   AutoRunNames      map[string]bool    - which are auto-run │
+│   PathMappings      map[string]*PathFilter - visibility     │
+│   AllTask           *TaskDef           - hidden "all" task  │
+│   BuiltinTasks      []*TaskDef         - plan, clean, etc.  │
+│   ModuleDirectories []string           - for shim generation│
+│   Config            *Config            - original config    │
 └──────────────────────────┬──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -281,7 +283,8 @@ iterating paths. This allows the Engine to collect all data products in a
 
 - `TaskDefs()` - All named tasks for CLI population
 - `PathMappings()` - Task visibility based on directories
-- `ModuleDirectories()` - Directories for shim generation (derived from PathMappings)
+- `ModuleDirectories()` - Directories for shim generation (derived from
+  PathMappings)
 
 This consolidation ensures consistency between task visibility, CLI population,
 and shim generation - they all derive from the same tree walk.
@@ -392,16 +395,21 @@ Execution state flows through `context.Context` via `execContext`:
 
 ```go
 type execContext struct {
-    mode      execMode            // execute or collect
-    plan      *ExecutionPlan      // plan being built (collect mode)
-    out       *Output             // stdout/stderr writers
-    path      string              // current path (set by PathFilter)
-    cwd       string              // where CLI was invoked
-    verbose   bool                // verbose mode
-    dedup     *dedupState         // shared deduplication state
-    skipRules map[string][]string // task name -> paths to skip
+    mode       execMode            // execute or collect
+    plan       *ExecutionPlan      // plan being built (collect mode)
+    configPlan *ConfigPlan         // cached plan data (execute mode)
+    out        *Output             // stdout/stderr writers
+    path       string              // current path (set by PathFilter)
+    cwd        string              // where CLI was invoked
+    verbose    bool                // verbose mode
+    dedup      *dedupState         // shared deduplication state
+    skipRules  map[string][]string // task name -> paths to skip
 }
 ```
+
+The `configPlan` field provides access to pre-computed data (ModuleDirectories,
+Config) during execution, enabling tasks like `generate` to reuse cached data
+instead of re-walking the tree.
 
 Options are stored directly in the `context.Context` keyed by their type,
 ensuring thread-safety during parallel execution.
@@ -415,6 +423,7 @@ pocket.Path(ctx)           // current path from PathFilter
 pocket.Options[T](ctx)     // typed options for current function
 pocket.Verbose(ctx)        // verbose flag
 pocket.Printf(ctx, ...)    // output to stdout
+pocket.GetConfigPlan(ctx)  // access cached ConfigPlan data
 ```
 
 ## Tool Architecture
@@ -629,31 +638,32 @@ go run ../../.pocket -- "$@"
 ### Shim Generation Process
 
 ```
-shim.Generate(cfg)
+scaffold.GenerateAll(plan)      ← receives ConfigPlan with cached data
         │
-        ├─ Read Go version from .pocket/go.mod
-        ├─ Fetch Go download checksums
-        ├─ Engine.Plan(cfg.AutoRun).ModuleDirectories()
-        │         │
-        │         └─ Single walk collects all data
-        │            PathMappings derived from tree walk
-        │            ModuleDirectories derived from PathMappings
-        │            Returns unique directories (including ".")
+        ├─ Create .pocket/ directory structure
+        ├─ Generate main.go, config.go, .gitignore as needed
         │
-        └─ For each directory + shim type:
-              Generate from template
-              Write executable script
+        └─ shim.GenerateWithDirs(cfg, plan.ModuleDirectories)
+                 │
+                 ├─ Read Go version from .pocket/go.mod
+                 ├─ Fetch Go download checksums
+                 ├─ Use pre-computed ModuleDirectories (no re-walk!)
+                 │
+                 └─ For each directory + shim type:
+                       Generate from template
+                       Write executable script
 ```
 
-This uses the same consolidated tree walk as CLI population, ensuring shims are
-generated in exactly the directories where tasks are visible.
+This reuses the `ModuleDirectories` cached in `ConfigPlan` from the initial
+`BuildConfigPlan()` walk, avoiding redundant tree traversals. Tasks access the
+ConfigPlan via `GetConfigPlan(ctx)` during execution.
 
 ## Scaffold Generation
 
 `scaffold.GenerateAll()` creates and maintains the `.pocket/` directory:
 
 ```
-scaffold.GenerateAll(cfg)
+scaffold.GenerateAll(plan)   ← receives ConfigPlan
         │
         ├─ Create .pocket/ directory
         │
@@ -666,8 +676,9 @@ scaffold.GenerateAll(cfg)
         ├─ main.go (always regenerated)
         │     Minimal: calls pocket.RunConfig(Config)
         │
-        └─ shim.Generate(cfg)
+        └─ shim.GenerateWithDirs(cfg, plan.ModuleDirectories)
               Generates ./pok at root and module directories
+              Uses cached directories from ConfigPlan
 ```
 
 ### File Ownership
@@ -695,8 +706,8 @@ These tasks are always available:
 
 ### Unexported Interface Methods
 
-The `Runnable` interface uses an unexported method (`run`) to prevent
-external implementations, ensuring only pocket's types can be Runnables.
+The `Runnable` interface uses an unexported method (`run`) to prevent external
+implementations, ensuring only pocket's types can be Runnables.
 
 ### Functional Options
 
@@ -745,3 +756,16 @@ dirs := plan.ModuleDirectories()   // Derived from PathMappings
 
 `BuildConfigPlan()` orchestrates this consolidation, producing a `ConfigPlan`
 struct with all CLI-ready data from a single tree walk per Runnable.
+
+The `ConfigPlan` is passed to `runWithContext()` and stored in the execution
+context. Tasks can access it via `GetConfigPlan(ctx)` to reuse cached data:
+
+```go
+// In builtin generate task
+configPlan := GetConfigPlan(ctx)
+shimPaths, err := generateAllFn(configPlan)  // Uses cached ModuleDirectories
+```
+
+This ensures that shim generation, which needs to know all module directories,
+doesn't re-walk the tree - it simply reuses the directories computed during
+the initial `BuildConfigPlan()` phase.
