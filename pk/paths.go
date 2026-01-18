@@ -65,7 +65,31 @@ type pathFilter struct {
 // run implements the Runnable interface.
 // It resolves paths and executes the inner Runnable for each path.
 func (pf *pathFilter) run(ctx context.Context) error {
-	// TODO: Implement path resolution
-	// For now, just run the inner Runnable once
-	return pf.inner.run(ctx)
+	// Find git root
+	gitRoot := findGitRoot()
+
+	// Resolve paths against filesystem
+	resolvedPaths, err := resolvePathPatterns(gitRoot, pf.includePaths, pf.excludePaths)
+	if err != nil {
+		// If resolution fails, fall back to running at root
+		resolvedPaths = []string{"."}
+	}
+
+	// If no paths resolved, run at root
+	if len(resolvedPaths) == 0 {
+		resolvedPaths = []string{"."}
+	}
+
+	// Execute inner Runnable for each resolved path
+	for _, path := range resolvedPaths {
+		// Set path in context
+		pathCtx := WithPath(ctx, path)
+
+		// Run inner Runnable with path context
+		if err := pf.inner.run(pathCtx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
