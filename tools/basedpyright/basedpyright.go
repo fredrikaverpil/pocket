@@ -16,9 +16,6 @@ const Name = "basedpyright"
 // renovate: datasource=pypi depName=basedpyright
 const Version = "1.37.0"
 
-// pythonVersion specifies the Python version for the virtual environment.
-const pythonVersion = "3.12"
-
 // Install ensures basedpyright is available.
 var Install = pocket.Task("install:basedpyright", "install basedpyright", pocket.Serial(
 	uv.Install,
@@ -37,7 +34,8 @@ func installBasedpyright() pocket.Runnable {
 		}
 
 		// Create virtual environment (uv auto-installs if needed).
-		if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
+		// Empty string uses uv.DefaultPythonVersion.
+		if err := uv.CreateVenv(ctx, venvDir, ""); err != nil {
 			return err
 		}
 
