@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"text/template"
 
@@ -117,7 +118,8 @@ func runWorkflows(ctx context.Context) error {
 		destPath := filepath.Join(workflowDir, wf.outFile)
 
 		// Read and parse template
-		tmplContent, err := workflowTemplates.ReadFile(filepath.Join("workflows", wf.tmplFile))
+		// NOTE: Use path.Join (not filepath.Join) because embed.FS always uses forward slashes.
+		tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", wf.tmplFile))
 		if err != nil {
 			return fmt.Errorf("read template %s: %w", wf.tmplFile, err)
 		}
