@@ -42,4 +42,3 @@ func formatCmd() pocket.Runnable {
 		return pocket.Exec(ctx, ruff.Name, args...)
 	})
 }
-
