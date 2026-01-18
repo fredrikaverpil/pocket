@@ -3,6 +3,7 @@ package pocket
 import (
 	"context"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -34,6 +35,8 @@ type ExecutionPlan struct {
 	stack        []*PlanStep            // Current nesting stack during collection
 	pathMappings map[string]*PathFilter // Task name -> PathFilter (collected during walk)
 	currentPaths *PathFilter            // Current PathFilter context during collection
+	taskDefs     []*TaskDef             // Collected TaskDefs (visible ones only)
+	seenDefs     map[string]bool        // Track seen task names for deduplication
 }
 
 // newExecutionPlan creates a new empty execution plan.
@@ -42,18 +45,20 @@ func newExecutionPlan() *ExecutionPlan {
 		steps:        make([]*PlanStep, 0),
 		stack:        make([]*PlanStep, 0),
 		pathMappings: make(map[string]*PathFilter),
+		taskDefs:     make([]*TaskDef, 0),
+		seenDefs:     make(map[string]bool),
 	}
 }
 
 // addFunc adds a function call to the plan.
-func (p *ExecutionPlan) addFunc(name, usage string, hidden, deduped bool) {
+func (p *ExecutionPlan) addFunc(td *TaskDef, deduped bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	step := &PlanStep{
 		Type:    "func",
-		Name:    name,
-		Usage:   usage,
-		Hidden:  hidden,
+		Name:    td.name,
+		Usage:   td.usage,
+		Hidden:  td.hidden,
 		Deduped: deduped,
 	}
 	p.appendStep(step)
@@ -62,7 +67,13 @@ func (p *ExecutionPlan) addFunc(name, usage string, hidden, deduped bool) {
 
 	// Record path mapping if we're inside a PathFilter
 	if p.currentPaths != nil {
-		p.pathMappings[name] = p.currentPaths
+		p.pathMappings[td.name] = p.currentPaths
+	}
+
+	// Collect TaskDef (deduplicated by name, only non-hidden visible tasks)
+	if !p.seenDefs[td.name] && !td.hidden {
+		p.seenDefs[td.name] = true
+		p.taskDefs = append(p.taskDefs, td)
 	}
 }
 
@@ -80,6 +91,38 @@ func (p *ExecutionPlan) PathMappings() map[string]*PathFilter {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.pathMappings
+}
+
+// TaskDefs returns the collected TaskDefs (visible, non-hidden, deduplicated by name).
+// This replaces the need to call funcs() separately.
+func (p *ExecutionPlan) TaskDefs() []*TaskDef {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.taskDefs
+}
+
+// ModuleDirectories returns all unique directories where tasks should run.
+// This is derived from pathMappings and always includes "." (root).
+// Used for shim generation.
+func (p *ExecutionPlan) ModuleDirectories() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	seen := make(map[string]bool)
+	seen["."] = true // Always include root
+
+	for _, pf := range p.pathMappings {
+		for _, dir := range pf.Resolve() {
+			seen[dir] = true
+		}
+	}
+
+	result := make([]string, 0, len(seen))
+	for dir := range seen {
+		result = append(result, dir)
+	}
+	slices.Sort(result)
+	return result
 }
 
 // popFunc ends the current function's scope.

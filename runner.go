@@ -39,10 +39,10 @@ func RunConfig(cfg Config) {
 	autoRunNames := make(map[string]bool)
 
 	if cfg.AutoRun != nil {
-		allFuncs = cfg.AutoRun.funcs()
-		// Use Engine.Plan() to collect path mappings (single source of truth)
+		// Single walk: collect TaskDefs and path mappings together
 		engine := NewEngine(cfg.AutoRun)
 		if plan, err := engine.Plan(context.Background()); err == nil {
+			allFuncs = plan.TaskDefs()
 			pathMappings = plan.PathMappings()
 		}
 		for _, f := range allFuncs {
@@ -87,10 +87,10 @@ func RunConfig(cfg Config) {
 	// validateNoDuplicateFuncs will error. Use WithName() to give
 	// ManualRun tasks distinct names.
 	for _, r := range cfg.ManualRun {
-		allFuncs = append(allFuncs, r.funcs()...)
-		// Collect path mappings from ManualRun so tasks are visible in subdirectories.
+		// Single walk: collect TaskDefs and path mappings together
 		engine := NewEngine(r)
 		if plan, err := engine.Plan(context.Background()); err == nil {
+			allFuncs = append(allFuncs, plan.TaskDefs()...)
 			for name, pf := range plan.PathMappings() {
 				pathMappings[name] = pf
 			}

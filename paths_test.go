@@ -182,13 +182,19 @@ func TestEngine_PathMappings(t *testing.T) {
 	}
 }
 
-func TestCollectModuleDirectories(t *testing.T) {
+func TestModuleDirectoriesFromPlan(t *testing.T) {
 	fn := Task("test", "test", func(_ context.Context) error { return nil })
 	wrapped := RunIn(fn, Detect(func() []string {
 		return []string{"proj1", "proj2"}
 	}))
 
-	dirs := CollectModuleDirectories(wrapped)
+	// Use Engine.Plan() to collect module directories (consolidated approach)
+	engine := NewEngine(wrapped)
+	plan, err := engine.Plan(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Plan() failed: %v", err)
+	}
+	dirs := plan.ModuleDirectories()
 
 	// Should include root (.) and detected directories.
 	if len(dirs) != 3 {

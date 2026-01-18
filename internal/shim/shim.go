@@ -88,17 +88,24 @@ func GenerateWithRoot(cfg pocket.Config, rootDir string) ([]string, error) {
 	}
 
 	// Collect all module directories from the config (AutoRun + ManualRun).
+	// Uses Engine.Plan() to derive directories from path mappings (single walk).
 	moduleDirSet := make(map[string]bool)
 	moduleDirSet["."] = true // Always include root.
 
 	if cfg.AutoRun != nil {
-		for _, dir := range pocket.CollectModuleDirectories(cfg.AutoRun) {
-			moduleDirSet[dir] = true
+		engine := pocket.NewEngine(cfg.AutoRun)
+		if plan, err := engine.Plan(context.Background()); err == nil {
+			for _, dir := range plan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
 		}
 	}
 	for _, r := range cfg.ManualRun {
-		for _, dir := range pocket.CollectModuleDirectories(r) {
-			moduleDirSet[dir] = true
+		engine := pocket.NewEngine(r)
+		if plan, err := engine.Plan(context.Background()); err == nil {
+			for _, dir := range plan.ModuleDirectories() {
+				moduleDirSet[dir] = true
+			}
 		}
 	}
 
