@@ -2,8 +2,20 @@
 package python
 
 import (
+	"strings"
+
 	"github.com/fredrikaverpil/pocket"
 )
+
+// pythonVersionToRuff converts a Python version (e.g., "3.9") to ruff's format (e.g., "py39").
+func pythonVersionToRuff(version string) string {
+	// Handle formats like "3.9", "3.10", "3.9.1"
+	parts := strings.Split(version, ".")
+	if len(parts) >= 2 {
+		return "py" + parts[0] + parts[1]
+	}
+	return "py" + strings.ReplaceAll(version, ".", "")
+}
 
 // Option configures the python task group.
 type Option func(*config)
@@ -12,6 +24,7 @@ type config struct {
 	pythonVersion string
 	format        FormatOptions
 	lint          LintOptions
+	typecheck     TypecheckOptions
 	test          TestOptions
 }
 
@@ -28,6 +41,11 @@ func WithFormat(opts FormatOptions) Option {
 // WithLint sets options for the py-lint task.
 func WithLint(opts LintOptions) Option {
 	return func(c *config) { c.lint = opts }
+}
+
+// WithTypecheck sets options for the py-typecheck task.
+func WithTypecheck(opts TypecheckOptions) Option {
+	return func(c *config) { c.typecheck = opts }
 }
 
 // WithTest sets options for the py-test task.
@@ -52,29 +70,37 @@ func Tasks(opts ...Option) pocket.Runnable {
 		opt(&cfg)
 	}
 
-	// Sync task with Python version
-	syncTask := Sync
-	if cfg.pythonVersion != "" {
-		syncTask = pocket.WithOpts(Sync, SyncOptions{PythonVersion: cfg.pythonVersion})
+	// Build options for each task, merging pythonVersion with any explicit options
+	syncOpts := SyncOptions{PythonVersion: cfg.pythonVersion}
+
+	formatOpts := cfg.format
+	if cfg.pythonVersion != "" && formatOpts.PythonVersion == "" {
+		formatOpts.PythonVersion = cfg.pythonVersion
 	}
 
-	formatTask := Format
-	if cfg.format != (FormatOptions{}) {
-		formatTask = pocket.WithOpts(Format, cfg.format)
+	lintOpts := cfg.lint
+	if cfg.pythonVersion != "" && lintOpts.PythonVersion == "" {
+		lintOpts.PythonVersion = cfg.pythonVersion
 	}
 
-	lintTask := Lint
-	if cfg.lint != (LintOptions{}) {
-		lintTask = pocket.WithOpts(Lint, cfg.lint)
+	typecheckOpts := cfg.typecheck
+	if cfg.pythonVersion != "" && typecheckOpts.PythonVersion == "" {
+		typecheckOpts.PythonVersion = cfg.pythonVersion
 	}
 
-	testTask := Test
-	if cfg.test != (TestOptions{}) {
-		testTask = pocket.WithOpts(Test, cfg.test)
+	testOpts := cfg.test
+	if cfg.pythonVersion != "" && testOpts.PythonVersion == "" {
+		testOpts.PythonVersion = cfg.pythonVersion
 	}
 
 	// Run sync first, then format, lint, typecheck, test (serial since format/lint modify files)
-	return pocket.Serial(syncTask, formatTask, lintTask, Typecheck, testTask)
+	return pocket.Serial(
+		pocket.WithOpts(Sync, syncOpts),
+		pocket.WithOpts(Format, formatOpts),
+		pocket.WithOpts(Lint, lintOpts),
+		pocket.WithOpts(Typecheck, typecheckOpts),
+		pocket.WithOpts(Test, testOpts),
+	)
 }
 
 // Detect returns a detection function that finds Python projects.

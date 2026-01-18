@@ -9,7 +9,8 @@ import (
 
 // FormatOptions configures the py-format task.
 type FormatOptions struct {
-	RuffConfig string `arg:"ruff-config" usage:"path to ruff config file"`
+	PythonVersion string `arg:"python"      usage:"Python version (for target-version inference)"`
+	RuffConfig    string `arg:"ruff-config" usage:"path to ruff config file"`
 }
 
 // Format formats Python files using ruff format.
@@ -33,8 +34,12 @@ func formatCmd() pocket.Runnable {
 		if configPath != "" {
 			args = append(args, "--config", configPath)
 		}
+		if opts.PythonVersion != "" {
+			args = append(args, "--target-version", pythonVersionToRuff(opts.PythonVersion))
+		}
 		args = append(args, pocket.Path(ctx))
 
 		return pocket.Exec(ctx, ruff.Name, args...)
 	})
 }
+

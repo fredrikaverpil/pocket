@@ -9,8 +9,9 @@ import (
 
 // LintOptions configures the py-lint task.
 type LintOptions struct {
-	RuffConfig string `arg:"ruff-config" usage:"path to ruff config file"`
-	SkipFix    bool   `arg:"skip-fix"    usage:"don't auto-fix issues"`
+	PythonVersion string `arg:"python"      usage:"Python version (for target-version inference)"`
+	RuffConfig    string `arg:"ruff-config" usage:"path to ruff config file"`
+	SkipFix       bool   `arg:"skip-fix"    usage:"don't auto-fix issues"`
 }
 
 // Lint lints Python files using ruff check with auto-fix enabled by default.
@@ -36,6 +37,9 @@ func lintCmd() pocket.Runnable {
 		}
 		if configPath != "" {
 			args = append(args, "--config", configPath)
+		}
+		if opts.PythonVersion != "" {
+			args = append(args, "--target-version", pythonVersionToRuff(opts.PythonVersion))
 		}
 		args = append(args, pocket.Path(ctx))
 

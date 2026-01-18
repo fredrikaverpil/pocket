@@ -7,16 +7,27 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/mypy"
 )
 
+// TypecheckOptions configures the py-typecheck task.
+type TypecheckOptions struct {
+	PythonVersion string `arg:"python" usage:"Python version to type-check against (e.g., 3.9)"`
+}
+
 // Typecheck type-checks Python files using mypy.
 var Typecheck = pocket.Task("py-typecheck", "type-check Python files",
 	pocket.Serial(mypy.Install, typecheckCmd()),
+	pocket.Opts(TypecheckOptions{}),
 )
 
 func typecheckCmd() pocket.Runnable {
 	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[TypecheckOptions](ctx)
+
 		args := []string{}
 		if pocket.Verbose(ctx) {
 			args = append(args, "-v")
+		}
+		if opts.PythonVersion != "" {
+			args = append(args, "--python-version", opts.PythonVersion)
 		}
 		args = append(args, pocket.Path(ctx))
 		return pocket.Exec(ctx, mypy.Name, args...)
