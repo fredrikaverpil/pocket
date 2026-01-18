@@ -107,10 +107,12 @@ func Tasks(opts ...Option) pocket.Runnable {
 	// Run format, lint, typecheck, test (serial since format/lint modify files)
 	// Each task handles its own uv.Sync internally
 	return pocket.Serial(
+		pocket.Parallel(
+			pocket.WithOpts(Typecheck, typecheckOpts),
+			pocket.WithOpts(Test, testOpts),
+		),
 		pocket.WithOpts(Format, formatOpts),
 		pocket.WithOpts(Lint, lintOpts),
-		pocket.WithOpts(Typecheck, typecheckOpts),
-		pocket.WithOpts(Test, testOpts),
 	)
 }
 
