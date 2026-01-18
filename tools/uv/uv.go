@@ -16,6 +16,12 @@ const Name = "uv"
 // renovate: datasource=github-releases depName=astral-sh/uv
 const Version = "0.7.13"
 
+// DefaultPythonVersion is the Python version used when none is specified.
+// This ensures reproducibility by never falling back to system Python.
+//
+// renovate: datasource=github-releases depName=python/cpython
+const DefaultPythonVersion = "3.14"
+
 // Install ensures uv is available.
 var Install = pocket.Task("install:uv", "install uv",
 	installUV(),
@@ -44,14 +50,13 @@ func installUV() pocket.Runnable {
 }
 
 // CreateVenv creates a Python virtual environment at the specified path.
-// If pythonVersion is empty, uv uses the default Python available.
+// If pythonVersion is empty, DefaultPythonVersion is used.
 // NOTE: Callers must ensure uv.Install has been composed as a dependency.
 func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
-	args := []string{"venv"}
-	if pythonVersion != "" {
-		args = append(args, "--python", pythonVersion)
+	if pythonVersion == "" {
+		pythonVersion = DefaultPythonVersion
 	}
-	args = append(args, venvPath)
+	args := []string{"venv", "--python", pythonVersion, venvPath}
 	return pocket.Exec(ctx, Name, args...)
 }
 
