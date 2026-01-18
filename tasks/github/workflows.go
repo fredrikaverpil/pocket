@@ -29,6 +29,10 @@ type WorkflowsOptions struct {
 	// The matrix workflow is more complex and intended for projects that need
 	// fine-grained control over which tasks run on which platforms.
 	IncludePocketMatrix bool `arg:"include-pocket-matrix" usage:"include pocket-matrix workflow (excluded by default)"`
+
+	// Platforms overrides the default platforms for pocket.yml.
+	// Comma-separated list, e.g. "ubuntu-latest" or "ubuntu-latest,macos-latest".
+	Platforms string `arg:"platforms" usage:"platforms for pocket.yml (comma-separated)"`
 }
 
 // PocketConfig holds configuration for the pocket workflow template.
@@ -95,6 +99,9 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	pocketConfig := DefaultPocketConfig()
+	if opts.Platforms != "" {
+		pocketConfig.Platforms = opts.Platforms
+	}
 	staleConfig := DefaultStaleConfig()
 
 	// Include pocket-matrix only if explicitly requested via IncludePocketMatrix.
