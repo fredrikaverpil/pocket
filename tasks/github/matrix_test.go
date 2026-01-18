@@ -191,9 +191,9 @@ func TestGenerateMatrix_WindowsShim(t *testing.T) {
 		windowsShell string
 		wantShim     string
 	}{
-		{"default", "", ".\\pok.cmd"},
-		{"cmd", "cmd", ".\\pok.cmd"},
+		{"default", "", ".\\pok.ps1"},
 		{"powershell", "powershell", ".\\pok.ps1"},
+		{"bash", "bash", "./pok"},
 	}
 
 	for _, tt := range tests {
@@ -226,22 +226,26 @@ func TestGenerateMatrix_ShimForPlatform(t *testing.T) {
 	tests := []struct {
 		platform     string
 		windowsShell string
+		windowsShim  string
 		want         string
 	}{
-		{"ubuntu-latest", "cmd", "./pok"},
-		{"macos-latest", "cmd", "./pok"},
-		{"windows-latest", "cmd", ".\\pok.cmd"},
-		{"windows-2022", "cmd", ".\\pok.cmd"},
-		{"windows-latest", "powershell", ".\\pok.ps1"},
-		{"ubuntu-22.04", "cmd", "./pok"},
+		{"ubuntu-latest", "powershell", "ps1", "./pok"},
+		{"macos-latest", "powershell", "ps1", "./pok"},
+		{"windows-latest", "powershell", "ps1", ".\\pok.ps1"},
+		{"windows-latest", "powershell", "cmd", ".\\pok.cmd"},
+		{"windows-2022", "powershell", "ps1", ".\\pok.ps1"},
+		{"windows-2022", "powershell", "cmd", ".\\pok.cmd"},
+		{"windows-latest", "bash", "ps1", "./pok"},  // bash ignores windowsShim
+		{"windows-latest", "bash", "cmd", "./pok"},  // bash ignores windowsShim
+		{"ubuntu-22.04", "bash", "ps1", "./pok"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.platform+"_"+tt.windowsShell, func(t *testing.T) {
-			got := shimForPlatform(tt.platform, tt.windowsShell)
+		t.Run(tt.platform+"_"+tt.windowsShell+"_"+tt.windowsShim, func(t *testing.T) {
+			got := shimForPlatform(tt.platform, tt.windowsShell, tt.windowsShim)
 			if got != tt.want {
-				t.Errorf("shimForPlatform(%q, %q) = %q, want %q",
-					tt.platform, tt.windowsShell, got, tt.want)
+				t.Errorf("shimForPlatform(%q, %q, %q) = %q, want %q",
+					tt.platform, tt.windowsShell, tt.windowsShim, got, tt.want)
 			}
 		})
 	}
@@ -279,8 +283,11 @@ func TestDefaultMatrixConfig(t *testing.T) {
 	if cfg.DefaultPlatforms[0] != "ubuntu-latest" {
 		t.Errorf("expected default platform 'ubuntu-latest', got %q", cfg.DefaultPlatforms[0])
 	}
-	if cfg.WindowsShell != "cmd" {
-		t.Errorf("expected default WindowsShell 'cmd', got %q", cfg.WindowsShell)
+	if cfg.WindowsShell != "powershell" {
+		t.Errorf("expected default WindowsShell 'powershell', got %q", cfg.WindowsShell)
+	}
+	if cfg.WindowsShim != "ps1" {
+		t.Errorf("expected default WindowsShim 'ps1', got %q", cfg.WindowsShim)
 	}
 }
 

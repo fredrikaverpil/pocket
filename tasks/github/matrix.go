@@ -22,10 +22,16 @@ type MatrixConfig struct {
 	// ExcludeTasks removes tasks from the matrix entirely.
 	ExcludeTasks []string
 
-	// WindowsShell determines which shim to use on Windows.
-	// Options: "cmd" (pok.cmd), "powershell" (pok.ps1)
-	// Default: "cmd"
+	// WindowsShell determines which shell to use on Windows.
+	// Options: "powershell" (pwsh), "bash" (Git Bash)
+	// Default: "powershell"
 	WindowsShell string
+
+	// WindowsShim determines which shim to use on Windows when WindowsShell is "powershell".
+	// Options: "ps1" (pok.ps1), "cmd" (pok.cmd)
+	// Default: "ps1"
+	// Ignored when WindowsShell is "bash" (always uses ./pok).
+	WindowsShim string
 }
 
 // TaskOverride configures a single task in the matrix.
@@ -43,7 +49,8 @@ type TaskOverride struct {
 func DefaultMatrixConfig() MatrixConfig {
 	return MatrixConfig{
 		DefaultPlatforms: []string{"ubuntu-latest"},
-		WindowsShell:     "cmd",
+		WindowsShell:     "powershell",
+		WindowsShim:      "ps1",
 	}
 }
 
@@ -51,6 +58,7 @@ func DefaultMatrixConfig() MatrixConfig {
 type matrixEntry struct {
 	Task    string `json:"task"`
 	OS      string `json:"os"`
+	Shell   string `json:"shell"`
 	Shim    string `json:"shim"`
 	GitDiff bool   `json:"gitDiff"` // whether to run git-diff after this task
 }
@@ -98,7 +106,8 @@ func GenerateMatrix(tasks []pocket.TaskInfo, cfg MatrixConfig) ([]byte, error) {
 			entries = append(entries, matrixEntry{
 				Task:    task.Name,
 				OS:      platform,
-				Shim:    shimForPlatform(platform, cfg.WindowsShell),
+				Shell:   shellForPlatform(platform, cfg.WindowsShell),
+				Shim:    shimForPlatform(platform, cfg.WindowsShell, cfg.WindowsShim),
 				GitDiff: gitDiff,
 			})
 		}
@@ -123,14 +132,33 @@ func getTaskOverride(taskName string, overrides map[string]TaskOverride) TaskOve
 	return TaskOverride{}
 }
 
-// shimForPlatform returns the appropriate shim command for the platform.
-func shimForPlatform(platform, windowsShell string) string {
+// shellForPlatform returns the appropriate shell for the platform.
+func shellForPlatform(platform, windowsShell string) string {
 	if strings.Contains(platform, "windows") {
 		switch windowsShell {
-		case "powershell":
-			return ".\\pok.ps1"
+		case "bash":
+			return "bash"
 		default:
-			return ".\\pok.cmd"
+			return "pwsh"
+		}
+	}
+	return "bash"
+}
+
+// shimForPlatform returns the appropriate shim command for the platform.
+func shimForPlatform(platform, windowsShell, windowsShim string) string {
+	if strings.Contains(platform, "windows") {
+		switch windowsShell {
+		case "bash":
+			return "./pok"
+		default:
+			// powershell - use windowsShim to determine ps1 or cmd
+			switch windowsShim {
+			case "cmd":
+				return ".\\pok.cmd"
+			default:
+				return ".\\pok.ps1"
+			}
 		}
 	}
 	return "./pok"
