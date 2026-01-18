@@ -77,12 +77,22 @@ func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	}
 
 	cmd := exec.CommandContext(ctx, name, args...)
-	// Run from the project root (parent of .pocket/), not from inside .pocket/.
-	// This ensures commands find project files like pyproject.toml, src/, etc.
-	cmd.Dir = filepath.Dir(FromPocketDir())
+	// Run from the directory where the shim was invoked.
+	// POK_CONTEXT contains the path relative to git root (e.g., "." or "services/api").
+	cmd.Dir = commandDir()
 	cmd.Env = env
 	setGracefulShutdown(cmd)
 	return cmd
+}
+
+// commandDir returns the directory where commands should execute.
+// This is the git root joined with POK_CONTEXT (the shim's location).
+func commandDir() string {
+	ctx := os.Getenv("POK_CONTEXT")
+	if ctx == "" || ctx == "." {
+		return GitRoot()
+	}
+	return filepath.Join(GitRoot(), ctx)
 }
 
 // fileExists returns true if the path exists and is not a directory.
