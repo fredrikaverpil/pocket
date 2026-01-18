@@ -318,6 +318,66 @@ func Detect() func() []string {
 | **Tool** | Installs binary | `Name`, `Install`, optional `Config` | ruff, golangcilint |
 | **Task** | Uses tools      | TaskDefs + `Tasks()` + `Detect()`    | python, golang     |
 
+#### Standalone vs Project Tools
+
+Different ecosystems have different conventions for where tools are installed.
+Pocket supports both approaches:
+
+**Standalone tools** (`.pocket/tools/`):
+
+Tools are installed once and shared across runs. Best for tools that don't need
+to match project-specific versions:
+
+```go
+// Tool is installed to .pocket/tools/golangci-lint/v2.0.2/
+// and symlinked to .pocket/bin/golangci-lint
+var Install = pocket.Task("install:golangci-lint", "install golangci-lint",
+    pocket.InstallGo("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version),
+    pocket.AsHidden(),
+)
+
+// Task uses the standalone tool
+var Lint = pocket.Task("go-lint", "run linter", pocket.Serial(
+    golangcilint.Install,
+    pocket.Run(golangcilint.Name, "run", "./..."),
+))
+```
+
+**Project tools** (`.venv/`, `node_modules/`, etc.):
+
+Tools are defined in the project's manifest (pyproject.toml, package.json) and
+installed into the project's environment. Best when tool versions should match
+project requirements:
+
+```go
+// Python: uses ruff from pyproject.toml, installed into .venv/
+var Lint = pocket.Task("py-lint", "lint Python files", pocket.Serial(
+    uv.Install,                // ensure uv is available
+    syncCmd(),                 // uv sync --all-groups (installs ruff to .venv/)
+    lintCmd(),                 // uv run ruff check .
+))
+
+func lintCmd() pocket.Runnable {
+    return pocket.Do(func(ctx context.Context) error {
+        return uv.Run(ctx, "3.9", "ruff", "check", ".")  // runs from .venv/
+    })
+}
+
+// Node.js: similar pattern with node_modules/
+var Lint = pocket.Task("lint", "lint files", pocket.Serial(
+    pocket.Run("npm", "install"),           // installs to node_modules/
+    pocket.Run("npx", "eslint", "."),       // runs from node_modules/
+))
+```
+
+| Approach        | Location             | Best for                              |
+| --------------- | -------------------- | ------------------------------------- |
+| **Standalone**  | `.pocket/tools/`     | Go tools, system utilities            |
+| **Project**     | `.venv/`, `node_modules/` | Python/Node tools with version locks |
+
+The Python task package (`tasks/python/`) uses project mode by default,
+running tools via `uv run` from the project's `.venv/`.
+
 #### 3. Tool Configuration
 
 Tools that use config files can export a `ToolConfig`. Tasks then use

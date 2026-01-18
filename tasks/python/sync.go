@@ -22,7 +22,8 @@ func syncCmd() pocket.Runnable {
 	return pocket.Do(func(ctx context.Context) error {
 		opts := pocket.Options[SyncOptions](ctx)
 
-		args := []string{"sync"}
+		// Use --all-groups to install dev dependencies (ruff, mypy, pytest, etc.)
+		args := []string{"sync", "--all-groups"}
 		if pocket.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}

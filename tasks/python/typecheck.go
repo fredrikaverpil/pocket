@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket"
-	"github.com/fredrikaverpil/pocket/tools/mypy"
+	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
 // TypecheckOptions configures the py-typecheck task.
@@ -13,10 +13,22 @@ type TypecheckOptions struct {
 }
 
 // Typecheck type-checks Python files using mypy.
+// Requires mypy as a project dependency in pyproject.toml.
 var Typecheck = pocket.Task("py-typecheck", "type-check Python files",
-	pocket.Serial(mypy.Install, typecheckCmd()),
+	pocket.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
 	pocket.Opts(TypecheckOptions{}),
 )
+
+func typecheckSyncCmd() pocket.Runnable {
+	return pocket.Do(func(ctx context.Context) error {
+		opts := pocket.Options[TypecheckOptions](ctx)
+		args := []string{"sync", "--all-groups"}
+		if opts.PythonVersion != "" {
+			args = append(args, "--python", opts.PythonVersion)
+		}
+		return pocket.Exec(ctx, uv.Name, args...)
+	})
+}
 
 func typecheckCmd() pocket.Runnable {
 	return pocket.Do(func(ctx context.Context) error {
@@ -30,6 +42,7 @@ func typecheckCmd() pocket.Runnable {
 			args = append(args, "--python-version", opts.PythonVersion)
 		}
 		args = append(args, pocket.Path(ctx))
-		return pocket.Exec(ctx, mypy.Name, args...)
+
+		return uv.Run(ctx, opts.PythonVersion, "mypy", args...)
 	})
 }

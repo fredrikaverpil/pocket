@@ -1,4 +1,27 @@
 // Package uv provides uv (Python package manager) tool integration.
+//
+// # Usage Modes
+//
+// This package supports two modes for running Python tools:
+//
+// ## Standalone Tools (.pocket/tools/)
+//
+// For tools managed by pocket (installed once, shared across runs):
+//
+//	uv.CreateVenv(ctx, ".pocket/tools/ruff/0.14.0", "")  // Uses DefaultPythonVersion
+//	uv.PipInstall(ctx, venvDir, "ruff==0.14.0")
+//	// Then run via pocket.Exec(ctx, "ruff", args...)
+//
+// ## Project Tools (.venv/)
+//
+// For tools defined in pyproject.toml (project-specific versions):
+//
+//	// In task body:
+//	pocket.Exec(ctx, uv.Name, "sync", "--all-groups", "--python", "3.9")
+//	uv.Run(ctx, "3.9", "ruff", "check", ".")  // Runs from project .venv
+//
+// The project mode is preferred when the project's pyproject.toml already
+// defines dev dependencies, as it respects project-specific tool versions.
 package uv
 
 import (
@@ -89,6 +112,20 @@ func BinaryPath(venvDir, name string) string {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)
+}
+
+// Run executes a command using uv run (from the project venv).
+// If pythonVersion is specified, it's passed via --python flag.
+// NOTE: Callers must ensure uv.Install has been composed as a dependency,
+// and that uv sync has been run to install project dependencies.
+func Run(ctx context.Context, pythonVersion string, cmd string, args ...string) error {
+	uvArgs := []string{"run"}
+	if pythonVersion != "" {
+		uvArgs = append(uvArgs, "--python", pythonVersion)
+	}
+	uvArgs = append(uvArgs, cmd)
+	uvArgs = append(uvArgs, args...)
+	return pocket.Exec(ctx, Name, uvArgs...)
 }
 
 func platformArch() string {
