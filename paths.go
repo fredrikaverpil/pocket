@@ -215,8 +215,24 @@ func (p *PathFilter) mergeSkipRules(ctx context.Context) context.Context {
 }
 
 // funcs returns all functions from the inner Runnable.
+// Tasks that are skipped everywhere (Skip with no paths) are filtered out.
 func (p *PathFilter) funcs() []*TaskDef {
-	return p.inner.funcs()
+	inner := p.inner.funcs()
+	if len(p.skipTasks) == 0 {
+		return inner
+	}
+
+	// Filter out tasks that are skipped everywhere (empty paths = skip everywhere)
+	result := make([]*TaskDef, 0, len(inner))
+	for _, f := range inner {
+		paths, exists := p.skipTasks[f.Name()]
+		if exists && len(paths) == 0 {
+			// Skipped everywhere - exclude from funcs
+			continue
+		}
+		result = append(result, f)
+	}
+	return result
 }
 
 // matches checks if a directory matches the include patterns.
