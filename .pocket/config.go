@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fredrikaverpil/pocket/core"
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
 // Config is the Pocket configuration for this project.
-var Config = &core.Config{
+var Config = &pk.Config{
 	Root: pk.Serial(
 		Hello,
 		pk.WithOptions(

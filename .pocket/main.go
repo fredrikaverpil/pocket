@@ -4,8 +4,8 @@
 
 package main
 
-import "github.com/fredrikaverpil/pocket/core"
+import "github.com/fredrikaverpil/pocket/pk"
 
 func main() {
-	core.RunMain(Config)
+	pk.RunMain(Config)
 }
