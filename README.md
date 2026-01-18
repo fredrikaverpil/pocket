@@ -370,13 +370,13 @@ var Lint = pocket.Task("lint", "lint files", pocket.Serial(
 ))
 ```
 
-| Approach        | Location             | Best for                              |
-| --------------- | -------------------- | ------------------------------------- |
-| **Standalone**  | `.pocket/tools/`     | Go tools, system utilities            |
-| **Project**     | `.venv/`, `node_modules/` | Python/Node tools with version locks |
+| Approach       | Location                  | Best for                             |
+| -------------- | ------------------------- | ------------------------------------ |
+| **Standalone** | `.pocket/tools/`          | Go tools, system utilities           |
+| **Project**    | `.venv/`, `node_modules/` | Python/Node tools with version locks |
 
-The Python task package (`tasks/python/`) uses project mode by default,
-running tools via `uv run` from the project's `.venv/`.
+The Python task package (`tasks/python/`) uses project mode by default, running
+tools via `uv run` from the project's `.venv/`.
 
 #### 3. Tool Configuration
 

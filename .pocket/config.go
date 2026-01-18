@@ -13,7 +13,7 @@ import (
 var autoRun = pocket.Parallel(
 	pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
 	pocket.RunIn(markdown.Tasks(), pocket.Detect(markdown.Detect())),
-	pocket.WithOpts(github.Workflows, github.WorkflowsOptions{SkipPocket: true, SkipPocketMatrix: false}),
+	pocket.WithOpts(github.Workflows, github.WorkflowsOptions{SkipPocket: true, IncludePocketMatrix: true}),
 )
 
 // matrixConfig configures GitHub Actions matrix generation.
