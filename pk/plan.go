@@ -1,6 +1,8 @@
 package pk
 
-import "context"
+import (
+	"context"
+)
 
 // plan represents the execution plan created from a Config.
 // It preserves the composition tree structure while extracting metadata.
@@ -25,11 +27,13 @@ type plan struct {
 }
 
 // pathInfo describes where a task should execute.
-// TODO: Will be expanded with include/exclude patterns, detection functions.
 type pathInfo struct {
-	// Paths is the list of directories where this task should run.
+	// Paths is the list of directories where this task should run (include patterns).
 	// Paths are relative to git root.
 	Paths []string
+
+	// ExcludePaths is the list of patterns to exclude.
+	ExcludePaths []string
 }
 
 // NewPlan creates an execution plan from a Config root.
@@ -46,7 +50,9 @@ func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
 	}
 
 	collector := &planCollector{
-		tasks: make([]*Task, 0),
+		tasks:        make([]*Task, 0),
+		pathMappings: make(map[string]pathInfo),
+		currentPath:  nil,
 	}
 
 	if err := collector.walk(ctx, root); err != nil {
@@ -59,14 +65,16 @@ func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
 	return &plan{
 		Root:              root, // Preserve the composition tree!
 		Tasks:             collector.tasks,
-		PathMappings:      make(map[string]pathInfo),
+		PathMappings:      collector.pathMappings,
 		ModuleDirectories: []string{},
 	}, nil
 }
 
 // planCollector is the internal state for walking the tree
 type planCollector struct {
-	tasks []*Task
+	tasks        []*Task
+	pathMappings map[string]pathInfo
+	currentPath  *pathFilter // Current path context during tree walk
 }
 
 // walk recursively traverses the Runnable tree
@@ -80,6 +88,14 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 	case *Task:
 		// Leaf node - collect the task
 		pc.tasks = append(pc.tasks, v)
+
+		// Record path mapping if we're inside a pathFilter
+		if pc.currentPath != nil {
+			pc.pathMappings[v.name] = pathInfo{
+				Paths:        pc.currentPath.includePaths,
+				ExcludePaths: pc.currentPath.excludePaths,
+			}
+		}
 
 	case *serial:
 		// Composition node - walk children sequentially
@@ -96,6 +112,15 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 				return err
 			}
 		}
+
+	case *pathFilter:
+		// Path filter wrapper - set context and walk inner
+		previousPath := pc.currentPath
+		pc.currentPath = v
+		if err := pc.walk(ctx, v.inner); err != nil {
+			return err
+		}
+		pc.currentPath = previousPath
 
 	default:
 		// Unknown runnable type - skip it

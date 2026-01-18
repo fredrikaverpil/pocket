@@ -12,12 +12,19 @@ import (
 var Config = &core.Config{
 	Root: pk.Serial(
 		Hello,
-		pk.Parallel(
-			Lint,
-			Format,
+		pk.WithOptions(
+			pk.Parallel(
+				Lint,
+				Format,
+			),
+			pk.WithIncludePath("services"),
+			pk.WithExcludePath("vendor"),
 		),
 		Build,
-		Test,
+		pk.WithOptions(
+			Test,
+			pk.WithIncludePath("pkg"),
+		),
 	),
 }
 

@@ -29,7 +29,13 @@ func (c *Config) Run(ctx context.Context) error {
 func RunMain(cfg *Config) {
 	ctx := context.Background()
 
+	// Build the plan
+	fmt.Println("=== Building Plan ===")
+	planInfo := pk.BuildAndShowPlan(ctx, cfg.Root)
+	fmt.Println(planInfo)
+
 	// Execute the configuration
+	fmt.Println("\n=== Executing ===")
 	if err := cfg.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
