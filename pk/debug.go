@@ -7,7 +7,7 @@ import (
 )
 
 // BuildAndShowPlan creates a plan and returns a string representation
-// showing tasks and their path mappings.
+// showing tasks and their resolved path mappings.
 // This is a temporary debug function for development.
 func BuildAndShowPlan(ctx context.Context, root Runnable) string {
 	p, err := NewPlan(ctx, root)
@@ -21,21 +21,20 @@ func BuildAndShowPlan(ctx context.Context, root Runnable) string {
 	for i, task := range p.Tasks {
 		sb.WriteString(fmt.Sprintf("  %d. %s", i+1, task.Name()))
 
-		// Show path info if available
+		// Show resolved path info if available
 		if pathInfo, ok := p.PathMappings[task.Name()]; ok {
-			if len(pathInfo.Paths) > 0 || len(pathInfo.ExcludePaths) > 0 {
-				sb.WriteString(" →")
-				if len(pathInfo.Paths) > 0 {
-					sb.WriteString(fmt.Sprintf(" include:%v", pathInfo.Paths))
-				}
-				if len(pathInfo.ExcludePaths) > 0 {
-					sb.WriteString(fmt.Sprintf(" exclude:%v", pathInfo.ExcludePaths))
-				}
+			if len(pathInfo.ResolvedPaths) > 0 {
+				sb.WriteString(fmt.Sprintf(" → %v", pathInfo.ResolvedPaths))
 			}
 		} else {
-			sb.WriteString(" → (root)")
+			sb.WriteString(" → [.]")
 		}
 		sb.WriteString("\n")
+	}
+
+	// Show module directories
+	if len(p.ModuleDirectories) > 0 {
+		sb.WriteString(fmt.Sprintf("\nModule directories (for shim generation): %v\n", p.ModuleDirectories))
 	}
 
 	return sb.String()

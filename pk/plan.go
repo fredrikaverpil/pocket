@@ -28,12 +28,10 @@ type plan struct {
 
 // pathInfo describes where a task should execute.
 type pathInfo struct {
-	// Paths is the list of directories where this task should run (include patterns).
-	// Paths are relative to git root.
-	Paths []string
-
-	// ExcludePaths is the list of patterns to exclude.
-	ExcludePaths []string
+	// ResolvedPaths is the list of actual directories where this task should run.
+	// These are resolved from include/exclude patterns against the filesystem.
+	// Paths are relative to git root, normalized with forward slashes.
+	ResolvedPaths []string
 }
 
 // NewPlan creates an execution plan from a Config root.
@@ -49,24 +47,28 @@ func NewPlan(ctx context.Context, root Runnable) (*plan, error) {
 		}, nil
 	}
 
+	// Find git root once for the entire plan
+	gitRoot := findGitRoot()
+
 	collector := &planCollector{
 		tasks:        make([]*Task, 0),
 		pathMappings: make(map[string]pathInfo),
 		currentPath:  nil,
+		gitRoot:      gitRoot,
 	}
 
 	if err := collector.walk(ctx, root); err != nil {
 		return nil, err
 	}
 
-	// TODO: Analyze filesystem and populate PathMappings
-	// TODO: Derive ModuleDirectories from PathMappings
+	// Derive ModuleDirectories from PathMappings
+	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
 	return &plan{
 		Root:              root, // Preserve the composition tree!
 		Tasks:             collector.tasks,
 		PathMappings:      collector.pathMappings,
-		ModuleDirectories: []string{},
+		ModuleDirectories: moduleDirectories,
 	}, nil
 }
 
@@ -75,6 +77,7 @@ type planCollector struct {
 	tasks        []*Task
 	pathMappings map[string]pathInfo
 	currentPath  *pathFilter // Current path context during tree walk
+	gitRoot      string      // Git repository root
 }
 
 // walk recursively traverses the Runnable tree
@@ -91,9 +94,19 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 
 		// Record path mapping if we're inside a pathFilter
 		if pc.currentPath != nil {
+			// Resolve paths against filesystem
+			resolvedPaths, err := resolvePathPatterns(
+				pc.gitRoot,
+				pc.currentPath.includePaths,
+				pc.currentPath.excludePaths,
+			)
+			if err != nil {
+				// If resolution fails, use include patterns as-is
+				resolvedPaths = pc.currentPath.includePaths
+			}
+
 			pc.pathMappings[v.name] = pathInfo{
-				Paths:        pc.currentPath.includePaths,
-				ExcludePaths: pc.currentPath.excludePaths,
+				ResolvedPaths: resolvedPaths,
 			}
 		}
 
@@ -128,4 +141,22 @@ func (pc *planCollector) walk(ctx context.Context, r Runnable) error {
 	}
 
 	return nil
+}
+
+// deriveModuleDirectories extracts unique directories from path mappings.
+// These directories are where shims should be generated.
+func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
+	seen := make(map[string]bool)
+	var dirs []string
+
+	for _, info := range pathMappings {
+		for _, path := range info.ResolvedPaths {
+			if !seen[path] {
+				seen[path] = true
+				dirs = append(dirs, path)
+			}
+		}
+	}
+
+	return dirs
 }
