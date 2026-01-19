@@ -107,17 +107,30 @@ Completed:
 
 ## Phase 4: CLI argument parsing and help
 
-- [ ] CLI-invocable tasks (top-level, user wants `./pok lint`)
-- [ ] Internal tasks (composition-only, like a helper task inside Serial)
-- [ ] CLI argument parsing
-- [ ] Help text generation
-- [ ] Implement `./pok plan` command
-- [ ] Implement `-json` flag
+Completed:
+- [x] CLI argument parsing with flag package
+- [x] `-v` flag for version
+- [x] `-h` flag for help
+- [x] `-json` flag for JSON output
+- [x] Help text generation from plan (lists visible tasks)
+- [x] Implemented `./pok plan` builtin command
+  - [x] Text output with tree visualization
+  - [x] JSON output with `-json` flag
+  - [x] Shows composition tree (Serial/Parallel/PathFilter)
+  - [x] Shows task paths and shim generation directories
+- [x] Exported `Plan` and `PathInfo` as public API for introspection
+- [x] CLI code organized in `pk/cli.go` (can access internal types)
 
-Questions to answer:
+Architecture decisions:
+- `plan` is a **CLI builtin** (not a task) - it's a meta-operation for introspection
+- CLI lives in `pk/cli.go` to access internal composition types
+- `.pocket/go.mod` maintained for dogfooding with replace directive
+- Helper functions (printHelp, printPlan, printTree) are unexported
+- Plan exposed with clear documentation that composition types are internal
 
-- [ ] How do we distinguish between CLI-invocable and internal tasks?
-- [ ] How should help text be generated from the plan?
+Still TODO:
+- [ ] CLI-invocable tasks (run specific tasks like `./pok lint`)
+- [ ] Task filtering (run tasks by name from CLI)
 
 ## Phase 5: Tasks and tools package structures
 

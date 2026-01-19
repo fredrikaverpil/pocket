@@ -7,42 +7,54 @@ import (
 
 // plan represents the execution plan created from a Config.
 // It preserves the composition tree structure while extracting metadata.
+//
 // The plan is created once by analyzing both the Config and filesystem,
-// then reused throughout execution.
+// then reused throughout execution. This is a PUBLIC API - users can access
+// the plan to inspect what will execute, build custom tooling, or implement
+// their own visualization.
+//
+// IMPORTANT: While plan is exported for introspection, the composition types
+// (serial, parallel, pathFilter) remain internal. Users should not rely on
+// type assertions against Runnable - the composition structure may change.
 type plan struct {
-	// Root is the composition tree that preserves dependencies and structure.
+	// root is the composition tree that preserves dependencies and structure.
 	// Execution walks this tree, respecting Serial/Parallel composition.
-	Root Runnable
+	// This is exposed as a Runnable, but the concrete types are internal.
+	root Runnable
 
-	// Tasks is a flat list of all tasks for lookup, CLI dispatch, and help.
+	// tasks is a flat list of all tasks for lookup, CLI dispatch, and help.
 	// This is extracted from walking the Root tree.
-	Tasks []*Task
+	tasks []*Task
 
-	// PathMappings maps task names to their execution directories.
-	PathMappings map[string]pathInfo
+	// pathMappings maps task names to their execution directories.
+	// Each task may execute in one or more directories based on path filtering.
+	pathMappings map[string]pathInfo
 
-	// ModuleDirectories lists directories where shims should be generated.
-	ModuleDirectories []string
+	// moduleDirectories lists directories where shims should be generated.
+	// These are derived from PathMappings during plan creation.
+	moduleDirectories []string
 }
 
 // pathInfo describes where a task should execute.
+// This is part of the public Plan API for introspection.
 type pathInfo struct {
-	// ResolvedPaths is the list of actual directories where this task should run.
+	// resolvedPaths is the list of actual directories where this task should run.
 	// These are resolved from include/exclude patterns against the filesystem.
 	// Paths are relative to git root, normalized with forward slashes.
-	ResolvedPaths []string
+	// Empty means the task runs at root (".").
+	resolvedPaths []string
 }
 
-// NewPlan creates an execution plan from a Config root.
+// newPlan creates an execution plan from a Config root.
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
-func NewPlan(root Runnable) (*plan, error) {
+func newPlan(root Runnable) (*plan, error) {
 	if root == nil {
 		return &plan{
-			Root:              nil,
-			Tasks:             []*Task{},
-			PathMappings:      make(map[string]pathInfo),
-			ModuleDirectories: []string{},
+			root:              nil,
+			tasks:             []*Task{},
+			pathMappings:      make(map[string]pathInfo),
+			moduleDirectories: []string{},
 		}, nil
 	}
 
@@ -72,10 +84,10 @@ func NewPlan(root Runnable) (*plan, error) {
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
 	return &plan{
-		Root:              root, // Preserve the composition tree!
-		Tasks:             collector.tasks,
-		PathMappings:      collector.pathMappings,
-		ModuleDirectories: moduleDirectories,
+		root:              root, // Preserve the composition tree!
+		tasks:             collector.tasks,
+		pathMappings:      collector.pathMappings,
+		moduleDirectories: moduleDirectories,
 	}, nil
 }
 
@@ -147,7 +159,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		// (uses already-resolved paths from the pathFilter)
 		if pc.currentPath != nil {
 			pc.pathMappings[v.name] = pathInfo{
-				ResolvedPaths: pc.currentPath.resolvedPaths,
+				resolvedPaths: pc.currentPath.resolvedPaths,
 			}
 		}
 
@@ -194,7 +206,7 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 	var dirs []string
 
 	for _, info := range pathMappings {
-		for _, path := range info.ResolvedPaths {
+		for _, path := range info.resolvedPaths {
 			if !seen[path] {
 				seen[path] = true
 				dirs = append(dirs, path)
