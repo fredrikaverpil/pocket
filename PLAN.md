@@ -100,10 +100,14 @@ Deferred from Phase 2 implementation plan:
   - [ ] Collect errors?
   - [ ] Fail fast; signal that something failed, abort other go-routines
   - [ ] First task to complete outputs the results
-- [ ] Task deduplication (a task only needs to run once)
 
 Completed:
 - [x] Implement pk.Parallel (basic version)
+- [x] Task deduplication (a task only runs once per invocation)
+  - [x] Global dedup by task pointer identity (same `*Task` runs once)
+  - [x] `WithForceRun()` option to bypass deduplication
+  - [x] Thread-safe with `sync.Mutex`
+  - [x] Unit tests in `pk/context_test.go`, `pk/task_test.go`, `pk/paths_test.go`
 
 ## Phase 4: CLI argument parsing and help
 

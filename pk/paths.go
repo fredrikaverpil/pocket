@@ -2,8 +2,9 @@ package pk
 
 import "context"
 
-// PathOption configures path filtering for a Runnable.
-// Path options determine which directories a task should execute in.
+// PathOption configures path filtering and execution behavior for a Runnable.
+// Path options determine which directories a task should execute in and
+// control deduplication behavior.
 type PathOption func(*pathFilter)
 
 // WithIncludePath adds an include pattern for path filtering.
@@ -21,6 +22,16 @@ func WithIncludePath(pattern string) PathOption {
 func WithExcludePath(pattern string) PathOption {
 	return func(pf *pathFilter) {
 		pf.excludePaths = append(pf.excludePaths, pattern)
+	}
+}
+
+// WithForceRun disables task deduplication for the wrapped Runnable.
+// By default, tasks are deduplicated per (task pointer, path) pair within
+// a single invocation. WithForceRun causes the task to always execute,
+// even if it has already run for the same path.
+func WithForceRun() PathOption {
+	return func(pf *pathFilter) {
+		pf.forceRun = true
 	}
 }
 
@@ -47,14 +58,20 @@ type pathFilter struct {
 	inner         Runnable
 	includePaths  []string
 	excludePaths  []string
-	resolvedPaths []string // Cached resolved paths from plan building
+	resolvedPaths []string // Cached resolved paths from plan building.
+	forceRun      bool     // Disable task deduplication for the wrapped Runnable.
 }
 
 // run implements the Runnable interface.
 // It executes the inner Runnable for each resolved path.
 // Paths are resolved during plan building and cached in resolvedPaths.
 func (pf *pathFilter) run(ctx context.Context) error {
-	// Execute inner Runnable for each resolved path
+	// If forceRun is set, propagate it to the context.
+	if pf.forceRun {
+		ctx = withForceRun(ctx)
+	}
+
+	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
 		pathCtx := WithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {

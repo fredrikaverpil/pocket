@@ -35,6 +35,17 @@ func (t *Task) run(ctx context.Context) error {
 	if t.fn == nil {
 		return fmt.Errorf("task %q has no implementation", t.name)
 	}
+
+	// Check deduplication unless forceRun is set in context.
+	if !forceRunFromContext(ctx) {
+		tracker := executionTrackerFromContext(ctx)
+		if tracker != nil {
+			if alreadyDone := tracker.markDone(t); alreadyDone {
+				return nil // Silent skip.
+			}
+		}
+	}
+
 	return t.fn(ctx, t.options)
 }
 

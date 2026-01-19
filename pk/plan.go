@@ -1,7 +1,6 @@
 package pk
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -69,7 +68,7 @@ func newPlan(root Runnable) (*plan, error) {
 
 	collector := &taskCollector{
 		tasks:        make([]*Task, 0),
-		taskNames:    make(map[string]bool),
+		seenTasks:    make(map[*Task]bool),
 		pathMappings: make(map[string]pathInfo),
 		currentPath:  nil,
 		gitRoot:      gitRoot,
@@ -94,11 +93,11 @@ func newPlan(root Runnable) (*plan, error) {
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
 	tasks        []*Task
-	taskNames    map[string]bool // Track seen task names for duplicate detection
+	seenTasks    map[*Task]bool // Track seen task pointers for deduplication.
 	pathMappings map[string]pathInfo
-	currentPath  *pathFilter // Current path context during tree walk
-	gitRoot      string      // Git repository root
-	allDirs      []string    // Cached directory list from filesystem walk
+	currentPath  *pathFilter // Current path context during tree walk.
+	gitRoot      string      // Git repository root.
+	allDirs      []string    // Cached directory list from filesystem walk.
 }
 
 // filterPaths applies include/exclude patterns to the cached directory list.
@@ -143,19 +142,19 @@ func (pc *taskCollector) walk(r Runnable) error {
 		return nil
 	}
 
-	// Type switch on the concrete Runnable types
+	// Type switch on the concrete Runnable types.
 	switch v := r.(type) {
 	case *Task:
-		// Check for duplicate task names
-		if pc.taskNames[v.name] {
-			return fmt.Errorf("duplicate task name: %q", v.name)
+		// Only collect unique task pointers.
+		// The same task can appear multiple times in the tree, but we only
+		// add it once to the tasks list. Deduplication during execution is
+		// handled by the executionTracker.
+		if !pc.seenTasks[v] {
+			pc.seenTasks[v] = true
+			pc.tasks = append(pc.tasks, v)
 		}
-		pc.taskNames[v.name] = true
 
-		// Leaf node - collect the task
-		pc.tasks = append(pc.tasks, v)
-
-		// Record path mapping if we're inside a pathFilter
+		// Record path mapping if we're inside a pathFilter.
 		// (uses already-resolved paths from the pathFilter)
 		if pc.currentPath != nil {
 			pc.pathMappings[v.name] = pathInfo{

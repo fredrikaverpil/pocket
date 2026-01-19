@@ -109,8 +109,9 @@ func execute(ctx context.Context, c Config, p *plan) error {
 		return fmt.Errorf("generating shims: %w", err)
 	}
 
-	// Execute with plan in context
+	// Execute with plan and execution tracker in context.
 	ctx = WithPlan(ctx, p)
+	ctx = withExecutionTracker(ctx, newExecutionTracker())
 	return c.Root.run(ctx)
 }
 
