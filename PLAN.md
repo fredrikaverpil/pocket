@@ -3,12 +3,12 @@
 ## Goals
 
 Rewrite [Pocket](https://github.com/fredrikaverpil/pocket) (also available in
-the parent folder from here) with feature parity in this v2 git worktree folder.
+`~/code/public/pocket-v1`) with feature parity in this v2 git worktree folder.
 
-The previous public API and architecture can be viewed in:
+The previous public API and architecture can be viewed in pocket-v1's:
 
-- ../README.md
-- ../ARCHITECTURE.md
+- README.md
+- ARCHITECTURE.md
 
 It will be very important to quicky get to an end to end state, where we can
 execute a task from the compositional configuration.
@@ -65,45 +65,67 @@ Questions to answer:
 
 ## Phase 2: Shim generation
 
-- [ ] CLI-invocable tasks (top-level, user wants ./pok lint)
-- [ ] Internal tasks (composition-only, like a helper task inside Serial)
-- [ ] Deduplication of tasks, a task only needs to run once
-- [ ] The pok shims must be generated based on what the plan looks like
-  - [ ] Simple initial pok shim is created in root
-  - [ ] Pok shim gets created in each "module path"
+- [x] Created `internal/shim/` package with:
+  - [x] `gomod.go` - reads Go version from go.mod using Go 1.25+ `strings.SplitSeq`
+  - [x] `checksums.go` - fetches SHA256 checksums from go.dev/dl API
+  - [x] `shim.go` - main generation logic with `GenerateShims()` function
+  - [x] `templates/` - pok.sh.tmpl (POSIX), pok.cmd.tmpl (Windows), pok.ps1.tmpl (PowerShell)
+- [x] Added task visibility support to `pk/task.go`:
+  - [x] `Hidden()` method to mark tasks hidden from CLI
+  - [x] `IsHidden()` method for filtering in CLI
+- [x] Integrated shim generation into `pk/config.go`:
+  - [x] Called in `Config.Execute()` after planning, before execution
+  - [x] Generates shims at root and all module directories from `plan.ModuleDirectories`
+  - [x] Fails fast if generation errors
+- [x] Shim features:
+  - [x] Correct relative paths to `.pocket` based on directory depth
+  - [x] Embedded Go version from `.pocket/go.mod`
+  - [x] Embedded checksums for all platforms from go.dev/dl
+  - [x] Auto-downloads Go if not found in PATH
+  - [x] Verifies checksums during download
+  - [x] Sets `POK_CONTEXT` environment variable for execution context
 
-Questions to answer:
+Questions answered:
 
-- [ ] Where in the logic is shim generation invoked? Question: TBD
+- [x] Where is shim generation invoked? Answer: In `Config.Execute()` after creating the plan but before executing tasks. This ensures shims are always fresh and have access to `plan.ModuleDirectories`.
 
-## Phase 2: Output and error handling
+## Phase 3: Output and error handling
 
-- [x] Implement pk.Parallel
-- [ ] Buffered output
+Deferred from Phase 2 implementation plan:
+- [ ] Output abstraction (`pk/output.go`)
+- [ ] Execution context (`pk/exec.go`)
+- [ ] Buffered parallel output
   - [ ] When a single task runs, run it without buffered output?
   - [ ] Waitgroups with errors?
   - [ ] Collect errors?
   - [ ] Fail fast; signal that something failed, abort other go-routines
   - [ ] First task to complete outputs the results
+- [ ] Task deduplication (a task only needs to run once)
 
-## Phase 3: Plan output
+Completed:
+- [x] Implement pk.Parallel (basic version)
 
-- [ ] Implement `./pok plan`
-- [ ] Implement -json flag
+## Phase 4: CLI argument parsing and help
+
+- [ ] CLI-invocable tasks (top-level, user wants `./pok lint`)
+- [ ] Internal tasks (composition-only, like a helper task inside Serial)
+- [ ] CLI argument parsing
+- [ ] Help text generation
+- [ ] Implement `./pok plan` command
+- [ ] Implement `-json` flag
 
 Questions to answer:
 
-- TBD
+- [ ] How do we distinguish between CLI-invocable and internal tasks?
+- [ ] How should help text be generated from the plan?
 
-## Phase 4: Tasks and tools package structures
+## Phase 5: Tasks and tools package structures
 
 - [ ] Discuss how we will store tools and packages in pocket. In registry/tasks,
       registry/tools packages (or just tasks, tools packages)?
 - [ ] Tools installations should be tested.
-- [ ] Review the different kinds of tasks; automatically run on `./pok`,
-      manually run, builtins.
 
-## Phase 5:
+## Phase 6:
 
 TBD...
 
