@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
-$PocketDir = "../.pocket"
-$PocketContext = "v2"
+$PocketDir = ".pocket"
+$PocketContext = "."
 $GoVersion = "1.25.5"
 $GoInstallDir = "$PocketDir\tools\go\$GoVersion"
 $GoBin = "$GoInstallDir\go\bin\go.exe"

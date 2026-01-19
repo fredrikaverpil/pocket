@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-POK_DIR="../.pocket"
-POK_CONTEXT="v2"
+POK_DIR=".pocket"
+POK_CONTEXT="."
 GO_VERSION="1.25.5"
 GO_INSTALL_DIR="$POK_DIR/tools/go/$GO_VERSION"
 GO_BIN="$GO_INSTALL_DIR/go/bin/go"
