@@ -9,28 +9,29 @@ import (
 func TestExecutionTracker_MarkDone(t *testing.T) {
 	tracker := newExecutionTracker()
 
-	task1 := NewTask("task1", nil)
-	task2 := NewTask("task2", nil)
-
 	// First call should return false (not already done).
-	if alreadyDone := tracker.markDone(task1); alreadyDone {
+	if alreadyDone := tracker.markDone("task1", "path/a"); alreadyDone {
 		t.Error("expected first markDone to return false")
 	}
 
-	// Second call with same task should return true (global dedup).
-	if alreadyDone := tracker.markDone(task1); !alreadyDone {
-		t.Error("expected second markDone with same task to return true")
+	// Second call with same task+path should return true (deduplicated).
+	if alreadyDone := tracker.markDone("task1", "path/a"); !alreadyDone {
+		t.Error("expected second markDone with same task+path to return true")
 	}
 
-	// Different task should return false.
-	if alreadyDone := tracker.markDone(task2); alreadyDone {
+	// Same task, different path should return false (runs again).
+	if alreadyDone := tracker.markDone("task1", "path/b"); alreadyDone {
+		t.Error("expected markDone with same task but different path to return false")
+	}
+
+	// Different task, same path should return false.
+	if alreadyDone := tracker.markDone("task2", "path/a"); alreadyDone {
 		t.Error("expected markDone with different task to return false")
 	}
 }
 
 func TestExecutionTracker_Concurrent(t *testing.T) {
 	tracker := newExecutionTracker()
-	task := NewTask("concurrent-task", nil)
 
 	const goroutines = 100
 	var wg sync.WaitGroup
@@ -43,7 +44,7 @@ func TestExecutionTracker_Concurrent(t *testing.T) {
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
-			if !tracker.markDone(task) {
+			if !tracker.markDone("concurrent-task", "same/path") {
 				mu.Lock()
 				firstCount++
 				mu.Unlock()

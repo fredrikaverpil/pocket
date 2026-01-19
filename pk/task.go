@@ -2,32 +2,38 @@ package pk
 
 import (
 	"context"
+	"flag"
 	"fmt"
 )
 
-// Task creates a named, configurable unit of work.
-// Options can be provided to customize task behavior.
+// Task represents a named, executable unit of work.
+// Create tasks with NewTask or NewTaskWithFlags.
 type Task struct {
-	name    string
-	options map[string]any
-	fn      func(context.Context, map[string]any) error
-	hidden  bool
+	name   string
+	usage  string
+	flags  *flag.FlagSet
+	fn     func(context.Context) error
+	hidden bool
 }
 
-// NewTask creates a new task with the given name and optional configuration function.
-func NewTask(name string, fn func(context.Context, map[string]any) error) *Task {
+// NewTask creates a new task without CLI flags.
+func NewTask(name, usage string, fn func(context.Context) error) *Task {
 	return &Task{
-		name:    name,
-		options: make(map[string]any),
-		fn:      fn,
+		name:  name,
+		usage: usage,
+		fn:    fn,
 	}
 }
 
-// With adds an option to the task configuration.
-// Returns the task for method chaining.
-func (t *Task) With(key string, value any) *Task {
-	t.options[key] = value
-	return t
+// NewTaskWithFlags creates a new task with CLI flags.
+// The FlagSet should be created with flag.ContinueOnError for proper error handling.
+func NewTaskWithFlags(name, usage string, flags *flag.FlagSet, fn func(context.Context) error) *Task {
+	return &Task{
+		name:  name,
+		usage: usage,
+		flags: flags,
+		fn:    fn,
+	}
 }
 
 // run implements the Runnable interface.
@@ -37,16 +43,18 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Check deduplication unless forceRun is set in context.
+	// Deduplication is by (task name, path) tuple.
 	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			if alreadyDone := tracker.markDone(t); alreadyDone {
+			path := PathFromContext(ctx)
+			if alreadyDone := tracker.markDone(t.name, path); alreadyDone {
 				return nil // Silent skip.
 			}
 		}
 	}
 
-	return t.fn(ctx, t.options)
+	return t.fn(ctx)
 }
 
 // Name returns the task's name (useful for plan generation and debugging).
@@ -54,14 +62,25 @@ func (t *Task) Name() string {
 	return t.name
 }
 
+// Usage returns the task's usage description.
+func (t *Task) Usage() string {
+	return t.usage
+}
+
+// Flags returns the task's FlagSet, or nil if no flags are defined.
+func (t *Task) Flags() *flag.FlagSet {
+	return t.flags
+}
+
 // Hidden returns a new Task that is hidden from CLI listings.
 // Hidden tasks can still be executed directly but won't appear in help.
 func (t *Task) Hidden() *Task {
 	return &Task{
-		name:    t.name,
-		options: t.options,
-		fn:      t.fn,
-		hidden:  true,
+		name:   t.name,
+		usage:  t.usage,
+		flags:  t.flags,
+		fn:     t.fn,
+		hidden: true,
 	}
 }
 

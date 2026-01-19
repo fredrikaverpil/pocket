@@ -70,12 +70,40 @@ func RunMain(cfg *Config) {
 		return
 	}
 
-	// TODO: Handle specific task execution
-	// For now, if args are provided, show error
+	// Handle specific task execution
 	if len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "Error: specific task execution not yet implemented\n")
-		fmt.Fprintf(os.Stderr, "Available builtin commands: plan\n")
-		os.Exit(1)
+		taskName := args[0]
+		taskArgs := args[1:]
+
+		// Find task by name
+		task := findTaskByName(plan, taskName)
+		if task == nil {
+			fmt.Fprintf(os.Stderr, "Error: unknown task %q\n", taskName)
+			fmt.Fprintf(os.Stderr, "Run 'pok -h' to see available tasks.\n")
+			os.Exit(1)
+		}
+
+		// Check for task-specific help
+		if hasHelpFlag(taskArgs) {
+			printTaskHelp(task)
+			return
+		}
+
+		// Parse task flags if present
+		if task.Flags() != nil && len(taskArgs) > 0 {
+			if err := task.Flags().Parse(taskArgs); err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing flags for task %q: %v\n", taskName, err)
+				os.Exit(1)
+			}
+		}
+
+		// Execute the task
+		ctx := context.Background()
+		if err := executeTask(ctx, task, plan); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	// Execute the full configuration with pre-built plan
@@ -84,6 +112,81 @@ func RunMain(cfg *Config) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// findTaskByName looks up a task by name in the plan.
+func findTaskByName(p *plan, name string) *Task {
+	if p == nil {
+		return nil
+	}
+	for _, task := range p.tasks {
+		if task.Name() == name {
+			return task
+		}
+	}
+	return nil
+}
+
+// hasHelpFlag checks if the arguments contain a help flag.
+func hasHelpFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" || arg == "-help" {
+			return true
+		}
+	}
+	return false
+}
+
+// printTaskHelp prints help for a specific task.
+func printTaskHelp(task *Task) {
+	fmt.Printf("%s - %s\n", task.Name(), task.Usage())
+	fmt.Println()
+	fmt.Printf("Usage: pok %s [flags]\n", task.Name())
+
+	if task.Flags() == nil {
+		fmt.Println()
+		fmt.Println("This task accepts no flags.")
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Flags:")
+	task.Flags().PrintDefaults()
+}
+
+// executeTask runs a single task with proper path context.
+func executeTask(ctx context.Context, task *Task, p *plan) error {
+	// Determine execution paths.
+	var paths []string
+
+	// Check POK_CONTEXT environment variable (set by shim).
+	if pokContext := os.Getenv("POK_CONTEXT"); pokContext != "" {
+		// Running from a subdirectory via shim - only run in that path.
+		paths = []string{pokContext}
+	} else if p != nil {
+		// Running from root - use paths from plan.
+		if info, ok := p.pathMappings[task.Name()]; ok && len(info.resolvedPaths) > 0 {
+			paths = info.resolvedPaths
+		} else {
+			// No path mapping - run at root.
+			paths = []string{"."}
+		}
+	} else {
+		paths = []string{"."}
+	}
+
+	// Set up execution tracker.
+	ctx = withExecutionTracker(ctx, newExecutionTracker())
+
+	// Execute task for each path.
+	for _, path := range paths {
+		pathCtx := WithPath(ctx, path)
+		if err := task.run(pathCtx); err != nil {
+			return fmt.Errorf("task %s in %s: %w", task.Name(), path, err)
+		}
+	}
+
+	return nil
 }
 
 func execute(ctx context.Context, c Config, p *plan) error {
@@ -156,7 +259,11 @@ func printHelp(cfg *Config, plan *plan) {
 
 	fmt.Println("Available tasks:")
 	for _, task := range visibleTasks {
-		fmt.Printf("  %s\n", task.Name())
+		if task.Usage() != "" {
+			fmt.Printf("  %-12s  %s\n", task.Name(), task.Usage())
+		} else {
+			fmt.Printf("  %s\n", task.Name())
+		}
 	}
 }
 

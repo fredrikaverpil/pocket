@@ -9,7 +9,7 @@ import (
 func TestWithForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("path-task", func(ctx context.Context, opts map[string]any) error {
+	task := NewTask("path-task", "test task", func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -31,7 +31,7 @@ func TestWithForceRun(t *testing.T) {
 		t.Errorf("expected runCount=1 after first run, got %d", got)
 	}
 
-	// Second run should be skipped.
+	// Second run should be skipped (same task+path).
 	if err := pf.run(ctx); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestWithForceRun(t *testing.T) {
 func TestPathFilter_MultiplePaths(t *testing.T) {
 	var paths []string
 
-	task := NewTask("multi-path-task", func(ctx context.Context, opts map[string]any) error {
+	task := NewTask("multi-path-task", "test task", func(ctx context.Context) error {
 		paths = append(paths, PathFromContext(ctx))
 		return nil
 	})
@@ -87,12 +87,12 @@ func TestPathFilter_MultiplePaths(t *testing.T) {
 func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("multi-path-dedup-task", func(ctx context.Context, opts map[string]any) error {
+	task := NewTask("multi-path-dedup-task", "test task", func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
 
-	// Context WITH tracker - global dedup means task runs only once.
+	// Context WITH tracker - dedup by (task, path) means each path runs once.
 	ctx := context.Background()
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
@@ -104,16 +104,24 @@ func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// With global dedup, task runs only once regardless of paths.
-	if got := runCount.Load(); got != 1 {
-		t.Errorf("expected runCount=1 with global dedup, got %d", got)
+	// With (task, path) dedup, task runs once per unique path.
+	if got := runCount.Load(); got != 3 {
+		t.Errorf("expected runCount=3 (once per path), got %d", got)
+	}
+
+	// Running again should not add more executions (all paths already done).
+	if err := pf.run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 3 {
+		t.Errorf("expected runCount=3 after second run (all deduplicated), got %d", got)
 	}
 }
 
-func TestPathFilter_DeduplicationGlobal(t *testing.T) {
+func TestPathFilter_DeduplicationByTaskAndPath(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("global-dedup-task", func(ctx context.Context, opts map[string]any) error {
+	task := NewTask("path-dedup-task", "test task", func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -126,7 +134,7 @@ func TestPathFilter_DeduplicationGlobal(t *testing.T) {
 	pf1 := WithOptions(task).(*pathFilter)
 	pf1.resolvedPaths = []string{"services/api"}
 
-	// Second pathFilter runs in a different path - should STILL be deduplicated (global).
+	// Second pathFilter runs in a different path - should run (different path).
 	pf2 := WithOptions(task).(*pathFilter)
 	pf2.resolvedPaths = []string{"services/web"}
 
@@ -137,11 +145,19 @@ func TestPathFilter_DeduplicationGlobal(t *testing.T) {
 		t.Errorf("expected runCount=1 after pf1, got %d", got)
 	}
 
-	// Same task at different path should be skipped (global dedup by pointer).
+	// Same task at different path should run (dedup by task+path).
 	if err := pf2.run(ctx); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := runCount.Load(); got != 1 {
-		t.Errorf("expected runCount=1 after pf2 (global dedup), got %d", got)
+	if got := runCount.Load(); got != 2 {
+		t.Errorf("expected runCount=2 after pf2 (different path), got %d", got)
+	}
+
+	// Running pf1 again should skip (same task+path).
+	if err := pf1.run(ctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 2 {
+		t.Errorf("expected runCount=2 after pf1 again (deduplicated), got %d", got)
 	}
 }

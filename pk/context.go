@@ -41,30 +41,31 @@ func WithPlan(ctx context.Context, p *plan) context.Context {
 }
 
 // executionTracker tracks which tasks have already executed.
-// It is safe for concurrent use. Deduplication is global by task pointer -
-// the same *Task instance runs at most once per invocation, regardless of
-// which path context it's executed in.
+// It is safe for concurrent use. Deduplication is by (task name, path) tuple -
+// the same task can run multiple times if configured for different paths,
+// but will only run once per path.
 type executionTracker struct {
 	mu   sync.Mutex
-	done map[*Task]bool
+	done map[string]bool // key: "taskName:path"
 }
 
 // newExecutionTracker creates a new execution tracker.
 func newExecutionTracker() *executionTracker {
 	return &executionTracker{
-		done: make(map[*Task]bool),
+		done: make(map[string]bool),
 	}
 }
 
-// markDone records that a task has executed.
+// markDone records that a task has executed in a given path.
 // Returns true if it was already done (should skip), false if first time.
-func (t *executionTracker) markDone(task *Task) bool {
+func (t *executionTracker) markDone(taskName, path string) bool {
+	key := taskName + ":" + path
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.done[task] {
+	if t.done[key] {
 		return true // already done, should skip
 	}
-	t.done[task] = true
+	t.done[key] = true
 	return false // first time
 }
 
