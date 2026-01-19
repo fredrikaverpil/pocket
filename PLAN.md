@@ -66,16 +66,19 @@ Questions to answer:
 ## Phase 2: Shim generation
 
 - [x] Created `internal/shim/` package with:
-  - [x] `gomod.go` - reads Go version from go.mod using Go 1.25+ `strings.SplitSeq`
+  - [x] `gomod.go` - reads Go version from go.mod using Go 1.25+
+        `strings.SplitSeq`
   - [x] `checksums.go` - fetches SHA256 checksums from go.dev/dl API
   - [x] `shim.go` - main generation logic with `GenerateShims()` function
-  - [x] `templates/` - pok.sh.tmpl (POSIX), pok.cmd.tmpl (Windows), pok.ps1.tmpl (PowerShell)
+  - [x] `templates/` - pok.sh.tmpl (POSIX), pok.cmd.tmpl (Windows), pok.ps1.tmpl
+        (PowerShell)
 - [x] Added task visibility support to `pk/task.go`:
   - [x] `Hidden()` method to mark tasks hidden from CLI
   - [x] `IsHidden()` method for filtering in CLI
 - [x] Integrated shim generation into `pk/config.go`:
   - [x] Called in `Config.Execute()` after planning, before execution
-  - [x] Generates shims at root and all module directories from `plan.ModuleDirectories`
+  - [x] Generates shims at root and all module directories from
+        `plan.ModuleDirectories`
   - [x] Fails fast if generation errors
 - [x] Shim features:
   - [x] Correct relative paths to `.pocket` based on directory depth
@@ -87,11 +90,19 @@ Questions to answer:
 
 Questions answered:
 
-- [x] Where is shim generation invoked? Answer: In `Config.Execute()` after creating the plan but before executing tasks. This ensures shims are always fresh and have access to `plan.ModuleDirectories`.
+- [x] Where is shim generation invoked? Answer: In `Config.Execute()` after
+      creating the plan but before executing tasks. This ensures shims are
+      always fresh and have access to `plan.ModuleDirectories`.
 
-## Phase 3: Output and error handling
+## Phase 3: Bootstrapper
+
+- [ ] Implement the pocket cmd bootstrapper, for reference see
+      `~/code/public/pocket-v1/cmd`
+
+## Phase 4: Output and error handling
 
 Deferred from Phase 2 implementation plan:
+
 - [ ] Output abstraction (`pk/output.go`)
 - [ ] Execution context (`pk/exec.go`)
 - [ ] Buffered parallel output
@@ -102,16 +113,19 @@ Deferred from Phase 2 implementation plan:
   - [ ] First task to complete outputs the results
 
 Completed:
+
 - [x] Implement pk.Parallel (basic version)
 - [x] Task deduplication (a task only runs once per invocation)
   - [x] Global dedup by task pointer identity (same `*Task` runs once)
   - [x] `WithForceRun()` option to bypass deduplication
   - [x] Thread-safe with `sync.Mutex`
-  - [x] Unit tests in `pk/context_test.go`, `pk/task_test.go`, `pk/paths_test.go`
+  - [x] Unit tests in `pk/context_test.go`, `pk/task_test.go`,
+        `pk/paths_test.go`
 
-## Phase 4: CLI argument parsing and help
+## Phase 5: CLI argument parsing and help
 
 Completed:
+
 - [x] CLI argument parsing with flag package
 - [x] `-v` flag for version
 - [x] `-h` flag for help
@@ -126,23 +140,26 @@ Completed:
 - [x] CLI code organized in `pk/cli.go` (can access internal types)
 
 Architecture decisions:
-- `plan` is a **CLI builtin** (not a task) - it's a meta-operation for introspection
+
+- `plan` is a **CLI builtin** (not a task) - it's a meta-operation for
+  introspection
 - CLI lives in `pk/cli.go` to access internal composition types
 - `.pocket/go.mod` maintained for dogfooding with replace directive
 - Helper functions (printHelp, printPlan, printTree) are unexported
 - Plan exposed with clear documentation that composition types are internal
 
 Still TODO:
+
 - [ ] CLI-invocable tasks (run specific tasks like `./pok lint`)
 - [ ] Task filtering (run tasks by name from CLI)
 
-## Phase 5: Tasks and tools package structures
+## Phase 6: Tasks and tools package structures
 
 - [ ] Discuss how we will store tools and packages in pocket. In registry/tasks,
       registry/tools packages (or just tasks, tools packages)?
 - [ ] Tools installations should be tested.
 
-## Phase 6:
+## Phase 7:
 
 TBD...
 
