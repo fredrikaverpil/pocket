@@ -34,19 +34,21 @@ var Config = &pk.Config{
 }
 
 // Hello flags.
-var helloFlags = flag.NewFlagSet("hello", flag.ContinueOnError)
-var helloName = helloFlags.String("name", "Pocket v2", "name to greet")
+var (
+	helloFlags = flag.NewFlagSet("hello", flag.ContinueOnError)
+	helloName  = helloFlags.String("name", "Pocket v2", "name to greet")
+)
 
 // Hello is a demo task that prints a greeting.
 // Demonstrates task with CLI flags.
-var Hello = pk.NewTaskWithFlags("hello", "print a greeting message", helloFlags, func(ctx context.Context) error {
+var Hello = pk.NewTask("hello", "print a greeting message", helloFlags, func(ctx context.Context) error {
 	fmt.Printf("Hello, %s!\n", *helloName)
 	return nil
 })
 
 // ShowDirMulti executes "pwd" to show the current directory.
 // This proves that tasks are actually executing in the correct directories.
-var ShowDirMulti = pk.NewTask("show-dir", "show current working directory", func(ctx context.Context) error {
+var ShowDirMulti = pk.NewTask("show-dir", "show current working directory", nil, func(ctx context.Context) error {
 	path := pk.PathFromContext(ctx)
 
 	// Run pwd using the command helper.
@@ -60,7 +62,7 @@ var ShowDirMulti = pk.NewTask("show-dir", "show current working directory", func
 })
 
 // Lint checks code quality.
-var Lint = pk.NewTask("lint", "run linters on code", func(ctx context.Context) error {
+var Lint = pk.NewTask("lint", "run linters on code", nil, func(ctx context.Context) error {
 	path := pk.PathFromContext(ctx)
 	fmt.Printf("  [lint] in %s: Linting code...\n", path)
 	// TODO: Run actual linter (e.g., golangci-lint).
@@ -68,7 +70,7 @@ var Lint = pk.NewTask("lint", "run linters on code", func(ctx context.Context) e
 })
 
 // Format formats code.
-var Format = pk.NewTask("format", "format source code", func(ctx context.Context) error {
+var Format = pk.NewTask("format", "format source code", nil, func(ctx context.Context) error {
 	path := pk.PathFromContext(ctx)
 	fmt.Printf("  [format] in %s: Formatting code...\n", path)
 	// TODO: Run actual formatter (e.g., gofmt, prettier).
@@ -76,7 +78,7 @@ var Format = pk.NewTask("format", "format source code", func(ctx context.Context
 })
 
 // Build compiles the project.
-var Build = pk.NewTask("build", "compile the project", func(ctx context.Context) error {
+var Build = pk.NewTask("build", "compile the project", nil, func(ctx context.Context) error {
 	path := pk.PathFromContext(ctx)
 	fmt.Printf("  [build] in %s: Building...\n", path)
 	// TODO: Run actual build (e.g., go build).
@@ -84,7 +86,7 @@ var Build = pk.NewTask("build", "compile the project", func(ctx context.Context)
 })
 
 // Test runs all tests.
-var Test = pk.NewTask("test", "run tests", func(ctx context.Context) error {
+var Test = pk.NewTask("test", "run tests", nil, func(ctx context.Context) error {
 	path := pk.PathFromContext(ctx)
 	fmt.Printf("  [test] in %s: Running tests...\n", path)
 

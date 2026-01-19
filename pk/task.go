@@ -16,18 +16,9 @@ type Task struct {
 	hidden bool
 }
 
-// NewTask creates a new task without CLI flags.
-func NewTask(name, usage string, fn func(context.Context) error) *Task {
-	return &Task{
-		name:  name,
-		usage: usage,
-		fn:    fn,
-	}
-}
-
-// NewTaskWithFlags creates a new task with CLI flags.
+// NewTask creates a new task with optional CLI flags.
 // The FlagSet should be created with flag.ContinueOnError for proper error handling.
-func NewTaskWithFlags(name, usage string, flags *flag.FlagSet, fn func(context.Context) error) *Task {
+func NewTask(name, usage string, flags *flag.FlagSet, fn func(context.Context) error) *Task {
 	return &Task{
 		name:  name,
 		usage: usage,
