@@ -55,7 +55,7 @@ func NewPlan(root Runnable) (*plan, error) {
 		return nil, err
 	}
 
-	collector := &planCollector{
+	collector := &taskCollector{
 		tasks:        make([]*Task, 0),
 		taskNames:    make(map[string]bool),
 		pathMappings: make(map[string]pathInfo),
@@ -79,10 +79,10 @@ func NewPlan(root Runnable) (*plan, error) {
 	}, nil
 }
 
-// planCollector is the internal state for walking the tree
-type planCollector struct {
+// taskCollector is the internal state for walking the tree
+type taskCollector struct {
 	tasks        []*Task
-	taskNames    map[string]bool    // Track seen task names for duplicate detection
+	taskNames    map[string]bool // Track seen task names for duplicate detection
 	pathMappings map[string]pathInfo
 	currentPath  *pathFilter // Current path context during tree walk
 	gitRoot      string      // Git repository root
@@ -90,7 +90,7 @@ type planCollector struct {
 }
 
 // filterPaths applies include/exclude patterns to the cached directory list.
-func (pc *planCollector) filterPaths(includePaths, excludePaths []string) []string {
+func (pc *taskCollector) filterPaths(includePaths, excludePaths []string) []string {
 	// If no include patterns, default to root only
 	var candidates []string
 	if len(includePaths) == 0 {
@@ -126,7 +126,7 @@ func (pc *planCollector) filterPaths(includePaths, excludePaths []string) []stri
 }
 
 // walk recursively traverses the Runnable tree
-func (pc *planCollector) walk(r Runnable) error {
+func (pc *taskCollector) walk(r Runnable) error {
 	if r == nil {
 		return nil
 	}
