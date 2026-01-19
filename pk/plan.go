@@ -79,7 +79,7 @@ func NewPlan(root Runnable) (*plan, error) {
 	}, nil
 }
 
-// taskCollector is the internal state for walking the tree
+// taskCollector is the internal state for walking the tree.
 type taskCollector struct {
 	tasks        []*Task
 	taskNames    map[string]bool // Track seen task names for duplicate detection
@@ -125,7 +125,7 @@ func (pc *taskCollector) filterPaths(includePaths, excludePaths []string) []stri
 	return result
 }
 
-// walk recursively traverses the Runnable tree
+// walk recursively traverses the Runnable tree.
 func (pc *taskCollector) walk(r Runnable) error {
 	if r == nil {
 		return nil

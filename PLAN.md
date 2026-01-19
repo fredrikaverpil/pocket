@@ -26,21 +26,89 @@ Guidelines:
 - Core and internals are kept private/unexported. Avoid making internals
   available to users.
 - Throughout the work, let's populate a new ARCHITECTURE.md file.
+- Stop at inbetween each change, ask if I am happy with the implementation. Then
+  git commit and move on.
 
 ## Phase 1: Read the config into a "plan"
 
-- [ ] Create a temporary "main.go" that runs (will be replaced later by the
+- [x] Create a temporary "main.go" that runs (will be replaced later by the
       shim)
-- [ ] Define a new "hello-world" Task that takes option(s) like "name"
-- [ ] Define the Config struct
-- [ ] Define a Serial function, so that we can compose the config
-- [ ] Calculate the "plan"
-- [ ] Have plan sent to an "executor", which executes the composition
+- [x] Define a new "hello-world" Task that takes option(s) like "name"
+- [x] Define the Config struct
+- [x] Define a Serial function, so that we can compose the config
+- [x] Calculate the "plan"
+- [x] Have plan sent to an "executor", which executes the composition
 
 Questions to answer:
 
-- [ ] What is the composition actually, in technical terms. Is it a tree or a
+- [x] What is the composition actually, in technical terms. Is it a tree or a
       DAG? The action to show this could be called a "plan", but what is it,
-      actually?
-- [ ] When the phase 1 is done, do we think we can generate a shim from the
-      plan/tree/graph?
+      actually? Answer: It's a tree, not a DAG.
+- [x] When the phase 1 is done, do we think we can generate a shim from the
+      plan/tree/graph? Answer: Answer: Yes! The plan has everything needed:
+
+  ```
+  plan.Tasks // All task names
+  plan.ModuleDirectories // Where to create shims
+  plan.PathMappings // Which dirs each task runs in
+  ```
+
+  A shim in services/api/pok would:
+  1. Parse CLI args: ./pok lint
+  2. Look up "lint" in plan.Tasks
+  3. Filter by current directory (services/api)
+  4. Execute that specific task
+
+  Gap: The current plan doesn't distinguish between:
+  - CLI-invocable tasks (top-level, user wants ./pok lint)
+  - Internal tasks (composition-only, like a helper task inside Serial)
+
+## Phase 2: Shim generation
+
+- [ ] CLI-invocable tasks (top-level, user wants ./pok lint)
+- [ ] Internal tasks (composition-only, like a helper task inside Serial)
+- [ ] Deduplication of tasks, a task only needs to run once
+- [ ] The pok shims must be generated based on what the plan looks like
+  - [ ] Simple initial pok shim is created in root
+  - [ ] Pok shim gets created in each "module path"
+
+Questions to answer:
+
+- [ ] Where in the logic is shim generation invoked? Question: TBD
+
+## Phase 2: Output and error handling
+
+- [x] Implement pk.Parallel
+- [ ] Buffered output
+  - [ ] When a single task runs, run it without buffered output?
+  - [ ] Waitgroups with errors?
+  - [ ] Collect errors?
+  - [ ] Fail fast; signal that something failed, abort other go-routines
+  - [ ] First task to complete outputs the results
+
+## Phase 3: Plan output
+
+- [ ] Implement `./pok plan`
+- [ ] Implement -json flag
+
+Questions to answer:
+
+- TBD
+
+## Phase 4: Tasks and tools package structures
+
+- [ ] Discuss how we will store tools and packages in pocket. In registry/tasks,
+      registry/tools packages (or just tasks, tools packages)?
+- [ ] Tools installations should be tested.
+- [ ] Review the different kinds of tasks; automatically run on `./pok`,
+      manually run, builtins.
+
+## Phase 5:
+
+TBD...
+
+## Phase TBD (last phase)
+
+- [ ] Go through each go file and add an equivalent \_test.go file, for adding
+      unit tests.
+- [ ] Keep Windows in mind. We need to support Windows.

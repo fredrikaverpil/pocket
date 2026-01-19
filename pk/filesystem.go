@@ -112,4 +112,3 @@ func matchPattern(path, pattern string) bool {
 
 	return false
 }
-

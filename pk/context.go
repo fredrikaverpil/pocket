@@ -2,13 +2,13 @@ package pk
 
 import "context"
 
-// contextKey is the type for context keys in this package
+// contextKey is the type for context keys in this package.
 type contextKey int
 
 const (
-	// pathKey is the context key for the current execution path
+	// pathKey is the context key for the current execution path.
 	pathKey contextKey = iota
-	// planKey is the context key for the execution plan
+	// planKey is the context key for the execution plan.
 	planKey
 )
 

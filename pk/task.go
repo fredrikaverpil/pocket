@@ -11,6 +11,7 @@ type Task struct {
 	name    string
 	options map[string]any
 	fn      func(context.Context, map[string]any) error
+	hidden  bool
 }
 
 // NewTask creates a new task with the given name and optional configuration function.
@@ -40,4 +41,20 @@ func (t *Task) run(ctx context.Context) error {
 // Name returns the task's name (useful for plan generation and debugging).
 func (t *Task) Name() string {
 	return t.name
+}
+
+// Hidden returns a new Task that is hidden from CLI listings.
+// Hidden tasks can still be executed directly but won't appear in help.
+func (t *Task) Hidden() *Task {
+	return &Task{
+		name:    t.name,
+		options: t.options,
+		fn:      t.fn,
+		hidden:  true,
+	}
+}
+
+// IsHidden returns whether the task is hidden from CLI listings.
+func (t *Task) IsHidden() bool {
+	return t.hidden
 }

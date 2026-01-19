@@ -7,10 +7,11 @@ import "path/filepath"
 // Returns an absolute path to the target location.
 //
 // Handles both forms:
-//   FromGitRoot("services/api")        → "/path/to/repo/services/api"
-//   FromGitRoot("services", "api")     → "/path/to/repo/services/api"
-//   FromGitRoot("pkg")                 → "/path/to/repo/pkg"
-//   FromGitRoot(".")                   → "/path/to/repo"
+//
+//	FromGitRoot("services/api")        → "/path/to/repo/services/api"
+//	FromGitRoot("services", "api")     → "/path/to/repo/services/api"
+//	FromGitRoot("pkg")                 → "/path/to/repo/pkg"
+//	FromGitRoot(".")                   → "/path/to/repo"
 func FromGitRoot(paths ...string) string {
 	gitRoot := findGitRoot()
 	parts := append([]string{gitRoot}, paths...)

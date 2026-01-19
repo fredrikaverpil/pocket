@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
 // Config represents the Pocket configuration.
@@ -23,6 +26,24 @@ func (c *Config) Execute(ctx context.Context) error {
 	p, err := NewPlan(c.Root)
 	if err != nil {
 		return err
+	}
+
+	// Generate shims (after planning, before execution)
+	gitRoot := findGitRoot()
+	pocketDir := filepath.Join(gitRoot, ".pocket")
+	_, err = shim.GenerateShims(
+		ctx,
+		gitRoot,
+		pocketDir,
+		p.ModuleDirectories,
+		shim.Config{
+			Posix:      true,
+			Windows:    true,
+			PowerShell: true,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("generating shims: %w", err)
 	}
 
 	// Execute with plan in context
