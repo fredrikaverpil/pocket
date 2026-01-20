@@ -9,7 +9,7 @@ import (
 func TestTask_Run_Deduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("dedup-task", "test task", func(ctx context.Context) error {
+	task := NewTask("dedup-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -56,7 +56,7 @@ func TestTask_Run_Deduplication(t *testing.T) {
 func TestTask_Run_ForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("force-task", "test task", func(ctx context.Context) error {
+	task := NewTask("force-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -95,7 +95,7 @@ func TestTask_Run_ForceRun(t *testing.T) {
 func TestTask_Run_NoTracker(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("no-tracker-task", "test task", func(ctx context.Context) error {
+	task := NewTask("no-tracker-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -119,11 +119,11 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 	var runCount1, runCount2 atomic.Int32
 
 	// Two different task instances with the same name.
-	task1 := NewTask("same-name", "test task 1", func(ctx context.Context) error {
+	task1 := NewTask("same-name", "test task 1", nil, func(ctx context.Context) error {
 		runCount1.Add(1)
 		return nil
 	})
-	task2 := NewTask("same-name", "test task 2", func(ctx context.Context) error {
+	task2 := NewTask("same-name", "test task 2", nil, func(ctx context.Context) error {
 		runCount2.Add(1)
 		return nil
 	})
@@ -151,7 +151,7 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 }
 
 func TestTask_Accessors(t *testing.T) {
-	task := NewTask("my-task", "my usage", func(ctx context.Context) error {
+	task := NewTask("my-task", "my usage", nil, func(ctx context.Context) error {
 		return nil
 	})
 
@@ -170,7 +170,7 @@ func TestTask_Accessors(t *testing.T) {
 }
 
 func TestTask_Hidden(t *testing.T) {
-	task := NewTask("visible-task", "test task", func(ctx context.Context) error {
+	task := NewTask("visible-task", "test task", nil, func(ctx context.Context) error {
 		return nil
 	})
 

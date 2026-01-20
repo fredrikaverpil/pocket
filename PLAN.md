@@ -96,8 +96,33 @@ Questions answered:
 
 ## Phase 3: Bootstrapper
 
-- [ ] Implement the pocket cmd bootstrapper, for reference see
-      `~/code/public/pocket-v1/cmd`
+- [x] Created `internal/scaffold/` package with:
+  - [x] `templates/config.go.tmpl` - user-editable config (one-time, never
+        overwritten)
+  - [x] `templates/main.go.tmpl` - auto-generated entry point (always
+        regenerated)
+  - [x] `templates/gitignore.tmpl` - ignores `bin/` and `tools/`
+  - [x] `scaffold.go` - `GenerateAll()` and `RegenerateMain()` functions
+- [x] Created `cmd/pocket/main.go` bootstrapper CLI:
+  - [x] `pocket init` command creates `.pocket/` directory
+  - [x] Initializes Go module (`go mod init pocket`)
+  - [x] Adds pocket dependency
+        (`go get github.com/fredrikaverpil/pocket@latest`)
+  - [x] Generates scaffold files via `scaffold.GenerateAll()`
+  - [x] Runs `go mod tidy`
+  - [x] Generates platform-specific shims (reuses `internal/shim`)
+  - [x] Platform detection for shim types (POSIX on Unix, cmd/ps1 on Windows)
+  - [x] `pocket help` displays usage
+
+Usage (once published):
+
+```
+go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
+```
+
+Still TODO:
+
+- [ ] End-to-end test once `pk` package is published to GitHub
 
 ## Phase 4: Output and error handling
 
@@ -153,18 +178,42 @@ Still TODO:
 - [ ] CLI-invocable tasks (run specific tasks like `./pok lint`)
 - [ ] Task filtering (run tasks by name from CLI)
 
-## Phase 6: Tasks and tools package structures
+## Phase 6: Implement initial tools and tasks
+
+See pocket-v1's tasks and tools. Let's now start implementing them but here in
+pocket v2.
 
 - [ ] Discuss how we will store tools and packages in pocket. In registry/tasks,
-      registry/tools packages (or just tasks, tools packages)?
-- [ ] Tools installations should be tested.
+      registry/tools packages (or just tasks, tools packages)? Compare with how
+      this was done in pocket-v1.
+- [ ] First tool is implemented; I propose golangci-lint.
+- [ ] First task, which uses previous tool, is implemented; I propose a "golang"
+      task would encapsulate several Go-specific tasks/tools. We can then
+      dogfood ./pok go-lint for example.
+- [ ] Discussion, review; what went well, what works, what do we have to go back
+      and fix/simplify?
+- [ ] Implement the GitHub workflows task along with the ci matrix capability.
+- [ ] Tools installations should be tested, so that we know each tool can
+      install fine and symlink its binary.
 
-## Phase 7:
+## Phase 7: Documentation
 
-TBD...
+- [ ] Add README.md; compare against pocket-v1 so we don't forget anything
+      important
+  - [ ] Inspect the pk package; this is our public API. Add documentation around
+        all public symbols that are intended to be used by users.
+- [ ] Add ARCHTECTURE.md ; this document is targeting contributors and
+      maintainers, explaining how Pocket works.
 
-## Phase TBD (last phase)
+## Phase "Wrapup" (last phase)
 
+- [ ] Analyze Pocket
+  - [ ] DX - do we have good developer experience?
+  - [ ] Long-term maintainability, is the codebase simple and ideomatic to Go?
+  - [ ] Compare with pocket-v1; which areas have been improved, which areas were
+        done better/simpler in pocket-v1?
 - [ ] Go through each go file and add an equivalent \_test.go file, for adding
       unit tests.
 - [ ] Keep Windows in mind. We need to support Windows.
+- [ ] Analyze pocket-v1; are we missing any features in this rewrite?
+- [ ] Implement all tasks and tools from pocket v1

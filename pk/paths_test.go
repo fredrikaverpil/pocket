@@ -9,7 +9,7 @@ import (
 func TestWithForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("path-task", "test task", func(ctx context.Context) error {
+	task := NewTask("path-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -55,7 +55,7 @@ func TestWithForceRun(t *testing.T) {
 func TestPathFilter_MultiplePaths(t *testing.T) {
 	var paths []string
 
-	task := NewTask("multi-path-task", "test task", func(ctx context.Context) error {
+	task := NewTask("multi-path-task", "test task", nil, func(ctx context.Context) error {
 		paths = append(paths, PathFromContext(ctx))
 		return nil
 	})
@@ -87,7 +87,7 @@ func TestPathFilter_MultiplePaths(t *testing.T) {
 func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("multi-path-dedup-task", "test task", func(ctx context.Context) error {
+	task := NewTask("multi-path-dedup-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
@@ -121,7 +121,7 @@ func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 func TestPathFilter_DeduplicationByTaskAndPath(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("path-dedup-task", "test task", func(ctx context.Context) error {
+	task := NewTask("path-dedup-task", "test task", nil, func(ctx context.Context) error {
 		runCount.Add(1)
 		return nil
 	})
