@@ -17,6 +17,8 @@ const (
 	trackerKey
 	// forceRunKey is the context key for forcing task execution.
 	forceRunKey
+	// verboseKey is the context key for verbose mode.
+	verboseKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -91,6 +93,19 @@ func withForceRun(ctx context.Context) context.Context {
 // forceRunFromContext returns whether forceRun is set in the context.
 func forceRunFromContext(ctx context.Context) bool {
 	if v, ok := ctx.Value(forceRunKey).(bool); ok {
+		return v
+	}
+	return false
+}
+
+// WithVerbose returns a new context with verbose mode set.
+func WithVerbose(ctx context.Context, verbose bool) context.Context {
+	return context.WithValue(ctx, verboseKey, verbose)
+}
+
+// Verbose returns whether verbose mode is enabled in the context.
+func Verbose(ctx context.Context) bool {
+	if v, ok := ctx.Value(verboseKey).(bool); ok {
 		return v
 	}
 	return false

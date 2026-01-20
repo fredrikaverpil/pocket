@@ -20,8 +20,9 @@ const Version = "2.0.0-dev"
 func RunMain(cfg *Config) {
 	// Parse command-line flags
 	fs := flag.NewFlagSet("pok", flag.ExitOnError)
-	showVersion := fs.Bool("v", false, "show version")
+	verbose := fs.Bool("v", false, "verbose mode")
 	showHelp := fs.Bool("h", false, "show help")
+	showVersion := fs.Bool("version", false, "show version")
 
 	// Parse flags
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -98,7 +99,7 @@ func RunMain(cfg *Config) {
 		}
 
 		// Execute the task
-		ctx := context.Background()
+		ctx := WithVerbose(context.Background(), *verbose)
 		if err := executeTask(ctx, task, plan); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -107,7 +108,7 @@ func RunMain(cfg *Config) {
 	}
 
 	// Execute the full configuration with pre-built plan
-	ctx := context.Background()
+	ctx := WithVerbose(context.Background(), *verbose)
 	if err := execute(ctx, *cfg, plan); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -226,8 +227,9 @@ func printHelp(cfg *Config, plan *plan) {
 	fmt.Println("  pok <task> [flags]")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  -h    show help")
-	fmt.Println("  -v    show version")
+	fmt.Println("  -h          show help")
+	fmt.Println("  -v          verbose mode")
+	fmt.Println("  --version   show version")
 	fmt.Println()
 	fmt.Println("Builtin commands:")
 	fmt.Println("  plan [-json]  show execution plan without running tasks")

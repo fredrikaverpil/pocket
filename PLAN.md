@@ -194,7 +194,30 @@ pocket v2.
 - [ ] Tools installations should be tested, so that we know each tool can
       install fine and symlink its binary.
 
-## Phase 7: Documentation
+## Phase 7: Auto-detection of modules
+
+- [ ] Let's implement a way to autodetect e.g. `go.mod` files, and run the
+      golang task(s) in each such module. This would replace the need for
+      `WithIncludePath`.
+- [ ] When auto-detecting, we might want to exclude both paths and tasks. See
+      how we did this in pocket-v1, since I think that worked pretty well there.
+      How can that fit into pocket v2?
+
+## Phase 7: Mid-review
+
+Where are we currently at? What works great, what works less great?
+
+- [ ] From a DX perspective; is the API surface easy to understand?
+- [ ] From a files/packages perspective; is the git project laid out well?
+- [ ] From a Go ideomatic view; is the project following Go ideoms, leveraging
+      std lib, easy to understand?
+
+Specifically targeted changes:
+
+- [ ] Can the `./pok --version` be generated from Git tag? (currently, no tag
+      exists and that needs to work too)
+
+## Phase 8: Documentation
 
 - [ ] Add README.md; compare against pocket-v1 so we don't forget anything
       important
@@ -213,5 +236,8 @@ pocket v2.
 - [ ] Go through each go file and add an equivalent \_test.go file, for adding
       unit tests.
 - [ ] Keep Windows in mind. We need to support Windows.
+- [ ] Cleanup:
+  - [ ] The pok shims have POK_CONTEXT. Is it more clear to call it CWD (is that
+        what this is)?
 - [ ] Analyze pocket-v1; are we missing any features in this rewrite?
 - [ ] Implement all tasks and tools from pocket v1
