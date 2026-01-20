@@ -31,8 +31,7 @@ Guidelines:
 
 ## Phase 1: Read the config into a "plan"
 
-- [x] Create a temporary "main.go" that runs (will be replaced later by the
-      shim)
+- [x] Create a temporary "main.go" that runs (replaced by shim in Phase 5)
 - [x] Define a new "hello-world" Task that takes option(s) like "name"
 - [x] Define the Config struct
 - [x] Define a Serial function, so that we can compose the config
@@ -114,7 +113,7 @@ Questions answered:
   - [x] Platform detection for shim types (POSIX on Unix, cmd/ps1 on Windows)
   - [x] `pocket help` displays usage
 
-Usage (once published):
+Usage (once Pocket v2 is published):
 
 ```
 go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
@@ -173,10 +172,9 @@ Architecture decisions:
 - Helper functions (printHelp, printPlan, printTree) are unexported
 - Plan exposed with clear documentation that composition types are internal
 
-Still TODO:
+Additional cleanup:
 
-- [ ] CLI-invocable tasks (run specific tasks like `./pok lint`)
-- [ ] Task filtering (run tasks by name from CLI)
+- [x] Removed temporary `main.go` - now dogfooding with `./pok` shim
 
 ## Phase 6: Implement initial tools and tasks
 
