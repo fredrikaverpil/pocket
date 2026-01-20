@@ -15,6 +15,11 @@ var Lint = pk.DefineTask("go-lint", "run golangci-lint",
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		return pk.Exec(ctx, golangcilint.Name, "run", "--fix", "./...")
+		args := []string{"run"}
+		if pk.Verbose(ctx) {
+			args = append(args, "-v")
+		}
+		args = append(args, "--fix", "./...")
+		return pk.Exec(ctx, golangcilint.Name, args...)
 	})
 }
