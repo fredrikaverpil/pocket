@@ -3,6 +3,8 @@ package pk
 import (
 	"context"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Runnable represents a unit of execution in the task graph.
@@ -48,52 +50,40 @@ func (p *parallel) run(ctx context.Context) error {
 		return nil
 	}
 
-	// Check if context is already canceled
+	// Check if context is already canceled.
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(p.runnables))
-
-	// Start all runnables concurrently
-	for _, r := range p.runnables {
-		// Check context before starting each goroutine
-		select {
-		case <-ctx.Done():
-			// Context canceled, don't start more goroutines
-			// Wait for already-started ones to finish
-			wg.Wait()
-			close(errChan)
-			// Return context error or first runnable error
-			select {
-			case err := <-errChan:
-				return err
-			default:
-				return ctx.Err()
-			}
-		default:
-		}
-
-		wg.Add(1)
-		go func(runnable Runnable) {
-			defer wg.Done()
-			if err := runnable.run(ctx); err != nil {
-				errChan <- err
-			}
-		}(r)
+	// Single item? Run directly without buffering.
+	if len(p.runnables) == 1 {
+		return p.runnables[0].run(ctx)
 	}
 
-	// Wait for all to complete
-	wg.Wait()
-	close(errChan)
-
-	// Return first error if any
-	for err := range errChan {
-		return err
+	// Multiple items: use errgroup and buffered output.
+	// Deduplication is handled by Task.run() - no pre-filtering needed.
+	parentOut := OutputFromContext(ctx)
+	buffers := make([]*bufferedOutput, len(p.runnables))
+	for i := range p.runnables {
+		buffers[i] = newBufferedOutput(parentOut)
 	}
+	var flushMu sync.Mutex
 
-	return nil
+	g, gCtx := errgroup.WithContext(ctx)
+	for i, r := range p.runnables {
+		g.Go(func() error {
+			childCtx := WithOutput(gCtx, buffers[i].Output())
+			err := r.run(childCtx)
+
+			// Flush immediately on completion (first-to-complete flushes first).
+			flushMu.Lock()
+			buffers[i].Flush()
+			flushMu.Unlock()
+
+			return err
+		})
+	}
+	return g.Wait()
 }

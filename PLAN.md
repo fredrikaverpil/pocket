@@ -125,26 +125,35 @@ Still TODO:
 
 ## Phase 4: Output and error handling
 
-Deferred from Phase 2 implementation plan:
-
-- [ ] Output abstraction (`pk/output.go`)
-- [ ] Execution context (`pk/exec.go`)
-- [ ] Buffered parallel output
-  - [ ] When a single task runs, run it without buffered output?
-  - [ ] Waitgroups with errors?
-  - [ ] Collect errors?
-  - [ ] Fail fast; signal that something failed, abort other go-routines
-  - [ ] First task to complete outputs the results
-
 Completed:
 
-- [x] Implement pk.Parallel (basic version)
+- [x] Output abstraction (`pk/output.go`)
+  - [x] `Output` struct with `Stdout`/`Stderr` writers
+  - [x] `StdOutput()` returns standard output writers
+  - [x] `bufferedOutput` captures per-goroutine output for parallel execution
+  - [x] `lockedWriter` for thread-safe concurrent writes
+- [x] Context-based output (`pk/context.go`)
+  - [x] `WithOutput()`/`OutputFromContext()` for propagating output through context
+- [x] Execution with graceful shutdown (`pk/exec.go`)
+  - [x] `Exec()` uses context output instead of `os.Stdout/Stderr`
+  - [x] `WaitDelay = 5s` constant for graceful shutdown
+  - [x] Platform-specific graceful shutdown (SIGINT on Unix, no-op on Windows)
+- [x] Buffered parallel output (`pk/composition.go`)
+  - [x] Single task runs without buffering
+  - [x] Multiple tasks: each gets `bufferedOutput`, flushes on completion
+  - [x] `errgroup.WithContext` for cooperative cancellation (fail-fast)
+  - [x] First-to-complete flushes first (no interleaving)
+  - [x] Deduplication handled by `Task.run()` (single source of truth)
+- [x] Signal handling (`pk/cli.go`)
+  - [x] `signal.NotifyContext` catches SIGINT/SIGTERM
+  - [x] Context cancellation propagates to all running tasks
 - [x] Task deduplication (a task only runs once per invocation)
   - [x] Global dedup by task pointer identity (same `*Task` runs once)
   - [x] `WithForceRun()` option to bypass deduplication
   - [x] Thread-safe with `sync.Mutex`
   - [x] Unit tests in `pk/context_test.go`, `pk/task_test.go`,
         `pk/paths_test.go`
+- [x] Dependency: `golang.org/x/sync` added for `errgroup`
 
 ## Phase 5: CLI argument parsing and help
 

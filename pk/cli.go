@@ -6,9 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/shim"
 )
@@ -138,8 +140,11 @@ func RunMain(cfg *Config) {
 			}
 		}
 
-		// Execute the task
-		ctx := WithVerbose(context.Background(), *verbose)
+		// Execute the task with signal handling.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		ctx = WithVerbose(ctx, *verbose)
+		ctx = WithOutput(ctx, StdOutput())
 		if err := executeTask(ctx, task, plan); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -147,8 +152,11 @@ func RunMain(cfg *Config) {
 		return
 	}
 
-	// Execute the full configuration with pre-built plan
-	ctx := WithVerbose(context.Background(), *verbose)
+	// Execute the full configuration with pre-built plan and signal handling.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	ctx = WithVerbose(ctx, *verbose)
+	ctx = WithOutput(ctx, StdOutput())
 	if err := execute(ctx, *cfg, plan); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

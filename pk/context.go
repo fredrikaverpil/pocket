@@ -19,6 +19,8 @@ const (
 	forceRunKey
 	// verboseKey is the context key for verbose mode.
 	verboseKey
+	// outputKey is the context key for output writers.
+	outputKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -109,4 +111,18 @@ func Verbose(ctx context.Context) bool {
 		return v
 	}
 	return false
+}
+
+// WithOutput returns a new context with the given output set.
+func WithOutput(ctx context.Context, out *Output) context.Context {
+	return context.WithValue(ctx, outputKey, out)
+}
+
+// OutputFromContext returns the Output from the context.
+// Returns StdOutput() if no output is set.
+func OutputFromContext(ctx context.Context) *Output {
+	if out, ok := ctx.Value(outputKey).(*Output); ok {
+		return out
+	}
+	return StdOutput()
 }

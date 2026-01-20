@@ -1,13 +1,18 @@
 package pk
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// WaitDelay is the time to wait after sending SIGINT before sending SIGKILL.
+const WaitDelay = 5 * time.Second
 
 // Do creates a Runnable that executes a dynamic function.
 // Use this when command arguments need to be computed at runtime.
@@ -23,8 +28,10 @@ func Do(fn func(ctx context.Context) error) Runnable {
 // This ensures tools installed via InstallGo() are found first.
 // The command runs in the directory specified by PathFromContext(ctx).
 //
-// If verbose mode is enabled, command output is streamed to stdout/stderr.
+// If verbose mode is enabled, command output is streamed to context output.
 // Otherwise, output is captured and only shown on error.
+//
+// Commands are terminated gracefully: SIGINT first, then SIGKILL after WaitDelay.
 func Exec(ctx context.Context, name string, args ...string) error {
 	path := PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
@@ -32,17 +39,26 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = targetDir
 	cmd.Env = prependBinToPath(os.Environ())
+	cmd.WaitDelay = WaitDelay
+	setGracefulShutdown(cmd)
+
+	out := OutputFromContext(ctx)
 
 	if Verbose(ctx) {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = out.Stdout
+		cmd.Stderr = out.Stderr
 		return cmd.Run()
 	}
 
-	output, err := cmd.CombinedOutput()
+	// Capture output and only show on error.
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	err := cmd.Run()
 	if err != nil {
-		// Include output in error for debugging
-		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, output)
+		// Include output in error for debugging.
+		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, buf.String())
 	}
 	return nil
 }
