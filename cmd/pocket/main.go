@@ -37,7 +37,10 @@ func main() {
 	cmd := os.Args[1]
 	switch cmd {
 	case "init":
-		if err := runInit(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		err := runInit(ctx)
+		cancel()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -49,7 +52,7 @@ func main() {
 	}
 }
 
-func runInit() error {
+func runInit(ctx context.Context) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("getting current directory: %w", err)
@@ -71,7 +74,7 @@ func runInit() error {
 
 	// Initialize Go module.
 	fmt.Println("  Creating Go module...")
-	initCmd := exec.Command("go", "mod", "init", "pocket")
+	initCmd := exec.CommandContext(ctx, "go", "mod", "init", "pocket")
 	initCmd.Dir = pocketDir
 	initCmd.Stdout = os.Stdout
 	initCmd.Stderr = os.Stderr
@@ -81,7 +84,7 @@ func runInit() error {
 
 	// Add pocket dependency.
 	fmt.Println("  Adding pocket dependency...")
-	getCmd := exec.Command("go", "get", "github.com/fredrikaverpil/pocket@latest")
+	getCmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
 	getCmd.Dir = pocketDir
 	getCmd.Stdout = os.Stdout
 	getCmd.Stderr = os.Stderr
@@ -97,7 +100,7 @@ func runInit() error {
 
 	// Run go mod tidy.
 	fmt.Println("  Running go mod tidy...")
-	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd := exec.CommandContext(ctx, "go", "mod", "tidy")
 	tidyCmd.Dir = pocketDir
 	tidyCmd.Stdout = os.Stdout
 	tidyCmd.Stderr = os.Stderr
@@ -107,8 +110,6 @@ func runInit() error {
 
 	// Generate shims.
 	fmt.Println("  Generating shim scripts...")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	shimCfg := shim.Config{
 		Name:       "pok",

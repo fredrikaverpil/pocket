@@ -15,8 +15,6 @@ var Config = &pk.Config{
 		Hello,
 		pk.WithOptions(
 			golang.Tasks(),
-			pk.WithIncludePath("pk"),
-			pk.WithIncludePath("internal"),
 		),
 	),
 }

@@ -142,10 +142,11 @@ func RunMain(cfg *Config) {
 
 		// Execute the task with signal handling.
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
 		ctx = WithVerbose(ctx, *verbose)
 		ctx = WithOutput(ctx, StdOutput())
-		if err := executeTask(ctx, task, plan); err != nil {
+		err := executeTask(ctx, task, plan)
+		stop()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -154,10 +155,11 @@ func RunMain(cfg *Config) {
 
 	// Execute the full configuration with pre-built plan and signal handling.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	ctx = WithVerbose(ctx, *verbose)
 	ctx = WithOutput(ctx, StdOutput())
-	if err := execute(ctx, *cfg, plan); err != nil {
+	err := execute(ctx, *cfg, plan)
+	stop()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -212,10 +214,11 @@ func executeTask(ctx context.Context, task *Task, p *plan) error {
 	// "." means root - use all paths from plan.
 	// Any other value means subdirectory shim - only run in that path.
 	taskScope := os.Getenv("TASK_SCOPE")
-	if taskScope != "" && taskScope != "." {
+	switch {
+	case taskScope != "" && taskScope != ".":
 		// Running from a subdirectory via shim - only run in that path.
 		paths = []string{taskScope}
-	} else if p != nil {
+	case p != nil:
 		// Running from root - use paths from plan.
 		if info, ok := p.pathMappings[task.Name()]; ok && len(info.resolvedPaths) > 0 {
 			paths = info.resolvedPaths
@@ -223,7 +226,7 @@ func executeTask(ctx context.Context, task *Task, p *plan) error {
 			// No path mapping - run at root.
 			paths = []string{"."}
 		}
-	} else {
+	default:
 		paths = []string{"."}
 	}
 
@@ -271,7 +274,7 @@ func execute(ctx context.Context, c Config, p *plan) error {
 }
 
 // printHelp prints help information including available tasks.
-func printHelp(cfg *Config, plan *plan) {
+func printHelp(_ *Config, plan *plan) {
 	fmt.Printf("pocket %s\n\n", version())
 	fmt.Println("Usage:")
 	fmt.Println("  pok [flags]")
