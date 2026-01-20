@@ -3,8 +3,8 @@ $ErrorActionPreference = "Stop"
 # Resolve shim directory to find .pocket
 $ShimDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$PocketDir = Join-Path $ShimDir ".pocket"
-$TaskScope = "."
+$PocketDir = Join-Path $ShimDir "../.pocket"
+$TaskScope = "internal"
 $GoVersion = "1.25.5"
 $GoInstallDir = "$PocketDir\tools\go\$GoVersion"
 $GoBin = "$GoInstallDir\go\bin\go.exe"

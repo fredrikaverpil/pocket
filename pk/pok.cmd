@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 
 :: Resolve shim directory to find .pocket
 set "SHIM_DIR=%~dp0"
-set "POCKET_DIR=%SHIM_DIR%{{.PocketDir}}"
-set "TASK_SCOPE={{.Context}}"
+set "POCKET_DIR=%SHIM_DIR%../.pocket"
+set "TASK_SCOPE=pk"
 
 go run -C "%POCKET_DIR%" . %*

@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"slices"
 	"sort"
 )
 
@@ -37,6 +38,11 @@ type plan struct {
 // pathInfo describes where a task should execute.
 // This is part of the public Plan API for introspection.
 type pathInfo struct {
+	// includePaths is the original include patterns from WithIncludePath().
+	// Used for visibility filtering (which tasks are visible from which paths).
+	// Empty means the task runs at root only.
+	includePaths []string
+
 	// resolvedPaths is the list of actual directories where this task should run.
 	// These are resolved from include/exclude patterns against the filesystem.
 	// Paths are relative to git root, normalized with forward slashes.
@@ -79,7 +85,7 @@ func newPlan(root Runnable) (*plan, error) {
 		return nil, err
 	}
 
-	// Derive ModuleDirectories from PathMappings
+	// Derive ModuleDirectories from pathMappings (single source of truth)
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
 	return &plan{
@@ -155,9 +161,10 @@ func (pc *taskCollector) walk(r Runnable) error {
 		}
 
 		// Record path mapping if we're inside a pathFilter.
-		// (uses already-resolved paths from the pathFilter)
+		// Store both include patterns (for visibility) and resolved paths (for execution).
 		if pc.currentPath != nil {
 			pc.pathMappings[v.name] = pathInfo{
+				includePaths:  pc.currentPath.includePaths,
 				resolvedPaths: pc.currentPath.resolvedPaths,
 			}
 		}
@@ -198,23 +205,56 @@ func (pc *taskCollector) walk(r Runnable) error {
 	return nil
 }
 
-// deriveModuleDirectories extracts unique directories from path mappings.
-// These directories are where shims should be generated.
+// deriveModuleDirectories returns directories where shims should be generated.
+// Shims are generated at:
+//  1. Root (".") - always included if any tasks exist
+//  2. Each unique include path pattern from WithIncludePath()
+//
+// This differs from resolved paths: if WithIncludePath("internal") is used,
+// we generate a shim at "internal/", NOT at "internal/shim/", "internal/scaffold/", etc.
+//
+// This function derives shim directories from pathMappings, which already contains
+// the includePaths for each task. This avoids tracking shim directories separately
+// during the tree walk (single source of truth).
 func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
+	// Collect unique include paths from all tasks
 	seen := make(map[string]bool)
-	var dirs []string
+	seen["."] = true // Always include root
 
 	for _, info := range pathMappings {
-		for _, path := range info.resolvedPaths {
-			if !seen[path] {
-				seen[path] = true
-				dirs = append(dirs, path)
-			}
+		for _, p := range info.includePaths {
+			seen[p] = true
 		}
 	}
 
-	// Sort for deterministic output
+	// Convert to sorted slice
+	dirs := make([]string, 0, len(seen))
+	for dir := range seen {
+		dirs = append(dirs, dir)
+	}
 	sort.Strings(dirs)
 
 	return dirs
+}
+
+// taskRunsInPath checks if a task is visible/runnable from a specific path context.
+// Used to filter help output based on TASK_SCOPE environment variable.
+//
+// Rules:
+//   - If path is "" or "." (root), all tasks are visible
+//   - Otherwise, task is visible if path matches any of the task's includePaths
+//   - Tasks without includePaths (root-only tasks) are only visible from root
+func (p *plan) taskRunsInPath(taskName, path string) bool {
+	// Root context sees all tasks
+	if path == "" || path == "." {
+		return true
+	}
+
+	info, ok := p.pathMappings[taskName]
+	if !ok {
+		// Task has no path mapping - it's a root-only task
+		return false
+	}
+
+	return slices.Contains(info.includePaths, path)
 }

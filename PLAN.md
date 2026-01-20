@@ -85,7 +85,7 @@ Questions to answer:
   - [x] Embedded checksums for all platforms from go.dev/dl
   - [x] Auto-downloads Go if not found in PATH
   - [x] Verifies checksums during download
-  - [x] Sets `POK_CONTEXT` environment variable for execution context
+  - [x] Sets `TASK_SCOPE` environment variable for execution context
 
 Questions answered:
 
@@ -151,7 +151,8 @@ Completed:
 Completed:
 
 - [x] CLI argument parsing with flag package
-- [x] `-v` flag for version
+- [x] `-v` flag for verbose mode (changed in Phase 6)
+- [x] `--version` flag for version (added in Phase 6)
 - [x] `-h` flag for help
 - [x] `-json` flag for JSON output
 - [x] Help text generation from plan (lists visible tasks)
@@ -181,18 +182,35 @@ Additional cleanup:
 See pocket-v1's tasks and tools. Let's now start implementing them but here in
 pocket v2.
 
-- [ ] Discuss how we will store tools and packages in pocket. In registry/tasks,
+- [x] Discuss how we will store tools and packages in pocket. In registry/tasks,
       registry/tools packages (or just tasks, tools packages)? Compare with how
       this was done in pocket-v1.
-- [ ] First tool is implemented; I propose golangci-lint.
-- [ ] First task, which uses previous tool, is implemented; I propose a "golang"
+      **Decision:** Root-level `tools/` and `tasks/` packages (e.g.,
+      `tools/golangcilint/`, `tasks/golang/`).
+- [x] First tool is implemented; I propose golangci-lint.
+      **Done:** `tools/golangcilint/golangcilint.go` with `Install` task,
+      versioned installation to `.pocket/tools/go/<pkg>/<version>/bin/`,
+      symlinked to `.pocket/bin/`.
+- [x] First task, which uses previous tool, is implemented; I propose a "golang"
       task would encapsulate several Go-specific tasks/tools. We can then
       dogfood ./pok go-lint for example.
-- [ ] Discussion, review; what went well, what works, what do we have to go back
+      **Done:** `tasks/golang/` with `Lint` task, `Tasks()` bundle function.
+- [x] Discussion, review; what went well, what works, what do we have to go back
       and fix/simplify?
+      **Done:** Simplified execution API from `Do`+`Run`+`Exec` to just `Do`+`Exec`.
+      Removed unused `RunCommand`, `RunCommandString`, `DetectByFile`.
+      Created `REFERENCE.md` documenting public API.
 - [ ] Implement the GitHub workflows task along with the ci matrix capability.
 - [ ] Tools installations should be tested, so that we know each tool can
       install fine and symlink its binary.
+
+Additional completed:
+
+- [x] Added `-v` verbose flag (changed from version to verbose)
+- [x] Added `--version` flag for version display
+- [x] Verbose mode threads through context, affects `Exec()` and `InstallGo()`
+- [x] Task naming: `DefineTask()` for Runnable-based tasks (avoids conflict with
+      `Task` type)
 
 ## Phase 7: Auto-detection of modules
 
@@ -236,8 +254,8 @@ Specifically targeted changes:
 - [ ] Go through each go file and add an equivalent \_test.go file, for adding
       unit tests.
 - [ ] Keep Windows in mind. We need to support Windows.
-- [ ] Cleanup:
-  - [ ] The pok shims have POK_CONTEXT. Is it more clear to call it CWD (is that
-        what this is)?
+- [x] Cleanup:
+  - [x] Renamed shim variables for clarity: `SHIM_DIR`, `POCKET_DIR`, `TASK_SCOPE`
+  - [x] Fixed shim path resolution (works when invoked from any directory)
 - [ ] Analyze pocket-v1; are we missing any features in this rewrite?
 - [ ] Implement all tasks and tools from pocket v1

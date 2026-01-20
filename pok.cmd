@@ -1,7 +1,9 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "POK_DIR=.pocket"
-set "POK_CONTEXT=."
+:: Resolve shim directory to find .pocket
+set "SHIM_DIR=%~dp0"
+set "POCKET_DIR=%SHIM_DIR%.pocket"
+set "TASK_SCOPE=."
 
-go run -C "%POK_DIR%" . %*
+go run -C "%POCKET_DIR%" . %*

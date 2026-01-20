@@ -160,10 +160,13 @@ func executeTask(ctx context.Context, task *Task, p *plan) error {
 	// Determine execution paths.
 	var paths []string
 
-	// Check POK_CONTEXT environment variable (set by shim).
-	if pokContext := os.Getenv("POK_CONTEXT"); pokContext != "" {
+	// Check TASK_SCOPE environment variable (set by shim).
+	// "." means root - use all paths from plan.
+	// Any other value means subdirectory shim - only run in that path.
+	taskScope := os.Getenv("TASK_SCOPE")
+	if taskScope != "" && taskScope != "." {
 		// Running from a subdirectory via shim - only run in that path.
-		paths = []string{pokContext}
+		paths = []string{taskScope}
 	} else if p != nil {
 		// Running from root - use paths from plan.
 		if info, ok := p.pathMappings[task.Name()]; ok && len(info.resolvedPaths) > 0 {
@@ -241,10 +244,13 @@ func printHelp(cfg *Config, plan *plan) {
 		return
 	}
 
-	// Filter out hidden tasks and sort
+	// Filter tasks by visibility:
+	// 1. Not hidden
+	// 2. Runs in current path context (from TASK_SCOPE env var)
+	taskScope := os.Getenv("TASK_SCOPE")
 	var visibleTasks []*Task
 	for _, task := range plan.tasks {
-		if !task.IsHidden() {
+		if !task.IsHidden() && plan.taskRunsInPath(task.Name(), taskScope) {
 			visibleTasks = append(visibleTasks, task)
 		}
 	}

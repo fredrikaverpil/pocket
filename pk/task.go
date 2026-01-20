@@ -27,6 +27,22 @@ func NewTask(name, usage string, flags *flag.FlagSet, fn func(context.Context) e
 	}
 }
 
+// DefineTask creates a task from a Runnable body.
+// This enables composition patterns where a task wraps Serial/Parallel runnables.
+//
+//	var Lint = pk.DefineTask("lint", "run linters",
+//	    pk.Serial(Install, lintCmd),
+//	)
+func DefineTask(name, usage string, body Runnable) *Task {
+	return &Task{
+		name:  name,
+		usage: usage,
+		fn: func(ctx context.Context) error {
+			return body.run(ctx)
+		},
+	}
+}
+
 // run implements the Runnable interface.
 func (t *Task) run(ctx context.Context) error {
 	if t.fn == nil {
