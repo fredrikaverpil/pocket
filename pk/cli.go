@@ -7,13 +7,53 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 
 	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
-// Version is the current version of Pocket.
-const Version = "2.0.0-dev"
+// version returns the current version of Pocket.
+// It reads version info embedded by Go 1.18+ during `go build`.
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+
+	// Check if Pocket is a dependency (user's .pocket/ importing us)
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/fredrikaverpil/pocket" {
+			// v0.0.0 means replace directive - fall through to VCS check
+			if dep.Version != "" && dep.Version != "v0.0.0" {
+				return dep.Version
+			}
+			break
+		}
+	}
+
+	// Try to get VCS info (works when building in the Pocket repo)
+	var revision, dirty string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			if len(s.Value) >= 7 {
+				revision = s.Value[:7]
+			} else {
+				revision = s.Value
+			}
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = "-dirty"
+			}
+		}
+	}
+	if revision != "" {
+		return "dev-" + revision + dirty
+	}
+
+	return "dev"
+}
 
 // RunMain is the main CLI entry point that handles argument parsing and dispatch.
 // It's called from .pocket/main.go.
@@ -32,7 +72,7 @@ func RunMain(cfg *Config) {
 
 	// Handle version flag
 	if *showVersion {
-		fmt.Printf("pocket %s\n", Version)
+		fmt.Printf("pocket %s\n", version())
 		return
 	}
 
@@ -224,7 +264,7 @@ func execute(ctx context.Context, c Config, p *plan) error {
 
 // printHelp prints help information including available tasks.
 func printHelp(cfg *Config, plan *plan) {
-	fmt.Printf("pocket %s\n\n", Version)
+	fmt.Printf("pocket %s\n\n", version())
 	fmt.Println("Usage:")
 	fmt.Println("  pok [flags]")
 	fmt.Println("  pok <task> [flags]")
@@ -319,8 +359,8 @@ func printPlan(cfg *Config, plan *plan, asJSON bool) error {
 
 // printPlanJSON outputs the plan as JSON.
 func printPlanJSON(root Runnable, plan *plan) error {
-	output := map[string]interface{}{
-		"version":           Version,
+	output := map[string]any{
+		"version":           version(),
 		"moduleDirectories": plan.moduleDirectories,
 		"tree":              buildJSONTree(root, plan.pathMappings),
 		"tasks":             buildTaskList(plan.tasks, plan.pathMappings),
