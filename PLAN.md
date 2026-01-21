@@ -255,25 +255,30 @@ Specifically targeted changes:
 
 ## Phase 8: Documentation
 
-- [ ] Add README.md; compare against pocket-v1 so we don't forget anything
-      important
-  - [ ] Inspect the pk package; this is our public API. Add documentation around
-        all public symbols that are intended to be used by users.
-- [ ] Add ARCHTECTURE.md ; this document is targeting contributors and
-      maintainers, explaining how Pocket works.
+- [x] Add README.md; professional high-level overview with quickstart
+- [x] Create detailed guides in `docs/`:
+  - [x] `docs/tasks-and-tools.md`
+  - [x] `docs/composition-and-paths.md`
+- [x] Add ARCHTECTURE.md; targeting contributors, explaining internals
+- [x] Add REFERENCE.md; technical API reference for `pk` package
+- [x] Taskify built-in maintenance commands (`generate`, `update`)
+- [x] Professionalize output with `pk.Printf`, `pk.Println`, `pk.Errorf`
+- [x] Implement `git-diff` as a standard task in `tasks/git/diff.go`
+- [x] Refactor version logic into `pk/version.go`
+- [x] Unified and robust signal handling in `pk/cli.go`
 
-## Phase "Wrapup" (last phase)
+## Phase 9: Wrapup & Polish
 
 - [ ] Analyze Pocket
   - [ ] DX - do we have good developer experience?
   - [ ] Long-term maintainability, is the codebase simple and ideomatic to Go?
   - [ ] Compare with pocket-v1; which areas have been improved, which areas were
         done better/simpler in pocket-v1?
-- [ ] Go through each go file and add an equivalent \_test.go file, for adding
-      unit tests.
-- [ ] Keep Windows in mind. We need to support Windows.
-- [x] Cleanup:
-  - [x] Renamed shim variables for clarity: `SHIM_DIR`, `POCKET_DIR`, `TASK_SCOPE`
-  - [x] Fixed shim path resolution (works when invoked from any directory)
-- [ ] Analyze pocket-v1; are we missing any features in this rewrite?
-- [ ] Implement all tasks and tools from pocket v1
+- [ ] Tag the first release (v0.1.0) and verify version reporting
+- [ ] End-to-end test of the bootstrapper (`pocket init`)
+- [ ] Unit test coverage:
+  - [ ] `pk/builtins.go`
+  - [ ] `pk/install.go`
+- [ ] Implementation of remaining tasks/tools from v1:
+  - [ ] GitHub Workflows + Matrix generation
+  - [ ] Pre-commit hook integration
