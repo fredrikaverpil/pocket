@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// plan represents the execution plan created from a Config.
+// Plan represents the execution plan created from a Config.
 // It preserves the composition tree structure while extracting metadata.
 //
 // The plan is created once by analyzing both the Config and filesystem,
@@ -13,10 +13,10 @@ import (
 // the plan to inspect what will execute, build custom tooling, or implement
 // their own visualization.
 //
-// IMPORTANT: While plan is exported for introspection, the composition types
+// IMPORTANT: While Plan is exported for introspection, the composition types
 // (serial, parallel, pathFilter) remain internal. Users should not rely on
 // type assertions against Runnable - the composition structure may change.
-type plan struct {
+type Plan struct {
 	// tree is the composition tree that preserves dependencies and structure.
 	// Execution walks this tree, respecting Serial/Parallel composition.
 	// This is exposed as a Runnable, but the concrete types are internal.
@@ -50,12 +50,12 @@ type pathInfo struct {
 	resolvedPaths []string
 }
 
-// newPlan creates an execution plan from a Config.
+// NewPlan creates an execution plan from a Config.
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
-func newPlan(cfg *Config) (*plan, error) {
+func NewPlan(cfg *Config) (*Plan, error) {
 	if cfg == nil || (cfg.Auto == nil && len(cfg.Manual) == 0) {
-		return &plan{
+		return &Plan{
 			tree:              nil,
 			tasks:             []*Task{},
 			pathMappings:      make(map[string]pathInfo),
@@ -98,7 +98,7 @@ func newPlan(cfg *Config) (*plan, error) {
 	// Derive ModuleDirectories from pathMappings (single source of truth)
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
-	return &plan{
+	return &Plan{
 		tree:              cfg.Auto, // Preserve the composition tree!
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
@@ -267,7 +267,7 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 //   - If path is "" or "." (root), all tasks are visible
 //   - Otherwise, task is visible if path matches any of the task's includePaths
 //   - Tasks without includePaths (root-only tasks) are only visible from root
-func (p *plan) taskRunsInPath(taskName, path string) bool {
+func (p *Plan) taskRunsInPath(taskName, path string) bool {
 	// Root context sees all tasks
 	if path == "" || path == "." {
 		return true

@@ -63,6 +63,15 @@ Wraps a Go function as a `Runnable`.
 ### `Exec(ctx context.Context, name string, args ...string) error`
 Executes an external command. Captures output and respects context cancellation. Adds `.pocket/bin` to `PATH`.
 
+### `Printf(ctx context.Context, format string, a ...any)`
+Formats and prints to the output in the context (correctly handles standard and buffered output).
+
+### `Println(ctx context.Context, a ...any)`
+Prints to the output in the context.
+
+### `Errorf(ctx context.Context, format string, a ...any)`
+Formats and prints to the error output in the context.
+
 ## Tool Installation
 
 ### `InstallGo(pkg, version string) Runnable`

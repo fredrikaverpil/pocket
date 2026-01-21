@@ -12,7 +12,7 @@ type Config struct {
 	// These tasks are not executed as part of Auto on bare `./pok`.
 	// Example: deploy tasks, setup scripts, or tasks requiring specific flags.
 	//
-	//	Manual: []pk.Runnable{
+	// Manual: []pk.Runnable{
 	//	    Deploy,
 	//	    Hello.Manual(),
 	//	}

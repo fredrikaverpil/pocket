@@ -38,10 +38,19 @@ func PathFromContext(ctx context.Context) string {
 	return "."
 }
 
-// WithPlan returns a new context with the given plan set.
+// WithPlan returns a new context with the given Plan set.
 // This is used internally to pass the plan through execution.
-func WithPlan(ctx context.Context, p *plan) context.Context {
+func WithPlan(ctx context.Context, p *Plan) context.Context {
 	return context.WithValue(ctx, planKey, p)
+}
+
+// PlanFromContext returns the Plan from the context.
+// Returns nil if no plan is set.
+func PlanFromContext(ctx context.Context) *Plan {
+	if p, ok := ctx.Value(planKey).(*Plan); ok {
+		return p
+	}
+	return nil
 }
 
 // executionTracker tracks which tasks have already executed.

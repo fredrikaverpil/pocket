@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/git"
@@ -26,6 +25,6 @@ var Config = &pk.Config{
 
 // Hello is an example task. Replace with your own tasks.
 var Hello = pk.NewTask("hello", "print a greeting message", nil, pk.Do(func(ctx context.Context) error {
-	fmt.Println("Hello from Pocket!")
+	pk.Println(ctx, "Hello from Pocket!")
 	return nil
 }))

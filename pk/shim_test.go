@@ -73,7 +73,7 @@ func TestShimDirectories_Sorted(t *testing.T) {
 }
 
 func TestTaskRunsInPath_RootSeesAllTasks(t *testing.T) {
-	p := &plan{
+	p := &Plan{
 		pathMappings: map[string]pathInfo{
 			"hello": {
 				includePaths:  nil, // root-only task
@@ -102,7 +102,7 @@ func TestTaskRunsInPath_RootSeesAllTasks(t *testing.T) {
 }
 
 func TestTaskRunsInPath_FilteredByIncludePath(t *testing.T) {
-	p := &plan{
+	p := &Plan{
 		pathMappings: map[string]pathInfo{
 			"hello": {
 				includePaths:  nil, // root-only task
@@ -138,7 +138,7 @@ func TestTaskRunsInPath_FilteredByIncludePath(t *testing.T) {
 }
 
 func TestTaskRunsInPath_UnknownTask(t *testing.T) {
-	p := &plan{
+	p := &Plan{
 		pathMappings: map[string]pathInfo{},
 	}
 
@@ -164,7 +164,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 	}))
 
 	// Create plan with task mapped to multiple paths
-	p := &plan{
+	p := &Plan{
 		tasks: []*Task{task},
 		pathMappings: map[string]pathInfo{
 			"scoped-task": {
@@ -184,7 +184,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := executeTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, task, p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -206,7 +206,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := executeTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, task, p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -228,7 +228,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := executeTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, task, p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 

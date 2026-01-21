@@ -67,7 +67,7 @@ func (g *goInstaller) run(ctx context.Context) error {
 	if target, err := os.Readlink(binPath); err == nil {
 		if target == toolBinPath {
 			if Verbose(ctx) {
-				fmt.Printf("  [install] %s@%s already installed\n", binaryName, g.version)
+				Printf(ctx, "  [install] %s@%s already installed\n", binaryName, g.version)
 			}
 			return nil
 		}
@@ -82,11 +82,12 @@ func (g *goInstaller) run(ctx context.Context) error {
 	pkgWithVersion := g.pkg + "@" + g.version
 	cmd := exec.CommandContext(ctx, "go", "install", pkgWithVersion)
 	cmd.Env = append(os.Environ(), "GOBIN="+toolBinDir)
+	out := OutputFromContext(ctx)
 
 	if Verbose(ctx) {
-		fmt.Printf("  [install] go install %s\n", pkgWithVersion)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		Printf(ctx, "  [install] go install %s\n", pkgWithVersion)
+		cmd.Stdout = out.Stdout
+		cmd.Stderr = out.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("go install %s: %w", pkgWithVersion, err)
 		}
@@ -111,7 +112,7 @@ func (g *goInstaller) run(ctx context.Context) error {
 	}
 
 	if Verbose(ctx) {
-		fmt.Printf("  [install] linked %s -> %s\n", binPath, toolBinPath)
+		Printf(ctx, "  [install] linked %s -> %s\n", binPath, toolBinPath)
 	}
 
 	return nil

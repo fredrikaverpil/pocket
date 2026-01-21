@@ -2,6 +2,8 @@ package pk
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"io"
 	"os"
 )
@@ -54,4 +56,22 @@ func (b *bufferedOutput) Flush() {
 	if b.stderr.Len() > 0 {
 		_, _ = b.parent.Stderr.Write(b.stderr.Bytes())
 	}
+}
+
+// Printf formats and prints to the output in the context.
+func Printf(ctx context.Context, format string, a ...any) {
+	out := OutputFromContext(ctx)
+	fmt.Fprintf(out.Stdout, format, a...)
+}
+
+// Println prints to the output in the context.
+func Println(ctx context.Context, a ...any) {
+	out := OutputFromContext(ctx)
+	fmt.Fprintln(out.Stdout, a...)
+}
+
+// Errorf formats and prints to the error output in the context.
+func Errorf(ctx context.Context, format string, a ...any) {
+	out := OutputFromContext(ctx)
+	fmt.Fprintf(out.Stderr, format, a...)
 }

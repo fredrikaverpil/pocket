@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/git"
@@ -32,6 +31,6 @@ var (
 // Hello is a demo task that prints a greeting.
 // Demonstrates task with CLI flags.
 var Hello = pk.NewTask("hello", "print a greeting message", helloFlags, pk.Do(func(ctx context.Context) error {
-	fmt.Printf("Hello, %s!\n", *helloName)
+	pk.Printf(ctx, "Hello, %s!\n", *helloName)
 	return nil
 }))
