@@ -229,7 +229,7 @@ Additional completed:
 - [x] Let's implement a way to autodetect e.g. `go.mod` files, and run the
       golang task(s) in each such module. This would replace the need for
       `WithIncludePath`.
-      **Done:** Implemented `DetectFunc`, `DetectByFile()`, `DetectByExtension()`
+      **Done:** Implemented `DetectFunc`, `DetectByFile()`
       in `pk/detect.go`. Added `WithDetect()` path option. Updated
       `tasks/golang/tasks.go` to use `WithDetect(golang.Detect())`.
 - [x] When auto-detecting, we might want to exclude both paths and tasks. See

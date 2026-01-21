@@ -103,7 +103,7 @@ bare `./pok` execution. This is useful for:
 
 ```go
 var Config = &pk.Config{
-    Root: pk.Serial(golang.Tasks()),  // Runs on bare ./pok
+    Auto: pk.Serial(golang.Tasks()),  // Runs on bare ./pok
 
     Manual: []pk.Runnable{
         Hello.Manual(),  // Only runs via ./pok hello

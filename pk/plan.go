@@ -17,13 +17,13 @@ import (
 // (serial, parallel, pathFilter) remain internal. Users should not rely on
 // type assertions against Runnable - the composition structure may change.
 type plan struct {
-	// root is the composition tree that preserves dependencies and structure.
+	// tree is the composition tree that preserves dependencies and structure.
 	// Execution walks this tree, respecting Serial/Parallel composition.
 	// This is exposed as a Runnable, but the concrete types are internal.
-	root Runnable
+	tree Runnable
 
 	// tasks is a flat list of all tasks for lookup, CLI dispatch, and help.
-	// This is extracted from walking the Root tree.
+	// This is extracted from walking the Auto tree.
 	tasks []*Task
 
 	// pathMappings maps task names to their execution directories.
@@ -54,9 +54,9 @@ type pathInfo struct {
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
 func newPlan(cfg *Config) (*plan, error) {
-	if cfg == nil || (cfg.Root == nil && len(cfg.Manual) == 0) {
+	if cfg == nil || (cfg.Auto == nil && len(cfg.Manual) == 0) {
 		return &plan{
-			root:              nil,
+			tree:              nil,
 			tasks:             []*Task{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
@@ -81,9 +81,9 @@ func newPlan(cfg *Config) (*plan, error) {
 		allDirs:      allDirs,
 	}
 
-	// Walk the Root tree
-	if cfg.Root != nil {
-		if err := collector.walk(cfg.Root); err != nil {
+	// Walk the Auto tree
+	if cfg.Auto != nil {
+		if err := collector.walk(cfg.Auto); err != nil {
 			return nil, err
 		}
 	}
@@ -99,7 +99,7 @@ func newPlan(cfg *Config) (*plan, error) {
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
 	return &plan{
-		root:              cfg.Root, // Preserve the composition tree!
+		tree:              cfg.Auto, // Preserve the composition tree!
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,

@@ -1,99 +1,86 @@
 # Pocket API Reference
 
-Public API for building task configurations and tools.
+This document provides a technical reference for the public API in the `github.com/fredrikaverpil/pocket/pk` package.
 
-## Composition
+## Configuration
 
-Functions for building the task tree in `.pocket/config.go`:
-
-| Function                          | Description                                         |
-| --------------------------------- | --------------------------------------------------- |
-| `Serial(runnables ...Runnable)`   | Execute runnables sequentially, stop on first error |
-| `Parallel(runnables ...Runnable)` | Execute runnables concurrently, wait for all        |
-| `WithOptions(runnable, opts...)`  | Apply path filtering options to a runnable          |
-
-### Path Options
-
-Used with `WithOptions()`:
-
-| Function                   | Description                                   |
-| -------------------------- | --------------------------------------------- |
-| `WithIncludePath(pattern)` | Only run in directories matching pattern      |
-| `WithExcludePath(pattern)` | Skip directories matching pattern             |
-| `WithDetect(fn)`           | Dynamically discover paths via detection func |
-| `WithForceRun()`           | Bypass deduplication, always run              |
-
-### Detection Functions
-
-Used with `WithDetect()`:
-
-| Function                     | Description                                   |
-| ---------------------------- | --------------------------------------------- |
-| `DetectByFile(filenames...)` | Find directories containing any of the files |
-
-Custom detection functions can be created using the `DetectFunc` type:
-`func(dirs []string, gitRoot string) []string`
-
-## Task Construction
-
-| Function                            | Description                                            |
-| ----------------------------------- | ------------------------------------------------------ |
-| `NewTask(name, usage, flags, body)` | Create task with Runnable body and optional flags      |
-| `(*Task).Hidden()`                  | Return hidden copy of task (excluded from CLI help)    |
-| `(*Task).Manual()`                  | Return manual copy (only runs when explicitly invoked) |
-| `(*Task).IsManual()`                | Check if task is manual-only                           |
-
-## Execution
-
-Used inside task functions:
-
-| Function                   | Description                                    |
-| -------------------------- | ---------------------------------------------- |
-| `Do(fn)`                   | Wrap `func(context.Context) error` as Runnable |
-| `Exec(ctx, name, args...)` | Run command with `.pocket/bin` in PATH         |
-
-## Tool Installation
-
-| Function                  | Description                                  |
-| ------------------------- | -------------------------------------------- |
-| `InstallGo(pkg, version)` | Install Go package, symlink to `.pocket/bin` |
-
-## Context Helpers
-
-| Function               | Description                                       |
-| ---------------------- | ------------------------------------------------- |
-| `PathFromContext(ctx)` | Get current execution path (relative to git root) |
-| `Verbose(ctx)`         | Check if verbose mode is enabled                  |
-
-## Path Helpers
-
-| Function                 | Description                            |
-| ------------------------ | -------------------------------------- |
-| `FromGitRoot(paths...)`  | Absolute path from git repository root |
-| `FromPocketDir(elem...)` | Absolute path within `.pocket/`        |
-| `FromToolsDir(elem...)`  | Absolute path within `.pocket/tools/`  |
-| `FromBinDir(elem...)`    | Absolute path within `.pocket/bin/`    |
-
----
-
-## Config Structure
-
-The main configuration struct:
+### `type Config`
+The main entry point for configuring Pocket.
 
 ```go
 type Config struct {
-    Root   Runnable    // Tasks executed on bare ./pok
+    Auto   Runnable    // Tasks executed on bare ./pok
     Manual []Runnable  // Tasks only run when explicitly invoked
 }
 ```
 
-## Internal API
+## Composition
 
-These functions are exported but intended for Pocket's internal use only (called
-by generated `.pocket/main.go` or the executor):
+### `Serial(runnables ...Runnable) Runnable`
+Executes runnables sequentially. Stops on the first error.
 
-| Function                 | Description                                    |
-| ------------------------ | ---------------------------------------------- |
-| `RunMain(cfg *Config)`   | CLI entry point, called from `.pocket/main.go` |
-| `WithPath(ctx, path)`    | Set execution path in context                  |
-| `WithVerbose(ctx, bool)` | Set verbose mode in context                    |
+### `Parallel(runnables ...Runnable) Runnable`
+Executes runnables concurrently. Waits for all to complete. Buffers output to prevent interleaving.
+
+### `WithOptions(runnable Runnable, opts ...Option) Runnable`
+Applies path filtering and execution options to a runnable.
+
+## Path Options
+
+Used with `WithOptions()`:
+
+| Function | Description |
+| :--- | :--- |
+| `WithIncludePath(pattern)` | Run only in directories matching the glob pattern. |
+| `WithExcludePath(pattern)` | Skip directories matching the glob pattern. |
+| `WithDetect(DetectFunc)` | Dynamically discover paths using a detection function. |
+| `WithForceRun()` | Bypass task deduplication for the wrapped runnable. |
+
+## Detection Functions
+
+Used with `WithDetect()`:
+
+| Function | Description |
+| :--- | :--- |
+| `DetectByFile(filenames...)` | Find directories containing any of the specified files. |
+
+## Task Construction
+
+### `NewTask(name, usage string, flags *flag.FlagSet, body Runnable) *Task`
+Creates a named task.
+
+### `(*Task) Hidden() *Task`
+Returns a copy of the task that is excluded from CLI help output.
+
+### `(*Task) Manual() *Task`
+Returns a copy of the task that only runs when explicitly invoked by name.
+
+## Execution Helpers
+
+### `Do(func(context.Context) error) Runnable`
+Wraps a Go function as a `Runnable`.
+
+### `Exec(ctx context.Context, name string, args ...string) error`
+Executes an external command. Captures output and respects context cancellation. Adds `.pocket/bin` to `PATH`.
+
+## Tool Installation
+
+### `InstallGo(pkg, version string) Runnable`
+Installs a Go package using `go install`. The binary is placed in `.pocket/tools` and symlinked to `.pocket/bin`.
+
+## Context Accessors
+
+| Function | Description |
+| :--- | :--- |
+| `PathFromContext(ctx)` | Returns the current execution path relative to the git root. |
+| `Verbose(ctx)` | Returns `true` if the `-v` flag was provided. |
+| `OutputFromContext(ctx)` | Returns the `Output` struct (Stdout/Stderr) for the current task. |
+
+## Path Helpers
+
+| Function | Description |
+| :--- | :--- |
+| `FromGitRoot(elems ...string)` | Returns an absolute path relative to the git repository root. |
+| `FromPocketDir(elems ...string)` | Returns an absolute path relative to `.pocket/`. |
+| `FromBinDir(elems ...string)` | Returns an absolute path relative to `.pocket/bin/`. |
+| `FromToolsDir(elems ...string)` | Returns an absolute path relative to `.pocket/tools/`. |

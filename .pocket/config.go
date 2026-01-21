@@ -11,7 +11,7 @@ import (
 
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
-	Root: pk.Serial(
+	Auto: pk.Serial(
 		golang.Tasks(), // Auto-detects go.mod directories
 	),
 

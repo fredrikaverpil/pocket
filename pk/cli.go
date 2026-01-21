@@ -242,7 +242,7 @@ func executeTask(ctx context.Context, task *Task, p *plan) error {
 }
 
 func execute(ctx context.Context, c Config, p *plan) error {
-	if c.Root == nil || p == nil {
+	if c.Auto == nil || p == nil {
 		return nil
 	}
 
@@ -267,7 +267,7 @@ func execute(ctx context.Context, c Config, p *plan) error {
 	// Execute with plan and execution tracker in context.
 	ctx = WithPlan(ctx, p)
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	return c.Root.run(ctx)
+	return c.Auto.run(ctx)
 }
 
 // printHelp prints help information including available tasks.
@@ -302,12 +302,12 @@ func printHelp(_ *Config, plan *plan) {
 		}
 	}
 
-	printTaskSection("Tasks:", regularTasks)
-	printTaskSection("Manual tasks (explicit invocation only):", manualTasks)
+	printTaskSection("Auto tasks:", regularTasks)
+	printTaskSection("Manual tasks:", manualTasks)
 
 	// Print builtin commands last
 	fmt.Println()
-	fmt.Println("Builtin commands:")
+	fmt.Println("Builtin tasks:")
 	fmt.Println("  plan [-json]  show execution plan without running tasks")
 }
 
@@ -344,7 +344,7 @@ func printPlan(cfg *Config, plan *plan, asJSON bool) error {
 	}
 
 	if asJSON {
-		return printPlanJSON(cfg.Root, plan)
+		return printPlanJSON(cfg.Auto, plan)
 	}
 
 	// Text output
@@ -366,7 +366,7 @@ func printPlan(cfg *Config, plan *plan, asJSON bool) error {
 
 	// Show composition tree
 	fmt.Printf("Composition Tree:\n")
-	printTree(cfg.Root, "", true, plan.pathMappings)
+	printTree(cfg.Auto, "", true, plan.pathMappings)
 
 	fmt.Println()
 	fmt.Printf("Legend: [→] = Serial, [⚡] = Parallel\n")
@@ -375,11 +375,11 @@ func printPlan(cfg *Config, plan *plan, asJSON bool) error {
 }
 
 // printPlanJSON outputs the plan as JSON.
-func printPlanJSON(root Runnable, plan *plan) error {
+func printPlanJSON(tree Runnable, plan *plan) error {
 	output := map[string]any{
 		"version":           version(),
 		"moduleDirectories": plan.moduleDirectories,
-		"tree":              buildJSONTree(root, plan.pathMappings),
+		"tree":              buildJSONTree(tree, plan.pathMappings),
 		"tasks":             buildTaskList(plan.tasks, plan.pathMappings),
 	}
 
