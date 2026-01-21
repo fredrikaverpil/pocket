@@ -24,16 +24,40 @@ var Auto = pk.Parallel(Lint, Test)
 
 ## Path Filtering
 
-In monorepos or multi-module projects, you often want to run tasks only in specific directories. Pocket provides `pk.WithOptions` to apply path-based constraints.
+In monorepos or multi-module projects, you often want to run tasks only in specific directories. Pocket provides `pk.WithOptions` to apply path-based constraints. All path patterns are interpreted as **regular expressions**.
 
 ### Include and Exclude
-You can manually specify which paths to include or exclude.
+You can manually specify which paths to include or exclude. Exclusions can be global to the scope or targeted at specific tasks using their task objects or string names.
 
 ```go
 pk.WithOptions(
-    Lint,
+    golang.Tasks(),
     pk.WithIncludePath("services/api"),
-    pk.WithExcludePath("vendor"),
+    pk.WithExcludePath("vendor"),              // Global: no tasks run in vendor/
+    pk.WithExcludeTask(golang.Test, "foo/.*"), // Targeted: only 'golang.Test' skips paths matching foo/.*
+)
+```
+
+### Task Skipping and Flags
+You can completely remove tasks from a scope or configure their flags without changing the task definitions.
+
+```go
+pk.WithOptions(
+    golang.Tasks(),
+    pk.WithSkipTask(golang.Lint),         // Remove linting from this scope
+    pk.WithFlag(golang.Test, "race", true), // Ensure race detector is enabled
+)
+```
+
+
+### Task Skipping and Flags
+You can completely remove tasks from a scope or configure their flags without changing the task definitions.
+
+```go
+pk.WithOptions(
+    golang.Tasks(),
+    pk.WithSkipTask("go-lint"),           // Remove linting from this scope
+    pk.WithFlag("go-test", "race", true), // Ensure race detector is enabled
 )
 ```
 
@@ -46,6 +70,8 @@ pk.WithOptions(
     pk.WithDetect(pk.DetectByFile("go.mod")),
 )
 ```
+
+Pocket uses **refining composition**: if you nest `WithOptions`, inner detection functions only search within the directories allowed by the outer scope.
 
 Pocket walks the filesystem once and caches the results, ensuring that detection is extremely fast even in large repositories.
 

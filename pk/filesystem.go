@@ -3,6 +3,7 @@ package pk
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -94,21 +95,9 @@ func walkDirectories(gitRoot string) ([]string, error) {
 	return dirs, err
 }
 
-// matchPattern checks if a path matches a pattern.
-// For now, implements simple prefix matching:
-// - "services" matches "services", "services/api", "services/auth", etc.
-// - "pkg" matches "pkg", "pkg/common", etc.
+// matchPattern checks if a path matches a regex pattern.
 // Returns true if path matches the pattern.
 func matchPattern(path, pattern string) bool {
-	// Exact match
-	if path == pattern {
-		return true
-	}
-
-	// Prefix match (pattern is a directory prefix)
-	if strings.HasPrefix(path, pattern+"/") {
-		return true
-	}
-
-	return false
+	matched, _ := regexp.MatchString(pattern, path)
+	return matched
 }

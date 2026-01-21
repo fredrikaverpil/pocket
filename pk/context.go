@@ -21,6 +21,8 @@ const (
 	verboseKey
 	// outputKey is the context key for output writers.
 	outputKey
+	// flagsKey is the context key for task flag overrides.
+	flagsKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -125,6 +127,35 @@ func Verbose(ctx context.Context) bool {
 // WithOutput returns a new context with the given output set.
 func WithOutput(ctx context.Context, out *Output) context.Context {
 	return context.WithValue(ctx, outputKey, out)
+}
+
+// withFlagOverride returns a new context with a flag override for a specific task.
+func withFlagOverride(ctx context.Context, taskName, flagName string, value any) context.Context {
+	overrides := flagOverridesFromContext(ctx)
+	newOverrides := make(map[string]map[string]any)
+
+	// Shallow copy outer map.
+	for k, v := range overrides {
+		newOverrides[k] = v
+	}
+
+	// Shallow copy inner map for the specific task.
+	inner := make(map[string]any)
+	for k, v := range overrides[taskName] {
+		inner[k] = v
+	}
+	inner[flagName] = value
+	newOverrides[taskName] = inner
+
+	return context.WithValue(ctx, flagsKey, newOverrides)
+}
+
+// flagOverridesFromContext returns the map of task flag overrides from the context.
+func flagOverridesFromContext(ctx context.Context) map[string]map[string]any {
+	if v, ok := ctx.Value(flagsKey).(map[string]map[string]any); ok {
+		return v
+	}
+	return nil
 }
 
 // OutputFromContext returns the Output from the context.

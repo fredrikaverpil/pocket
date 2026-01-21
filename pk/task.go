@@ -47,6 +47,21 @@ func (t *Task) run(ctx context.Context) error {
 		return fmt.Errorf("task %q has no implementation", t.name)
 	}
 
+	// Apply flag overrides from context.
+	if t.flags != nil {
+		overrides := flagOverridesFromContext(ctx)
+		if taskOverrides, ok := overrides[t.name]; ok {
+			for name, value := range taskOverrides {
+				f := t.flags.Lookup(name)
+				if f != nil {
+					if err := f.Value.Set(fmt.Sprint(value)); err != nil {
+						return fmt.Errorf("task %q: setting flag %q to %v: %w", t.name, name, value, err)
+					}
+				}
+			}
+		}
+	}
+
 	// Check deduplication unless forceRun is set in context.
 	// Deduplication is by (task name, path) tuple.
 	if !forceRunFromContext(ctx) {

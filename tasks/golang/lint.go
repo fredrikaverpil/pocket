@@ -2,14 +2,20 @@ package golang
 
 import (
 	"context"
+	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
+var (
+	lintFlags = flag.NewFlagSet("go-lint", flag.ContinueOnError)
+	lintFix   = lintFlags.Bool("fix", true, "apply fixes")
+)
+
 // Lint runs golangci-lint on Go code.
 // Automatically installs golangci-lint if not present.
-var Lint = pk.NewTask("go-lint", "run golangci-lint", nil,
+var Lint = pk.NewTask("go-lint", "run golangci-lint", lintFlags,
 	pk.Serial(golangcilint.Install, lintCmd()),
 )
 
@@ -19,7 +25,10 @@ func lintCmd() pk.Runnable {
 		if pk.Verbose(ctx) {
 			args = append(args, "-v")
 		}
-		args = append(args, "--fix", "./...")
+		if *lintFix {
+			args = append(args, "--fix")
+		}
+		args = append(args, "./...")
 		return pk.Exec(ctx, golangcilint.Name, args...)
 	})
 }

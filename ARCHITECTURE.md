@@ -63,31 +63,56 @@ pk.DetectByFile("go.mod", "go.sum")  // Directories with go.mod or go.sum
 ### How Detection Works
 
 1. Filesystem is walked once during plan building (cached in `allDirs`)
-2. Detection function filters `allDirs` using `os.Stat()` checks
-3. Results can be further filtered with `WithIncludePath`/`WithExcludePath`
+2. Detection function filters current scope candidates (using `os.Stat()` checks)
+3. Inner detection functions resolve against their parent scope, allowing for cumulative refining.
+
+### Scoping and Refining
+
+Task composition in Pocket is **refining**. Nested `pk.WithOptions` calls accumulate their constraints:
+
+*   **Cumulative Intersection**: An inner `WithDetect` or `WithIncludePath` only sees directories that passed the outer scope's filters.
+*   **Inherited Exclusions**: If an outer scope excludes a path, no task inside that scope can execute there, even if an inner detection function finds it.
+
+```go
+pk.WithOptions(
+    golang.Tasks(),               // Detects go.mod directories
+    pk.WithExcludePath("vendor"), // Global exclusion for this scope
+)
+```
+
+### Task-Specific Scoping
+
+You can apply constraints to specific tasks within a bundle without refactoring the tree. All path patterns are interpreted as **regular expressions**.
+
+*   **`WithExcludePath(patterns...)`**: Directories matching any of the patterns will be excluded for ALL tasks in the current scope.
+*   **`WithExcludeTask(task, patterns...)`**: If tasks are provided, the exclusion only applies to them for the specified patterns.
+*   **`WithSkipTask(tasks...)`**: Completely removes specific tasks from the current scope.
+*   **`WithFlag(task, name, value)`**: Sets a default flag value for a specific task.
+
+Tasks can be specified either by their string name or by the task object itself (e.g., `golang.Lint`). Using the task object is recommended for type safety and IDE support.
 
 ```go
 pk.WithOptions(
     golang.Tasks(),
-    pk.WithDetect(pk.DetectByFile("go.mod")),  // Find all Go modules
-    pk.WithExcludePath("vendor"),               // Exclude vendor directory
+    pk.WithExcludePath("vendor"),            // Global: exclude vendor
+    pk.WithExcludeTask(golang.Test, "foo/"), // Targeted: only golang.Test skips foo/
+    pk.WithFlag(golang.Lint, "fix", false),  // Disable auto-fix for this scope
 )
 ```
 
 ### golang.Tasks() Example
 
-The `tasks/golang` package uses detection internally:
+The `tasks/golang` package provides a sane default bundle:
 
 ```go
-func Tasks() pk.Runnable {
+func Tasks(tasks ...pk.Runnable) pk.Runnable {
+    if len(tasks) == 0 {
+        tasks = []pk.Runnable{Lint, Test}
+    }
     return pk.WithOptions(
-        pk.Parallel(Lint),
+        pk.Parallel(tasks...),
         pk.WithDetect(Detect()),  // Detects go.mod directories
     )
-}
-
-func Detect() pk.DetectFunc {
-    return pk.DetectByFile("go.mod")
 }
 ```
 

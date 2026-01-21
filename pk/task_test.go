@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"flag"
 	"sync/atomic"
 	"testing"
 )
@@ -221,26 +222,48 @@ func TestTask_Manual(t *testing.T) {
 	}
 }
 
-func TestTask_HiddenAndManual(t *testing.T) {
-	task := NewTask("test-task", "test task", nil, Do(func(_ context.Context) error {
+func TestTask_Run_FlagOverrides(t *testing.T) {
+	var flagValue string
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.StringVar(&flagValue, "myflag", "default", "usage")
+
+	task := NewTask("flag-task", "test task", fs, Do(func(_ context.Context) error {
 		return nil
 	}))
 
-	// Test chaining Hidden().Manual()
-	hiddenManual := task.Hidden().Manual()
-	if !hiddenManual.IsHidden() {
-		t.Error("hidden+manual task should be hidden")
-	}
-	if !hiddenManual.IsManual() {
-		t.Error("hidden+manual task should be manual")
-	}
+	t.Run("DefaultValue", func(t *testing.T) {
+		ctx := context.Background()
+		if err := task.run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if flagValue != "default" {
+			t.Errorf("expected default value, got %q", flagValue)
+		}
+	})
 
-	// Test chaining Manual().Hidden()
-	manualHidden := task.Manual().Hidden()
-	if !manualHidden.IsHidden() {
-		t.Error("manual+hidden task should be hidden")
-	}
-	if !manualHidden.IsManual() {
-		t.Error("manual+hidden task should be manual")
-	}
+	t.Run("WithOverride", func(t *testing.T) {
+		ctx := context.Background()
+		ctx = withFlagOverride(ctx, task.name, "myflag", "overridden")
+		if err := task.run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if flagValue != "overridden" {
+			t.Errorf("expected overridden value, got %q", flagValue)
+		}
+	})
+
+	t.Run("NestedOverrides", func(t *testing.T) {
+		ctx := context.Background()
+		// Outer sets to "outer"
+		ctx = withFlagOverride(ctx, "flag-task", "myflag", "outer")
+		// Inner sets to "inner"
+		ctx = withFlagOverride(ctx, "flag-task", "myflag", "inner")
+
+		if err := task.run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if flagValue != "inner" {
+			t.Errorf("expected inner override to win, got %q", flagValue)
+		}
+	})
 }

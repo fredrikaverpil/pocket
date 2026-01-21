@@ -8,17 +8,19 @@ func Detect() pk.DetectFunc {
 	return pk.DetectByFile("go.mod")
 }
 
-// Tasks returns all Go-related tasks with auto-detection for Go modules.
-// By default, it detects directories containing go.mod files.
-// Use with pk.WithExcludePath to filter out specific directories.
+// Tasks returns Go-related tasks with auto-detection for Go modules.
+// If no tasks are provided, it defaults to Lint and Test.
 //
-//	pk.WithOptions(
-//	    golang.Tasks(),
-//	    pk.WithExcludePath("vendor"),
-//	)
-func Tasks() pk.Runnable {
+// Example:
+//
+//	golang.Tasks() // Runs default tasks (Lint, Test)
+//	golang.Tasks(golang.Lint) // Runs only Lint
+func Tasks(tasks ...pk.Runnable) pk.Runnable {
+	if len(tasks) == 0 {
+		tasks = []pk.Runnable{Lint, Test}
+	}
 	return pk.WithOptions(
-		pk.Parallel(Lint),
+		pk.Parallel(tasks...),
 		pk.WithDetect(Detect()),
 	)
 }

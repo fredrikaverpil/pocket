@@ -54,6 +54,15 @@ type pathInfo struct {
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
 func NewPlan(cfg *Config) (*Plan, error) {
+	gitRoot := findGitRoot()
+	allDirs, err := walkDirectories(gitRoot)
+	if err != nil {
+		return nil, err
+	}
+	return newPlan(cfg, gitRoot, allDirs)
+}
+
+func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	if cfg == nil || (cfg.Auto == nil && len(cfg.Manual) == 0) {
 		return &Plan{
 			tree:              nil,
@@ -61,15 +70,6 @@ func NewPlan(cfg *Config) (*Plan, error) {
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 		}, nil
-	}
-
-	// Find git root once for the entire plan
-	gitRoot := findGitRoot()
-
-	// Walk filesystem once for the entire plan
-	allDirs, err := walkDirectories(gitRoot)
-	if err != nil {
-		return nil, err
 	}
 
 	collector := &taskCollector{
@@ -114,34 +114,147 @@ type taskCollector struct {
 	currentPath  *pathFilter // Current path context during tree walk.
 	gitRoot      string      // Git repository root.
 	allDirs      []string    // Cached directory list from filesystem walk.
+
+	// Cumulative state
+	candidates     []string         // Current allowed directories.
+	activeExcludes []excludePattern // All excludes in current scope.
+	activeSkips    []string         // All skipped tasks in current scope.
 }
 
 // filterPaths applies detection function or include patterns, then exclude patterns.
 // If detectFunc is set, it takes precedence over includePaths.
 func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
-	var candidates []string
+	var results []string
 
+	// Start with current candidates, but apply all GLOBAL active excludes first.
+	// This ensures detection functions and inner include patterns don't see
+	// directories that were excluded by an outer scope.
+	candidates := pc.candidates
+	for _, ex := range pc.activeExcludes {
+		if len(ex.tasks) == 0 {
+			candidates = excludeByPatterns(candidates, []string{ex.pattern})
+		}
+	}
+
+	// If we have a detection function, it runs against the filtered candidates.
+	// If no detection function, we either filter filtered candidates by includePaths
+	// or keep all filtered candidates if no includePaths are specified.
 	switch {
 	case pf.detectFunc != nil:
-		// Use detection function with pre-walked dirs
-		candidates = pf.detectFunc(pc.allDirs, pc.gitRoot)
+		results = pf.detectFunc(candidates, pc.gitRoot)
 	case len(pf.includePaths) > 0:
-		// Filter by include patterns
-		for _, dir := range pc.allDirs {
+		for _, dir := range candidates {
 			for _, pattern := range pf.includePaths {
 				if matchPattern(dir, pattern) {
-					candidates = append(candidates, dir)
+					results = append(results, dir)
 					break
 				}
 			}
 		}
 	default:
-		// No detection and no include patterns - default to root only
-		candidates = []string{"."}
+		// No detection and no new include patterns - keep filtered candidates.
+		results = candidates
 	}
 
-	// Apply exclude patterns
-	return excludeByPatterns(candidates, pf.excludePaths)
+	return results
+}
+
+// walk recursively traverses the Runnable tree.
+func (pc *taskCollector) walk(r Runnable) error {
+	if r == nil {
+		return nil
+	}
+
+	// Initialize candidates if this is the root call.
+	if pc.candidates == nil {
+		pc.candidates = pc.allDirs
+	}
+
+	// Type switch on the concrete Runnable types.
+	switch v := r.(type) {
+	case *Task:
+		// Check if task is skipped in current scope.
+		if slices.Contains(pc.activeSkips, v.name) {
+			return nil
+		}
+
+		// Only collect unique task pointers for the flat tasks list.
+		if !pc.seenTasks[v] {
+			pc.seenTasks[v] = true
+			pc.tasks = append(pc.tasks, v)
+		}
+
+		// Apply all active excludes to the current candidates for THIS task.
+		finalPaths := pc.candidates
+		for _, ex := range pc.activeExcludes {
+			// If ex.tasks is empty, it's a global exclude for this scope.
+			// If ex.tasks is not empty, it only applies if this task is in the list.
+			if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
+				finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+			}
+		}
+
+		// Record path mapping.
+		// Use ALL include paths from the hierarchy for visibility/shims.
+		var allIncludes []string
+		if pc.currentPath != nil {
+			allIncludes = pc.currentPath.includePaths
+		}
+		if len(allIncludes) == 0 {
+			allIncludes = []string{"."}
+		}
+
+		pc.pathMappings[v.name] = pathInfo{
+			includePaths:  allIncludes,
+			resolvedPaths: finalPaths,
+		}
+
+	case *serial:
+		for _, child := range v.runnables {
+			if err := pc.walk(child); err != nil {
+				return err
+			}
+		}
+
+	case *parallel:
+		for _, child := range v.runnables {
+			if err := pc.walk(child); err != nil {
+				return err
+			}
+		}
+
+	case *pathFilter:
+		// 1. Resolve paths for this filter based on current candidates.
+		v.resolvedPaths = pc.filterPaths(v)
+
+		// 2. Save state for nesting.
+		prevCandidates := pc.candidates
+		prevExcludes := pc.activeExcludes
+		prevSkips := pc.activeSkips
+		prevPath := pc.currentPath
+
+		// 3. Update state with new constraints.
+		pc.candidates = v.resolvedPaths
+		pc.activeExcludes = append(pc.activeExcludes, v.excludePaths...)
+		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
+		pc.currentPath = v
+
+		// 4. Walk inner with cumulative state.
+		if err := pc.walk(v.inner); err != nil {
+			return err
+		}
+
+		// 5. Restore state.
+		pc.candidates = prevCandidates
+		pc.activeExcludes = prevExcludes
+		pc.activeSkips = prevSkips
+		pc.currentPath = prevPath
+
+	default:
+		// Unknown runnable type - skip it
+	}
+
+	return nil
 }
 
 // excludeByPatterns filters out directories matching any of the patterns.
@@ -163,69 +276,6 @@ func excludeByPatterns(dirs, patterns []string) []string {
 		}
 	}
 	return result
-}
-
-// walk recursively traverses the Runnable tree.
-func (pc *taskCollector) walk(r Runnable) error {
-	if r == nil {
-		return nil
-	}
-
-	// Type switch on the concrete Runnable types.
-	switch v := r.(type) {
-	case *Task:
-		// Only collect unique task pointers.
-		// The same task can appear multiple times in the tree, but we only
-		// add it once to the tasks list. Deduplication during execution is
-		// handled by the executionTracker.
-		if !pc.seenTasks[v] {
-			pc.seenTasks[v] = true
-			pc.tasks = append(pc.tasks, v)
-		}
-
-		// Record path mapping if we're inside a pathFilter.
-		// Store both include patterns (for visibility) and resolved paths (for execution).
-		if pc.currentPath != nil {
-			pc.pathMappings[v.name] = pathInfo{
-				includePaths:  pc.currentPath.includePaths,
-				resolvedPaths: pc.currentPath.resolvedPaths,
-			}
-		}
-
-	case *serial:
-		// Composition node - walk children sequentially
-		for _, child := range v.runnables {
-			if err := pc.walk(child); err != nil {
-				return err
-			}
-		}
-
-	case *parallel:
-		// Composition node - walk children (order doesn't matter for collection)
-		for _, child := range v.runnables {
-			if err := pc.walk(child); err != nil {
-				return err
-			}
-		}
-
-	case *pathFilter:
-		// Path filter wrapper - resolve paths using cached dirs, then walk inner
-		v.resolvedPaths = pc.filterPaths(v)
-
-		// Set context and walk inner
-		previousPath := pc.currentPath
-		pc.currentPath = v
-		if err := pc.walk(v.inner); err != nil {
-			return err
-		}
-		pc.currentPath = previousPath
-
-	default:
-		// Unknown runnable type - skip it
-		// This allows new types to be added without breaking plan building
-	}
-
-	return nil
 }
 
 // deriveModuleDirectories returns directories where shims should be generated.
