@@ -144,6 +144,10 @@ Completed:
   - [x] `errgroup.WithContext` for cooperative cancellation (fail-fast)
   - [x] First-to-complete flushes first (no interleaving)
   - [x] Deduplication handled by `Task.run()` (single source of truth)
+  - [x] Output behavior:
+    - `./pok <task>` - Always realtime streaming (no buffering)
+    - `./pok` (full tree) - Tasks in `Parallel()` use buffering; tasks in
+      `Serial()` stream in realtime
 - [x] Signal handling (`pk/cli.go`)
   - [x] `signal.NotifyContext` catches SIGINT/SIGTERM
   - [x] Context cancellation propagates to all running tasks
