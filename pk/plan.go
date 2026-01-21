@@ -50,11 +50,11 @@ type pathInfo struct {
 	resolvedPaths []string
 }
 
-// newPlan creates an execution plan from a Config root.
+// newPlan creates an execution plan from a Config.
 // It walks the composition tree to extract tasks and analyzes the filesystem.
 // The filesystem is traversed ONCE during plan creation.
-func newPlan(root Runnable) (*plan, error) {
-	if root == nil {
+func newPlan(cfg *Config) (*plan, error) {
+	if cfg == nil || (cfg.Root == nil && len(cfg.Manual) == 0) {
 		return &plan{
 			root:              nil,
 			tasks:             []*Task{},
@@ -81,15 +81,25 @@ func newPlan(root Runnable) (*plan, error) {
 		allDirs:      allDirs,
 	}
 
-	if err := collector.walk(root); err != nil {
-		return nil, err
+	// Walk the Root tree
+	if cfg.Root != nil {
+		if err := collector.walk(cfg.Root); err != nil {
+			return nil, err
+		}
+	}
+
+	// Walk manual tasks (they are marked as manual via Task.Manual())
+	for _, r := range cfg.Manual {
+		if err := collector.walk(r); err != nil {
+			return nil, err
+		}
 	}
 
 	// Derive ModuleDirectories from pathMappings (single source of truth)
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
 	return &plan{
-		root:              root, // Preserve the composition tree!
+		root:              cfg.Root, // Preserve the composition tree!
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
@@ -106,29 +116,43 @@ type taskCollector struct {
 	allDirs      []string    // Cached directory list from filesystem walk.
 }
 
-// filterPaths applies include/exclude patterns to the cached directory list.
-func (pc *taskCollector) filterPaths(includePaths, excludePaths []string) []string {
-	// If no include patterns, default to root only
+// filterPaths applies detection function or include patterns, then exclude patterns.
+// If detectFunc is set, it takes precedence over includePaths.
+func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 	var candidates []string
-	if len(includePaths) == 0 {
-		candidates = []string{"."}
-	} else {
+
+	switch {
+	case pf.detectFunc != nil:
+		// Use detection function with pre-walked dirs
+		candidates = pf.detectFunc(pc.allDirs, pc.gitRoot)
+	case len(pf.includePaths) > 0:
 		// Filter by include patterns
 		for _, dir := range pc.allDirs {
-			for _, pattern := range includePaths {
+			for _, pattern := range pf.includePaths {
 				if matchPattern(dir, pattern) {
 					candidates = append(candidates, dir)
 					break
 				}
 			}
 		}
+	default:
+		// No detection and no include patterns - default to root only
+		candidates = []string{"."}
 	}
 
 	// Apply exclude patterns
+	return excludeByPatterns(candidates, pf.excludePaths)
+}
+
+// excludeByPatterns filters out directories matching any of the patterns.
+func excludeByPatterns(dirs, patterns []string) []string {
+	if len(patterns) == 0 {
+		return dirs
+	}
 	var result []string
-	for _, dir := range candidates {
+	for _, dir := range dirs {
 		excluded := false
-		for _, pattern := range excludePaths {
+		for _, pattern := range patterns {
 			if matchPattern(dir, pattern) {
 				excluded = true
 				break
@@ -138,7 +162,6 @@ func (pc *taskCollector) filterPaths(includePaths, excludePaths []string) []stri
 			result = append(result, dir)
 		}
 	}
-
 	return result
 }
 
@@ -187,7 +210,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 
 	case *pathFilter:
 		// Path filter wrapper - resolve paths using cached dirs, then walk inner
-		v.resolvedPaths = pc.filterPaths(v.includePaths, v.excludePaths)
+		v.resolvedPaths = pc.filterPaths(v)
 
 		// Set context and walk inner
 		previousPath := pc.currentPath

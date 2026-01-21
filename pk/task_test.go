@@ -194,3 +194,53 @@ func TestTask_Hidden(t *testing.T) {
 		t.Error("hidden task should have same usage")
 	}
 }
+
+func TestTask_Manual(t *testing.T) {
+	task := NewTask("regular-task", "test task", nil, func(_ context.Context) error {
+		return nil
+	})
+
+	manualTask := task.Manual()
+
+	// Original should not be manual.
+	if task.IsManual() {
+		t.Error("original task should not be manual")
+	}
+
+	// Manual copy should be manual.
+	if !manualTask.IsManual() {
+		t.Error("manual task should be manual")
+	}
+
+	// Manual copy should preserve other fields.
+	if manualTask.Name() != task.Name() {
+		t.Error("manual task should have same name")
+	}
+	if manualTask.Usage() != task.Usage() {
+		t.Error("manual task should have same usage")
+	}
+}
+
+func TestTask_HiddenAndManual(t *testing.T) {
+	task := NewTask("test-task", "test task", nil, func(_ context.Context) error {
+		return nil
+	})
+
+	// Test chaining Hidden().Manual()
+	hiddenManual := task.Hidden().Manual()
+	if !hiddenManual.IsHidden() {
+		t.Error("hidden+manual task should be hidden")
+	}
+	if !hiddenManual.IsManual() {
+		t.Error("hidden+manual task should be manual")
+	}
+
+	// Test chaining Manual().Hidden()
+	manualHidden := task.Manual().Hidden()
+	if !manualHidden.IsHidden() {
+		t.Error("manual+hidden task should be hidden")
+	}
+	if !manualHidden.IsManual() {
+		t.Error("manual+hidden task should be manual")
+	}
+}

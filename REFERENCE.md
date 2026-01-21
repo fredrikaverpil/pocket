@@ -16,19 +16,33 @@ Functions for building the task tree in `.pocket/config.go`:
 
 Used with `WithOptions()`:
 
-| Function                   | Description                              |
-| -------------------------- | ---------------------------------------- |
-| `WithIncludePath(pattern)` | Only run in directories matching pattern |
-| `WithExcludePath(pattern)` | Skip directories matching pattern        |
-| `WithForceRun()`           | Bypass deduplication, always run         |
+| Function                   | Description                                   |
+| -------------------------- | --------------------------------------------- |
+| `WithIncludePath(pattern)` | Only run in directories matching pattern      |
+| `WithExcludePath(pattern)` | Skip directories matching pattern             |
+| `WithDetect(fn)`           | Dynamically discover paths via detection func |
+| `WithForceRun()`           | Bypass deduplication, always run              |
+
+### Detection Functions
+
+Used with `WithDetect()`:
+
+| Function                     | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `DetectByFile(filenames...)` | Find directories containing any of the files |
+
+Custom detection functions can be created using the `DetectFunc` type:
+`func(dirs []string, gitRoot string) []string`
 
 ## Task Construction
 
-| Function                          | Description                                         |
-| --------------------------------- | --------------------------------------------------- |
-| `NewTask(name, usage, flags, fn)` | Create task with function body and optional flags   |
-| `DefineTask(name, usage, body)`   | Create task with Runnable body (for composition)    |
-| `(*Task).Hidden()`                | Return hidden copy of task (excluded from CLI help) |
+| Function                          | Description                                           |
+| --------------------------------- | ----------------------------------------------------- |
+| `NewTask(name, usage, flags, fn)` | Create task with function body and optional flags     |
+| `DefineTask(name, usage, body)`   | Create task with Runnable body (for composition)      |
+| `(*Task).Hidden()`                | Return hidden copy of task (excluded from CLI help)   |
+| `(*Task).Manual()`                | Return manual copy (only runs when explicitly invoked)|
+| `(*Task).IsManual()`              | Check if task is manual-only                          |
 
 ## Execution
 
@@ -63,14 +77,24 @@ Used inside task functions:
 
 ---
 
+## Config Structure
+
+The main configuration struct:
+
+```go
+type Config struct {
+    Root   Runnable    // Tasks executed on bare ./pok
+    Manual []Runnable  // Tasks only run when explicitly invoked
+}
+```
+
 ## Internal API
 
 These functions are exported but intended for Pocket's internal use only (called
 by generated `.pocket/main.go` or the executor):
 
-| Function                 | Description                                     |
-| ------------------------ | ----------------------------------------------- |
-| `RunMain(cfg *Config)`   | CLI entry point, called from `.pocket/main.go`  |
-| `WithPath(ctx, path)`    | Set execution path in context                   |
-| `WithVerbose(ctx, bool)` | Set verbose mode in context                     |
-| `Config`                 | Configuration struct with `Root Runnable` field |
+| Function                 | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| `RunMain(cfg *Config)`   | CLI entry point, called from `.pocket/main.go` |
+| `WithPath(ctx, path)`    | Set execution path in context                  |
+| `WithVerbose(ctx, bool)` | Set verbose mode in context                    |

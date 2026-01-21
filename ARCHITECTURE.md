@@ -45,6 +45,94 @@ The plan is built once by walking the composition tree and filesystem:
 
 No double traversal - data is collected once and shared throughout execution.
 
+## Auto-Detection
+
+Auto-detection dynamically discovers directories based on marker files or patterns,
+eliminating the need to manually specify paths with `WithIncludePath`.
+
+### Detection Functions
+
+```go
+// DetectFunc receives pre-walked directories and git root
+type DetectFunc func(dirs []string, gitRoot string) []string
+
+// Built-in detection function
+pk.DetectByFile("go.mod", "go.sum")  // Directories with go.mod or go.sum
+```
+
+### How Detection Works
+
+1. Filesystem is walked once during plan building (cached in `allDirs`)
+2. Detection function filters `allDirs` using `os.Stat()` checks
+3. Results can be further filtered with `WithIncludePath`/`WithExcludePath`
+
+```go
+pk.WithOptions(
+    golang.Tasks(),
+    pk.WithDetect(pk.DetectByFile("go.mod")),  // Find all Go modules
+    pk.WithExcludePath("vendor"),               // Exclude vendor directory
+)
+```
+
+### golang.Tasks() Example
+
+The `tasks/golang` package uses detection internally:
+
+```go
+func Tasks() pk.Runnable {
+    return pk.WithOptions(
+        pk.Parallel(Lint),
+        pk.WithDetect(Detect()),  // Detects go.mod directories
+    )
+}
+
+func Detect() pk.DetectFunc {
+    return pk.DetectByFile("go.mod")
+}
+```
+
+## Manual Tasks
+
+Manual tasks only run when explicitly invoked (e.g., `./pok hello`), not on
+bare `./pok` execution. This is useful for:
+- Setup/initialization tasks
+- Deployment tasks requiring confirmation
+- Tasks with mandatory flags
+
+### Config.Manual
+
+```go
+var Config = &pk.Config{
+    Root: pk.Serial(golang.Tasks()),  // Runs on bare ./pok
+
+    Manual: []pk.Runnable{
+        Hello.Manual(),  // Only runs via ./pok hello
+        Deploy,          // Only runs via ./pok deploy
+    },
+}
+```
+
+### Task.Manual()
+
+The `Manual()` method returns a copy of the task marked as manual:
+
+```go
+var Hello = pk.NewTask("hello", "greet user", flags, fn)
+// Hello.Manual() → manual copy, won't run on bare ./pok
+```
+
+### Help Output
+
+Manual tasks appear in a separate section:
+
+```
+Tasks:
+  go-lint       run golangci-lint
+
+Manual tasks (explicit invocation only):
+  hello         print a greeting message
+```
+
 ## Output and Error Handling
 
 ### Output Abstraction

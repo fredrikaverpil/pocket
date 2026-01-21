@@ -227,12 +227,18 @@ Additional completed:
 
 ## Phase 7: Auto-detection of modules
 
-- [ ] Let's implement a way to autodetect e.g. `go.mod` files, and run the
+- [x] Let's implement a way to autodetect e.g. `go.mod` files, and run the
       golang task(s) in each such module. This would replace the need for
       `WithIncludePath`.
-- [ ] When auto-detecting, we might want to exclude both paths and tasks. See
+      **Done:** Implemented `DetectFunc`, `DetectByFile()`, `DetectByExtension()`
+      in `pk/detect.go`. Added `WithDetect()` path option. Updated
+      `tasks/golang/tasks.go` to use `WithDetect(golang.Detect())`.
+- [x] When auto-detecting, we might want to exclude both paths and tasks. See
       how we did this in pocket-v1, since I think that worked pretty well there.
       How can that fit into pocket v2?
+      **Done:** Detection integrates with existing `WithExcludePath()`. Also
+      added manual tasks via `Config.Manual` field and `(*Task).Manual()` method
+      for tasks that only run when explicitly invoked (not on bare `./pok`).
 
 ## Phase 7: Mid-review
 

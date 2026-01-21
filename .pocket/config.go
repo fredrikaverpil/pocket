@@ -12,11 +12,13 @@ import (
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
 	Root: pk.Serial(
-		Hello,
-		pk.WithOptions(
-			golang.Tasks(),
-		),
+		golang.Tasks(), // Auto-detects go.mod directories
 	),
+
+	// Manual tasks - only run when explicitly invoked.
+	Manual: []pk.Runnable{
+		Hello.Manual(), // ./pok hello -name "World"
+	},
 }
 
 // Hello flags.

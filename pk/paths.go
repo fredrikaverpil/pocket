@@ -35,6 +35,25 @@ func WithForceRun() PathOption {
 	}
 }
 
+// WithDetect uses a detection function to discover paths dynamically.
+// The detection function receives the pre-walked directory list and returns
+// directories that match its criteria (e.g., directories containing go.mod).
+//
+// Combine with WithExcludePath to filter out specific directories.
+//
+// Example:
+//
+//	pk.WithOptions(
+//	    golang.Tasks(),
+//	    pk.WithDetect(pk.DetectByFile("go.mod")),
+//	    pk.WithExcludePath("vendor"),
+//	)
+func WithDetect(fn DetectFunc) PathOption {
+	return func(pf *pathFilter) {
+		pf.detectFunc = fn
+	}
+}
+
 // WithOptions wraps a Runnable with path filtering options.
 // The wrapped Runnable will execute in directories determined by
 // include/exclude patterns resolved against the filesystem.
@@ -53,13 +72,15 @@ func WithOptions(r Runnable, opts ...PathOption) Runnable {
 }
 
 // pathFilter wraps a Runnable with directory-based filtering.
-// It determines which directories to execute in based on include/exclude patterns.
+// It determines which directories to execute in based on include/exclude patterns
+// and optional detection functions.
 type pathFilter struct {
 	inner         Runnable
 	includePaths  []string
 	excludePaths  []string
-	resolvedPaths []string // Cached resolved paths from plan building.
-	forceRun      bool     // Disable task deduplication for the wrapped Runnable.
+	detectFunc    DetectFunc // Optional detection function for dynamic path discovery.
+	resolvedPaths []string   // Cached resolved paths from plan building.
+	forceRun      bool       // Disable task deduplication for the wrapped Runnable.
 }
 
 // run implements the Runnable interface.

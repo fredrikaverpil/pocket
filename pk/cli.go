@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/shim"
@@ -79,14 +80,10 @@ func RunMain(cfg *Config) {
 	}
 
 	// Build plan
-	var plan *plan
-	if cfg.Root != nil {
-		var err error
-		plan, err = newPlan(cfg.Root)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
-			os.Exit(1)
-		}
+	plan, err := newPlan(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Handle help flag
@@ -157,7 +154,7 @@ func RunMain(cfg *Config) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	ctx = WithVerbose(ctx, *verbose)
 	ctx = WithOutput(ctx, StdOutput())
-	err := execute(ctx, *cfg, plan)
+	err = execute(ctx, *cfg, plan)
 	stop()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -284,40 +281,49 @@ func printHelp(_ *Config, plan *plan) {
 	fmt.Println("  -h          show help")
 	fmt.Println("  -v          verbose mode")
 	fmt.Println("  --version   show version")
-	fmt.Println()
-	fmt.Println("Builtin commands:")
-	fmt.Println("  plan [-json]  show execution plan without running tasks")
-	fmt.Println()
 
-	// Check if we have tasks
-	if plan == nil || len(plan.tasks) == 0 {
-		fmt.Println("No tasks configured.")
-		return
-	}
-
-	// Filter tasks by visibility:
+	// Filter tasks by visibility and split into regular vs manual:
 	// 1. Not hidden
 	// 2. Runs in current path context (from TASK_SCOPE env var)
-	taskScope := os.Getenv("TASK_SCOPE")
-	var visibleTasks []*Task
-	for _, task := range plan.tasks {
-		if !task.IsHidden() && plan.taskRunsInPath(task.Name(), taskScope) {
-			visibleTasks = append(visibleTasks, task)
+	var regularTasks []*Task
+	var manualTasks []*Task
+
+	if plan != nil && len(plan.tasks) > 0 {
+		taskScope := os.Getenv("TASK_SCOPE")
+		for _, task := range plan.tasks {
+			if task.IsHidden() || !plan.taskRunsInPath(task.Name(), taskScope) {
+				continue
+			}
+			if task.IsManual() {
+				manualTasks = append(manualTasks, task)
+			} else {
+				regularTasks = append(regularTasks, task)
+			}
 		}
 	}
 
-	if len(visibleTasks) == 0 {
-		fmt.Println("No visible tasks configured.")
+	printTaskSection("Tasks:", regularTasks)
+	printTaskSection("Manual tasks (explicit invocation only):", manualTasks)
+
+	// Print builtin commands last
+	fmt.Println()
+	fmt.Println("Builtin commands:")
+	fmt.Println("  plan [-json]  show execution plan without running tasks")
+}
+
+// printTaskSection prints a section of tasks with a header.
+func printTaskSection(header string, tasks []*Task) {
+	if len(tasks) == 0 {
 		return
 	}
 
-	// Sort by name
-	sort.Slice(visibleTasks, func(i, j int) bool {
-		return visibleTasks[i].Name() < visibleTasks[j].Name()
+	fmt.Println()
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].Name() < tasks[j].Name()
 	})
 
-	fmt.Println("Available tasks:")
-	for _, task := range visibleTasks {
+	fmt.Println(header)
+	for _, task := range tasks {
 		if task.Usage() != "" {
 			fmt.Printf("  %-12s  %s\n", task.Name(), task.Usage())
 		} else {
@@ -400,6 +406,7 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 			"type":   "task",
 			"name":   v.Name(),
 			"hidden": v.IsHidden(),
+			"manual": v.IsManual(),
 			"paths":  paths,
 		}
 
@@ -454,6 +461,7 @@ func buildTaskList(tasks []*Task, pathMappings map[string]pathInfo) []map[string
 		taskJSON := map[string]interface{}{
 			"name":   task.Name(),
 			"hidden": task.IsHidden(),
+			"manual": task.IsManual(),
 			"paths":  paths,
 		}
 		result = append(result, taskJSON)
@@ -478,9 +486,16 @@ func printTree(r Runnable, prefix string, isLast bool, pathMappings map[string]p
 	switch v := r.(type) {
 	case *Task:
 		// Leaf node - print task name and paths
-		marker := ""
+		var markers []string
 		if v.IsHidden() {
-			marker = " [hidden]"
+			markers = append(markers, "hidden")
+		}
+		if v.IsManual() {
+			markers = append(markers, "manual")
+		}
+		marker := ""
+		if len(markers) > 0 {
+			marker = " [" + strings.Join(markers, ", ") + "]"
 		}
 
 		paths := "[root]"

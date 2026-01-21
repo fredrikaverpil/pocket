@@ -14,6 +14,7 @@ type Task struct {
 	flags  *flag.FlagSet
 	fn     func(context.Context) error
 	hidden bool
+	manual bool // Task only runs when explicitly invoked.
 }
 
 // NewTask creates a new task with optional CLI flags.
@@ -92,10 +93,30 @@ func (t *Task) Hidden() *Task {
 		flags:  t.flags,
 		fn:     t.fn,
 		hidden: true,
+		manual: t.manual,
 	}
 }
 
 // IsHidden returns whether the task is hidden from CLI listings.
 func (t *Task) IsHidden() bool {
 	return t.hidden
+}
+
+// Manual returns a new Task marked as manual.
+// Manual tasks only run when explicitly invoked (e.g., `./pok hello`),
+// not on bare `./pok` invocation.
+func (t *Task) Manual() *Task {
+	return &Task{
+		name:   t.name,
+		usage:  t.usage,
+		flags:  t.flags,
+		fn:     t.fn,
+		hidden: t.hidden,
+		manual: true,
+	}
+}
+
+// IsManual returns whether the task is manual-only.
+func (t *Task) IsManual() bool {
+	return t.manual
 }
