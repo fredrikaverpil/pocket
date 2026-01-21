@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tasks/git"
 )
 
 // Config is the Pocket configuration for this project.
 // Edit this file to define your tasks and composition.
 var Config = &pk.Config{
-	Root: pk.Serial(
+	Auto: pk.Serial(
 		// Add your tasks here. Example:
 		// pk.Parallel(Lint, Format),
 		// pk.WithOptions(
@@ -19,6 +20,7 @@ var Config = &pk.Config{
 		//     pk.WithExcludePath("vendor"),
 		// ),
 		Hello,
+		git.Diff, // Ensure workspace is clean after tasks
 	),
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tasks/git"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
 )
 
@@ -13,6 +14,7 @@ import (
 var Config = &pk.Config{
 	Auto: pk.Serial(
 		golang.Tasks(), // Auto-detects go.mod directories
+		git.Diff,       // Ensure workspace is clean after tasks
 	),
 
 	// Manual tasks - only run when explicitly invoked.
