@@ -61,6 +61,10 @@ func (t *Task) run(ctx context.Context) error {
 		}
 	}
 
+	// Print task header before execution.
+	out := OutputFromContext(ctx)
+	fmt.Fprintf(out.Stdout, ":: %s\n", t.name)
+
 	return t.fn(ctx)
 }
 
