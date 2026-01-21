@@ -7,7 +7,7 @@ import (
 )
 
 // Task represents a named, executable unit of work.
-// Create tasks with NewTask or NewTaskWithFlags.
+// Create tasks with NewTask.
 type Task struct {
 	name   string
 	usage  string
@@ -17,27 +17,24 @@ type Task struct {
 	manual bool // Task only runs when explicitly invoked.
 }
 
-// NewTask creates a new task with optional CLI flags.
-// The FlagSet should be created with flag.ContinueOnError for proper error handling.
-func NewTask(name, usage string, flags *flag.FlagSet, fn func(context.Context) error) *Task {
+// NewTask creates a new task with a Runnable body and optional CLI flags.
+// Use Do() to wrap a function as a Runnable.
+//
+// Example with function body:
+//
+//	var Hello = pk.NewTask("hello", "greet", flags, pk.Do(func(ctx context.Context) error {
+//	    fmt.Println("Hello!")
+//	    return nil
+//	}))
+//
+// Example with composition:
+//
+//	var Lint = pk.NewTask("lint", "run linters", nil, pk.Serial(Install, lintCmd()))
+func NewTask(name, usage string, flags *flag.FlagSet, body Runnable) *Task {
 	return &Task{
 		name:  name,
 		usage: usage,
 		flags: flags,
-		fn:    fn,
-	}
-}
-
-// DefineTask creates a task from a Runnable body.
-// This enables composition patterns where a task wraps Serial/Parallel runnables.
-//
-//	var Lint = pk.DefineTask("lint", "run linters",
-//	    pk.Serial(Install, lintCmd),
-//	)
-func DefineTask(name, usage string, body Runnable) *Task {
-	return &Task{
-		name:  name,
-		usage: usage,
 		fn: func(ctx context.Context) error {
 			return body.run(ctx)
 		},

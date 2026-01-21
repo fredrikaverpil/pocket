@@ -36,13 +36,12 @@ Custom detection functions can be created using the `DetectFunc` type:
 
 ## Task Construction
 
-| Function                          | Description                                           |
-| --------------------------------- | ----------------------------------------------------- |
-| `NewTask(name, usage, flags, fn)` | Create task with function body and optional flags     |
-| `DefineTask(name, usage, body)`   | Create task with Runnable body (for composition)      |
-| `(*Task).Hidden()`                | Return hidden copy of task (excluded from CLI help)   |
-| `(*Task).Manual()`                | Return manual copy (only runs when explicitly invoked)|
-| `(*Task).IsManual()`              | Check if task is manual-only                          |
+| Function                            | Description                                            |
+| ----------------------------------- | ------------------------------------------------------ |
+| `NewTask(name, usage, flags, body)` | Create task with Runnable body and optional flags      |
+| `(*Task).Hidden()`                  | Return hidden copy of task (excluded from CLI help)    |
+| `(*Task).Manual()`                  | Return manual copy (only runs when explicitly invoked) |
+| `(*Task).IsManual()`                | Check if task is manual-only                           |
 
 ## Execution
 

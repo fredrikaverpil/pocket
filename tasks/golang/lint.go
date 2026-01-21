@@ -9,7 +9,7 @@ import (
 
 // Lint runs golangci-lint on Go code.
 // Automatically installs golangci-lint if not present.
-var Lint = pk.DefineTask("go-lint", "run golangci-lint",
+var Lint = pk.NewTask("go-lint", "run golangci-lint", nil,
 	pk.Serial(golangcilint.Install, lintCmd()),
 )
 

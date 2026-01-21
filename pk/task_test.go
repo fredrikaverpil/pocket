@@ -9,10 +9,10 @@ import (
 func TestTask_Run_Deduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("dedup-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("dedup-task", "test task", nil, Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})
+	}))
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -56,10 +56,10 @@ func TestTask_Run_Deduplication(t *testing.T) {
 func TestTask_Run_ForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("force-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("force-task", "test task", nil, Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})
+	}))
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -95,10 +95,10 @@ func TestTask_Run_ForceRun(t *testing.T) {
 func TestTask_Run_NoTracker(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("no-tracker-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("no-tracker-task", "test task", nil, Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})
+	}))
 
 	// Context without tracker - should always run (no deduplication).
 	ctx := context.Background()
@@ -119,14 +119,14 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 	var runCount1, runCount2 atomic.Int32
 
 	// Two different task instances with the same name.
-	task1 := NewTask("same-name", "test task 1", nil, func(_ context.Context) error {
+	task1 := NewTask("same-name", "test task 1", nil, Do(func(_ context.Context) error {
 		runCount1.Add(1)
 		return nil
-	})
-	task2 := NewTask("same-name", "test task 2", nil, func(_ context.Context) error {
+	}))
+	task2 := NewTask("same-name", "test task 2", nil, Do(func(_ context.Context) error {
 		runCount2.Add(1)
 		return nil
-	})
+	}))
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -151,9 +151,9 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 }
 
 func TestTask_Accessors(t *testing.T) {
-	task := NewTask("my-task", "my usage", nil, func(_ context.Context) error {
+	task := NewTask("my-task", "my usage", nil, Do(func(_ context.Context) error {
 		return nil
-	})
+	}))
 
 	if got := task.Name(); got != "my-task" {
 		t.Errorf("expected Name()=%q, got %q", "my-task", got)
@@ -170,9 +170,9 @@ func TestTask_Accessors(t *testing.T) {
 }
 
 func TestTask_Hidden(t *testing.T) {
-	task := NewTask("visible-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("visible-task", "test task", nil, Do(func(_ context.Context) error {
 		return nil
-	})
+	}))
 
 	hiddenTask := task.Hidden()
 
@@ -196,9 +196,9 @@ func TestTask_Hidden(t *testing.T) {
 }
 
 func TestTask_Manual(t *testing.T) {
-	task := NewTask("regular-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("regular-task", "test task", nil, Do(func(_ context.Context) error {
 		return nil
-	})
+	}))
 
 	manualTask := task.Manual()
 
@@ -222,9 +222,9 @@ func TestTask_Manual(t *testing.T) {
 }
 
 func TestTask_HiddenAndManual(t *testing.T) {
-	task := NewTask("test-task", "test task", nil, func(_ context.Context) error {
+	task := NewTask("test-task", "test task", nil, Do(func(_ context.Context) error {
 		return nil
-	})
+	}))
 
 	// Test chaining Hidden().Manual()
 	hiddenManual := task.Hidden().Manual()

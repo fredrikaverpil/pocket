@@ -11,6 +11,6 @@ const Name = "golangci-lint"
 const Version = "v2.1.6"
 
 // Install is a hidden task that installs golangci-lint.
-var Install = pk.DefineTask("install:golangci-lint", "install golangci-lint",
+var Install = pk.NewTask("install:golangci-lint", "install golangci-lint", nil,
 	pk.InstallGo("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", Version),
 ).Hidden()

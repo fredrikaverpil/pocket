@@ -157,11 +157,11 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 	var runCount atomic.Int32
 	var executedPaths []string
 
-	task := NewTask("scoped-task", "test task", nil, func(ctx context.Context) error {
+	task := NewTask("scoped-task", "test task", nil, Do(func(ctx context.Context) error {
 		runCount.Add(1)
 		executedPaths = append(executedPaths, PathFromContext(ctx))
 		return nil
-	})
+	}))
 
 	// Create plan with task mapped to multiple paths
 	p := &plan{

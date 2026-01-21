@@ -117,7 +117,7 @@ var Config = &pk.Config{
 The `Manual()` method returns a copy of the task marked as manual:
 
 ```go
-var Hello = pk.NewTask("hello", "greet user", flags, fn)
+var Hello = pk.NewTask("hello", "greet user", flags, pk.Do(fn))
 // Hello.Manual() → manual copy, won't run on bare ./pok
 ```
 

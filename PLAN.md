@@ -222,8 +222,7 @@ Additional completed:
 - [x] Added `-v` verbose flag (changed from version to verbose)
 - [x] Added `--version` flag for version display
 - [x] Verbose mode threads through context, affects `Exec()` and `InstallGo()`
-- [x] Task naming: `DefineTask()` for Runnable-based tasks (avoids conflict with
-      `Task` type)
+- [x] Task naming: `NewTask()` accepts `Runnable` body (use `Do()` to wrap functions)
 
 ## Phase 7: Auto-detection of modules
 
