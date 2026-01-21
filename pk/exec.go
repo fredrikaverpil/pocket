@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,6 +25,30 @@ func Do(fn func(ctx context.Context) error) Runnable {
 	return &doRunnable{fn: fn}
 }
 
+var (
+	colorEnvOnce sync.Once
+	colorEnvVars []string
+)
+
+// colorForceEnvVars are the environment variables set to force color output.
+var colorForceEnvVars = []string{
+	"FORCE_COLOR=1",       // Node.js, chalk, many modern tools
+	"CLICOLOR_FORCE=1",    // BSD/macOS convention
+	"COLORTERM=truecolor", // Indicates color support
+}
+
+// initColorEnv detects if stdout is a TTY and prepares env vars to force colors.
+func initColorEnv() {
+	_, noColor := os.LookupEnv("NO_COLOR")
+	if noColor {
+		return
+	}
+
+	if isTerminal(os.Stdout) {
+		colorEnvVars = colorForceEnvVars
+	}
+}
+
 // Exec executes a command with .pocket/bin prepended to PATH.
 // This ensures tools installed via InstallGo() are found first.
 // The command runs in the directory specified by PathFromContext(ctx).
@@ -33,12 +58,15 @@ func Do(fn func(ctx context.Context) error) Runnable {
 //
 // Commands are terminated gracefully: SIGINT first, then SIGKILL after WaitDelay.
 func Exec(ctx context.Context, name string, args ...string) error {
+	colorEnvOnce.Do(initColorEnv)
+
 	path := PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
 
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = targetDir
 	cmd.Env = prependBinToPath(os.Environ())
+	cmd.Env = append(cmd.Env, colorEnvVars...)
 	cmd.WaitDelay = WaitDelay
 	setGracefulShutdown(cmd)
 
