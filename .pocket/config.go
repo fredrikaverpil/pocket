@@ -2,67 +2,35 @@ package main
 
 import (
 	"context"
+	"flag"
 
-	"github.com/fredrikaverpil/pocket"
-	"github.com/fredrikaverpil/pocket/tasks/github"
+	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tasks/git"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
-	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
-// autoRun defines the tasks that run on ./pok with no arguments.
-var autoRun = pocket.Parallel(
-	pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect())),
-	pocket.RunIn(markdown.Tasks(), pocket.Detect(markdown.Detect())),
-	pocket.WithOpts(github.Workflows, github.WorkflowsOptions{SkipPocket: true, IncludePocketMatrix: true}),
+// Config is the Pocket configuration for this project.
+var Config = &pk.Config{
+	Auto: pk.Serial(
+		golang.Tasks(), // Runs golang.Lint and golang.Test in all go.mod directories
+		git.Diff,       // Ensure workspace is clean after tasks
+	),
+
+	// Manual tasks - only run when explicitly invoked.
+	Manual: []pk.Runnable{
+		Hello.Manual(), // ./pok hello -name "World"
+	},
+}
+
+// Hello flags.
+var (
+	helloFlags = flag.NewFlagSet("hello", flag.ContinueOnError)
+	helloName  = helloFlags.String("name", "Pocket v2", "name to greet")
 )
 
-// matrixConfig configures GitHub Actions matrix generation.
-var matrixConfig = github.MatrixConfig{
-	DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
-	TaskOverrides: map[string]github.TaskOverride{
-		"go-lint":      {Platforms: []string{"ubuntu-latest"}},
-		"go-vulncheck": {Platforms: []string{"ubuntu-latest"}},
-		"md-format":    {Platforms: []string{"ubuntu-latest"}},
-	},
-	ExcludeTasks: []string{"github-workflows"},
-}
-
-// Config is the pocket configuration for this project.
-var Config = pocket.Config{
-	AutoRun: autoRun,
-	ManualRun: []pocket.Runnable{
-		Greet,
-		github.MatrixTask(autoRun, matrixConfig),
-	},
-	Shim: &pocket.ShimConfig{
-		Posix:      true,
-		Windows:    true,
-		PowerShell: true,
-	},
-}
-
-// GreetOptions defines the options for the greet task.
-type GreetOptions struct {
-	Name  string `arg:"name"  usage:"name to greet"`
-	Count int    `arg:"count" usage:"number of times to greet"`
-}
-
-// Greet is a demo task that prints a greeting.
-var Greet = pocket.Task("greet", "print a greeting message", greet,
-	pocket.Opts(GreetOptions{Name: "world", Count: 1}))
-
-func greet(ctx context.Context) error {
-	opts := pocket.Options[GreetOptions](ctx)
-	name := opts.Name
-	if name == "" {
-		name = "world"
-	}
-	count := opts.Count
-	if count <= 0 {
-		count = 1
-	}
-	for i := 0; i < count; i++ {
-		pocket.Printf(ctx, "Hello, %s!\n", name)
-	}
+// Hello is a demo task that prints a greeting.
+// Demonstrates task with CLI flags.
+var Hello = pk.NewTask("hello", "print a greeting message", helloFlags, pk.Do(func(ctx context.Context) error {
+	pk.Printf(ctx, "Hello, %s!\n", *helloName)
 	return nil
-}
+}))

@@ -1,7 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$PocketDir = ".pocket"
-$PocketContext = "."
+# Resolve shim directory to find .pocket
+$ShimDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$PocketDir = Join-Path $ShimDir ".pocket"
+$TaskScope = "."
 $GoVersion = "1.25.5"
 $GoInstallDir = "$PocketDir\tools\go\$GoVersion"
 $GoBin = "$GoInstallDir\go\bin\go.exe"
@@ -89,6 +92,6 @@ if (Get-Command go -ErrorAction SilentlyContinue) {
     Write-Host "Go $GoVersion installed to $GoInstallDir"
 }
 
-$env:POK_CONTEXT = $PocketContext
+$env:TASK_SCOPE = $TaskScope
 & $GoCmd run -C $PocketDir . @args
 exit $LASTEXITCODE

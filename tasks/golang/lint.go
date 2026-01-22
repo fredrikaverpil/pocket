@@ -2,43 +2,33 @@ package golang
 
 import (
 	"context"
+	"flag"
 
-	"github.com/fredrikaverpil/pocket"
+	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
-// LintOptions configures the go-lint task.
-type LintOptions struct {
-	Config  string `arg:"config"   usage:"path to golangci-lint config file"`
-	SkipFix bool   `arg:"skip-fix" usage:"don't auto-fix issues"`
-}
-
-// Lint runs golangci-lint with auto-fix enabled by default.
-var Lint = pocket.Task("go-lint", "run golangci-lint",
-	pocket.Serial(golangcilint.Install, lintCmd()),
-	pocket.Opts(LintOptions{}),
+var (
+	lintFlags = flag.NewFlagSet("go-lint", flag.ContinueOnError)
+	lintFix   = lintFlags.Bool("fix", true, "apply fixes")
 )
 
-func lintCmd() pocket.Runnable {
-	return pocket.Do(func(ctx context.Context) error {
-		opts := pocket.Options[LintOptions](ctx)
+// Lint runs golangci-lint on Go code.
+// Automatically installs golangci-lint if not present.
+var Lint = pk.NewTask("go-lint", "run golangci-lint", lintFlags,
+	pk.Serial(golangcilint.Install, lintCmd()),
+)
 
+func lintCmd() pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
 		args := []string{"run"}
-		if pocket.Verbose(ctx) {
+		if pk.Verbose(ctx) {
 			args = append(args, "-v")
 		}
-		if opts.Config != "" {
-			args = append(args, "-c", opts.Config)
-		} else if configPath, err := pocket.ConfigPath(ctx, "golangci-lint", golangcilint.Config); err == nil {
-			if configPath != "" {
-				args = append(args, "-c", configPath)
-			}
-		}
-		if !opts.SkipFix {
+		if *lintFix {
 			args = append(args, "--fix")
 		}
 		args = append(args, "./...")
-
-		return pocket.Exec(ctx, golangcilint.Name, args...)
+		return pk.Exec(ctx, golangcilint.Name, args...)
 	})
 }

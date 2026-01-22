@@ -25,9 +25,9 @@ type goFile struct {
 	Kind     string `json:"kind"`
 }
 
-// FetchGoChecksums fetches SHA256 checksums for the given Go version
-// from the official Go download API.
-func FetchGoChecksums(ctx context.Context, version string) (GoChecksums, error) {
+// fetchGoChecksums fetches SHA256 checksums for the given Go version
+// from the official Go download API. Works with stable releases, RCs, and betas.
+func fetchGoChecksums(ctx context.Context, version string) (GoChecksums, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://go.dev/dl/?mode=json&include=all", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -48,7 +48,7 @@ func FetchGoChecksums(ctx context.Context, version string) (GoChecksums, error) 
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	// Find the matching version.
+	// Find the matching version (API uses "go" prefix).
 	targetVersion := "go" + version
 	for _, release := range releases {
 		if release.Version != targetVersion {

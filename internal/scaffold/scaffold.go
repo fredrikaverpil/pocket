@@ -1,127 +1,67 @@
-// Package scaffold provides generation of .pocket/ scaffold files.
+// Package scaffold generates the initial .pocket directory structure.
 package scaffold
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
-	"text/template"
-
-	pocket "github.com/fredrikaverpil/pocket"
-	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
-//go:embed main.go.tmpl
-var MainTemplate []byte
+//go:embed templates/config.go.tmpl
+var configTemplate string
 
-//go:embed config.go.tmpl
-var ConfigTemplate []byte
+//go:embed templates/main.go.tmpl
+var mainTemplate string
 
-//go:embed gitignore.tmpl
-var GitignoreTemplate []byte
+//go:embed templates/gitignore.tmpl
+var gitignoreTemplate string
 
-//go:embed tools_go.mod.tmpl
-var toolsGoModTemplate string
-
-// GenerateAll regenerates all generated files.
-// Creates one-time files (config.go, .gitignore) if they don't exist.
-// Always regenerates main.go and shim.
-// Returns the list of generated shim paths relative to the git root.
-// Uses cached ModuleDirectories from ConfigPlan (avoids re-walking trees).
-func GenerateAll(plan *pocket.ConfigPlan) ([]string, error) {
-	cfg := plan.Config
-	pocketDir := filepath.Join(pocket.FromGitRoot(), pocket.DirName)
-
-	// Ensure .pocket/ exists
+// GenerateAll creates scaffold files in the .pocket directory.
+// One-time files (config.go, .gitignore) are only created if missing.
+// Auto-generated files (main.go) are always regenerated.
+//
+// Parameters:
+//   - pocketDir: Absolute path to the .pocket directory.
+func GenerateAll(pocketDir string) error {
+	// Ensure .pocket directory exists.
 	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
-		return nil, fmt.Errorf("creating .pocket/: %w", err)
+		return fmt.Errorf("creating .pocket directory: %w", err)
 	}
 
-	// Create config.go if not exists (user-editable, never overwritten)
-	configPath := filepath.Join(pocketDir, "config.go")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		if err := os.WriteFile(configPath, ConfigTemplate, 0o644); err != nil {
-			return nil, fmt.Errorf("writing config.go: %w", err)
+	// One-time files: only create if missing.
+	oneTimeFiles := []struct {
+		name    string
+		content string
+	}{
+		{"config.go", configTemplate},
+		{".gitignore", gitignoreTemplate},
+	}
+
+	for _, f := range oneTimeFiles {
+		path := filepath.Join(pocketDir, f.name)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			if err := os.WriteFile(path, []byte(f.content), 0o644); err != nil {
+				return fmt.Errorf("writing %s: %w", f.name, err)
+			}
 		}
 	}
 
-	// Create .gitignore if not exists
-	gitignorePath := filepath.Join(pocketDir, ".gitignore")
-	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-		if err := os.WriteFile(gitignorePath, GitignoreTemplate, 0o644); err != nil {
-			return nil, fmt.Errorf("writing .gitignore: %w", err)
-		}
+	// Auto-generated files: always regenerate.
+	mainPath := filepath.Join(pocketDir, "main.go")
+	if err := os.WriteFile(mainPath, []byte(mainTemplate), 0o644); err != nil {
+		return fmt.Errorf("writing main.go: %w", err)
 	}
 
-	// Always regenerate main.go
-	if err := GenerateMain(); err != nil {
-		return nil, err
-	}
-
-	// Generate tools/go.mod if tools directory exists (prevents go mod tidy issues)
-	toolsDir := pocket.FromToolsDir()
-	if _, err := os.Stat(toolsDir); err == nil {
-		if err := GenerateToolsGoMod(); err != nil {
-			return nil, err
-		}
-	}
-
-	// Always regenerate shim(s) using cached ModuleDirectories.
-	shimCfg := pocket.Config{}
-	if cfg != nil {
-		shimCfg = *cfg
-	}
-	shimPaths, err := shim.GenerateWithDirs(shimCfg, plan.ModuleDirectories)
-	if err != nil {
-		return nil, err
-	}
-
-	return shimPaths, nil
-}
-
-// GenerateMain creates or updates .pocket/main.go from the template.
-func GenerateMain() error {
-	mainPath := filepath.Join(pocket.FromGitRoot(), pocket.DirName, "main.go")
-	if err := os.WriteFile(mainPath, MainTemplate, 0o644); err != nil {
-		return fmt.Errorf("writing .pocket/main.go: %w", err)
-	}
 	return nil
 }
 
-// GenerateToolsGoMod creates .pocket/tools/go.mod if it doesn't exist.
-// This prevents `go mod tidy` in .pocket/ from scanning downloaded tools
-// (like Go SDK test files) which contain relative imports that break module mode.
-func GenerateToolsGoMod() error {
-	toolsDir := pocket.FromToolsDir()
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
-		return fmt.Errorf("creating tools dir: %w", err)
-	}
-
-	goModPath := filepath.Join(toolsDir, "go.mod")
-	if _, err := os.Stat(goModPath); err == nil {
-		return nil // Already exists
-	}
-
-	// Read Go version from .pocket/go.mod
-	goVersion, err := pocket.GoVersionFromDir(pocket.FromPocketDir())
-	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("tools_go.mod").Parse(toolsGoModTemplate)
-	if err != nil {
-		return fmt.Errorf("parsing tools go.mod template: %w", err)
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{"GoVersion": goVersion}); err != nil {
-		return fmt.Errorf("executing tools go.mod template: %w", err)
-	}
-
-	if err := os.WriteFile(goModPath, buf.Bytes(), 0o644); err != nil {
-		return fmt.Errorf("writing tools/go.mod: %w", err)
+// RegenerateMain regenerates only the main.go file.
+// Useful when updating pocket without touching user's config.go.
+func RegenerateMain(pocketDir string) error {
+	mainPath := filepath.Join(pocketDir, "main.go")
+	if err := os.WriteFile(mainPath, []byte(mainTemplate), 0o644); err != nil {
+		return fmt.Errorf("writing main.go: %w", err)
 	}
 	return nil
 }

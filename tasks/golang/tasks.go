@@ -1,71 +1,38 @@
-// Package golang provides Go development tasks.
-// This is a "task" package - it orchestrates tools to do work.
+// Package golang provides task bundles for Go projects.
 package golang
 
-import (
-	"github.com/fredrikaverpil/pocket"
-)
+import "github.com/fredrikaverpil/pocket/pk"
 
-// Option configures the golang task group.
-type Option func(*config)
-
-type config struct {
-	lint LintOptions
-	test TestOptions
+// Detect returns a DetectFunc that finds Go modules (directories containing go.mod).
+func Detect() pk.DetectFunc {
+	return pk.DetectByFile("go.mod")
 }
 
-// WithLint sets options for the go-lint task.
-func WithLint(opts LintOptions) Option {
-	return func(c *config) { c.lint = opts }
-}
-
-// WithTest sets options for the go-test task.
-func WithTest(opts TestOptions) Option {
-	return func(c *config) { c.test = opts }
-}
-
-// Tasks returns all Go tasks composed as a Runnable.
-// Use this with pocket.RunIn() and pocket.Detect() for auto-detection.
+// Tasks returns Go-related tasks with auto-detection for Go modules.
+// If no tasks are provided, it defaults to running Fix, Format, Lint,
+// then Test and Vulncheck in parallel.
 //
-// Example:
-//
-//	pocket.RunIn(golang.Tasks(), pocket.Detect(golang.Detect()))
-//
-// Example with options:
-//
-//	pocket.RunIn(golang.Tasks(
-//	    golang.WithLint(golang.LintOptions{Config: ".golangci.yml"}),
-//	    golang.WithTest(golang.TestOptions{SkipRace: true}),
-//	), pocket.Detect(golang.Detect()))
-func Tasks(opts ...Option) pocket.Runnable {
-	var cfg config
-	for _, opt := range opts {
-		opt(&cfg)
+// Mutating tasks (Fix, Format, Lint) are always run sequentially.
+// Non-mutating tasks (Test, Vulncheck) are run in parallel.
+func Tasks(tasks ...pk.Runnable) pk.Runnable {
+	if len(tasks) == 0 {
+		return pk.WithOptions(
+			pk.Serial(
+				Fix,
+				Format,
+				Lint,
+				pk.Parallel(Test, Vulncheck),
+			),
+			pk.WithDetect(Detect()),
+		)
 	}
 
-	// Apply options to tasks
-	lintTask := Lint
-	if cfg.lint != (LintOptions{}) {
-		lintTask = pocket.WithOpts(Lint, cfg.lint)
-	}
-
-	testTask := Test
-	if cfg.test != (TestOptions{}) {
-		testTask = pocket.WithOpts(Test, cfg.test)
-	}
-
-	return pocket.Serial(
-		Fix,
-		Format,
-		lintTask,
-		pocket.Parallel(testTask, Vulncheck),
+	// If tasks are provided, we still want to separate mutating from non-mutating
+	// if we can identify them. For now, we'll just run them in the order provided
+	// but wrapped in the detection.
+	// TODO: better heuristics for parallelization of user-provided tasks.
+	return pk.WithOptions(
+		pk.Serial(tasks...),
+		pk.WithDetect(Detect()),
 	)
-}
-
-// Detect returns a detection function for Go modules.
-// It finds directories containing go.mod files.
-func Detect() func() []string {
-	return func() []string {
-		return pocket.DetectByFile("go.mod")
-	}
 }

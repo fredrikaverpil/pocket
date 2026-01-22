@@ -1,3 +1,8 @@
+// Command pocket bootstraps a new Pocket project.
+//
+// Usage:
+//
+//	go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
 package main
 
 import (
@@ -5,112 +10,141 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"time"
 
-	pocket "github.com/fredrikaverpil/pocket"
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
+	"github.com/fredrikaverpil/pocket/internal/shim"
 )
+
+const usage = `pocket - initialize a Pocket task runner
+
+Usage:
+    pocket init    Initialize .pocket/ in the current directory
+    pocket help    Show this help message
+
+Examples:
+    go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init
+`
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
+		fmt.Fprint(os.Stderr, usage)
 		os.Exit(1)
 	}
 
-	switch os.Args[1] {
+	cmd := os.Args[1]
+	switch cmd {
 	case "init":
-		if err := runInit(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		err := runInit(ctx)
+		cancel()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
 	case "help", "-h", "--help":
-		printUsage()
+		fmt.Print(usage)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
-		printUsage()
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s", cmd, usage)
 		os.Exit(1)
 	}
 }
 
-func printUsage() {
-	fmt.Println(`pocket - bootstrap pocket in your project
-
-Usage:
-  pocket init      Initialize .pocket/ in current directory
-
-Examples:
-  go run github.com/fredrikaverpil/pocket/cmd/pocket@latest init`)
-}
-
-func runInit() error {
-	// Check .pocket doesn't already exist
-	if _, err := os.Stat(".pocket"); err == nil {
-		return fmt.Errorf(".pocket/ already exists")
+func runInit(ctx context.Context) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting current directory: %w", err)
 	}
 
-	fmt.Println("Initializing pocket...")
+	pocketDir := filepath.Join(cwd, ".pocket")
 
-	// Create .pocket directory
-	if err := os.MkdirAll(".pocket", 0o755); err != nil {
-		return fmt.Errorf("creating .pocket/: %w", err)
-	}
-
-	// Create go.mod
-	fmt.Println("  Creating .pocket/go.mod")
-	if err := runCommand(".pocket", "go", "mod", "init", "pocket"); err != nil {
-		return fmt.Errorf("go mod init: %w", err)
+	// Check if .pocket already exists.
+	if _, err := os.Stat(pocketDir); err == nil {
+		return fmt.Errorf(".pocket/ already exists - remove it first to reinitialize")
 	}
 
-	// Get dependencies
-	fmt.Println("  Adding github.com/fredrikaverpil/pocket@latest")
-	if err := runCommand(".pocket", "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
-		return fmt.Errorf("go get: %w", err)
+	fmt.Println("Initializing Pocket...")
+
+	// Create .pocket directory.
+	if err := os.MkdirAll(pocketDir, 0o755); err != nil {
+		return fmt.Errorf("creating .pocket directory: %w", err)
 	}
 
-	// Generate all scaffold files (config.go, .gitignore, main.go, shim)
-	// Detect platform and generate appropriate shim(s)
-	fmt.Println("  Generating scaffold files")
-	cfg := &pocket.Config{
-		Shim: &pocket.ShimConfig{
-			Posix:      runtime.GOOS != "windows",
-			Windows:    runtime.GOOS == "windows",
-			PowerShell: runtime.GOOS == "windows",
-		},
+	// Initialize Go module.
+	fmt.Println("  Creating Go module...")
+	initCmd := exec.CommandContext(ctx, "go", "mod", "init", "pocket")
+	initCmd.Dir = pocketDir
+	initCmd.Stdout = os.Stdout
+	initCmd.Stderr = os.Stderr
+	if err := initCmd.Run(); err != nil {
+		return fmt.Errorf("initializing Go module: %w", err)
 	}
-	// Create minimal ConfigPlan for initial scaffold (just root directory)
-	plan := &pocket.ConfigPlan{
-		Config:            cfg,
-		ModuleDirectories: []string{"."},
+
+	// Add pocket dependency.
+	fmt.Println("  Adding pocket dependency...")
+	getCmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
+	getCmd.Dir = pocketDir
+	getCmd.Stdout = os.Stdout
+	getCmd.Stderr = os.Stderr
+	if err := getCmd.Run(); err != nil {
+		return fmt.Errorf("adding pocket dependency: %w", err)
 	}
-	if _, err := scaffold.GenerateAll(plan); err != nil {
+
+	// Generate scaffold files.
+	fmt.Println("  Generating scaffold files...")
+	if err := scaffold.GenerateAll(pocketDir); err != nil {
 		return fmt.Errorf("generating scaffold: %w", err)
 	}
 
-	// Run go mod tidy (after main.go is created)
-	fmt.Println("  Running go mod tidy")
-	if err := runCommand(".pocket", "go", "mod", "tidy"); err != nil {
-		return fmt.Errorf("go mod tidy: %w", err)
+	// Run go mod tidy.
+	fmt.Println("  Running go mod tidy...")
+	tidyCmd := exec.CommandContext(ctx, "go", "mod", "tidy")
+	tidyCmd.Dir = pocketDir
+	tidyCmd.Stdout = os.Stdout
+	tidyCmd.Stderr = os.Stderr
+	if err := tidyCmd.Run(); err != nil {
+		return fmt.Errorf("running go mod tidy: %w", err)
 	}
 
+	// Generate shims.
+	fmt.Println("  Generating shim scripts...")
+
+	shimCfg := shim.Config{
+		Name:       "pok",
+		Posix:      runtime.GOOS != "windows",
+		Windows:    runtime.GOOS == "windows",
+		PowerShell: runtime.GOOS == "windows",
+	}
+
+	shimPaths, err := shim.GenerateShims(ctx, cwd, pocketDir, nil, shimCfg)
+	if err != nil {
+		return fmt.Errorf("generating shims: %w", err)
+	}
+
+	// Success message.
 	fmt.Println()
-	fmt.Println("Done! You can now run:")
+	fmt.Println("Pocket initialized successfully!")
+	fmt.Println()
+	fmt.Println("Generated files:")
+	fmt.Println("  .pocket/config.go  - Edit this to define your tasks")
+	fmt.Println("  .pocket/main.go    - Auto-generated entry point")
+	for _, p := range shimPaths {
+		fmt.Printf("  %s\n", p)
+	}
+	fmt.Println()
+
+	// Platform-specific instructions.
 	if runtime.GOOS == "windows" {
-		fmt.Println("  .\\pok -h          # list available tasks")
-		fmt.Println("  .\\pok             # run all tasks")
-		fmt.Println("  .\\pok update      # update pocket to latest version")
+		fmt.Println("Run your tasks with:")
+		fmt.Println("  .\\pok.cmd")
+		fmt.Println("  # or")
+		fmt.Println("  .\\pok.ps1")
 	} else {
-		fmt.Println("  ./pok -h          # list available tasks")
-		fmt.Println("  ./pok             # run all tasks")
-		fmt.Println("  ./pok update      # update pocket to latest version")
+		fmt.Println("Run your tasks with:")
+		fmt.Println("  ./pok")
 	}
 
 	return nil
-}
-
-func runCommand(dir, name string, args ...string) error {
-	cmd := exec.CommandContext(context.Background(), name, args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }

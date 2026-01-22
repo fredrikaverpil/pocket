@@ -1,0 +1,30 @@
+package main
+
+import (
+	"context"
+
+	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tasks/git"
+)
+
+// Config is the Pocket configuration for this project.
+// Edit this file to define your tasks and composition.
+var Config = &pk.Config{
+	Auto: pk.Serial(
+		// Add your tasks here. Example:
+		// pk.Parallel(Lint, Format),
+		// pk.WithOptions(
+		//     Test,
+		//     pk.WithIncludePath("services"),
+		//     pk.WithExcludePath("vendor"),
+		// ),
+		Hello,
+		git.Diff, // Ensure workspace is clean after tasks
+	),
+}
+
+// Hello is an example task. Replace with your own tasks.
+var Hello = pk.NewTask("hello", "print a greeting message", nil, pk.Do(func(ctx context.Context) error {
+	pk.Println(ctx, "Hello from Pocket!")
+	return nil
+}))
