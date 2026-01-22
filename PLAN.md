@@ -267,7 +267,18 @@ Specifically targeted changes:
 - [x] Refactor version logic into `pk/version.go`
 - [x] Unified and robust signal handling in `pk/cli.go`
 
-## Phase 9: Wrapup & Polish
+## Phase 9: Fixups
+
+- [ ] When bootstrapping, all three pok shims are created. Make this
+      configurable in the Config. You might want one or more enabled. Add into
+      the bootstrapped .pocket/config.go so it is visible that all three shims
+      are set to true. This way it becomes more apparent that you can disable
+      those you don't want. You can see what this looked like in pocket-v1.
+- [ ] Tools like golangci-lint and stylua comes with config files. Let's discuss
+      a way to have a task use these, or fall back to e.g. a repo root config
+      file. You can see what we did in pocket-v1 for this.
+
+## Phase 10: Wrapup & Polish
 
 - [ ] Analyze Pocket
   - [ ] DX - do we have good developer experience?

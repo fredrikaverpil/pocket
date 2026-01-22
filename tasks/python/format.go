@@ -1,0 +1,44 @@
+package python
+
+import (
+	"context"
+	"flag"
+
+	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tools/uv"
+)
+
+var (
+	formatFlags = flag.NewFlagSet("py-format", flag.ContinueOnError)
+	formatPyVer = formatFlags.String("python", "", "Python version (for target-version inference)")
+)
+
+// Format formats Python files using ruff format.
+// Requires ruff as a project dependency in pyproject.toml.
+var Format = pk.NewTask("py-format", "format Python files", formatFlags,
+	pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
+)
+
+func formatSyncCmd() pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
+		return uv.Sync(ctx, *formatPyVer, true)
+	})
+}
+
+func formatCmd() pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
+		args := []string{
+			"format",
+			"--exclude", ".pocket",
+		}
+		if pk.Verbose(ctx) {
+			args = append(args, "--verbose")
+		}
+		if *formatPyVer != "" {
+			args = append(args, "--target-version", pythonVersionToRuff(*formatPyVer))
+		}
+		args = append(args, pk.PathFromContext(ctx))
+
+		return uv.Run(ctx, *formatPyVer, "ruff", args...)
+	})
+}

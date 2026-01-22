@@ -1,0 +1,5 @@
+# Commitsar configuration
+# https://commitsar.aevea.ee/configuration/config-file/
+
+commits:
+  upstreamBranch: origin/main

@@ -12,6 +12,7 @@ import (
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
 	Auto: pk.Serial(
+		// commits.Validate, // Validate commit messages against conventional commits
 		golang.Tasks(), // Runs golang.Lint and golang.Test in all go.mod directories
 		git.Diff,       // Ensure workspace is clean after tasks
 	),
