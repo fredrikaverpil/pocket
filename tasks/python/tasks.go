@@ -21,23 +21,24 @@ func Detect() pk.DetectFunc {
 	return pk.DetectByFile("pyproject.toml", "setup.py", "setup.cfg")
 }
 
-// Tasks returns Python-related tasks with auto-detection.
+// Tasks returns Python-related tasks composed together.
 // If no tasks are provided, it defaults to running Typecheck and Test in parallel,
 // then Format, then Lint (serial because format/lint modify files).
+//
+// Use with pk.WithDetect to specify where tasks should run:
+//
+//	pk.WithOptions(
+//	    python.Tasks(),
+//	    pk.WithDetect(python.Detect()),
+//	)
 func Tasks(tasks ...pk.Runnable) pk.Runnable {
 	if len(tasks) == 0 {
-		return pk.WithOptions(
-			pk.Serial(
-				pk.Parallel(Typecheck, Test),
-				Format,
-				Lint,
-			),
-			pk.WithDetect(Detect()),
+		return pk.Serial(
+			pk.Parallel(Typecheck, Test),
+			Format,
+			Lint,
 		)
 	}
 
-	return pk.WithOptions(
-		pk.Serial(tasks...),
-		pk.WithDetect(Detect()),
-	)
+	return pk.Serial(tasks...)
 }

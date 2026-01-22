@@ -14,9 +14,13 @@ func Detect() pk.DetectFunc {
 }
 
 // Tasks returns all markdown tasks composed as a Runnable.
+//
+// Use with pk.WithDetect to specify where tasks should run:
+//
+//	pk.WithOptions(
+//	    markdown.Tasks(),
+//	    pk.WithDetect(markdown.Detect()),
+//	)
 func Tasks() pk.Runnable {
-	return pk.WithOptions(
-		Format,
-		pk.WithDetect(Detect()),
-	)
+	return Format
 }
