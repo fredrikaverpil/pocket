@@ -57,12 +57,13 @@ var updateTask = NewTask(
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		// 1. go get latest
+		// 1. go get latest (use GOPROXY=direct to bypass proxy cache)
 		if Verbose(ctx) {
-			Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+			Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 		}
 		cmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
 		cmd.Dir = pocketDir
+		cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
 		out := OutputFromContext(ctx)
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
