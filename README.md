@@ -7,6 +7,11 @@ It replaces complex Makefiles and shell scripts with a type-safe, Go-based
 configuration that handles task composition, tool installation, and
 cross-platform execution.
 
+> [!WARNING]
+>
+> Under heavy development. Breaking changes will occur until the initial
+> release.
+
 ## Key Features
 
 - **Zero-Install Bootstrapping**: The `./pok` shim automatically manages the
@@ -20,6 +25,11 @@ cross-platform execution.
   directly in Go. Pocket handles downloading, versioning, and caching in
   `.pocket/`.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
+
+> [!NOTE]
+>
+> You don't need Go installed to use Pocket. The `./pok` shim automatically
+> downloads Go to `.pocket/` if needed.
 
 ## Quickstart
 
