@@ -215,13 +215,22 @@ func (pc *taskCollector) walk(r Runnable) error {
 			pc.tasks = append(pc.tasks, v)
 		}
 
-		// Apply all active excludes to the current candidates for THIS task.
-		finalPaths := pc.candidates
-		for _, ex := range pc.activeExcludes {
-			// If ex.tasks is empty, it's a global exclude for this scope.
-			// If ex.tasks is not empty, it only applies if this task is in the list.
-			if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
-				finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+		// Determine final paths for this task.
+		// If task is NOT inside any pathFilter, run at root only.
+		// If inside a pathFilter, use the filtered candidates with excludes applied.
+		var finalPaths []string
+		if pc.currentPath == nil {
+			// No pathFilter - run at root only
+			finalPaths = []string{"."}
+		} else {
+			// Inside a pathFilter - apply excludes to current candidates
+			finalPaths = pc.candidates
+			for _, ex := range pc.activeExcludes {
+				// If ex.tasks is empty, it's a global exclude for this scope.
+				// If ex.tasks is not empty, it only applies if this task is in the list.
+				if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
+					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+				}
 			}
 		}
 

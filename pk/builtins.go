@@ -264,7 +264,7 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 
 		paths := "[root]"
 		if info, ok := pathMappings[v.Name()]; ok && len(info.resolvedPaths) > 0 {
-			paths = fmt.Sprintf("%v", info.resolvedPaths)
+			paths = formatPaths(info.resolvedPaths)
 		}
 
 		Printf(ctx, "%s%s%s%s\n", prefix, branch, v.Name(), marker)
@@ -315,4 +315,19 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 		}
 		printTree(ctx, v.inner, childPrefix, true, pathMappings)
 	}
+}
+
+// formatPaths formats a path list for display.
+// Shows full list if <= 3 paths, otherwise shows count.
+func formatPaths(paths []string) string {
+	if len(paths) == 0 {
+		return "[root]"
+	}
+	if len(paths) == 1 && paths[0] == "." {
+		return "[root]"
+	}
+	if len(paths) <= 3 {
+		return fmt.Sprintf("%v", paths)
+	}
+	return fmt.Sprintf("%d directories", len(paths))
 }
