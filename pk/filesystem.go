@@ -47,8 +47,14 @@ func doFindGitRoot() string {
 
 // walkDirectories walks the filesystem starting from gitRoot and returns
 // all directories found (relative to gitRoot, using forward slashes).
-// Skips hidden directories, vendor, node_modules, and .pocket.
-func walkDirectories(gitRoot string) ([]string, error) {
+// Skips directories in skipDirs, and hidden directories unless includeHidden is true.
+func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]string, error) {
+	// Build a set for O(1) lookup
+	skipSet := make(map[string]struct{}, len(skipDirs))
+	for _, d := range skipDirs {
+		skipSet[d] = struct{}{}
+	}
+
 	var dirs []string
 
 	// Always include "." (the git root itself)
@@ -77,14 +83,15 @@ func walkDirectories(gitRoot string) ([]string, error) {
 		// Normalize to forward slashes
 		relPath = filepath.ToSlash(relPath)
 
-		// Skip hidden directories (except .git for the check, but we skip it anyway)
 		base := filepath.Base(path)
-		if strings.HasPrefix(base, ".") {
+
+		// Skip hidden directories unless includeHidden is true
+		if !includeHidden && strings.HasPrefix(base, ".") {
 			return filepath.SkipDir
 		}
 
-		// Skip vendor and node_modules
-		if base == "vendor" || base == "node_modules" {
+		// Skip directories in the skip set
+		if _, skip := skipSet[base]; skip {
 			return filepath.SkipDir
 		}
 

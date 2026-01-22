@@ -55,7 +55,14 @@ type pathInfo struct {
 // The filesystem is traversed ONCE during plan creation.
 func NewPlan(cfg *Config) (*Plan, error) {
 	gitRoot := findGitRoot()
-	allDirs, err := walkDirectories(gitRoot)
+
+	// Resolve skip dirs: nil uses defaults, empty slice skips nothing
+	skipDirs := cfg.SkipDirs
+	if skipDirs == nil {
+		skipDirs = DefaultSkipDirs
+	}
+
+	allDirs, err := walkDirectories(gitRoot, skipDirs, cfg.IncludeHiddenDirs)
 	if err != nil {
 		return nil, err
 	}
