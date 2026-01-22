@@ -22,11 +22,7 @@ func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		configPath := *formatConfig
 		if configPath == "" {
-			var err error
-			configPath, err = pk.ConfigPath(ctx, "stylua", stylua.Config)
-			if err != nil {
-				configPath = ""
-			}
+			configPath = stylua.EnsureDefaultConfig()
 		}
 
 		absDir := pk.FromGitRoot(pk.PathFromContext(ctx))
@@ -35,9 +31,7 @@ func formatCmd() pk.Runnable {
 		if pk.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
-		if configPath != "" {
-			args = append(args, "-f", configPath)
-		}
+		args = append(args, "-f", configPath)
 		args = append(args, absDir)
 
 		return pk.Exec(ctx, stylua.Name, args...)

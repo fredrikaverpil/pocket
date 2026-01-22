@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	lintFlags = flag.NewFlagSet("go-lint", flag.ContinueOnError)
-	lintFix   = lintFlags.Bool("fix", true, "apply fixes")
+	lintFlags  = flag.NewFlagSet("go-lint", flag.ContinueOnError)
+	lintFix    = lintFlags.Bool("fix", true, "apply fixes")
+	lintConfig = lintFlags.String("config", "", "path to golangci-lint config file")
 )
 
 // Lint runs golangci-lint on Go code.
@@ -24,6 +25,9 @@ func lintCmd() pk.Runnable {
 		args := []string{"run"}
 		if pk.Verbose(ctx) {
 			args = append(args, "-v")
+		}
+		if *lintConfig != "" {
+			args = append(args, "-c", *lintConfig)
 		}
 		if *lintFix {
 			args = append(args, "--fix")

@@ -4,6 +4,7 @@ package stylua
 import (
 	_ "embed"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
@@ -19,11 +20,18 @@ const Version = "2.3.1"
 //go:embed stylua.toml
 var defaultConfig []byte
 
-// Config describes how to find or create stylua's configuration file.
-var Config = pk.ToolConfig{
-	UserFiles:   []string{"stylua.toml", ".stylua.toml"},
-	DefaultFile: "stylua.toml",
-	DefaultData: defaultConfig,
+// DefaultConfigFile is the name of the default config file.
+const DefaultConfigFile = "stylua.toml"
+
+// EnsureDefaultConfig writes the bundled config to .pocket/tools/stylua/
+// and returns its path. Safe to call multiple times.
+func EnsureDefaultConfig() string {
+	configPath := pk.FromToolsDir("stylua", DefaultConfigFile)
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(filepath.Dir(configPath), 0o755)
+		_ = os.WriteFile(configPath, defaultConfig, 0o644)
+	}
+	return configPath
 }
 
 // Install ensures stylua is available.

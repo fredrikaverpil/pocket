@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	formatFlags = flag.NewFlagSet("md-format", flag.ContinueOnError)
-	formatCheck = formatFlags.Bool("check", false, "check only, don't write")
+	formatFlags  = flag.NewFlagSet("md-format", flag.ContinueOnError)
+	formatCheck  = formatFlags.Bool("check", false, "check only, don't write")
+	formatConfig = formatFlags.String("config", "", "path to prettier config file")
 )
 
 // Format formats Markdown files using prettier.
@@ -20,6 +21,11 @@ var Format = pk.NewTask("md-format", "format Markdown files", formatFlags,
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		configPath := *formatConfig
+		if configPath == "" {
+			configPath = prettier.EnsureDefaultConfig()
+		}
+
 		args := []string{}
 		if *formatCheck {
 			args = append(args, "--check")
@@ -27,10 +33,7 @@ func formatCmd() pk.Runnable {
 			args = append(args, "--write")
 		}
 
-		// Add config if available.
-		if configPath, err := pk.ConfigPath(ctx, "prettier", prettier.Config); err == nil && configPath != "" {
-			args = append(args, "--config", configPath)
-		}
+		args = append(args, "--config", configPath)
 
 		// Add ignore file if available.
 		if ignorePath, err := prettier.EnsureIgnoreFile(); err == nil {
