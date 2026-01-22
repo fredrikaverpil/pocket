@@ -6,22 +6,24 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/git"
+	"github.com/fredrikaverpil/pocket/tasks/github"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
-	Auto: pk.Serial(
+	Auto: pk.Parallel(
 		// commits.Validate, // Validate commit messages against conventional commits
 		golang.Tasks(),
-		markdown.Format, // Format markdown files from root
-		git.Diff,        // Ensure workspace is clean after tasks
+		markdown.Format,   // Format markdown files from root
+		github.Workflows,  // Bootstrap GitHub workflow files
 	),
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello.Manual(), // ./pok hello -name "World"
+		Hello.Manual(),    // ./pok hello -name "World"
+		git.Diff.Manual(), // ./pok git-diff
 	},
 
 	// Shims controls which shim scripts are generated.
