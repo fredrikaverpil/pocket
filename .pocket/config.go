@@ -23,6 +23,10 @@ var Config = &pk.Config{
 	Manual: []pk.Runnable{
 		Hello.Manual(), // ./pok hello -name "World"
 	},
+
+	// Shims controls which shim scripts are generated.
+	// Set to nil for default (POSIX only), or configure explicitly.
+	Shims: pk.AllShimsConfig(), // pok, pok.cmd, pok.ps1
 }
 
 // Hello flags.

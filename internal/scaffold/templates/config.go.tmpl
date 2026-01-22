@@ -21,6 +21,14 @@ var Config = &pk.Config{
 		Hello,
 		git.Diff, // Ensure workspace is clean after tasks
 	),
+
+	// Shims controls which shim scripts are generated.
+	// Set to nil for default (POSIX only), or configure explicitly.
+	Shims: &pk.ShimConfig{
+		Posix:      true, // pok (POSIX shell script)
+		Windows:    true, // pok.cmd (Windows batch file)
+		PowerShell: true, // pok.ps1 (PowerShell script)
+	},
 }
 
 // Hello is an example task. Replace with your own tasks.

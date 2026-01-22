@@ -33,6 +33,18 @@ type Plan struct {
 	// moduleDirectories lists directories where shims should be generated.
 	// These are derived from PathMappings during plan creation.
 	moduleDirectories []string
+
+	// shimConfig holds the shim generation configuration from Config.
+	shimConfig *ShimConfig
+}
+
+// ShimConfig returns the resolved shim configuration.
+// If no shim config was set in Config, returns DefaultShimConfig().
+func (p *Plan) ShimConfig() *ShimConfig {
+	if p.shimConfig == nil {
+		return DefaultShimConfig()
+	}
+	return p.shimConfig
 }
 
 // pathInfo describes where a task should execute.
@@ -70,12 +82,23 @@ func NewPlan(cfg *Config) (*Plan, error) {
 }
 
 func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
-	if cfg == nil || (cfg.Auto == nil && len(cfg.Manual) == 0) {
+	if cfg == nil {
 		return &Plan{
 			tree:              nil,
 			tasks:             []*Task{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
+			shimConfig:        nil,
+		}, nil
+	}
+
+	if cfg.Auto == nil && len(cfg.Manual) == 0 {
+		return &Plan{
+			tree:              nil,
+			tasks:             []*Task{},
+			pathMappings:      make(map[string]pathInfo),
+			moduleDirectories: []string{},
+			shimConfig:        cfg.Shims,
 		}, nil
 	}
 
@@ -110,6 +133,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
+		shimConfig:        cfg.Shims,
 	}, nil
 }
 

@@ -24,15 +24,17 @@ var generateTask = NewTask("generate", "regenerate shims in all directories", ni
 		return fmt.Errorf("plan not found in context")
 	}
 
+	// Use shim config from plan (defaults to POSIX only if not configured)
+	cfg := p.ShimConfig()
 	shims, err := shim.GenerateShims(
 		ctx,
 		gitRoot,
 		pocketDir,
 		p.moduleDirectories,
 		shim.Config{
-			Posix:      true,
-			Windows:    true,
-			PowerShell: true,
+			Posix:      cfg.Posix,
+			Windows:    cfg.Windows,
+			PowerShell: cfg.PowerShell,
 		},
 	)
 	if err != nil {
