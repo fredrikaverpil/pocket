@@ -133,7 +133,8 @@ Completed:
   - [x] `bufferedOutput` captures per-goroutine output for parallel execution
   - [x] `lockedWriter` for thread-safe concurrent writes
 - [x] Context-based output (`pk/context.go`)
-  - [x] `WithOutput()`/`OutputFromContext()` for propagating output through context
+  - [x] `WithOutput()`/`OutputFromContext()` for propagating output through
+        context
 - [x] Execution with graceful shutdown (`pk/exec.go`)
   - [x] `Exec()` uses context output instead of `os.Stdout/Stderr`
   - [x] `WaitDelay = 5s` constant for graceful shutdown
@@ -197,22 +198,21 @@ pocket v2.
 
 - [x] Discuss how we will store tools and packages in pocket. In registry/tasks,
       registry/tools packages (or just tasks, tools packages)? Compare with how
-      this was done in pocket-v1.
-      **Decision:** Root-level `tools/` and `tasks/` packages (e.g.,
-      `tools/golangcilint/`, `tasks/golang/`).
-- [x] First tool is implemented; I propose golangci-lint.
-      **Done:** `tools/golangcilint/golangcilint.go` with `Install` task,
-      versioned installation to `.pocket/tools/go/<pkg>/<version>/bin/`,
-      symlinked to `.pocket/bin/`.
+      this was done in pocket-v1. **Decision:** Root-level `tools/` and `tasks/`
+      packages (e.g., `tools/golangcilint/`, `tasks/golang/`).
+- [x] First tool is implemented; I propose golangci-lint. **Done:**
+      `tools/golangcilint/golangcilint.go` with `Install` task, versioned
+      installation to `.pocket/tools/go/<pkg>/<version>/bin/`, symlinked to
+      `.pocket/bin/`.
 - [x] First task, which uses previous tool, is implemented; I propose a "golang"
       task would encapsulate several Go-specific tasks/tools. We can then
-      dogfood ./pok go-lint for example.
-      **Done:** `tasks/golang/` with `Lint` task, `Tasks()` bundle function.
+      dogfood ./pok go-lint for example. **Done:** `tasks/golang/` with `Lint`
+      task, `Tasks()` bundle function.
 - [x] Discussion, review; what went well, what works, what do we have to go back
-      and fix/simplify?
-      **Done:** Simplified execution API from `Do`+`Run`+`Exec` to just `Do`+`Exec`.
-      Removed unused `RunCommand`, `RunCommandString`, `DetectByFile`.
-      Created `REFERENCE.md` documenting public API.
+      and fix/simplify? **Done:** Simplified execution API from
+      `Do`+`Run`+`Exec` to just `Do`+`Exec`. Removed unused `RunCommand`,
+      `RunCommandString`, `DetectByFile`. Created `REFERENCE.md` documenting
+      public API.
 - [ ] Implement the GitHub workflows task along with the ci matrix capability.
 - [ ] Tools installations should be tested, so that we know each tool can
       install fine and symlink its binary.
@@ -222,22 +222,22 @@ Additional completed:
 - [x] Added `-v` verbose flag (changed from version to verbose)
 - [x] Added `--version` flag for version display
 - [x] Verbose mode threads through context, affects `Exec()` and `InstallGo()`
-- [x] Task naming: `NewTask()` accepts `Runnable` body (use `Do()` to wrap functions)
+- [x] Task naming: `NewTask()` accepts `Runnable` body (use `Do()` to wrap
+      functions)
 
 ## Phase 7: Auto-detection of modules
 
 - [x] Let's implement a way to autodetect e.g. `go.mod` files, and run the
       golang task(s) in each such module. This would replace the need for
-      `WithIncludePath`.
-      **Done:** Implemented `DetectFunc`, `DetectByFile()`
-      in `pk/detect.go`. Added `WithDetect()` path option. Updated
+      `WithIncludePath`. **Done:** Implemented `DetectFunc`, `DetectByFile()` in
+      `pk/detect.go`. Added `WithDetect()` path option. Updated
       `tasks/golang/tasks.go` to use `WithDetect(golang.Detect())`.
 - [x] When auto-detecting, we might want to exclude both paths and tasks. See
       how we did this in pocket-v1, since I think that worked pretty well there.
-      How can that fit into pocket v2?
-      **Done:** Detection integrates with existing `WithExcludePath()`. Also
-      added manual tasks via `Config.Manual` field and `(*Task).Manual()` method
-      for tasks that only run when explicitly invoked (not on bare `./pok`).
+      How can that fit into pocket v2? **Done:** Detection integrates with
+      existing `WithExcludePath()`. Also added manual tasks via `Config.Manual`
+      field and `(*Task).Manual()` method for tasks that only run when
+      explicitly invoked (not on bare `./pok`).
 
 ## Phase 7: Mid-review
 

@@ -37,6 +37,10 @@ var colorForceEnvVars = []string{
 	"FORCE_COLOR=1",       // Node.js, chalk, many modern tools
 	"CLICOLOR_FORCE=1",    // BSD/macOS convention
 	"COLORTERM=truecolor", // Indicates color support
+	// Git uses its own color config, override via env vars.
+	"GIT_CONFIG_COUNT=1",
+	"GIT_CONFIG_KEY_0=color.ui",
+	"GIT_CONFIG_VALUE_0=always",
 }
 
 // initColorEnv detects if stdout is a TTY and prepares env vars to force colors.
@@ -69,10 +73,16 @@ func Exec(ctx context.Context, name string, args ...string) error {
 
 	path := PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
+	env := prependBinToPath(os.Environ())
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	// Look up the command in our modified PATH, not the current process's PATH.
+	// exec.CommandContext uses LookPath with the current PATH, which doesn't
+	// include .pocket/bin yet.
+	resolvedName := lookPathInEnv(name, env)
+
+	cmd := exec.CommandContext(ctx, resolvedName, args...)
 	cmd.Dir = targetDir
-	cmd.Env = prependBinToPath(os.Environ())
+	cmd.Env = env
 	cmd.Env = append(cmd.Env, colorEnvVars...)
 	cmd.WaitDelay = WaitDelay
 	setGracefulShutdown(cmd)
@@ -104,14 +114,46 @@ func prependBinToPath(environ []string) []string {
 
 	result := make([]string, 0, len(environ))
 	for _, env := range environ {
-		if strings.HasPrefix(env, "PATH=") {
-			existingPath := strings.TrimPrefix(env, "PATH=")
-			result = append(result, fmt.Sprintf("PATH=%s%c%s", binDir, filepath.ListSeparator, existingPath))
+		if path, found := strings.CutPrefix(env, "PATH="); found {
+			result = append(result, fmt.Sprintf("PATH=%s%c%s", binDir, filepath.ListSeparator, path))
 		} else {
 			result = append(result, env)
 		}
 	}
 	return result
+}
+
+// lookPathInEnv looks up a command in the PATH from the given environment.
+// If the command contains a path separator, it is returned as-is.
+// If the command is not found, the original name is returned (letting exec fail with a clear error).
+func lookPathInEnv(name string, env []string) string {
+	// If name contains a path separator, use it directly.
+	if strings.ContainsRune(name, filepath.Separator) {
+		return name
+	}
+
+	// Extract PATH from env.
+	var pathEnv string
+	for _, e := range env {
+		if path, found := strings.CutPrefix(e, "PATH="); found {
+			pathEnv = path
+			break
+		}
+	}
+
+	if pathEnv == "" {
+		return name
+	}
+
+	// Search each directory in PATH.
+	for dir := range strings.SplitSeq(pathEnv, string(filepath.ListSeparator)) {
+		path := filepath.Join(dir, name)
+		if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
+			return path
+		}
+	}
+
+	return name
 }
 
 // doRunnable wraps a function as a Runnable.
