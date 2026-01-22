@@ -211,3 +211,17 @@ defer stop()
 ```
 
 Signals propagate through context cancellation to all running tasks and external commands.
+
+## Platform Specifics
+
+Pocket uses **Go build tags** to handle platform-specific behavior while maintaining a clean, cross-platform core.
+
+### Graceful Shutdown
+
+Graceful shutdown requires sending different signals depending on the operating system:
+- **Unix (`pk/exec_unix.go`)**: Uses `syscall.SIGINT` to allow processes to clean up before termination.
+- **Other (`pk/exec_other.go`)**: Defaults to immediate termination as standard interrupt signals are not available or handled differently.
+
+### Terminal Detection
+
+Terminal detection is consolidated in `pk/exec.go` and works across all platforms (including Windows) using `golang.org/x/term`. This allows Pocket to automatically enable colored output and other TTY-dependent features when running in a real terminal.

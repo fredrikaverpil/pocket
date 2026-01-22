@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/term"
 )
 
 // WaitDelay is the time to wait after sending SIGINT before sending SIGKILL.
@@ -47,6 +49,11 @@ func initColorEnv() {
 	if isTerminal(os.Stdout) {
 		colorEnvVars = colorForceEnvVars
 	}
+}
+
+// isTerminal returns true if the given file is a terminal.
+func isTerminal(f *os.File) bool {
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // Exec executes a command with .pocket/bin prepended to PATH.
