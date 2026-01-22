@@ -281,11 +281,15 @@ Specifically targeted changes:
   - [x] `AllShimsConfig()` - all three shims enabled
   - [x] Scaffold template shows explicit config with all shims enabled
   - [x] Plan stores and exposes ShimConfig for generate task
-- [ ] Tools like golangci-lint and stylua comes with config files. Let's discuss
+- [x] Tools like golangci-lint and stylua comes with config files. Let's discuss
       a way to have a task use these, or fall back to e.g. a repo root config
-      file. You can see what we did in pocket-v1 for this.
-- [ ] Pocket-v1 had a github-workflows task which copied very common github
+      file. You can see what we did in pocket-v1 for this. (Already handled)
+- [x] Pocket-v1 had a github-workflows task which copied very common github
       workflows into place. Let's add that back in.
+  - [x] Created `tasks/github/` package with `Workflows` task
+  - [x] Embedded templates for pocket, pr, release, stale, sync workflows
+  - [x] Skip flags for selective generation, platforms flag for customization
+  - [x] Silent by default, verbose with `-v`
 - [ ] Pocket-v1 also had a much more complex matrix-based github workflow which
       hooked into the plan and generated concurrent workflow jobs. Let's analyze
       how we can get that back into pocket v2!
