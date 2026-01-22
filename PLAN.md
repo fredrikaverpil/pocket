@@ -269,14 +269,26 @@ Specifically targeted changes:
 
 ## Phase 9: Fixups
 
-- [ ] When bootstrapping, all three pok shims are created. Make this
-      configurable in the Config. You might want one or more enabled. Add into
-      the bootstrapped .pocket/config.go so it is visible that all three shims
-      are set to true. This way it becomes more apparent that you can disable
-      those you don't want. You can see what this looked like in pocket-v1.
+- [x] Add configurable directory skip options to Config:
+  - [x] `SkipDirs []string` - directories to skip during filesystem walk
+  - [x] `DefaultSkipDirs` - sensible defaults (vendor, node_modules, dist,
+        \_\_pycache\_\_, venv)
+  - [x] `IncludeHiddenDirs bool` - opt-in to include hidden directories
+  - [x] Tests in `pk/filesystem_test.go`
+- [x] Configurable shim generation in Config:
+  - [x] `Shims *ShimConfig` - controls which shims are generated
+  - [x] `DefaultShimConfig()` - POSIX only (default when nil)
+  - [x] `AllShimsConfig()` - all three shims enabled
+  - [x] Scaffold template shows explicit config with all shims enabled
+  - [x] Plan stores and exposes ShimConfig for generate task
 - [ ] Tools like golangci-lint and stylua comes with config files. Let's discuss
       a way to have a task use these, or fall back to e.g. a repo root config
       file. You can see what we did in pocket-v1 for this.
+- [ ] Pocket-v1 had a github-workflows task which copied very common github
+      workflows into place. Let's add that back in.
+- [ ] Pocket-v1 also had a much more complex matrix-based github workflow which
+      hooked into the plan and generated concurrent workflow jobs. Let's analyze
+      how we can get that back into pocket v2!
 
 ## Phase 10: Wrapup & Polish
 
