@@ -33,10 +33,9 @@ type Config struct {
 }
 
 type PlanConfig struct {
-    SkipDirs          []string        // Directories to skip during filesystem walk
-    IncludeHiddenDirs bool            // Include hidden directories (default: false)
-    Shims             *ShimConfig     // Which shim scripts to generate
-    GitDiff           *GitDiffConfig  // Git diff check configuration
+    SkipDirs          []string    // Directories to skip during filesystem walk
+    IncludeHiddenDirs bool        // Include hidden directories (default: false)
+    Shims             *ShimConfig // Which shim scripts to generate
 }
 ```
 
@@ -62,48 +61,18 @@ type ShimConfig struct {
 | `DefaultShimConfig` | Returns config with POSIX only (default) |
 | `AllShimsConfig`    | Returns config with all shims enabled    |
 
-### Git Diff Configuration
+### Git Diff Check
 
-Pocket can run `git diff --exit-code` after task execution to catch unintended file
-modifications. This is enabled with the `-g` flag: `./pok -g`.
+Pocket can run `git diff --exit-code` after task execution to catch unintended
+file modifications. This is enabled with the `-g` flag:
 
-```go
-type GitDiffConfig struct {
-    DisableByDefault bool           // Invert default: opt-in mode
-    Rules            []GitDiffRule  // Task rules for skip/include
-}
-
-type GitDiffRule struct {
-    Task  *Task    // Task this rule applies to
-    Paths []string // Regexp patterns (nil = all paths)
-}
+```bash
+./pok -g          # Run all auto tasks, then git diff
+./pok lint -g     # Run lint task, then git diff
 ```
 
-**Opt-out mode (default):** Git diff runs for all tasks, Rules specify tasks to SKIP.
-
-```go
-Plan: &pk.PlanConfig{
-    GitDiff: &pk.GitDiffConfig{
-        Rules: []pk.GitDiffRule{
-            {Task: Generate},                              // skip for all paths
-            {Task: Format, Paths: []string{"generated/"}}, // skip for specific paths
-        },
-    },
-}
-```
-
-**Opt-in mode:** Git diff disabled by default, Rules specify tasks to INCLUDE.
-
-```go
-Plan: &pk.PlanConfig{
-    GitDiff: &pk.GitDiffConfig{
-        DisableByDefault: true,
-        Rules: []pk.GitDiffRule{
-            {Task: Lint}, // only run git diff for lint
-        },
-    },
-}
-```
+The `-g` flag causes Pocket to fail if there are uncommitted changes after tasks
+complete. This is useful in CI to ensure generated files are up to date.
 
 ---
 
@@ -411,12 +380,11 @@ type Plan struct {
 }
 ```
 
-| Function/Method      | Description                                     |
-| :------------------- | :---------------------------------------------- |
-| `NewPlan`            | Create plan from Config (walks filesystem once) |
-| `Plan.Tasks`         | Returns all `[]*Task` in the plan               |
-| `Plan.ShimConfig`    | Returns resolved `*ShimConfig`                  |
-| `Plan.GitDiffConfig` | Returns `*GitDiffConfig` (nil = default)        |
+| Function/Method   | Description                                     |
+| :---------------- | :---------------------------------------------- |
+| `NewPlan`         | Create plan from Config (walks filesystem once) |
+| `Plan.Tasks`      | Returns all `[]*Task` in the plan               |
+| `Plan.ShimConfig` | Returns resolved `*ShimConfig`                  |
 
 ```go
 plan := pk.PlanFromContext(ctx)
@@ -431,12 +399,12 @@ for _, task := range plan.Tasks() {
 
 ### Flags
 
-| Flag        | Description                                     |
-| :---------- | :---------------------------------------------- |
-| `-g`        | Run git diff check after execution              |
-| `-h`        | Show help                                       |
-| `-v`        | Verbose mode                                    |
-| `--version` | Show version                                    |
+| Flag        | Description                        |
+| :---------- | :--------------------------------- |
+| `-g`        | Run git diff check after execution |
+| `-h`        | Show help                          |
+| `-v`        | Verbose mode                       |
+| `--version` | Show version                       |
 
 ### Functions
 

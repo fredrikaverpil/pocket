@@ -1,7 +1,6 @@
 package github
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -16,7 +15,7 @@ func TestGenerateMatrix_Default(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -49,7 +48,7 @@ func TestGenerateMatrix_MultiplePlatforms(t *testing.T) {
 	cfg := MatrixConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 	}
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -90,7 +89,7 @@ func TestGenerateMatrix_TaskOverrides(t *testing.T) {
 			"lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on ubuntu
 		},
 	}
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -131,7 +130,7 @@ func TestGenerateMatrix_ExcludeTasks(t *testing.T) {
 		DefaultPlatforms: []string{"ubuntu-latest"},
 		ExcludeTasks:     []string{"format"},
 	}
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -160,7 +159,7 @@ func TestGenerateMatrix_HiddenTasksExcluded(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -186,7 +185,7 @@ func TestGenerateMatrix_ManualTasksExcluded(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -229,7 +228,7 @@ func TestGenerateMatrix_WindowsShim(t *testing.T) {
 				WindowsShell:     tt.windowsShell,
 				WindowsShim:      tt.windowsShim,
 			}
-			data, err := GenerateMatrix(tasks, cfg, nil)
+			data, err := GenerateMatrix(tasks, cfg)
 			if err != nil {
 				t.Fatalf("GenerateMatrix() failed: %v", err)
 			}
@@ -280,7 +279,7 @@ func TestGenerateMatrix_ShimForPlatform(t *testing.T) {
 
 func TestGenerateMatrix_EmptyTasks(t *testing.T) {
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(nil, cfg, nil)
+	data, err := GenerateMatrix(nil, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -318,7 +317,6 @@ func TestDefaultMatrixConfig(t *testing.T) {
 	}
 }
 
-
 func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 	tasks := []pk.TaskInfo{
 		{Name: "py-test:3.9", Usage: "test python 3.9"},
@@ -334,7 +332,7 @@ func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 			"go-lint":    {Platforms: []string{"ubuntu-latest"}},
 		},
 	}
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -434,8 +432,8 @@ func TestGenerateMatrix_GitDiff_Default(t *testing.T) {
 
 	cfg := DefaultMatrixConfig()
 
-	// nil GitDiffConfig = gitDiff enabled for all
-	data, err := GenerateMatrix(tasks, cfg, nil)
+	// Default config = gitDiff enabled for all tasks
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -452,25 +450,18 @@ func TestGenerateMatrix_GitDiff_Default(t *testing.T) {
 	}
 }
 
-func TestGenerateMatrix_GitDiff_SkipRules(t *testing.T) {
-	generateTask := pk.NewTask("generate", "generate code", nil, pk.Do(func(_ context.Context) error {
-		return nil
-	}))
-
+func TestGenerateMatrix_GitDiff_Disabled(t *testing.T) {
 	tasks := []pk.TaskInfo{
 		{Name: "lint", Usage: "lint code"},
-		{Name: "generate", Usage: "generate code"},
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := DefaultMatrixConfig()
-	gitDiffConfig := &pk.GitDiffConfig{
-		Rules: []pk.GitDiffRule{
-			{Task: generateTask}, // skip gitDiff for generate
-		},
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest"},
+		DisableGitDiff:   true,
 	}
 
-	data, err := GenerateMatrix(tasks, cfg, gitDiffConfig)
+	data, err := GenerateMatrix(tasks, cfg)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -481,56 +472,8 @@ func TestGenerateMatrix_GitDiff_SkipRules(t *testing.T) {
 	}
 
 	for _, entry := range output.Include {
-		if entry.Task == "generate" {
-			if entry.GitDiff {
-				t.Errorf("expected gitDiff=false for generate (in skip rules), got true")
-			}
-		} else {
-			if !entry.GitDiff {
-				t.Errorf("expected gitDiff=true for %s, got false", entry.Task)
-			}
-		}
-	}
-}
-
-func TestGenerateMatrix_GitDiff_DisableByDefault(t *testing.T) {
-	lintTask := pk.NewTask("lint", "lint code", nil, pk.Do(func(_ context.Context) error {
-		return nil
-	}))
-
-	tasks := []pk.TaskInfo{
-		{Name: "lint", Usage: "lint code"},
-		{Name: "generate", Usage: "generate code"},
-		{Name: "test", Usage: "run tests"},
-	}
-
-	cfg := DefaultMatrixConfig()
-	gitDiffConfig := &pk.GitDiffConfig{
-		DisableByDefault: true,
-		Rules: []pk.GitDiffRule{
-			{Task: lintTask}, // only enable gitDiff for lint
-		},
-	}
-
-	data, err := GenerateMatrix(tasks, cfg, gitDiffConfig)
-	if err != nil {
-		t.Fatalf("GenerateMatrix() failed: %v", err)
-	}
-
-	var output matrixOutput
-	if err := json.Unmarshal(data, &output); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	for _, entry := range output.Include {
-		if entry.Task == "lint" {
-			if !entry.GitDiff {
-				t.Errorf("expected gitDiff=true for lint (in include rules), got false")
-			}
-		} else {
-			if entry.GitDiff {
-				t.Errorf("expected gitDiff=false for %s (not in include rules), got true", entry.Task)
-			}
+		if entry.GitDiff {
+			t.Errorf("expected gitDiff=false for %s when DisableGitDiff=true, got true", entry.Task)
 		}
 	}
 }

@@ -184,12 +184,8 @@ func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
 		}
 	}
 
-	// Run git diff check after task completes.
-	var gitDiffCfg *GitDiffConfig
-	if p != nil {
-		gitDiffCfg = p.GitDiffConfig()
-	}
-	return runGitDiff(ctx, gitDiffCfg, tracker)
+	// Run git diff check after task completes (only if -g flag was passed).
+	return runGitDiff(ctx)
 }
 
 func execute(ctx context.Context, c Config, p *Plan) error {
@@ -210,7 +206,7 @@ func execute(ctx context.Context, c Config, p *Plan) error {
 	}
 
 	// Run git diff check after all tasks complete (only if -g flag was passed).
-	return runGitDiff(ctx, p.GitDiffConfig(), tracker)
+	return runGitDiff(ctx)
 }
 
 // printHelp prints help information including available tasks.

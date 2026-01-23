@@ -36,9 +36,6 @@ type Plan struct {
 
 	// shimConfig holds the shim generation configuration from Config.
 	shimConfig *ShimConfig
-
-	// gitDiffConfig holds the git diff check configuration from Config.
-	gitDiffConfig *GitDiffConfig
 }
 
 // ShimConfig returns the resolved shim configuration.
@@ -48,12 +45,6 @@ func (p *Plan) ShimConfig() *ShimConfig {
 		return DefaultShimConfig()
 	}
 	return p.shimConfig
-}
-
-// GitDiffConfig returns the git diff check configuration.
-// Returns nil if no config was set (meaning default behavior: run git diff).
-func (p *Plan) GitDiffConfig() *GitDiffConfig {
-	return p.gitDiffConfig
 }
 
 // pathInfo describes where a task should execute.
@@ -103,16 +94,13 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        nil,
-			gitDiffConfig:     nil,
 		}, nil
 	}
 
 	// Extract plan config fields
 	var shimConfig *ShimConfig
-	var gitDiffConfig *GitDiffConfig
 	if cfg.Plan != nil {
 		shimConfig = cfg.Plan.Shims
-		gitDiffConfig = cfg.Plan.GitDiff
 	}
 
 	if cfg.Auto == nil && len(cfg.Manual) == 0 {
@@ -122,7 +110,6 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        shimConfig,
-			gitDiffConfig:     gitDiffConfig,
 		}, nil
 	}
 
@@ -158,7 +145,6 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
 		shimConfig:        shimConfig,
-		gitDiffConfig:     gitDiffConfig,
 	}, nil
 }
 

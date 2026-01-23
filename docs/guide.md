@@ -480,10 +480,9 @@ type Config struct {
 }
 
 type PlanConfig struct {
-    SkipDirs          []string        // Directories to skip during filesystem walk
-    IncludeHiddenDirs bool            // Include hidden directories (default: false)
-    Shims             *ShimConfig     // Which shim scripts to generate
-    GitDiff           *GitDiffConfig  // Git diff check configuration
+    SkipDirs          []string    // Directories to skip during filesystem walk
+    IncludeHiddenDirs bool        // Include hidden directories (default: false)
+    Shims             *ShimConfig // Which shim scripts to generate
 }
 ```
 
@@ -555,57 +554,15 @@ var Config = &pk.Config{
 ### Git Diff Check
 
 Pocket can run `git diff --exit-code` after task execution to catch unintended
-file modifications. This is enabled with the `-g` flag: `./pok -g`.
+file modifications. This is enabled with the `-g` flag:
 
-```go
-type GitDiffConfig struct {
-    DisableByDefault bool           // Invert default: opt-in mode
-    Rules            []GitDiffRule  // Task rules for skip/include
-}
-
-type GitDiffRule struct {
-    Task  *Task    // Task this rule applies to
-    Paths []string // Regexp patterns (nil = all paths)
-}
+```bash
+./pok -g          # Run all auto tasks, then git diff
+./pok lint -g     # Run lint task, then git diff
 ```
 
-**Opt-out mode (default):** Git diff runs for all tasks, Rules specify tasks to
-SKIP.
-
-```go
-var Config = &pk.Config{
-    Auto: pk.Serial(Format, Lint, Test),
-
-    Plan: &pk.PlanConfig{
-        // Skip git diff for tasks that intentionally modify files
-        GitDiff: &pk.GitDiffConfig{
-            Rules: []pk.GitDiffRule{
-                {Task: Generate},                              // skip for all paths
-                {Task: Format, Paths: []string{"generated/"}}, // skip only in generated/
-            },
-        },
-    },
-}
-```
-
-**Opt-in mode:** Git diff disabled by default, Rules specify tasks to INCLUDE.
-
-```go
-Plan: &pk.PlanConfig{
-    GitDiff: &pk.GitDiffConfig{
-        DisableByDefault: true,
-        Rules: []pk.GitDiffRule{
-            {Task: Lint}, // only run git diff for lint
-        },
-    },
-}
-```
-
-**Behavior:**
-
-- Git diff only runs when the `-g` flag is passed: `./pok -g` or `./pok lint -g`
-- With opt-out mode: git diff skips only if **all** executed tasks match a rule
-- With opt-in mode: git diff runs if **any** executed task matches a rule
+The `-g` flag causes Pocket to fail if there are uncommitted changes after tasks
+complete. This is useful in CI to ensure generated files are up to date.
 
 ---
 

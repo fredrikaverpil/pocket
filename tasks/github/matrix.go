@@ -32,6 +32,10 @@ type MatrixConfig struct {
 	// Default: "ps1"
 	// Ignored when WindowsShell is "bash" (always uses ./pok).
 	WindowsShim string
+
+	// DisableGitDiff prevents -g from being added in CI.
+	// Default (false): matrix outputs gitDiff: true for all tasks.
+	DisableGitDiff bool
 }
 
 // TaskOverride configures a single task in the matrix.
@@ -65,8 +69,7 @@ type matrixOutput struct {
 }
 
 // GenerateMatrix creates the GitHub Actions matrix JSON from tasks.
-// gitDiffConfig determines which tasks get gitDiff: true in the matrix.
-func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig, gitDiffConfig *pk.GitDiffConfig) ([]byte, error) {
+func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig) ([]byte, error) {
 	if cfg.DefaultPlatforms == nil {
 		cfg.DefaultPlatforms = []string{"ubuntu-latest"}
 	}
@@ -81,9 +84,6 @@ func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig, gitDiffConfig *pk.Git
 	for _, name := range cfg.ExcludeTasks {
 		excludeSet[name] = true
 	}
-
-	// Build gitDiff skip/include set from config.
-	gitDiffTaskSet := buildGitDiffTaskSet(gitDiffConfig)
 
 	entries := make([]matrixEntry, 0)
 	for _, task := range tasks {
@@ -101,9 +101,6 @@ func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig, gitDiffConfig *pk.Git
 			platforms = override.Platforms
 		}
 
-		// Determine if gitDiff should run for this task
-		gitDiff := shouldEnableGitDiff(task.Name, gitDiffConfig, gitDiffTaskSet)
-
 		// Create entry for each platform
 		for _, platform := range platforms {
 			entries = append(entries, matrixEntry{
@@ -111,47 +108,12 @@ func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig, gitDiffConfig *pk.Git
 				OS:      platform,
 				Shell:   shellForPlatform(platform, cfg.WindowsShell),
 				Shim:    shimForPlatform(platform, cfg.WindowsShell, cfg.WindowsShim),
-				GitDiff: gitDiff,
+				GitDiff: !cfg.DisableGitDiff,
 			})
 		}
 	}
 
 	return json.Marshal(matrixOutput{Include: entries})
-}
-
-// buildGitDiffTaskSet extracts task names from GitDiffConfig rules.
-// Returns a set of task names that have rules (ignores path-scoped rules for simplicity).
-func buildGitDiffTaskSet(cfg *pk.GitDiffConfig) map[string]bool {
-	set := make(map[string]bool)
-	if cfg == nil {
-		return set
-	}
-	for _, rule := range cfg.Rules {
-		if rule.Task != nil && len(rule.Paths) == 0 {
-			// Only include rules without path restrictions for matrix generation.
-			// Path-scoped rules are too granular for matrix (tasks run in multiple paths).
-			set[rule.Task.Name()] = true
-		}
-	}
-	return set
-}
-
-// shouldEnableGitDiff determines if gitDiff should be enabled for a task in the matrix.
-func shouldEnableGitDiff(taskName string, cfg *pk.GitDiffConfig, taskSet map[string]bool) bool {
-	// Default: gitDiff enabled for all.
-	if cfg == nil {
-		return true
-	}
-
-	inRules := taskSet[taskName]
-
-	if cfg.DisableByDefault {
-		// Opt-in mode: gitDiff disabled unless task is in Rules.
-		return inRules
-	}
-
-	// Opt-out mode (default): gitDiff enabled unless task is in Rules.
-	return !inRules
 }
 
 // getTaskOverride finds the TaskOverride for a task name by matching against
@@ -231,8 +193,7 @@ func Matrix(cfg MatrixConfig) *pk.Task {
 				return nil
 			}
 			tasks := plan.Tasks()
-			gitDiffConfig := plan.GitDiffConfig()
-			data, err := GenerateMatrix(tasks, cfg, gitDiffConfig)
+			data, err := GenerateMatrix(tasks, cfg)
 			if err != nil {
 				return err
 			}
