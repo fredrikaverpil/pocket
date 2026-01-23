@@ -19,7 +19,7 @@ const Version = "1.0.2"
 // Install ensures commitsar is available.
 var Install = pk.NewTask("install:commitsar", "install commitsar", nil,
 	installCommitsar(),
-).Hidden()
+).Hidden().Global()
 
 func installCommitsar() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")

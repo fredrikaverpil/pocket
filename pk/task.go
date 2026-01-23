@@ -17,6 +17,7 @@ type Task struct {
 	hidden     bool
 	manual     bool // Task only runs when explicitly invoked.
 	hideHeader bool // Task runs without printing header.
+	global     bool // Task deduplicates globally (ignores path).
 }
 
 // NewTask creates a new task with a Runnable body and optional CLI flags.
@@ -65,11 +66,14 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Check deduplication unless forceRun is set in context.
-	// Deduplication is by (task name, path) tuple.
+	// Deduplication is by (task name, path) tuple, or just task name for global tasks.
 	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
 			path := PathFromContext(ctx)
+			if t.global {
+				path = "." // Global tasks deduplicate by name only.
+			}
 			if alreadyDone := tracker.markDone(t.name, path); alreadyDone {
 				return nil // Silent skip.
 			}
@@ -121,6 +125,7 @@ func (t *Task) Hidden() *Task {
 		hidden:     true,
 		manual:     t.manual,
 		hideHeader: t.hideHeader,
+		global:     t.global,
 	}
 }
 
@@ -141,6 +146,7 @@ func (t *Task) Manual() *Task {
 		hidden:     t.hidden,
 		manual:     true,
 		hideHeader: t.hideHeader,
+		global:     t.global,
 	}
 }
 
@@ -160,10 +166,32 @@ func (t *Task) HideHeader() *Task {
 		hidden:     t.hidden,
 		manual:     t.manual,
 		hideHeader: true,
+		global:     t.global,
 	}
 }
 
 // IsHeaderHidden returns whether the task runs without printing header.
 func (t *Task) IsHeaderHidden() bool {
 	return t.hideHeader
+}
+
+// Global returns a new Task that deduplicates globally (by name only, ignoring path).
+// Use this for install tasks and other operations that should only run once
+// regardless of how many paths the parent task runs in.
+func (t *Task) Global() *Task {
+	return &Task{
+		name:       t.name,
+		usage:      t.usage,
+		flags:      t.flags,
+		fn:         t.fn,
+		hidden:     t.hidden,
+		manual:     t.manual,
+		hideHeader: t.hideHeader,
+		global:     true,
+	}
+}
+
+// IsGlobal returns whether the task deduplicates globally.
+func (t *Task) IsGlobal() bool {
+	return t.global
 }

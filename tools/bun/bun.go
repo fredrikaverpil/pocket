@@ -21,7 +21,7 @@ const Version = "1.3.6"
 // Install ensures bun is available.
 var Install = pk.NewTask("install:bun", "install bun", nil,
 	installBun(),
-).Hidden()
+).Hidden().Global()
 
 func installBun() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")

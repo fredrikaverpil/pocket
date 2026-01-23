@@ -211,7 +211,7 @@ var installLint = pk.NewTask(
     "install linter",
     nil,
     pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8"),
-).Hidden()
+).Hidden().Global()
 
 var Lint = pk.NewTask("lint", "run golangci-lint", nil,
     pk.Serial(
@@ -223,8 +223,13 @@ var Lint = pk.NewTask("lint", "run golangci-lint", nil,
 )
 ```
 
-Because Pocket deduplicates tasks, `installLint` only runs once even if multiple
-tasks depend on it.
+Install tasks use `.Hidden().Global()`:
+
+- **Hidden**: Excludes from CLI help (internal implementation detail)
+- **Global**: Deduplicates by name only, ignoring path context
+
+Without `.Global()`, if `Lint` runs in multiple paths (via `WithDetect`), the
+install would run once per path. With `.Global()`, it runs once total.
 
 ### Custom Tools
 
@@ -246,7 +251,7 @@ var installStyLua = pk.NewTask("install:stylua", "install StyLua formatter", nil
         pk.WithSymlink(),
         pk.WithSkipIfExists(pk.FromToolsDir("stylua", "2.0.2", pk.BinaryName("stylua"))),
     ),
-).Hidden()
+).Hidden().Global()
 ```
 
 ### Download API

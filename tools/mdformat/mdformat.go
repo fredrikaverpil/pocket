@@ -34,7 +34,7 @@ func Version() string {
 // Install ensures mdformat is available.
 var Install = pk.NewTask("install:mdformat", "install mdformat", nil,
 	pk.Serial(uv.Install, installMdformat()),
-).Hidden()
+).Hidden().Global()
 
 func installMdformat() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

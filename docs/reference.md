@@ -168,6 +168,7 @@ var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context
 | `Hidden`     | Exclude from CLI help output                           |
 | `Manual`     | Only run when explicitly invoked by name               |
 | `HideHeader` | Suppress the `:: taskname` header (for machine output) |
+| `Global`     | Deduplicate by name only (ignore path context)         |
 | `Name`       | Returns the task name                                  |
 | `Usage`      | Returns the task usage description                     |
 
@@ -175,6 +176,7 @@ var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context
 var Internal = pk.NewTask("internal", "...", nil, body).Hidden()
 var Deploy = pk.NewTask("deploy", "...", nil, body).Manual()
 var Matrix = pk.NewTask("matrix", "...", nil, body).HideHeader()
+var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
 ```
 
 ---

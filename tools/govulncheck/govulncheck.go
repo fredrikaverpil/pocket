@@ -12,4 +12,4 @@ const Version = "v1.1.4"
 // Install ensures govulncheck is available.
 var Install = pk.NewTask("install:govulncheck", "install govulncheck", nil,
 	pk.InstallGo("golang.org/x/vuln/cmd/govulncheck", Version),
-).Hidden()
+).Hidden().Global()
