@@ -81,6 +81,12 @@ func buildDownloadURL(version string) (url, format, platform string) {
 	hostOS := pk.HostOS()
 	hostArch := pk.HostArch()
 
+	// Neovim uses x86_64 naming (not amd64), but keeps arm64 as-is
+	nvimArch := hostArch
+	if hostArch == pk.AMD64 {
+		nvimArch = pk.X8664
+	}
+
 	// Build platform suffix
 	switch hostOS {
 	case pk.Windows:
@@ -91,10 +97,10 @@ func buildDownloadURL(version string) (url, format, platform string) {
 		}
 		format = "zip"
 	case pk.Darwin:
-		platform = fmt.Sprintf("macos-%s", hostArch)
+		platform = fmt.Sprintf("macos-%s", nvimArch)
 		format = "tar.gz"
 	default: // Linux
-		platform = fmt.Sprintf("linux-%s", hostArch)
+		platform = fmt.Sprintf("linux-%s", nvimArch)
 		format = "tar.gz"
 	}
 
