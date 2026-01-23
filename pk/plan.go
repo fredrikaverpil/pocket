@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 )
@@ -249,6 +250,15 @@ func (pc *taskCollector) walk(r Runnable) error {
 				if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
 					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
 				}
+			}
+
+			// Check for configuration error: detection found paths but excludes removed them all.
+			// This likely indicates a misconfiguration where the user is running tasks
+			// but excluding all directories that would match.
+			if len(finalPaths) == 0 && len(pc.candidates) > 0 {
+				return fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
+					"either adjust excludes or use WithSkipTask to skip this task entirely",
+					v.name, len(pc.candidates))
 			}
 		}
 

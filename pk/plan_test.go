@@ -3,6 +3,7 @@ package pk
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -332,6 +333,44 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		}
 		if slices.Contains(infoTest.resolvedPaths, "pkg") || slices.Contains(infoTest.resolvedPaths, "pkg/utils") {
 			t.Error("expected go-test to be excluded from pkg/.*")
+		}
+	})
+
+	t.Run("ExcludesRemoveAllDetectedPaths", func(t *testing.T) {
+		task := newTask("go-lint")
+
+		// Detection finds services/api and services/web, but excludes remove them all.
+		// This should return an error indicating a configuration problem.
+		detectServices := func(dirs []string, _ string) []string {
+			var result []string
+			for _, d := range dirs {
+				if d == "services/api" || d == "services/web" {
+					result = append(result, d)
+				}
+			}
+			return result
+		}
+
+		cfg := &Config{
+			Auto: WithOptions(
+				task,
+				WithDetect(detectServices),
+				WithExcludePath("services/api", "services/web"),
+			),
+		}
+
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err == nil {
+			t.Fatal("expected error when excludes remove all detected paths")
+		}
+
+		// Verify the error message is helpful
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "go-lint") {
+			t.Errorf("expected error to mention task name 'go-lint', got: %v", err)
+		}
+		if !strings.Contains(errMsg, "excludes removed all") {
+			t.Errorf("expected error to mention 'excludes removed all', got: %v", err)
 		}
 	})
 }
