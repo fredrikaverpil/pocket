@@ -22,5 +22,5 @@ func Detect() pk.DetectFunc {
 //	    pk.WithDetect(lua.Detect()),
 //	)
 func Tasks() pk.Runnable {
-	return pk.Parallel(Format, QueryFormat, QueryLint)
+	return Format
 }
