@@ -242,23 +242,32 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// No pathFilter - run at root only
 			finalPaths = []string{"."}
 		} else {
-			// Inside a pathFilter - apply excludes to current candidates
+			// Inside a pathFilter - apply excludes to current candidates.
+			// First apply global excludes (WithExcludePath), then task-specific (WithExcludeTask).
 			finalPaths = pc.candidates
+
+			// Apply global excludes first.
 			for _, ex := range pc.activeExcludes {
-				// If ex.tasks is empty, it's a global exclude for this scope.
-				// If ex.tasks is not empty, it only applies if this task is in the list.
-				if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
+				if len(ex.tasks) == 0 {
 					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
 				}
 			}
 
-			// Check for configuration error: detection found paths but excludes removed them all.
+			// Check for configuration error: global excludes removed all detected paths.
 			// This likely indicates a misconfiguration where the user is running tasks
 			// but excluding all directories that would match.
 			if len(finalPaths) == 0 && len(pc.candidates) > 0 {
 				return fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
 					"either adjust excludes or use WithSkipTask to skip this task entirely",
 					v.name, len(pc.candidates))
+			}
+
+			// Apply task-specific excludes (WithExcludeTask).
+			// If this removes all paths for this task, that's intentional - the task just won't run.
+			for _, ex := range pc.activeExcludes {
+				if len(ex.tasks) > 0 && slices.Contains(ex.tasks, v.name) {
+					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+				}
 			}
 		}
 

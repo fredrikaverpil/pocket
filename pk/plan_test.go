@@ -373,4 +373,47 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 			t.Errorf("expected error to mention 'excludes removed all', got: %v", err)
 		}
 	})
+
+	t.Run("TaskSpecificExcludeRemovesAllPaths", func(t *testing.T) {
+		taskLint := newTask("go-lint")
+		taskTest := newTask("go-test")
+
+		// Detection finds services/api and services/web.
+		// WithExcludeTask removes all paths for go-test only.
+		// This should NOT error - it's intentional to skip go-test in those paths.
+		detectServices := func(dirs []string, _ string) []string {
+			var result []string
+			for _, d := range dirs {
+				if d == "services/api" || d == "services/web" {
+					result = append(result, d)
+				}
+			}
+			return result
+		}
+
+		cfg := &Config{
+			Auto: WithOptions(
+				Parallel(taskLint, taskTest),
+				WithDetect(detectServices),
+				WithExcludeTask(taskTest, "services/api", "services/web"),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// go-lint should run in both paths
+		infoLint := plan.pathMappings["go-lint"]
+		if len(infoLint.resolvedPaths) != 2 {
+			t.Errorf("expected go-lint to have 2 paths, got %d: %v", len(infoLint.resolvedPaths), infoLint.resolvedPaths)
+		}
+
+		// go-test should have zero paths (excluded from all detected paths)
+		infoTest := plan.pathMappings["go-test"]
+		if len(infoTest.resolvedPaths) != 0 {
+			t.Errorf("expected go-test to have 0 paths, got %d: %v", len(infoTest.resolvedPaths), infoTest.resolvedPaths)
+		}
+	})
 }

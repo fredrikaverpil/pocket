@@ -215,7 +215,8 @@ func executeTask(ctx context.Context, task *Task, p *Plan) (*executionTracker, e
 		paths = []string{taskScope}
 	case p != nil:
 		// Running from root - use paths from Plan.
-		if info, ok := p.pathMappings[task.Name()]; ok && len(info.resolvedPaths) > 0 {
+		if info, ok := p.pathMappings[task.Name()]; ok {
+			// Task is in pathMappings - use resolved paths (may be empty if excluded).
 			paths = info.resolvedPaths
 		} else {
 			// No path mapping - run at root.
