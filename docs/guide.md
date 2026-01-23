@@ -20,6 +20,12 @@ defining your first task to building complex CI pipelines.
   - [Custom Tools](#custom-tools)
   - [Download API](#download-api)
   - [Extract API](#extract-api)
+  - [Python Tools](#python-tools)
+    - [Standalone Python Tools](#standalone-python-tools)
+    - [Project Python Tools](#project-python-tools)
+  - [Node Tools](#node-tools)
+    - [Standalone Node Tools](#standalone-node-tools)
+    - [Project Node Tools](#project-node-tools)
   - [Platform Helpers](#platform-helpers)
 - [Composition](#composition)
   - [Serial Execution](#serial-execution)
@@ -290,6 +296,269 @@ func ExtractTarGz(src, destDir string, opts ...ExtractOpt) error
 func ExtractTar(src, destDir string, opts ...ExtractOpt) error
 func ExtractZip(src, destDir string, opts ...ExtractOpt) error
 ```
+
+### Python Tools
+
+Pocket provides Python tooling via the `tools/uv` and `tasks/python` packages.
+Tools are installed from the project's `pyproject.toml` into version-specific
+venvs under `.pocket/venvs/`.
+
+#### Using the Python Task Bundle
+
+The `tasks/python` package provides ready-to-use tasks for common Python
+workflows:
+
+```go
+import (
+    "github.com/fredrikaverpil/pocket/pk"
+    "github.com/fredrikaverpil/pocket/tasks/python"
+)
+
+var Config = &pk.Config{
+    Auto: pk.Serial(
+        // Format, lint, typecheck, and test with Python 3.9 (with coverage)
+        pk.WithOptions(
+            python.WithPython("3.9", python.WithCoverage()),
+            pk.WithDetect(python.Detect()),
+        ),
+        // Test against remaining Python versions (without coverage)
+        pk.WithOptions(
+            pk.Parallel(
+                python.WithPython("3.10", python.Test),
+                python.WithPython("3.11", python.Test),
+                python.WithPython("3.12", python.Test),
+                python.WithPython("3.13", python.Test),
+            ),
+            pk.WithDetect(python.Detect()),
+        ),
+    ),
+}
+```
+
+**WithPython API:**
+
+```go
+// All tasks (Format, Lint, Typecheck, Test) with Python 3.9
+python.WithPython("3.9")
+
+// Specific tasks with Python 3.9
+python.WithPython("3.9", python.Format, python.Lint)
+
+// With coverage for test
+python.WithPython("3.9", python.WithCoverage(), python.Format, python.Test)
+```
+
+| Option                  | Description                        |
+| :---------------------- | :--------------------------------- |
+| `python.WithCoverage()` | Enable coverage for the test task  |
+
+**Available base tasks:**
+
+| Task               | Description                            |
+| :----------------- | :------------------------------------- |
+| `python.Format`    | Format with ruff (uses `-python` flag) |
+| `python.Lint`      | Lint with ruff (auto-fix by default)   |
+| `python.Typecheck` | Type-check with mypy                   |
+| `python.Test`      | Run pytest with coverage               |
+| `python.Detect()`  | DetectFunc for pyproject.toml          |
+
+When used with `WithPython("3.9", ...)`, tasks are named `py-<task>:3.9` (e.g.,
+`py-test:3.9`) for GitHub Actions matrix generation.
+
+> [!NOTE]
+>
+> Tests run without coverage by default to avoid conflicts when testing multiple
+> Python versions. Use `python.WithCoverage()` to enable coverage for one
+> version.
+
+#### Venv Location
+
+Venvs are created at `.pocket/venvs/<project-path>/venv-<version>/`:
+
+- Root project: `.pocket/venvs/venv-3.9/`
+- Subdirectory project: `.pocket/venvs/services/api/venv-3.9/`
+
+This path-scoped approach prevents collisions in monorepos with multiple
+`pyproject.toml` files.
+
+#### Low-Level uv API
+
+For custom Python tasks, use the `tools/uv` package directly:
+
+```go
+import "github.com/fredrikaverpil/pocket/tools/uv"
+
+var Docs = pk.NewTask("docs", "build documentation", nil,
+    pk.Serial(
+        uv.Install,
+        pk.Do(func(ctx context.Context) error {
+            // Sync dependencies from pyproject.toml
+            if err := uv.Sync(ctx, uv.SyncOptions{
+                PythonVersion: "3.12",
+                AllGroups:     true,
+            }); err != nil {
+                return err
+            }
+            // Run the tool from the synced environment
+            return uv.Run(ctx, uv.RunOptions{
+                PythonVersion: "3.12",
+            }, "mkdocs", "build")
+        }),
+    ),
+)
+```
+
+**Key types and functions:**
+
+| Type/Function                             | Description                                  |
+| :---------------------------------------- | :------------------------------------------- |
+| `uv.Install`                              | Task that ensures uv is available            |
+| `uv.SyncOptions`                          | Config for `uv sync` (version, venv, groups) |
+| `uv.RunOptions`                           | Config for `uv run` (version, venv)          |
+| `uv.Sync(ctx, opts)`                      | Install deps from pyproject.toml             |
+| `uv.Run(ctx, opts, cmd, args...)`         | Run command from synced environment          |
+| `uv.VenvPath(projectPath, pythonVersion)` | Compute venv path for a project              |
+
+**SyncOptions fields:**
+
+| Field           | Description                                             |
+| :-------------- | :------------------------------------------------------ |
+| `PythonVersion` | Python version (default: `uv.DefaultPythonVersion`)     |
+| `VenvPath`      | Explicit venv path (default: auto-computed)             |
+| `ProjectDir`    | Where pyproject.toml lives (default: `PathFromContext`) |
+| `AllGroups`     | Install all dependency groups                           |
+
+#### Standalone Python Tools
+
+For tools managed entirely by Pocket (not from pyproject.toml), install into
+`.pocket/tools/`:
+
+```go
+const ruffVersion = "0.14.0"
+
+var installRuff = pk.NewTask("install:ruff", "install ruff linter", nil,
+    pk.Serial(
+        uv.Install,
+        pk.Do(func(ctx context.Context) error {
+            venvDir := pk.FromToolsDir("ruff", ruffVersion)
+            binary := uv.BinaryPath(venvDir, "ruff")
+
+            if _, err := os.Stat(binary); err == nil {
+                _, err := pk.CreateSymlink(binary)
+                return err
+            }
+
+            if err := uv.CreateVenv(ctx, venvDir, ""); err != nil {
+                return err
+            }
+            if err := uv.PipInstall(ctx, venvDir, "ruff=="+ruffVersion); err != nil {
+                return err
+            }
+
+            _, err := pk.CreateSymlink(binary)
+            return err
+        }),
+    ),
+).Hidden().Global()
+```
+
+**When to use which pattern:**
+
+| Aspect          | Standalone (`.pocket/tools/`) | Project-managed (`.pocket/venvs/`) |
+| :-------------- | :---------------------------- | :--------------------------------- |
+| Version control | Pocket controls version       | Project's pyproject.toml           |
+| Use case        | Shared tools across projects  | Project-specific tooling           |
+| Example         | Global linters                | Test runners, doc generators       |
+| Symlink to bin  | Yes                           | No (use `uv.Run`)                  |
+
+### Node Tools
+
+Pocket provides bun for JavaScript/TypeScript tools via the `tools/bun` package.
+
+#### Standalone Node Tools
+
+For tools managed entirely by Pocket—embed `package.json` and `bun.lock` to
+control versions centrally:
+
+```go
+import "github.com/fredrikaverpil/pocket/tools/bun"
+
+//go:embed package.json
+var packageJSON []byte
+
+//go:embed bun.lock
+var lockfile []byte
+
+const eslintVersion = "9.0.0"
+
+var installESLint = pk.NewTask("install:eslint", "install eslint", nil,
+    pk.Serial(
+        bun.Install,  // Ensure bun is available
+        pk.Do(func(ctx context.Context) error {
+            installDir := pk.FromToolsDir("eslint", eslintVersion)
+            binary := bun.BinaryPath(installDir, "eslint")
+
+            // Skip if already installed.
+            if _, err := os.Stat(binary); err == nil {
+                return nil
+            }
+
+            // Write embedded lockfiles.
+            os.MkdirAll(installDir, 0o755)
+            os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644)
+            os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644)
+
+            // Install with frozen lockfile.
+            return bun.InstallFromLockfile(ctx, installDir)
+        }),
+    ),
+).Hidden().Global()
+```
+
+**Key functions:**
+
+| Function                                 | Description                          |
+| :--------------------------------------- | :----------------------------------- |
+| `bun.Install`                            | Task that ensures bun is available   |
+| `bun.InstallFromLockfile(ctx, dir)`      | Install from package.json + bun.lock |
+| `bun.BinaryPath(installDir, name)`       | Path to binary in node_modules/.bin  |
+| `bun.Run(ctx, installDir, pkg, args...)` | Run a package via bun                |
+
+#### Project Node Tools
+
+For tools where the _project_ controls versions via `package.json`—useful for
+build tools, test runners, or tools that should match the project's Node
+environment:
+
+```go
+import "github.com/fredrikaverpil/pocket/tools/bun"
+
+var Build = pk.NewTask("build", "build frontend", nil,
+    pk.Serial(
+        bun.Install,
+        pk.Do(func(ctx context.Context) error {
+            projectDir := pk.FromGitRoot("frontend")
+
+            // Install dependencies from project's package.json + bun.lock.
+            if err := bun.InstallFromLockfile(ctx, projectDir); err != nil {
+                return err
+            }
+
+            // Run the build script.
+            return bun.Run(ctx, projectDir, "build")
+        }),
+    ),
+)
+```
+
+**When to use which pattern:**
+
+| Aspect           | Standalone                    | Project-managed                   |
+| :--------------- | :---------------------------- | :-------------------------------- |
+| Version control  | Pocket (embedded lockfile)    | Project's package.json + bun.lock |
+| Storage location | `.pocket/tools/<tool>/<ver>/` | Project's node_modules/           |
+| Use case         | Shared tools across projects  | Project-specific tooling          |
+| Example          | Formatters, linters           | Build tools, test runners         |
 
 ### Platform Helpers
 
