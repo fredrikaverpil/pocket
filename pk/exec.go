@@ -31,6 +31,11 @@ func Do(fn func(ctx context.Context) error) Runnable {
 var (
 	colorEnvOnce sync.Once
 	colorEnvVars []string
+
+	// extraPATHDirs holds additional directories to add to PATH.
+	// Used by tools that can't be symlinked (e.g., neovim on Windows).
+	extraPATHDirs   []string
+	extraPATHDirsMu sync.Mutex
 )
 
 // colorForceEnvVars are the environment variables set to force color output.
@@ -127,14 +132,38 @@ func containsNotice(output string) bool {
 		strings.Contains(lower, "error")
 }
 
-// prependBinToPath adds .pocket/bin to the front of PATH.
+// RegisterPATH registers a directory to be added to PATH for all Exec calls.
+// Use this for tools that can't be symlinked (e.g., neovim on Windows needs its runtime files).
+func RegisterPATH(dir string) {
+	extraPATHDirsMu.Lock()
+	defer extraPATHDirsMu.Unlock()
+	// Avoid duplicates.
+	for _, d := range extraPATHDirs {
+		if d == dir {
+			return
+		}
+	}
+	extraPATHDirs = append(extraPATHDirs, dir)
+}
+
+// prependBinToPath adds .pocket/bin and registered directories to the front of PATH.
 func prependBinToPath(environ []string) []string {
 	binDir := FromBinDir()
+
+	// Build list of directories to prepend: binDir first, then extra dirs.
+	extraPATHDirsMu.Lock()
+	dirs := make([]string, 0, 1+len(extraPATHDirs))
+	dirs = append(dirs, binDir)
+	dirs = append(dirs, extraPATHDirs...)
+	extraPATHDirsMu.Unlock()
+
+	// Build the prefix string.
+	prefix := strings.Join(dirs, string(filepath.ListSeparator))
 
 	result := make([]string, 0, len(environ))
 	for _, env := range environ {
 		if path, found := strings.CutPrefix(env, "PATH="); found {
-			result = append(result, fmt.Sprintf("PATH=%s%c%s", binDir, filepath.ListSeparator, path))
+			result = append(result, fmt.Sprintf("PATH=%s%c%s", prefix, filepath.ListSeparator, path))
 		} else {
 			result = append(result, env)
 		}

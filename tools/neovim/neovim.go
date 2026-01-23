@@ -72,8 +72,17 @@ func installNeovim(version string) pk.Runnable {
 
 func createSymlink(binaryPath string) pk.Runnable {
 	return pk.Do(func(_ context.Context) error {
-		// On Windows, neovim needs companion DLLs (lua51.dll, DbgHelp.dll) in the same directory.
-		_, err := pk.CreateSymlinkWithCompanions(binaryPath, "*.dll")
+		binDir := filepath.Dir(binaryPath)
+
+		// On Windows, neovim can't be symlinked because it needs its runtime files
+		// relative to the executable. Register the bin directory in PATH instead.
+		if pk.HostOS() == pk.Windows {
+			pk.RegisterPATH(binDir)
+			return nil
+		}
+
+		// On Unix, symlink works fine.
+		_, err := pk.CreateSymlink(binaryPath)
 		return err
 	})
 }
