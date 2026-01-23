@@ -134,13 +134,13 @@ func printFinalStatus(tracker *executionTracker, err error) {
 
 	switch {
 	case errors.Is(err, ErrGitDiffUncommitted):
-		emoji, message = "🧹", "Uncommitted changes detected"
+		emoji, message = "🧹", "Pocket detected uncommitted changes"
 	case err != nil:
 		emoji, message = "💥", fmt.Sprintf("Error: %v", err)
 	case tracker != nil && tracker.warnings():
-		emoji, message = "👀", "Completed with warnings"
+		emoji, message = "👀", "Pocket completed with warnings"
 	case tracker != nil:
-		emoji, message = "🚀", "Done"
+		emoji, message = "🚀", "Pocket is done!"
 	default:
 		return
 	}
