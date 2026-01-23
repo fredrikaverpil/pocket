@@ -93,7 +93,12 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Print task header before execution (unless header is hidden).
 	if !t.hideHeader {
-		Printf(ctx, ":: %s\n", t.name)
+		path := PathFromContext(ctx)
+		if path != "" && path != "." {
+			Printf(ctx, ":: %s [%s]\n", t.name, path)
+		} else {
+			Printf(ctx, ":: %s\n", t.name)
+		}
 	}
 
 	return t.fn(ctx)
