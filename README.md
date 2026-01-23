@@ -127,7 +127,7 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlags("-v")` passes flags to tasks
+- **Flag overrides**: `WithFlag(Task, "name", "value")` sets task-specific flags
 - [and more...](./REFERENCE.md)
 
 ```go
@@ -135,6 +135,8 @@ pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
     pk.WithExcludePath("testdata"),      // skip test fixtures
+    pk.WithFlag(Test, "race", true),     // enable race detector for Test
+    pk.WithFlag(Test, "timeout", "5m"),  // set test timeout
 )
 ```
 
@@ -147,14 +149,26 @@ bypass deduplication when needed.
 
 ### Shim Scoping
 
-Pocket generates `./pok` shims in each detected module directory and each path
-defined with `pk.WithIncludePath`. The root shim runs everything, while
-subfolder shims only run tasks scoped to that path:
+Pocket generates shims in each detected module directory and each path defined
+with `pk.WithIncludePath`. The root shim runs everything, while subfolder shims
+only run tasks scoped to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths
 cd services/api && ./pok    # only runs tasks scoped to services/api
 ./pok lint                  # run a specific task
+```
+
+By default, only the POSIX `pok` shim is generated. For Windows support, enable
+`pok.cmd` (batch) and `pok.ps1` (PowerShell) via configuration:
+
+```go
+var Config = &pk.Config{
+    Auto: pk.Serial(Build, Test),
+    Plan: &pk.PlanConfig{
+        Shims: pk.AllShimsConfig(), // generates pok, pok.cmd, and pok.ps1
+    },
+}
 ```
 
 ## Introspection
@@ -173,7 +187,7 @@ matrix generation**—instead of manually syncing your CI configuration with you
 tasks, let Pocket generate it.
 
 Here's an example using the [GitHub Actions matrix](./docs/github-actions.md)
-integration:
+integration ([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
 
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"
