@@ -32,6 +32,7 @@ jobs:
         run: echo "matrix=$(./pok gha-matrix)" >> "$GITHUB_OUTPUT"
 
   run:
+    name: ${{ matrix.task }} (${{ matrix.os }})
     needs: plan
     if: ${{ needs.plan.outputs.matrix != '{"include":[]}' }}
     runs-on: ${{ matrix.os }}
