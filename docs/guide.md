@@ -451,6 +451,14 @@ pk.WithOptions(
 Tasks can be specified by string name or task object (recommended for type
 safety).
 
+> [!NOTE]
+>
+> `WithFlag` overrides only apply when the task runs as part of the composition
+> tree (e.g., via bare `./pok`). When you invoke a task directly (e.g.,
+> `./pok my-task`), it runs with its default flag values, bypassing
+> composition-level overrides. If you need the flag applied for direct
+> invocation, pass it explicitly: `./pok my-task -flag-name value`.
+
 ### Shim Scoping
 
 Pocket generates `./pok` shims in directories matched by `WithIncludePath` or
@@ -631,6 +639,14 @@ A static workflow that runs all tasks on configured platforms:
 ```bash
 ./pok github-workflows
 ```
+
+> [!NOTE]
+>
+> The `github-workflows` task has several flags (e.g., `-include-pocket-matrix`,
+> `-skip-pr`). If you configure these via `WithFlag` in your composition,
+> remember that flag overrides only apply when running through the composition
+> tree (bare `./pok`). When invoking `./pok github-workflows` directly, pass
+> flags explicitly: `./pok github-workflows -include-pocket-matrix`.
 
 This generates `.github/workflows/pocket.yml`:
 

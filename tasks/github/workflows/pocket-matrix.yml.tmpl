@@ -49,11 +49,11 @@ jobs:
       - name: ${{ matrix.task }} (unix)
         if: ${{ !contains(matrix.os, 'windows') }}
         shell: bash
-        run: ${{ matrix.shim }} -v ${{ matrix.task }}
+        run: ${{ matrix.shim }} -v ${{ matrix.gitDiff && '-g' || '' }} ${{ matrix.task }}
       - name: ${{ matrix.task }} (windows)
         if: ${{ contains(matrix.os, 'windows') }}
         shell: pwsh
-        run: ${{ matrix.shim }} -v ${{ matrix.task }}
+        run: ${{ matrix.shim }} -v ${{ matrix.gitDiff && '-g' || '' }} ${{ matrix.task }}
       - name: Check for uncommitted changes
         if: ${{ matrix.gitDiff }}
         shell: bash
