@@ -52,6 +52,43 @@ func CreateSymlink(binaryPath string) (string, error) {
 	return linkPath, nil
 }
 
+// CreateSymlinkWithCompanions creates a symlink in .pocket/bin/ and copies companion files.
+// On Windows, this copies both the binary and any companion files (like DLLs) from the same directory.
+// On Unix, it creates a symlink for the binary only (companion files are typically not needed).
+// The companions parameter specifies glob patterns for files to copy (e.g., "*.dll").
+func CreateSymlinkWithCompanions(binaryPath string, companions ...string) (string, error) {
+	linkPath, err := CreateSymlink(binaryPath)
+	if err != nil {
+		return "", err
+	}
+
+	// On Windows, copy companion files (DLLs, etc.) to the bin directory.
+	if runtime.GOOS == Windows && len(companions) > 0 {
+		srcDir := filepath.Dir(binaryPath)
+		binDir := FromBinDir()
+
+		for _, pattern := range companions {
+			matches, err := filepath.Glob(filepath.Join(srcDir, pattern))
+			if err != nil {
+				return "", fmt.Errorf("glob companion files: %w", err)
+			}
+			for _, match := range matches {
+				name := filepath.Base(match)
+				dst := filepath.Join(binDir, name)
+				// Skip if it's the main binary (already copied).
+				if name == filepath.Base(binaryPath) {
+					continue
+				}
+				if err := CopyFile(match, dst); err != nil {
+					return "", fmt.Errorf("copy companion %s: %w", name, err)
+				}
+			}
+		}
+	}
+
+	return linkPath, nil
+}
+
 // CopyFile copies a file from src to dst.
 func CopyFile(src, dst string) error {
 	data, err := os.ReadFile(src)

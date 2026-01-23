@@ -72,7 +72,8 @@ func installNeovim(version string) pk.Runnable {
 
 func createSymlink(binaryPath string) pk.Runnable {
 	return pk.Do(func(_ context.Context) error {
-		_, err := pk.CreateSymlink(binaryPath)
+		// On Windows, neovim needs companion DLLs (lua51.dll, DbgHelp.dll) in the same directory.
+		_, err := pk.CreateSymlinkWithCompanions(binaryPath, "*.dll")
 		return err
 	})
 }
