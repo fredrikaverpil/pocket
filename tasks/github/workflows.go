@@ -110,6 +110,15 @@ func runWorkflows(ctx context.Context) error {
 		{"sync.yml.tmpl", "sync.yml", nil, !*skipSync},
 	}
 
+	// Clean up managed workflow files before generating.
+	// This ensures disabled workflows are removed.
+	for _, wf := range workflowDefs {
+		destPath := filepath.Join(workflowDir, wf.outFile)
+		if err := os.Remove(destPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove %s: %w", wf.outFile, err)
+		}
+	}
+
 	copied := 0
 	for _, wf := range workflowDefs {
 		if !wf.include {
