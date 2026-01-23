@@ -15,14 +15,17 @@
 //
 // For tools defined in pyproject.toml (project-specific versions):
 //
-//	uv.Sync(ctx, "3.9", true)
-//	uv.Run(ctx, "3.9", "ruff", "check", ".")
+//	uv.Sync(ctx, uv.SyncOptions{PythonVersion: "3.9", AllGroups: true})
+//	uv.Run(ctx, uv.RunOptions{PythonVersion: "3.9"}, "ruff", "check", ".")
+//
+// Venvs are created at .pocket/venvs/<project-path>/venv-<version>/ by default,
+// where <project-path> is derived from PathFromContext. This ensures multiple
+// projects in a monorepo don't collide.
 package uv
 
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 
@@ -121,48 +124,108 @@ func BinaryPath(venvDir, name string) string {
 	return filepath.Join(venvDir, "bin", name)
 }
 
-// ProjectVenvPath returns the path to the project venv for a Python version.
-func ProjectVenvPath(pythonVersion string) string {
-	if pythonVersion == "" {
-		pythonVersion = DefaultPythonVersion
-	}
-	return pk.FromPocketDir("venvs", pythonVersion)
+// DefaultVenvPattern is the naming pattern for venvs. %s is replaced with the Python version.
+const DefaultVenvPattern = "venv-%s"
+
+// SyncOptions configures uv sync behavior.
+type SyncOptions struct {
+	// PythonVersion specifies which Python version to use.
+	// If empty, DefaultPythonVersion is used.
+	PythonVersion string
+
+	// VenvPath is the explicit path to the venv directory.
+	// If empty, it's computed from ProjectDir and PythonVersion.
+	VenvPath string
+
+	// ProjectDir is where pyproject.toml lives.
+	// If empty, PathFromContext(ctx) is used.
+	ProjectDir string
+
+	// AllGroups installs all dependency groups from pyproject.toml.
+	AllGroups bool
 }
 
-// Sync runs uv sync to install project dependencies into .pocket/venvs/<version>/.
-func Sync(ctx context.Context, pythonVersion string, allGroups bool) error {
+// RunOptions configures uv run behavior.
+type RunOptions struct {
+	// PythonVersion specifies which Python version to use.
+	// If empty, DefaultPythonVersion is used.
+	PythonVersion string
+
+	// VenvPath is the explicit path to the venv directory.
+	// If empty, it's computed from ProjectDir and PythonVersion.
+	VenvPath string
+
+	// ProjectDir is where pyproject.toml lives.
+	// If empty, PathFromContext(ctx) is used.
+	ProjectDir string
+}
+
+// VenvPath computes the venv path for a project.
+// If projectPath is empty or ".", returns .pocket/venvs/venv-<version>/.
+// Otherwise returns .pocket/venvs/<projectPath>/venv-<version>/.
+func VenvPath(projectPath, pythonVersion string) string {
+	if pythonVersion == "" {
+		pythonVersion = DefaultPythonVersion
+	}
+	venvName := fmt.Sprintf(DefaultVenvPattern, pythonVersion)
+	if projectPath == "" || projectPath == "." {
+		return pk.FromPocketDir("venvs", venvName)
+	}
+	return pk.FromPocketDir("venvs", projectPath, venvName)
+}
+
+// Sync runs uv sync to install project dependencies.
+// Venv is created at .pocket/venvs/<project-path>/venv-<version>/ by default.
+func Sync(ctx context.Context, opts SyncOptions) error {
+	pythonVersion := opts.PythonVersion
 	if pythonVersion == "" {
 		pythonVersion = DefaultPythonVersion
 	}
 
-	venvPath := ProjectVenvPath(pythonVersion)
+	projectDir := opts.ProjectDir
+	if projectDir == "" {
+		projectDir = pk.PathFromContext(ctx)
+	}
+
+	venvPath := opts.VenvPath
+	if venvPath == "" {
+		venvPath = VenvPath(projectDir, pythonVersion)
+	}
+
 	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
 	args := []string{"sync", "--python", pythonVersion}
-	if allGroups {
+	if opts.AllGroups {
 		args = append(args, "--all-groups")
 	}
 
-	cmd := exec.CommandContext(ctx, Name, args...)
-	cmd.Dir = pk.FromGitRoot(pk.PathFromContext(ctx))
-	cmd.Env = append(cmd.Environ(), "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pk.WithPath(ctx, projectDir)
+	ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pk.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	out := pk.OutputFromContext(ctx)
-	cmd.Stdout = out.Stdout
-	cmd.Stderr = out.Stderr
-
-	return cmd.Run()
+	return pk.Exec(ctx, Name, args...)
 }
 
-// Run executes a command using uv run from .pocket/venvs/<version>/.
-func Run(ctx context.Context, pythonVersion, cmdName string, args ...string) error {
+// Run executes a command using uv run.
+// Uses venv at .pocket/venvs/<project-path>/venv-<version>/ by default.
+func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) error {
+	pythonVersion := opts.PythonVersion
 	if pythonVersion == "" {
 		pythonVersion = DefaultPythonVersion
 	}
 
-	venvPath := ProjectVenvPath(pythonVersion)
+	projectDir := opts.ProjectDir
+	if projectDir == "" {
+		projectDir = pk.PathFromContext(ctx)
+	}
+
+	venvPath := opts.VenvPath
+	if venvPath == "" {
+		venvPath = VenvPath(projectDir, pythonVersion)
+	}
+
 	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
@@ -170,13 +233,9 @@ func Run(ctx context.Context, pythonVersion, cmdName string, args ...string) err
 	uvArgs := []string{"run", "--python", pythonVersion, cmdName}
 	uvArgs = append(uvArgs, args...)
 
-	cmd := exec.CommandContext(ctx, Name, uvArgs...)
-	cmd.Dir = pk.FromGitRoot(pk.PathFromContext(ctx))
-	cmd.Env = append(cmd.Environ(), "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pk.WithPath(ctx, projectDir)
+	ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pk.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	out := pk.OutputFromContext(ctx)
-	cmd.Stdout = out.Stdout
-	cmd.Stderr = out.Stderr
-
-	return cmd.Run()
+	return pk.Exec(ctx, Name, uvArgs...)
 }

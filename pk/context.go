@@ -1,6 +1,9 @@
 package pk
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // contextKey is the type for context keys in this package.
 type contextKey int
@@ -22,6 +25,8 @@ const (
 	flagsKey
 	// gitDiffKey is the context key for git diff enabled flag.
 	gitDiffKey
+	// envKey is the context key for environment variable overrides.
+	envKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -92,4 +97,53 @@ func gitDiffEnabledFromContext(ctx context.Context) bool {
 		return v
 	}
 	return false
+}
+
+// envConfig holds environment variable overrides for command execution.
+type envConfig struct {
+	set    map[string]string // key -> value (replaces existing)
+	filter []string          // prefixes to filter out
+}
+
+// WithEnv returns a new context that sets an environment variable.
+// The keyValue must be in "KEY=value" format.
+// If a variable with the same key already exists, it is replaced.
+func WithEnv(ctx context.Context, keyValue string) context.Context {
+	key, value, ok := strings.Cut(keyValue, "=")
+	if !ok {
+		return ctx // invalid format, ignore
+	}
+	cfg := envConfigFromContext(ctx)
+	if cfg.set == nil {
+		cfg.set = make(map[string]string)
+	}
+	cfg.set[key] = value
+	return context.WithValue(ctx, envKey, cfg)
+}
+
+// WithoutEnv returns a new context that filters out environment variables
+// matching the given prefix. For example, WithoutEnv(ctx, "VIRTUAL_ENV")
+// removes VIRTUAL_ENV from the environment.
+func WithoutEnv(ctx context.Context, prefix string) context.Context {
+	cfg := envConfigFromContext(ctx)
+	cfg.filter = append(cfg.filter, prefix)
+	return context.WithValue(ctx, envKey, cfg)
+}
+
+// envConfigFromContext returns the environment config from the context.
+func envConfigFromContext(ctx context.Context) envConfig {
+	if cfg, ok := ctx.Value(envKey).(envConfig); ok {
+		// Return a copy to avoid mutating the original
+		newCfg := envConfig{
+			filter: append([]string(nil), cfg.filter...),
+		}
+		if cfg.set != nil {
+			newCfg.set = make(map[string]string, len(cfg.set))
+			for k, v := range cfg.set {
+				newCfg.set[k] = v
+			}
+		}
+		return newCfg
+	}
+	return envConfig{}
 }

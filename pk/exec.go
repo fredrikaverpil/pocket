@@ -70,6 +70,12 @@ func isTerminal(f *os.File) bool {
 // This ensures tools installed via InstallGo() are found first.
 // The command runs in the directory specified by PathFromContext(ctx).
 //
+// Environment variables can be customized using WithEnv and WithoutEnv:
+//
+//	ctx = pk.WithEnv(ctx, "MY_VAR=value")
+//	ctx = pk.WithoutEnv(ctx, "UNWANTED_PREFIX")
+//	pk.Exec(ctx, "mycmd", "arg1")
+//
 // If verbose mode is enabled, command output is streamed to context output.
 // Otherwise, output is captured and only shown on error.
 //
@@ -79,7 +85,8 @@ func Exec(ctx context.Context, name string, args ...string) error {
 
 	path := PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
-	env := prependBinToPath(os.Environ())
+	env := applyEnvConfig(os.Environ(), envConfigFromContext(ctx))
+	env = prependBinToPath(env)
 
 	// Look up the command in our modified PATH, not the current process's PATH.
 	// exec.CommandContext uses LookPath with the current PATH, which doesn't
@@ -168,6 +175,45 @@ func prependBinToPath(environ []string) []string {
 			result = append(result, env)
 		}
 	}
+	return result
+}
+
+// applyEnvConfig applies environment variable overrides from the config.
+// It filters out variables matching filter prefixes, then applies set overrides.
+func applyEnvConfig(environ []string, cfg envConfig) []string {
+	if len(cfg.filter) == 0 && len(cfg.set) == 0 {
+		return environ
+	}
+
+	result := make([]string, 0, len(environ))
+	for _, e := range environ {
+		key, _, _ := strings.Cut(e, "=")
+
+		// Skip if key matches any filter prefix
+		filtered := false
+		for _, prefix := range cfg.filter {
+			if strings.HasPrefix(key, prefix) {
+				filtered = true
+				break
+			}
+		}
+		if filtered {
+			continue
+		}
+
+		// Skip if key will be replaced by set
+		if _, willReplace := cfg.set[key]; willReplace {
+			continue
+		}
+
+		result = append(result, e)
+	}
+
+	// Append set overrides
+	for key, value := range cfg.set {
+		result = append(result, key+"="+value)
+	}
+
 	return result
 }
 
