@@ -1,7 +1,7 @@
 # Pocket
 
-Pocket is a composable task runner framework, designed for speed, simplicity,
-and monorepo workflows.
+Pocket is a [Sage](https://github.com/einride/sage)-inspired composable task
+runner framework, designed for speed, simplicity, and monorepo workflows.
 
 It replaces quirky Makefiles and shell scripts with a type-safe, Go-based
 configuration that handles task composition, tool installation, and
