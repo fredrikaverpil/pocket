@@ -2,7 +2,8 @@
 
 ## Pok shim
 
-The `./pok` shim executes `go run .pocket/main.go`.
+The `./pok` shim executes `go run -C .pocket .` (runs `.pocket/main.go` from the
+`.pocket` directory).
 
 ### Shim Variables
 
@@ -85,8 +86,9 @@ accumulate their constraints:
 
 ```go
 pk.WithOptions(
-    golang.Tasks(),               // Detects go.mod directories
-    pk.WithExcludePath("vendor"), // Global exclusion for this scope
+    golang.Tasks(),
+    pk.WithDetect(golang.Detect()), // Run in go.mod directories
+    pk.WithExcludePath("vendor"),   // Global exclusion for this scope
 )
 ```
 
@@ -119,18 +121,30 @@ pk.WithOptions(
 
 ### golang.Tasks() Example
 
-The `tasks/golang` package provides a sane default bundle:
+The `tasks/golang` package provides a default task bundle:
 
 ```go
 func Tasks(tasks ...pk.Runnable) pk.Runnable {
     if len(tasks) == 0 {
-        tasks = []pk.Runnable{Lint, Test}
+        return pk.Serial(
+            Fix,
+            Format,
+            Lint,
+            pk.Parallel(Test, Vulncheck),
+        )
     }
-    return pk.WithOptions(
-        pk.Parallel(tasks...),
-        pk.WithDetect(Detect()),  // Detects go.mod directories
-    )
+    return pk.Serial(tasks...)
 }
+```
+
+Note that `Tasks()` does not include auto-detection. Wrap it with `WithDetect`
+to run in all Go module directories:
+
+```go
+pk.WithOptions(
+    golang.Tasks(),
+    pk.WithDetect(golang.Detect()),
+)
 ```
 
 ## Manual Tasks
@@ -228,7 +242,7 @@ Uses `errgroup.WithContext` for fail-fast behavior:
 CLI sets up signal handling at entry:
 
 ```go
-ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 defer stop()
 ```
 
