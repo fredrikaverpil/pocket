@@ -7,6 +7,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/neovim"
+	"github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
 // TestConfig configures plenary test execution.
@@ -104,7 +105,10 @@ func Test(opts ...TestOpt) *pk.Task {
 
 	return pk.NewTask(taskName, "run neovim plenary tests", nil,
 		pk.Serial(
-			neovim.Install(cfg.Version),
+			pk.Parallel(
+				neovim.Install(cfg.Version),
+				treesitter.Install, // Required for nvim-treesitter parser compilation
+			),
 			runPlenaryTests(cfg),
 		),
 	)

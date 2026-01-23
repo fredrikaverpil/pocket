@@ -14,10 +14,11 @@ type DownloadOpt func(*downloadConfig)
 
 type downloadConfig struct {
 	destDir      string
-	format       string // "tar.gz", "tar", "zip", "" (raw copy)
+	format       string // "tar.gz", "tar", "zip", "gz", "" (raw copy)
 	extractOpts  []ExtractOpt
 	symlink      bool
 	skipIfExists string
+	outputName   string // for "gz" format: the output filename
 }
 
 func newDownloadConfig(opts []DownloadOpt) *downloadConfig {
@@ -61,6 +62,13 @@ func WithSymlink() DownloadOpt {
 func WithSkipIfExists(path string) DownloadOpt {
 	return func(cfg *downloadConfig) {
 		cfg.skipIfExists = path
+	}
+}
+
+// WithOutputName sets the output filename for "gz" format extraction.
+func WithOutputName(name string) DownloadOpt {
+	return func(cfg *downloadConfig) {
+		cfg.outputName = name
 	}
 }
 
@@ -165,6 +173,14 @@ func processFile(path string, cfg *downloadConfig) (string, error) {
 			return "", fmt.Errorf("extract zip: %w", err)
 		}
 		firstFile = findFirstExtractedFile(destDir, cfg.extractOpts)
+	case "gz":
+		if cfg.outputName == "" {
+			return "", fmt.Errorf("gz format requires WithOutputName option")
+		}
+		if err := ExtractGz(path, destDir, cfg.outputName); err != nil {
+			return "", fmt.Errorf("extract gz: %w", err)
+		}
+		firstFile = filepath.Join(destDir, cfg.outputName)
 	default:
 		// Raw copy.
 		dst := filepath.Join(destDir, filepath.Base(path))

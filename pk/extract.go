@@ -57,6 +57,39 @@ func WithFlatten() ExtractOpt {
 	}
 }
 
+// ExtractGz extracts a single gzipped file to destDir with the given name.
+// Unlike tar.gz, this is just a single compressed file (e.g., binary.gz -> binary).
+func ExtractGz(src, destDir, destName string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open gzip file: %w", err)
+	}
+	defer f.Close()
+
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fmt.Errorf("create destination dir: %w", err)
+	}
+
+	target := filepath.Join(destDir, destName)
+	outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		return fmt.Errorf("create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, gzr); err != nil {
+		return fmt.Errorf("decompress file: %w", err)
+	}
+
+	return nil
+}
+
 // ExtractTarGz extracts a .tar.gz archive to destDir.
 func ExtractTarGz(src, destDir string, opts ...ExtractOpt) error {
 	f, err := os.Open(src)
