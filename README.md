@@ -203,10 +203,9 @@ platforms—no YAML editing required.
 
 ## Documentation
 
-- [Tasks & Tools](./docs/tasks-and-tools.md) - Defining work, executing
-  commands, and managing dependencies.
-- [Composition & Path Filtering](./docs/composition-and-paths.md) - Building
-  execution trees and monorepo support.
-- [API Reference](./REFERENCE.md) - Technical specification of the `pk` package.
-- [Architecture](./ARCHITECTURE.md) - Internal design, shim model, and execution
-  internals.
+- [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering, and
+  CI integration.
+- [API Reference](./docs/reference.md) - Technical specification of the `pk`
+  package.
+- [Architecture](./docs/architecture.md) - Internal design, shim model, and
+  execution internals.
