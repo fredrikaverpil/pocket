@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,49 +14,56 @@ import (
 // RunMain is the main CLI entry point that handles argument parsing and dispatch.
 // It's called from .pocket/main.go.
 func RunMain(cfg *Config) {
-	if err := run(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	tracker, err := run(cfg)
+	if err != nil {
+		printFinalStatus(tracker, err)
 		os.Exit(1)
 	}
+	printFinalStatus(tracker, nil)
 }
 
-func run(cfg *Config) error {
+func run(cfg *Config) (*executionTracker, error) {
 	// Parse command-line flags
 	fs := flag.NewFlagSet("pok", flag.ExitOnError)
-	verbose := fs.Bool("v", false, "verbose mode")
-	gitDiff := fs.Bool("g", false, "run git diff check after execution")
-	showHelp := fs.Bool("h", false, "show help")
-	showVersion := fs.Bool("version", false, "show version")
+
+	var verbose, gitDiff, showHelp, showVersion bool
+	fs.BoolVar(&verbose, "v", false, "verbose mode")
+	fs.BoolVar(&verbose, "verbose", false, "verbose mode")
+	fs.BoolVar(&gitDiff, "g", false, "run git diff check after execution")
+	fs.BoolVar(&gitDiff, "gitdiff", false, "run git diff check after execution")
+	fs.BoolVar(&showHelp, "h", false, "show help")
+	fs.BoolVar(&showHelp, "help", false, "show help")
+	fs.BoolVar(&showVersion, "version", false, "show version")
 
 	// Parse flags
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		return fmt.Errorf("parsing flags: %w", err)
+		return nil, fmt.Errorf("parsing flags: %w", err)
 	}
 
 	// Set up base context with verbose and output
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx = WithVerbose(ctx, *verbose)
-	ctx = withGitDiffEnabled(ctx, *gitDiff)
+	ctx = WithVerbose(ctx, verbose)
+	ctx = withGitDiffEnabled(ctx, gitDiff)
 	ctx = WithOutput(ctx, StdOutput())
 
 	// Handle version flag
-	if *showVersion {
+	if showVersion {
 		Printf(ctx, "pocket %s\n", version())
-		return nil
+		return nil, nil
 	}
 
 	// Build Plan
 	plan, err := NewPlan(cfg)
 	if err != nil {
-		return fmt.Errorf("building plan: %w", err)
+		return nil, fmt.Errorf("building plan: %w", err)
 	}
 	ctx = WithPlan(ctx, plan)
 
 	// Handle help flag
-	if *showHelp {
+	if showHelp {
 		printHelp(ctx, cfg, plan)
-		return nil
+		return nil, nil
 	}
 
 	// Get remaining arguments (task names)
@@ -65,13 +73,13 @@ func run(cfg *Config) error {
 	if len(args) >= 1 {
 		switch args[0] {
 		case "plan":
-			return handlePlan(ctx, plan, args[1:])
+			return nil, handlePlan(ctx, plan, args[1:])
 		case "generate":
-			// Run generate as a task
-			return generateTask.run(ctx)
+			return nil, generateTask.run(ctx)
 		case "update":
-			// Run update as a task
-			return updateTask.run(ctx)
+			return nil, updateTask.run(ctx)
+		case "clean":
+			return nil, cleanTask.run(ctx)
 		}
 	}
 
@@ -83,27 +91,59 @@ func run(cfg *Config) error {
 		// Find task by name
 		task := findTaskByName(plan, taskName)
 		if task == nil {
-			return fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
+			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
 		// Check for task-specific help
 		if hasHelpFlag(taskArgs) {
 			printTaskHelp(ctx, task)
-			return nil
+			return nil, nil
 		}
 
 		// Parse task flags if present
 		if task.Flags() != nil && len(taskArgs) > 0 {
 			if err := task.Flags().Parse(taskArgs); err != nil {
-				return fmt.Errorf("parsing flags for task %q: %w", taskName, err)
+				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
 		}
 
-		return ExecuteTask(ctx, task, plan)
+		return executeTask(ctx, task, plan)
 	}
 
 	// Execute the full configuration with pre-built Plan.
-	return execute(ctx, *cfg, plan)
+	return executeAll(ctx, *cfg, plan)
+}
+
+// printFinalStatus prints success, warning, or error message with TTY-aware emojis.
+func printFinalStatus(tracker *executionTracker, err error) {
+	isTTY := isTerminal(os.Stdout)
+
+	var emoji, message string
+	toStderr := true
+
+	switch {
+	case errors.Is(err, ErrGitDiffUncommitted):
+		emoji, message = "🧹", "Uncommitted changes detected"
+	case err != nil:
+		emoji, message = "💥", fmt.Sprintf("Error: %v", err)
+	case tracker != nil && tracker.warnings():
+		emoji, message = "👀", "Completed with warnings"
+	case tracker != nil:
+		emoji, message = "🚀", "Done"
+		toStderr = false
+	default:
+		return
+	}
+
+	if isTTY {
+		message = emoji + " " + message
+	}
+
+	if toStderr {
+		fmt.Fprintln(os.Stderr, message)
+	} else {
+		fmt.Println(message)
+	}
 }
 
 // findTaskByName looks up a task by name in the Plan.
@@ -148,7 +188,14 @@ func printTaskHelp(ctx context.Context, task *Task) {
 }
 
 // ExecuteTask runs a single task with proper path context.
+// This is the public API for external callers.
 func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
+	_, err := executeTask(ctx, task, p)
+	return err
+}
+
+// executeTask runs a single task with proper path context and returns the tracker.
+func executeTask(ctx context.Context, task *Task, p *Plan) (*executionTracker, error) {
 	// Determine execution paths.
 	var paths []string
 
@@ -180,33 +227,33 @@ func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
 	for _, path := range paths {
 		pathCtx := WithPath(ctx, path)
 		if err := task.run(pathCtx); err != nil {
-			return fmt.Errorf("task %s in %s: %w", task.Name(), path, err)
+			return tracker, fmt.Errorf("task %s in %s: %w", task.Name(), path, err)
 		}
 	}
 
 	// Run git diff check after task completes (only if -g flag was passed).
-	return runGitDiff(ctx)
+	return tracker, runGitDiff(ctx)
 }
 
-func execute(ctx context.Context, c Config, p *Plan) error {
+func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, error) {
 	if c.Auto == nil || p == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Generate shims (uses pre-computed ModuleDirectories from Plan)
 	if err := generateTask.run(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Execute with Plan and execution tracker in context.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
 	if err := c.Auto.run(ctx); err != nil {
-		return err
+		return tracker, err
 	}
 
 	// Run git diff check after all tasks complete (only if -g flag was passed).
-	return runGitDiff(ctx)
+	return tracker, runGitDiff(ctx)
 }
 
 // printHelp prints help information including available tasks.
@@ -215,12 +262,6 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	Println(ctx, "Usage:")
 	Println(ctx, "  pok [flags]")
 	Println(ctx, "  pok <task> [flags]")
-	Println(ctx)
-	Println(ctx, "Flags:")
-	Println(ctx, "  -g          run git diff check after execution")
-	Println(ctx, "  -h          show help")
-	Println(ctx, "  -v          verbose mode")
-	Println(ctx, "  --version   show version")
 
 	// Filter tasks by visibility and split into regular vs manual:
 	// 1. Not hidden
@@ -242,19 +283,49 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 		}
 	}
 
-	printTaskSection(ctx, "Auto tasks:", regularTasks)
-	printTaskSection(ctx, "Manual tasks:", manualTasks)
+	// Calculate max width for alignment across flags, tasks, and builtins
+	allNames := []string{
+		// Flags
+		"-g, --gitdiff", "-h, --help", "-v, --verbose", "--version",
+		// Builtins
+		"plan", "generate", "update", "clean",
+	}
+	for _, task := range regularTasks {
+		allNames = append(allNames, task.Name())
+	}
+	for _, task := range manualTasks {
+		allNames = append(allNames, task.Name())
+	}
+
+	maxWidth := 0
+	for _, name := range allNames {
+		if len(name) > maxWidth {
+			maxWidth = len(name)
+		}
+	}
+
+	// Print flags
+	Println(ctx)
+	Println(ctx, "Flags:")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "-v, --verbose", "verbose mode")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "--version", "show version")
+
+	printTaskSection(ctx, "Auto tasks:", regularTasks, maxWidth)
+	printTaskSection(ctx, "Manual tasks:", manualTasks, maxWidth)
 
 	// Print builtin commands last
 	Println(ctx)
 	Println(ctx, "Builtin tasks:")
-	Println(ctx, "  plan [-json]  show execution plan without running tasks")
-	Println(ctx, "  generate      regenerate shims in all directories")
-	Println(ctx, "  update        update Pocket and regenerate scaffolded files")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "plan", "show execution plan without running tasks")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "generate", "regenerate shims in all directories")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "update", "update Pocket and regenerate scaffolded files")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "clean", "remove .pocket/tools and .pocket/bin")
 }
 
 // printTaskSection prints a section of tasks with a header.
-func printTaskSection(ctx context.Context, header string, tasks []*Task) {
+func printTaskSection(ctx context.Context, header string, tasks []*Task, width int) {
 	if len(tasks) == 0 {
 		return
 	}
@@ -267,7 +338,7 @@ func printTaskSection(ctx context.Context, header string, tasks []*Task) {
 	Println(ctx, header)
 	for _, task := range tasks {
 		if task.Usage() != "" {
-			Printf(ctx, "  %-12s  %s\n", task.Name(), task.Usage())
+			Printf(ctx, "  %-*s  %s\n", width, task.Name(), task.Usage())
 		} else {
 			Printf(ctx, "  %s\n", task.Name())
 		}

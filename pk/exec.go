@@ -110,6 +110,9 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	// Even on success, show output if it contains warnings/notices.
 	if output := buf.String(); containsNotice(output) {
 		_, _ = out.Stderr.Write([]byte(output))
+		if tracker := executionTrackerFromContext(ctx); tracker != nil {
+			tracker.markWarning()
+		}
 	}
 	return nil
 }

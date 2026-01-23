@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -44,6 +45,28 @@ var generateTask = NewTask("generate", "regenerate shims in all directories", ni
 	if Verbose(ctx) {
 		for _, s := range shims {
 			Printf(ctx, "  generated: %s\n", s)
+		}
+	}
+
+	return nil
+}))
+
+// cleanTask removes .pocket/tools and .pocket/bin directories.
+var cleanTask = NewTask("clean", "remove .pocket/tools and .pocket/bin", nil, Do(func(ctx context.Context) error {
+	gitRoot := findGitRoot()
+	pocketDir := filepath.Join(gitRoot, ".pocket")
+
+	dirsToRemove := []string{
+		filepath.Join(pocketDir, "tools"),
+		filepath.Join(pocketDir, "bin"),
+	}
+
+	for _, dir := range dirsToRemove {
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("removing %s: %w", dir, err)
+		}
+		if Verbose(ctx) {
+			Printf(ctx, "  removed: %s\n", dir)
 		}
 	}
 

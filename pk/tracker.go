@@ -10,8 +10,9 @@ import (
 // the same task can run multiple times if configured for different paths,
 // but will only run once per path.
 type executionTracker struct {
-	mu   sync.Mutex
-	done map[string]bool // key: "taskName:path"
+	mu          sync.Mutex
+	done        map[string]bool // key: "taskName:path"
+	hadWarnings bool
 }
 
 // newExecutionTracker creates a new execution tracker.
@@ -86,4 +87,18 @@ func forceRunFromContext(ctx context.Context) bool {
 		return v
 	}
 	return false
+}
+
+// markWarning records that a warning was detected during execution.
+func (t *executionTracker) markWarning() {
+	t.mu.Lock()
+	t.hadWarnings = true
+	t.mu.Unlock()
+}
+
+// warnings returns true if any warnings were detected.
+func (t *executionTracker) warnings() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.hadWarnings
 }
