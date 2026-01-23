@@ -407,13 +407,21 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		// go-lint should run in both paths
 		infoLint := plan.pathMappings["go-lint"]
 		if len(infoLint.resolvedPaths) != 2 {
-			t.Errorf("expected go-lint to have 2 paths, got %d: %v", len(infoLint.resolvedPaths), infoLint.resolvedPaths)
+			t.Errorf(
+				"expected go-lint to have 2 paths, got %d: %v",
+				len(infoLint.resolvedPaths),
+				infoLint.resolvedPaths,
+			)
 		}
 
 		// go-test should have zero paths (excluded from all detected paths)
 		infoTest := plan.pathMappings["go-test"]
 		if len(infoTest.resolvedPaths) != 0 {
-			t.Errorf("expected go-test to have 0 paths, got %d: %v", len(infoTest.resolvedPaths), infoTest.resolvedPaths)
+			t.Errorf(
+				"expected go-test to have 0 paths, got %d: %v",
+				len(infoTest.resolvedPaths),
+				infoTest.resolvedPaths,
+			)
 		}
 	})
 }

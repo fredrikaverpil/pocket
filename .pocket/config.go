@@ -26,7 +26,7 @@ var Config = &pk.Config{
 		golang.Tasks(),
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
-			github.Workflows,
+			github.Tasks(),
 			pk.WithFlag(github.Workflows, "skip-pocket", true),
 			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
 		),
