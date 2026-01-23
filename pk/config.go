@@ -14,7 +14,7 @@ var DefaultSkipDirs = []string{
 }
 
 // Config represents the Pocket configuration.
-// It holds the task graph composition and manual tasks.
+// It holds the task graph composition and plan configuration.
 type Config struct {
 	// Auto is the top-level runnable that composes all tasks.
 	// This is typically created using Serial() to compose multiple tasks.
@@ -31,6 +31,21 @@ type Config struct {
 	//	}
 	Manual []Runnable
 
+	// Plan contains configuration for plan building, shim generation,
+	// and CI integration (like git diff settings).
+	//
+	// Example:
+	//   Plan: &pk.PlanConfig{
+	//       Shims: pk.AllShimsConfig(),
+	//       GitDiff: &pk.GitDiffConfig{
+	//           Rules: []pk.GitDiffRule{{Task: Generate}},
+	//       },
+	//   }
+	Plan *PlanConfig
+}
+
+// PlanConfig contains configuration for plan building and CI integration.
+type PlanConfig struct {
 	// SkipDirs specifies directory names to skip during filesystem walking.
 	//
 	// Behavior:
@@ -60,6 +75,20 @@ type Config struct {
 	// Example to generate all shims:
 	//   Shims: &pk.ShimConfig{Posix: true, Windows: true, PowerShell: true}
 	Shims *ShimConfig
+
+	// GitDiff controls the git diff check behavior for CI matrix generation
+	// and runtime when the -g flag is used.
+	//
+	// Default (nil): git diff enabled for all tasks in CI matrix.
+	//
+	// Example to skip git diff for code generators:
+	//   GitDiff: &pk.GitDiffConfig{
+	//       Rules: []pk.GitDiffRule{
+	//           {Task: Generate},                              // all paths
+	//           {Task: Format, Paths: []string{"generated/"}}, // only in generated/
+	//       },
+	//   }
+	GitDiff *GitDiffConfig
 }
 
 // ShimConfig controls which shim scripts are generated.
@@ -73,6 +102,36 @@ type ShimConfig struct {
 
 	// PowerShell generates a PowerShell script (pok.ps1).
 	PowerShell bool
+}
+
+// GitDiffConfig controls the git diff check behavior.
+// Git diff only runs when the -g flag is passed to ./pok.
+// This config controls which tasks should have -g applied in CI matrix generation,
+// and which tasks should skip the check at runtime when -g is used.
+type GitDiffConfig struct {
+	// DisableByDefault inverts the default behavior.
+	//
+	// When false (default): git diff enabled for all tasks, Rules specify tasks to SKIP.
+	// When true: git diff disabled for all tasks, Rules specify tasks to INCLUDE.
+	DisableByDefault bool
+
+	// Rules specify exceptions to the default behavior.
+	//
+	// If DisableByDefault is false: these tasks SKIP git diff (opt-out).
+	// If DisableByDefault is true: these tasks INCLUDE git diff (opt-in).
+	Rules []GitDiffRule
+}
+
+// GitDiffRule defines a task (optionally scoped to paths) for git diff configuration.
+// A rule matches if the task matches AND (Paths is nil OR the path matches any pattern).
+type GitDiffRule struct {
+	// Task is the task this rule applies to. Required.
+	Task *Task
+
+	// Paths are regexp patterns for paths where this rule applies.
+	// If nil or empty, the rule applies to all paths.
+	// Patterns are matched against the execution path (relative to git root).
+	Paths []string
 }
 
 // DefaultShimConfig returns the default shim configuration (POSIX only).

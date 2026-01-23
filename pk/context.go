@@ -20,6 +20,8 @@ const (
 	outputKey
 	// flagsKey is the context key for task flag overrides.
 	flagsKey
+	// gitDiffKey is the context key for git diff enabled flag.
+	gitDiffKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -77,4 +79,17 @@ func OutputFromContext(ctx context.Context) *Output {
 		return out
 	}
 	return StdOutput()
+}
+
+// withGitDiffEnabled returns a new context with git diff enabled flag set.
+func withGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, gitDiffKey, enabled)
+}
+
+// gitDiffEnabledFromContext returns whether git diff is enabled in the context.
+func gitDiffEnabledFromContext(ctx context.Context) bool {
+	if v, ok := ctx.Value(gitDiffKey).(bool); ok {
+		return v
+	}
+	return false
 }

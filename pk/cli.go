@@ -23,6 +23,7 @@ func run(cfg *Config) error {
 	// Parse command-line flags
 	fs := flag.NewFlagSet("pok", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "verbose mode")
+	gitDiff := fs.Bool("g", false, "run git diff check after execution")
 	showHelp := fs.Bool("h", false, "show help")
 	showVersion := fs.Bool("version", false, "show version")
 
@@ -35,6 +36,7 @@ func run(cfg *Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx = WithVerbose(ctx, *verbose)
+	ctx = withGitDiffEnabled(ctx, *gitDiff)
 	ctx = WithOutput(ctx, StdOutput())
 
 	// Handle version flag
@@ -171,7 +173,8 @@ func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
 	}
 
 	// Set up execution tracker.
-	ctx = withExecutionTracker(ctx, newExecutionTracker())
+	tracker := newExecutionTracker()
+	ctx = withExecutionTracker(ctx, tracker)
 
 	// Execute task for each path.
 	for _, path := range paths {
@@ -181,7 +184,12 @@ func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
 		}
 	}
 
-	return nil
+	// Run git diff check after task completes.
+	var gitDiffCfg *GitDiffConfig
+	if p != nil {
+		gitDiffCfg = p.GitDiffConfig()
+	}
+	return runGitDiff(ctx, gitDiffCfg, tracker)
 }
 
 func execute(ctx context.Context, c Config, p *Plan) error {
@@ -195,8 +203,14 @@ func execute(ctx context.Context, c Config, p *Plan) error {
 	}
 
 	// Execute with Plan and execution tracker in context.
-	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	return c.Auto.run(ctx)
+	tracker := newExecutionTracker()
+	ctx = withExecutionTracker(ctx, tracker)
+	if err := c.Auto.run(ctx); err != nil {
+		return err
+	}
+
+	// Run git diff check after all tasks complete (only if -g flag was passed).
+	return runGitDiff(ctx, p.GitDiffConfig(), tracker)
 }
 
 // printHelp prints help information including available tasks.
@@ -207,6 +221,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	Println(ctx, "  pok <task> [flags]")
 	Println(ctx)
 	Println(ctx, "Flags:")
+	Println(ctx, "  -g          run git diff check after execution")
 	Println(ctx, "  -h          show help")
 	Println(ctx, "  -v          verbose mode")
 	Println(ctx, "  --version   show version")

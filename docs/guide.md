@@ -34,6 +34,7 @@ defining your first task to building complex CI pipelines.
   - [Config Struct](#config-struct)
   - [Directory Skipping](#directory-skipping)
   - [Shim Generation](#shim-generation)
+  - [Git Diff Check](#git-diff-check)
 - [Plan Introspection](#plan-introspection)
   - [Accessing the Plan](#accessing-the-plan)
   - [Plan Structure](#plan-structure)
@@ -473,11 +474,16 @@ The main entry point for configuring Pocket:
 
 ```go
 type Config struct {
-    Auto              Runnable      // Tasks executed on bare ./pok
-    Manual            []Runnable    // Tasks only run when explicitly invoked
-    SkipDirs          []string      // Directories to skip during filesystem walk
-    IncludeHiddenDirs bool          // Include hidden directories (default: false)
-    Shims             *ShimConfig   // Which shim scripts to generate
+    Auto   Runnable     // Tasks executed on bare ./pok
+    Manual []Runnable   // Tasks only run when explicitly invoked
+    Plan   *PlanConfig  // Plan building, shims, and CI configuration
+}
+
+type PlanConfig struct {
+    SkipDirs          []string        // Directories to skip during filesystem walk
+    IncludeHiddenDirs bool            // Include hidden directories (default: false)
+    Shims             *ShimConfig     // Which shim scripts to generate
+    GitDiff           *GitDiffConfig  // Git diff check configuration
 }
 ```
 
@@ -502,14 +508,16 @@ var DefaultSkipDirs = []string{
 var Config = &pk.Config{
     Auto: pk.Serial(Lint, Test),
 
-    // Extend defaults
-    SkipDirs: append(pk.DefaultSkipDirs, "testdata", "generated"),
+    Plan: &pk.PlanConfig{
+        // Extend defaults
+        SkipDirs: append(pk.DefaultSkipDirs, "testdata", "generated"),
 
-    // Or skip nothing
-    // SkipDirs: []string{},
+        // Or skip nothing
+        // SkipDirs: []string{},
 
-    // Include hidden directories (.git, .cache, etc.)
-    IncludeHiddenDirs: false,  // default
+        // Include hidden directories (.git, .cache, etc.)
+        IncludeHiddenDirs: false, // default
+    },
 }
 ```
 
@@ -536,10 +544,68 @@ pk.AllShimsConfig()     // All three shims
 
 ```go
 var Config = &pk.Config{
-    Auto:  pk.Serial(Lint, Test),
-    Shims: pk.AllShimsConfig(),  // Generate all platform shims
+    Auto: pk.Serial(Lint, Test),
+
+    Plan: &pk.PlanConfig{
+        Shims: pk.AllShimsConfig(), // Generate all platform shims
+    },
 }
 ```
+
+### Git Diff Check
+
+Pocket can run `git diff --exit-code` after task execution to catch unintended
+file modifications. This is enabled with the `-g` flag: `./pok -g`.
+
+```go
+type GitDiffConfig struct {
+    DisableByDefault bool           // Invert default: opt-in mode
+    Rules            []GitDiffRule  // Task rules for skip/include
+}
+
+type GitDiffRule struct {
+    Task  *Task    // Task this rule applies to
+    Paths []string // Regexp patterns (nil = all paths)
+}
+```
+
+**Opt-out mode (default):** Git diff runs for all tasks, Rules specify tasks to
+SKIP.
+
+```go
+var Config = &pk.Config{
+    Auto: pk.Serial(Format, Lint, Test),
+
+    Plan: &pk.PlanConfig{
+        // Skip git diff for tasks that intentionally modify files
+        GitDiff: &pk.GitDiffConfig{
+            Rules: []pk.GitDiffRule{
+                {Task: Generate},                              // skip for all paths
+                {Task: Format, Paths: []string{"generated/"}}, // skip only in generated/
+            },
+        },
+    },
+}
+```
+
+**Opt-in mode:** Git diff disabled by default, Rules specify tasks to INCLUDE.
+
+```go
+Plan: &pk.PlanConfig{
+    GitDiff: &pk.GitDiffConfig{
+        DisableByDefault: true,
+        Rules: []pk.GitDiffRule{
+            {Task: Lint}, // only run git diff for lint
+        },
+    },
+}
+```
+
+**Behavior:**
+
+- Git diff only runs when the `-g` flag is passed: `./pok -g` or `./pok lint -g`
+- With opt-out mode: git diff skips only if **all** executed tasks match a rule
+- With opt-in mode: git diff runs if **any** executed task matches a rule
 
 ---
 
@@ -706,9 +772,6 @@ type MatrixConfig struct {
 type TaskOverride struct {
     // Platforms overrides DefaultPlatforms for this task.
     Platforms []string
-
-    // SkipGitDiff disables the git-diff check after this task.
-    SkipGitDiff bool
 }
 ```
 

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/tasks/git"
 )
 
 // Config is the Pocket configuration for this project.
@@ -19,15 +18,16 @@ var Config = &pk.Config{
 		//     pk.WithExcludePath("vendor"),
 		// ),
 		Hello,
-		git.Diff, // Ensure workspace is clean after tasks
 	),
 
-	// Shims controls which shim scripts are generated.
-	// Set to nil for default (POSIX only), or configure explicitly.
-	Shims: &pk.ShimConfig{
-		Posix:      true, // pok (POSIX shell script)
-		Windows:    true, // pok.cmd (Windows batch file)
-		PowerShell: true, // pok.ps1 (PowerShell script)
+	// Plan configuration: shims, directories, and CI settings.
+	// Use ./pok -g to run git diff check after execution.
+	Plan: &pk.PlanConfig{
+		Shims: &pk.ShimConfig{
+			Posix:      true, // pok (POSIX shell script)
+			Windows:    true, // pok.cmd (Windows batch file)
+			PowerShell: true, // pok.ps1 (PowerShell script)
+		},
 	},
 }
 

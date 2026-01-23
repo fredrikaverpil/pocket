@@ -34,6 +34,33 @@ func (t *executionTracker) markDone(taskName, path string) bool {
 	return false // first time
 }
 
+// executedTaskPath represents a task that was executed at a specific path.
+type executedTaskPath struct {
+	TaskName string
+	Path     string
+}
+
+// executed returns all task:path combinations that have been executed.
+func (t *executionTracker) executed() []executedTaskPath {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	result := make([]executedTaskPath, 0, len(t.done))
+	for key := range t.done {
+		// Parse "taskName:path" back into components.
+		// Find the first colon (task names don't contain colons).
+		for i := 0; i < len(key); i++ {
+			if key[i] == ':' {
+				result = append(result, executedTaskPath{
+					TaskName: key[:i],
+					Path:     key[i+1:],
+				})
+				break
+			}
+		}
+	}
+	return result
+}
+
 // withExecutionTracker returns a new context with the given tracker set.
 func withExecutionTracker(ctx context.Context, t *executionTracker) context.Context {
 	return context.WithValue(ctx, trackerKey, t)

@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func TestGenerateMatrix_Default(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -37,9 +38,6 @@ func TestGenerateMatrix_Default(t *testing.T) {
 		if entry.Shim != "./pok" {
 			t.Errorf("expected shim './pok', got %q", entry.Shim)
 		}
-		if !entry.GitDiff {
-			t.Error("expected gitDiff to be true by default")
-		}
 	}
 }
 
@@ -51,7 +49,7 @@ func TestGenerateMatrix_MultiplePlatforms(t *testing.T) {
 	cfg := MatrixConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 	}
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -92,7 +90,7 @@ func TestGenerateMatrix_TaskOverrides(t *testing.T) {
 			"lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on ubuntu
 		},
 	}
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -133,7 +131,7 @@ func TestGenerateMatrix_ExcludeTasks(t *testing.T) {
 		DefaultPlatforms: []string{"ubuntu-latest"},
 		ExcludeTasks:     []string{"format"},
 	}
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -162,7 +160,7 @@ func TestGenerateMatrix_HiddenTasksExcluded(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -188,7 +186,7 @@ func TestGenerateMatrix_ManualTasksExcluded(t *testing.T) {
 	}
 
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -231,7 +229,7 @@ func TestGenerateMatrix_WindowsShim(t *testing.T) {
 				WindowsShell:     tt.windowsShell,
 				WindowsShim:      tt.windowsShim,
 			}
-			data, err := GenerateMatrix(tasks, cfg)
+			data, err := GenerateMatrix(tasks, cfg, nil)
 			if err != nil {
 				t.Fatalf("GenerateMatrix() failed: %v", err)
 			}
@@ -282,7 +280,7 @@ func TestGenerateMatrix_ShimForPlatform(t *testing.T) {
 
 func TestGenerateMatrix_EmptyTasks(t *testing.T) {
 	cfg := DefaultMatrixConfig()
-	data, err := GenerateMatrix(nil, cfg)
+	data, err := GenerateMatrix(nil, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -320,45 +318,6 @@ func TestDefaultMatrixConfig(t *testing.T) {
 	}
 }
 
-func TestGenerateMatrix_SkipGitDiff(t *testing.T) {
-	tasks := []pk.TaskInfo{
-		{Name: "format", Usage: "format code"},
-		{Name: "lint", Usage: "lint code"},
-		{Name: "generate", Usage: "generate code"},
-	}
-
-	cfg := MatrixConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
-		TaskOverrides: map[string]TaskOverride{
-			"generate": {SkipGitDiff: true}, // generators may modify files
-		},
-	}
-	data, err := GenerateMatrix(tasks, cfg)
-	if err != nil {
-		t.Fatalf("GenerateMatrix() failed: %v", err)
-	}
-
-	var output matrixOutput
-	if err := json.Unmarshal(data, &output); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
-
-	if len(output.Include) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(output.Include))
-	}
-
-	for _, entry := range output.Include {
-		if entry.Task == "generate" {
-			if entry.GitDiff {
-				t.Error("generate task should have gitDiff=false")
-			}
-		} else {
-			if !entry.GitDiff {
-				t.Errorf("%s task should have gitDiff=true", entry.Task)
-			}
-		}
-	}
-}
 
 func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 	tasks := []pk.TaskInfo{
@@ -371,11 +330,11 @@ func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 	cfg := MatrixConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 		TaskOverrides: map[string]TaskOverride{
-			"py-test:.*": {SkipGitDiff: true}, // regexp: match all py-test variants
+			"py-test:.*": {Platforms: []string{"ubuntu-latest"}}, // regexp: match all py-test variants
 			"go-lint":    {Platforms: []string{"ubuntu-latest"}},
 		},
 	}
-	data, err := GenerateMatrix(tasks, cfg)
+	data, err := GenerateMatrix(tasks, cfg, nil)
 	if err != nil {
 		t.Fatalf("GenerateMatrix() failed: %v", err)
 	}
@@ -385,25 +344,22 @@ func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	// py-test:3.9, py-test:3.10, py-test:3.11: 3 platforms each = 9 entries
+	// py-test:3.9, py-test:3.10, py-test:3.11: 1 platform each = 3 entries
 	// go-lint: 1 platform = 1 entry
-	// Total: 10 entries
-	if len(output.Include) != 10 {
-		t.Fatalf("expected 10 entries, got %d", len(output.Include))
+	// Total: 4 entries
+	if len(output.Include) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(output.Include))
 	}
 
-	// Verify py-test tasks have SkipGitDiff applied
+	// Verify py-test tasks have platform override applied
 	for _, entry := range output.Include {
 		if strings.HasPrefix(entry.Task, "py-test:") {
-			if entry.GitDiff {
-				t.Errorf("%s should have gitDiff=false (matched by py-test:.*)", entry.Task)
+			if entry.OS != "ubuntu-latest" {
+				t.Errorf("%s should only run on ubuntu-latest (matched by py-test:.*), got %q", entry.Task, entry.OS)
 			}
 		} else if entry.Task == "go-lint" {
 			if entry.OS != "ubuntu-latest" {
 				t.Errorf("go-lint should only run on ubuntu-latest, got %q", entry.OS)
-			}
-			if !entry.GitDiff {
-				t.Error("go-lint should have gitDiff=true")
 			}
 		}
 	}
@@ -411,41 +367,43 @@ func TestGenerateMatrix_TaskOverridesRegexp(t *testing.T) {
 
 func TestGetTaskOverride(t *testing.T) {
 	overrides := map[string]TaskOverride{
-		"py-test:.*":  {SkipGitDiff: true},
-		"go-.*":       {Platforms: []string{"ubuntu-latest"}},
-		"exact-match": {SkipGitDiff: true, Platforms: []string{"macos-latest"}},
+		"py-test:.*":  {Platforms: []string{"ubuntu-latest"}},
+		"go-.*":       {Platforms: []string{"macos-latest"}},
+		"exact-match": {Platforms: []string{"windows-latest"}},
 	}
 
 	tests := []struct {
-		taskName        string
-		wantMatch       bool
-		wantSkipGitDiff bool
+		taskName      string
+		wantMatch     bool
+		wantPlatforms []string
 	}{
-		{"py-test:3.9", true, true},
-		{"py-test:3.10", true, true},
-		{"py-test:3.11", true, true},
-		{"go-lint", true, false},
-		{"go-test", true, false},
-		{"go-format", true, false},
-		{"exact-match", true, true},
-		{"no-match", false, false},
-		{"py-test", false, false}, // doesn't match "py-test:.*" (requires colon)
+		{"py-test:3.9", true, []string{"ubuntu-latest"}},
+		{"py-test:3.10", true, []string{"ubuntu-latest"}},
+		{"py-test:3.11", true, []string{"ubuntu-latest"}},
+		{"go-lint", true, []string{"macos-latest"}},
+		{"go-test", true, []string{"macos-latest"}},
+		{"go-format", true, []string{"macos-latest"}},
+		{"exact-match", true, []string{"windows-latest"}},
+		{"no-match", false, nil},
+		{"py-test", false, nil}, // doesn't match "py-test:.*" (requires colon)
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.taskName, func(t *testing.T) {
 			override := getTaskOverride(tt.taskName, overrides)
-			gotMatch := override.SkipGitDiff || len(override.Platforms) > 0
+			gotMatch := len(override.Platforms) > 0
 			if gotMatch != tt.wantMatch {
 				t.Errorf("getTaskOverride(%q) match=%v, want match=%v", tt.taskName, gotMatch, tt.wantMatch)
 			}
-			if override.SkipGitDiff != tt.wantSkipGitDiff {
-				t.Errorf(
-					"getTaskOverride(%q) SkipGitDiff=%v, want %v",
-					tt.taskName,
-					override.SkipGitDiff,
-					tt.wantSkipGitDiff,
-				)
+			if tt.wantPlatforms != nil && len(override.Platforms) > 0 {
+				if override.Platforms[0] != tt.wantPlatforms[0] {
+					t.Errorf(
+						"getTaskOverride(%q) Platforms=%v, want %v",
+						tt.taskName,
+						override.Platforms,
+						tt.wantPlatforms,
+					)
+				}
 			}
 		})
 	}
@@ -453,7 +411,7 @@ func TestGetTaskOverride(t *testing.T) {
 
 func TestGetTaskOverride_InvalidRegexp(t *testing.T) {
 	overrides := map[string]TaskOverride{
-		"[invalid": {SkipGitDiff: true}, // invalid regexp
+		"[invalid": {Platforms: []string{"macos-latest"}}, // invalid regexp
 		"valid":    {Platforms: []string{"ubuntu-latest"}},
 	}
 
@@ -466,4 +424,113 @@ func TestGetTaskOverride_InvalidRegexp(t *testing.T) {
 	// Invalid pattern should be skipped
 	_ = getTaskOverride("[invalid", overrides)
 	// This might or might not match depending on iteration order, but shouldn't panic
+}
+
+func TestGenerateMatrix_GitDiff_Default(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := DefaultMatrixConfig()
+
+	// nil GitDiffConfig = gitDiff enabled for all
+	data, err := GenerateMatrix(tasks, cfg, nil)
+	if err != nil {
+		t.Fatalf("GenerateMatrix() failed: %v", err)
+	}
+
+	var output matrixOutput
+	if err := json.Unmarshal(data, &output); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	for _, entry := range output.Include {
+		if !entry.GitDiff {
+			t.Errorf("expected gitDiff=true for %s, got false", entry.Task)
+		}
+	}
+}
+
+func TestGenerateMatrix_GitDiff_SkipRules(t *testing.T) {
+	generateTask := pk.NewTask("generate", "generate code", nil, pk.Do(func(_ context.Context) error {
+		return nil
+	}))
+
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "generate", Usage: "generate code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := DefaultMatrixConfig()
+	gitDiffConfig := &pk.GitDiffConfig{
+		Rules: []pk.GitDiffRule{
+			{Task: generateTask}, // skip gitDiff for generate
+		},
+	}
+
+	data, err := GenerateMatrix(tasks, cfg, gitDiffConfig)
+	if err != nil {
+		t.Fatalf("GenerateMatrix() failed: %v", err)
+	}
+
+	var output matrixOutput
+	if err := json.Unmarshal(data, &output); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	for _, entry := range output.Include {
+		if entry.Task == "generate" {
+			if entry.GitDiff {
+				t.Errorf("expected gitDiff=false for generate (in skip rules), got true")
+			}
+		} else {
+			if !entry.GitDiff {
+				t.Errorf("expected gitDiff=true for %s, got false", entry.Task)
+			}
+		}
+	}
+}
+
+func TestGenerateMatrix_GitDiff_DisableByDefault(t *testing.T) {
+	lintTask := pk.NewTask("lint", "lint code", nil, pk.Do(func(_ context.Context) error {
+		return nil
+	}))
+
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "generate", Usage: "generate code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := DefaultMatrixConfig()
+	gitDiffConfig := &pk.GitDiffConfig{
+		DisableByDefault: true,
+		Rules: []pk.GitDiffRule{
+			{Task: lintTask}, // only enable gitDiff for lint
+		},
+	}
+
+	data, err := GenerateMatrix(tasks, cfg, gitDiffConfig)
+	if err != nil {
+		t.Fatalf("GenerateMatrix() failed: %v", err)
+	}
+
+	var output matrixOutput
+	if err := json.Unmarshal(data, &output); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	for _, entry := range output.Include {
+		if entry.Task == "lint" {
+			if !entry.GitDiff {
+				t.Errorf("expected gitDiff=true for lint (in include rules), got false")
+			}
+		} else {
+			if entry.GitDiff {
+				t.Errorf("expected gitDiff=false for %s (not in include rules), got true", entry.Task)
+			}
+		}
+	}
 }

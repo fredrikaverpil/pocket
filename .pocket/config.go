@@ -5,7 +5,6 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/tasks/git"
 	"github.com/fredrikaverpil/pocket/tasks/github"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
@@ -36,13 +35,13 @@ var Config = &pk.Config{
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
 		Hello.Manual(),              // ./pok hello -name "World"
-		git.Diff.Manual(),           // ./pok git-diff
 		github.Matrix(matrixConfig), // ./pok gha-matrix (for GitHub Actions)
 	},
 
-	// Shims controls which shim scripts are generated.
-	// Set to nil for default (POSIX only), or configure explicitly.
-	Shims: pk.AllShimsConfig(), // pok, pok.cmd, pok.ps1
+	// Plan configuration: shims, directories, and CI settings.
+	Plan: &pk.PlanConfig{
+		Shims: pk.AllShimsConfig(), // pok, pok.cmd, pok.ps1
+	},
 }
 
 // Hello flags.

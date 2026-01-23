@@ -172,6 +172,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 				resolvedPaths: []string{"pk", "internal"},
 			},
 		},
+		// Note: git diff won't run because -g flag is not in context
 	}
 
 	// Test 1: With TASK_SCOPE="pk", should only run in pk

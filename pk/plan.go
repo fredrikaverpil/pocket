@@ -36,6 +36,9 @@ type Plan struct {
 
 	// shimConfig holds the shim generation configuration from Config.
 	shimConfig *ShimConfig
+
+	// gitDiffConfig holds the git diff check configuration from Config.
+	gitDiffConfig *GitDiffConfig
 }
 
 // ShimConfig returns the resolved shim configuration.
@@ -45,6 +48,12 @@ func (p *Plan) ShimConfig() *ShimConfig {
 		return DefaultShimConfig()
 	}
 	return p.shimConfig
+}
+
+// GitDiffConfig returns the git diff check configuration.
+// Returns nil if no config was set (meaning default behavior: run git diff).
+func (p *Plan) GitDiffConfig() *GitDiffConfig {
+	return p.gitDiffConfig
 }
 
 // pathInfo describes where a task should execute.
@@ -69,12 +78,17 @@ func NewPlan(cfg *Config) (*Plan, error) {
 	gitRoot := findGitRoot()
 
 	// Resolve skip dirs: nil uses defaults, empty slice skips nothing
-	skipDirs := cfg.SkipDirs
+	var skipDirs []string
+	var includeHidden bool
+	if cfg.Plan != nil {
+		skipDirs = cfg.Plan.SkipDirs
+		includeHidden = cfg.Plan.IncludeHiddenDirs
+	}
 	if skipDirs == nil {
 		skipDirs = DefaultSkipDirs
 	}
 
-	allDirs, err := walkDirectories(gitRoot, skipDirs, cfg.IncludeHiddenDirs)
+	allDirs, err := walkDirectories(gitRoot, skipDirs, includeHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +103,16 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        nil,
+			gitDiffConfig:     nil,
 		}, nil
+	}
+
+	// Extract plan config fields
+	var shimConfig *ShimConfig
+	var gitDiffConfig *GitDiffConfig
+	if cfg.Plan != nil {
+		shimConfig = cfg.Plan.Shims
+		gitDiffConfig = cfg.Plan.GitDiff
 	}
 
 	if cfg.Auto == nil && len(cfg.Manual) == 0 {
@@ -98,7 +121,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 			tasks:             []*Task{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
-			shimConfig:        cfg.Shims,
+			shimConfig:        shimConfig,
+			gitDiffConfig:     gitDiffConfig,
 		}, nil
 	}
 
@@ -133,7 +157,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
-		shimConfig:        cfg.Shims,
+		shimConfig:        shimConfig,
+		gitDiffConfig:     gitDiffConfig,
 	}, nil
 }
 
