@@ -9,12 +9,13 @@ import (
 // Task represents a named, executable unit of work.
 // Create tasks with NewTask.
 type Task struct {
-	name   string
-	usage  string
-	flags  *flag.FlagSet
-	fn     func(context.Context) error
-	hidden bool
-	manual bool // Task only runs when explicitly invoked.
+	name       string
+	usage      string
+	flags      *flag.FlagSet
+	fn         func(context.Context) error
+	hidden     bool
+	manual     bool // Task only runs when explicitly invoked.
+	hideHeader bool // Task runs without printing header.
 }
 
 // NewTask creates a new task with a Runnable body and optional CLI flags.
@@ -74,8 +75,10 @@ func (t *Task) run(ctx context.Context) error {
 		}
 	}
 
-	// Print task header before execution.
-	Printf(ctx, ":: %s\n", t.name)
+	// Print task header before execution (unless header is hidden).
+	if !t.hideHeader {
+		Printf(ctx, ":: %s\n", t.name)
+	}
 
 	return t.fn(ctx)
 }
@@ -99,12 +102,13 @@ func (t *Task) Flags() *flag.FlagSet {
 // Hidden tasks can still be executed directly but won't appear in help.
 func (t *Task) Hidden() *Task {
 	return &Task{
-		name:   t.name,
-		usage:  t.usage,
-		flags:  t.flags,
-		fn:     t.fn,
-		hidden: true,
-		manual: t.manual,
+		name:       t.name,
+		usage:      t.usage,
+		flags:      t.flags,
+		fn:         t.fn,
+		hidden:     true,
+		manual:     t.manual,
+		hideHeader: t.hideHeader,
 	}
 }
 
@@ -118,16 +122,36 @@ func (t *Task) IsHidden() bool {
 // not on bare `./pok` invocation.
 func (t *Task) Manual() *Task {
 	return &Task{
-		name:   t.name,
-		usage:  t.usage,
-		flags:  t.flags,
-		fn:     t.fn,
-		hidden: t.hidden,
-		manual: true,
+		name:       t.name,
+		usage:      t.usage,
+		flags:      t.flags,
+		fn:         t.fn,
+		hidden:     t.hidden,
+		manual:     true,
+		hideHeader: t.hideHeader,
 	}
 }
 
 // IsManual returns whether the task is manual-only.
 func (t *Task) IsManual() bool {
 	return t.manual
+}
+
+// HideHeader returns a new Task that runs without printing the ":: taskname" header.
+// Useful for tasks that output machine-readable data (e.g., JSON).
+func (t *Task) HideHeader() *Task {
+	return &Task{
+		name:       t.name,
+		usage:      t.usage,
+		flags:      t.flags,
+		fn:         t.fn,
+		hidden:     t.hidden,
+		manual:     t.manual,
+		hideHeader: true,
+	}
+}
+
+// IsHeaderHidden returns whether the task runs without printing header.
+func (t *Task) IsHeaderHidden() bool {
+	return t.hideHeader
 }

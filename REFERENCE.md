@@ -35,12 +35,15 @@ Applies path filtering and execution options to a runnable.
 
 Used with `WithOptions()`:
 
-| Function                   | Description                                            |
-| :------------------------- | :----------------------------------------------------- |
-| `WithIncludePath(pattern)` | Run only in directories matching the glob pattern.     |
-| `WithExcludePath(pattern)` | Skip directories matching the glob pattern.            |
-| `WithDetect(DetectFunc)`   | Dynamically discover paths using a detection function. |
-| `WithForceRun()`           | Bypass task deduplication for the wrapped runnable.    |
+| Function                         | Description                                            |
+| :------------------------------- | :----------------------------------------------------- |
+| `WithIncludePath(pattern)`       | Run only in directories matching the regex pattern.    |
+| `WithExcludePath(pattern)`       | Skip directories matching the regex pattern.           |
+| `WithDetect(DetectFunc)`         | Dynamically discover paths using a detection function. |
+| `WithForceRun()`                 | Bypass task deduplication for the wrapped runnable.    |
+| `WithFlag(task, flag, value)`    | Set a default flag value for a task in scope.          |
+| `WithSkipTask(tasks...)`         | Skip specified tasks within this scope.                |
+| `WithExcludeTask(task, pattern)` | Exclude a task from directories matching pattern.      |
 
 ## Detection Functions
 
@@ -63,6 +66,11 @@ Returns a copy of the task that is excluded from CLI help output.
 ### `(*Task) Manual() *Task`
 
 Returns a copy of the task that only runs when explicitly invoked by name.
+
+### `(*Task) HideHeader() *Task`
+
+Returns a copy of the task that runs without printing the `:: taskname` header.
+Useful for tasks that output machine-readable data (e.g., JSON).
 
 ## Execution Helpers
 

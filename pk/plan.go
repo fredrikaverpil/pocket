@@ -33,6 +33,18 @@ type Plan struct {
 	// moduleDirectories lists directories where shims should be generated.
 	// These are derived from PathMappings during plan creation.
 	moduleDirectories []string
+
+	// shimConfig holds the shim generation configuration from Config.
+	shimConfig *ShimConfig
+}
+
+// ShimConfig returns the resolved shim configuration.
+// If no shim config was set in Config, returns DefaultShimConfig().
+func (p *Plan) ShimConfig() *ShimConfig {
+	if p.shimConfig == nil {
+		return DefaultShimConfig()
+	}
+	return p.shimConfig
 }
 
 // pathInfo describes where a task should execute.
@@ -55,7 +67,14 @@ type pathInfo struct {
 // The filesystem is traversed ONCE during plan creation.
 func NewPlan(cfg *Config) (*Plan, error) {
 	gitRoot := findGitRoot()
-	allDirs, err := walkDirectories(gitRoot)
+
+	// Resolve skip dirs: nil uses defaults, empty slice skips nothing
+	skipDirs := cfg.SkipDirs
+	if skipDirs == nil {
+		skipDirs = DefaultSkipDirs
+	}
+
+	allDirs, err := walkDirectories(gitRoot, skipDirs, cfg.IncludeHiddenDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -63,12 +82,23 @@ func NewPlan(cfg *Config) (*Plan, error) {
 }
 
 func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
-	if cfg == nil || (cfg.Auto == nil && len(cfg.Manual) == 0) {
+	if cfg == nil {
 		return &Plan{
 			tree:              nil,
 			tasks:             []*Task{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
+			shimConfig:        nil,
+		}, nil
+	}
+
+	if cfg.Auto == nil && len(cfg.Manual) == 0 {
+		return &Plan{
+			tree:              nil,
+			tasks:             []*Task{},
+			pathMappings:      make(map[string]pathInfo),
+			moduleDirectories: []string{},
+			shimConfig:        cfg.Shims,
 		}, nil
 	}
 
@@ -103,6 +133,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		tasks:             collector.tasks,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
+		shimConfig:        cfg.Shims,
 	}, nil
 }
 
@@ -152,8 +183,15 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 			}
 		}
 	default:
-		// No detection and no new include patterns - keep filtered candidates.
-		results = candidates
+		// No detection and no include patterns specified.
+		// If we're nested inside another pathFilter, inherit its paths.
+		// If we have exclude patterns, use all directories (excludes apply later).
+		// Otherwise, default to root only.
+		if pc.currentPath != nil || len(pf.excludePaths) > 0 {
+			results = candidates
+		} else {
+			results = []string{"."}
+		}
 	}
 
 	return results
@@ -184,13 +222,22 @@ func (pc *taskCollector) walk(r Runnable) error {
 			pc.tasks = append(pc.tasks, v)
 		}
 
-		// Apply all active excludes to the current candidates for THIS task.
-		finalPaths := pc.candidates
-		for _, ex := range pc.activeExcludes {
-			// If ex.tasks is empty, it's a global exclude for this scope.
-			// If ex.tasks is not empty, it only applies if this task is in the list.
-			if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
-				finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+		// Determine final paths for this task.
+		// If task is NOT inside any pathFilter, run at root only.
+		// If inside a pathFilter, use the filtered candidates with excludes applied.
+		var finalPaths []string
+		if pc.currentPath == nil {
+			// No pathFilter - run at root only
+			finalPaths = []string{"."}
+		} else {
+			// Inside a pathFilter - apply excludes to current candidates
+			finalPaths = pc.candidates
+			for _, ex := range pc.activeExcludes {
+				// If ex.tasks is empty, it's a global exclude for this scope.
+				// If ex.tasks is not empty, it only applies if this task is in the list.
+				if len(ex.tasks) == 0 || slices.Contains(ex.tasks, v.name) {
+					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+				}
 			}
 		}
 
@@ -308,6 +355,46 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 	sort.Strings(dirs)
 
 	return dirs
+}
+
+// TaskInfo represents a task for introspection.
+// This is the public type for CI/CD integration (e.g., matrix generation).
+type TaskInfo struct {
+	Name   string   // CLI command name
+	Usage  string   // Description/help text
+	Paths  []string // Directories this task runs in (resolved)
+	Hidden bool     // Whether task is hidden from help
+	Manual bool     // Whether task is manual-only
+}
+
+// Tasks returns task information for all tasks in the plan.
+// This is the public introspection API for CI/CD integration.
+func (p *Plan) Tasks() []TaskInfo {
+	if p == nil {
+		return nil
+	}
+
+	result := make([]TaskInfo, 0, len(p.tasks))
+	for _, t := range p.tasks {
+		info := TaskInfo{
+			Name:   t.name,
+			Usage:  t.usage,
+			Hidden: t.hidden,
+			Manual: t.manual,
+		}
+
+		// Get resolved paths from path mappings
+		if pm, ok := p.pathMappings[t.name]; ok {
+			info.Paths = pm.resolvedPaths
+		}
+		if len(info.Paths) == 0 {
+			info.Paths = []string{"."}
+		}
+
+		result = append(result, info)
+	}
+
+	return result
 }
 
 // taskRunsInPath checks if a task is visible/runnable from a specific path context.

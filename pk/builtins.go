@@ -24,15 +24,17 @@ var generateTask = NewTask("generate", "regenerate shims in all directories", ni
 		return fmt.Errorf("plan not found in context")
 	}
 
+	// Use shim config from plan (defaults to POSIX only if not configured)
+	cfg := p.ShimConfig()
 	shims, err := shim.GenerateShims(
 		ctx,
 		gitRoot,
 		pocketDir,
 		p.moduleDirectories,
 		shim.Config{
-			Posix:      true,
-			Windows:    true,
-			PowerShell: true,
+			Posix:      cfg.Posix,
+			Windows:    cfg.Windows,
+			PowerShell: cfg.PowerShell,
 		},
 	)
 	if err != nil {
@@ -57,12 +59,13 @@ var updateTask = NewTask(
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		// 1. go get latest
+		// 1. go get latest (use GOPROXY=direct to bypass proxy cache)
 		if Verbose(ctx) {
-			Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+			Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 		}
 		cmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
 		cmd.Dir = pocketDir
+		cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
 		out := OutputFromContext(ctx)
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
@@ -261,7 +264,7 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 
 		paths := "[root]"
 		if info, ok := pathMappings[v.Name()]; ok && len(info.resolvedPaths) > 0 {
-			paths = fmt.Sprintf("%v", info.resolvedPaths)
+			paths = formatPaths(info.resolvedPaths)
 		}
 
 		Printf(ctx, "%s%s%s%s\n", prefix, branch, v.Name(), marker)
@@ -297,19 +300,41 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 		}
 
 	case *pathFilter:
-		Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
-		childPrefix := prefix
-		if isLast {
-			childPrefix += "    "
+		// Only show "With paths" wrapper if there are actual path options
+		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 || v.detectFunc != nil
+		if hasPathOptions {
+			Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
+			childPrefix := prefix
+			if isLast {
+				childPrefix += "    "
+			} else {
+				childPrefix += "│   "
+			}
+			if len(v.includePaths) > 0 {
+				Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
+			}
+			if len(v.excludePaths) > 0 {
+				Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
+			}
+			printTree(ctx, v.inner, childPrefix, true, pathMappings)
 		} else {
-			childPrefix += "│   "
+			// No path options - just pass through to inner without wrapper
+			printTree(ctx, v.inner, prefix, isLast, pathMappings)
 		}
-		if len(v.includePaths) > 0 {
-			Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
-		}
-		if len(v.excludePaths) > 0 {
-			Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
-		}
-		printTree(ctx, v.inner, childPrefix, true, pathMappings)
 	}
+}
+
+// formatPaths formats a path list for display.
+// Shows full list if <= 3 paths, otherwise shows count.
+func formatPaths(paths []string) string {
+	if len(paths) == 0 {
+		return "[root]"
+	}
+	if len(paths) == 1 && paths[0] == "." {
+		return "[root]"
+	}
+	if len(paths) <= 3 {
+		return fmt.Sprintf("%v", paths)
+	}
+	return fmt.Sprintf("%d directories", len(paths))
 }

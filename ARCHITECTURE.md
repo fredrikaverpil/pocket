@@ -6,15 +6,16 @@ The `./pok` shim executes `go run .pocket/main.go`.
 
 ### Shim Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `SHIM_DIR` | Directory where the shim script lives (resolved at runtime) |
-| `POCKET_DIR` | Path to `.pocket` directory (computed from `SHIM_DIR`) |
+| Variable     | Purpose                                                           |
+| ------------ | ----------------------------------------------------------------- |
+| `SHIM_DIR`   | Directory where the shim script lives (resolved at runtime)       |
+| `POCKET_DIR` | Path to `.pocket` directory (computed from `SHIM_DIR`)            |
 | `TASK_SCOPE` | Task visibility and execution scope (e.g., ".", "pk", "internal") |
 
 ### Shim Generation
 
 Shims are generated at:
+
 1. **Root** (`.`) - always, shows all tasks
 2. **Include paths** - each `WithIncludePath("dir")` gets a shim
 
@@ -26,11 +27,13 @@ subdirectory).
 ### Path-Scoped Task Visibility
 
 When running from a subdirectory shim (e.g., `./pk/pok`):
+
 - `TASK_SCOPE` is set to the directory (e.g., "pk")
 - Only tasks configured for that path are visible in help
 - Task execution is scoped to that specific path
 
 When running from root (`./pok`):
+
 - `TASK_SCOPE` is "."
 - All tasks are visible
 - Tasks execute in all their configured paths
@@ -38,17 +41,19 @@ When running from root (`./pok`):
 ## Plan
 
 The plan is built once by walking the composition tree and filesystem:
+
 - Tree walked once → extracts tasks and path mappings
 - Filesystem walked once → cached directory list for path resolution
-- `pathMappings` stores both `includePaths` (for visibility) and `resolvedPaths` (for execution)
+- `pathMappings` stores both `includePaths` (for visibility) and `resolvedPaths`
+  (for execution)
 - `moduleDirectories` derived from `pathMappings` (single source of truth)
 
 No double traversal - data is collected once and shared throughout execution.
 
 ## Auto-Detection
 
-Auto-detection dynamically discovers directories based on marker files or patterns,
-eliminating the need to manually specify paths with `WithIncludePath`.
+Auto-detection dynamically discovers directories based on marker files or
+patterns, eliminating the need to manually specify paths with `WithIncludePath`.
 
 ### Detection Functions
 
@@ -63,15 +68,20 @@ pk.DetectByFile("go.mod", "go.sum")  // Directories with go.mod or go.sum
 ### How Detection Works
 
 1. Filesystem is walked once during plan building (cached in `allDirs`)
-2. Detection function filters current scope candidates (using `os.Stat()` checks)
-3. Inner detection functions resolve against their parent scope, allowing for cumulative refining.
+2. Detection function filters current scope candidates (using `os.Stat()`
+   checks)
+3. Inner detection functions resolve against their parent scope, allowing for
+   cumulative refining.
 
 ### Scoping and Refining
 
-Task composition in Pocket is **refining**. Nested `pk.WithOptions` calls accumulate their constraints:
+Task composition in Pocket is **refining**. Nested `pk.WithOptions` calls
+accumulate their constraints:
 
-*   **Cumulative Intersection**: An inner `WithDetect` or `WithIncludePath` only sees directories that passed the outer scope's filters.
-*   **Inherited Exclusions**: If an outer scope excludes a path, no task inside that scope can execute there, even if an inner detection function finds it.
+- **Cumulative Intersection**: An inner `WithDetect` or `WithIncludePath` only
+  sees directories that passed the outer scope's filters.
+- **Inherited Exclusions**: If an outer scope excludes a path, no task inside
+  that scope can execute there, even if an inner detection function finds it.
 
 ```go
 pk.WithOptions(
@@ -82,14 +92,21 @@ pk.WithOptions(
 
 ### Task-Specific Scoping
 
-You can apply constraints to specific tasks within a bundle without refactoring the tree. All path patterns are interpreted as **regular expressions**.
+You can apply constraints to specific tasks within a bundle without refactoring
+the tree. All path patterns are interpreted as **regular expressions**.
 
-*   **`WithExcludePath(patterns...)`**: Directories matching any of the patterns will be excluded for ALL tasks in the current scope.
-*   **`WithExcludeTask(task, patterns...)`**: If tasks are provided, the exclusion only applies to them for the specified patterns.
-*   **`WithSkipTask(tasks...)`**: Completely removes specific tasks from the current scope.
-*   **`WithFlag(task, name, value)`**: Sets a default flag value for a specific task.
+- **`WithExcludePath(patterns...)`**: Directories matching any of the patterns
+  will be excluded for ALL tasks in the current scope.
+- **`WithExcludeTask(task, patterns...)`**: If tasks are provided, the exclusion
+  only applies to them for the specified patterns.
+- **`WithSkipTask(tasks...)`**: Completely removes specific tasks from the
+  current scope.
+- **`WithFlag(task, name, value)`**: Sets a default flag value for a specific
+  task.
 
-Tasks can be specified either by their string name or by the task object itself (e.g., `golang.Lint`). Using the task object is recommended for type safety and IDE support.
+Tasks can be specified either by their string name or by the task object itself
+(e.g., `golang.Lint`). Using the task object is recommended for type safety and
+IDE support.
 
 ```go
 pk.WithOptions(
@@ -118,8 +135,9 @@ func Tasks(tasks ...pk.Runnable) pk.Runnable {
 
 ## Manual Tasks
 
-Manual tasks only run when explicitly invoked (e.g., `./pok hello`), not on
-bare `./pok` execution. This is useful for:
+Manual tasks only run when explicitly invoked (e.g., `./pok hello`), not on bare
+`./pok` execution. This is useful for:
+
 - Setup/initialization tasks
 - Deployment tasks requiring confirmation
 - Tasks with mandatory flags
@@ -162,7 +180,8 @@ Manual tasks (explicit invocation only):
 
 ### Output Abstraction
 
-Output is propagated through context rather than using `os.Stdout/Stderr` directly:
+Output is propagated through context rather than using `os.Stdout/Stderr`
+directly:
 
 ```go
 type Output struct {
@@ -177,6 +196,7 @@ out := OutputFromContext(ctx)  // Returns StdOutput() if unset
 ### Buffered Parallel Output
 
 When tasks run in parallel, each gets a `bufferedOutput` that captures output:
+
 - Single task → runs directly without buffering
 - Multiple tasks → each gets buffered output, flushes atomically on completion
 - First-to-complete flushes first (no output interleaving)
@@ -198,6 +218,7 @@ When tasks run in parallel, each gets a `bufferedOutput` that captures output:
 ### Cooperative Cancellation
 
 Uses `errgroup.WithContext` for fail-fast behavior:
+
 - When one task fails, context is cancelled
 - Other goroutines check `ctx.Done()` and exit early
 - External commands receive SIGINT, then SIGKILL after `WaitDelay` (5s)
@@ -205,23 +226,33 @@ Uses `errgroup.WithContext` for fail-fast behavior:
 ### Signal Handling
 
 CLI sets up signal handling at entry:
+
 ```go
 ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 defer stop()
 ```
 
-Signals propagate through context cancellation to all running tasks and external commands.
+Signals propagate through context cancellation to all running tasks and external
+commands.
 
 ## Platform Specifics
 
-Pocket uses **Go build tags** to handle platform-specific behavior while maintaining a clean, cross-platform core.
+Pocket uses **Go build tags** to handle platform-specific behavior while
+maintaining a clean, cross-platform core.
 
 ### Graceful Shutdown
 
-Graceful shutdown requires sending different signals depending on the operating system:
-- **Unix (`pk/exec_unix.go`)**: Uses `syscall.SIGINT` to allow processes to clean up before termination.
-- **Other (`pk/exec_other.go`)**: Defaults to immediate termination as standard interrupt signals are not available or handled differently.
+Graceful shutdown requires sending different signals depending on the operating
+system:
+
+- **Unix (`pk/exec_unix.go`)**: Uses `syscall.SIGINT` to allow processes to
+  clean up before termination.
+- **Other (`pk/exec_other.go`)**: Defaults to immediate termination as standard
+  interrupt signals are not available or handled differently.
 
 ### Terminal Detection
 
-Terminal detection is consolidated in `pk/exec.go` and works across all platforms (including Windows) using `golang.org/x/term`. This allows Pocket to automatically enable colored output and other TTY-dependent features when running in a real terminal.
+Terminal detection is consolidated in `pk/exec.go` and works across all
+platforms (including Windows) using `golang.org/x/term`. This allows Pocket to
+automatically enable colored output and other TTY-dependent features when
+running in a real terminal.

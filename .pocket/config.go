@@ -6,20 +6,43 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/git"
+	"github.com/fredrikaverpil/pocket/tasks/github"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
+	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
+
+// matrixConfig is the configuration for the GitHub Actions matrix.
+var matrixConfig = github.MatrixConfig{
+	DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+	TaskOverrides: map[string]github.TaskOverride{
+		"go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on linux
+	},
+	ExcludeTasks: []string{"github-workflows"}, // don't run in CI
+}
 
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
-	Auto: pk.Serial(
-		golang.Tasks(), // Runs golang.Lint and golang.Test in all go.mod directories
-		git.Diff,       // Ensure workspace is clean after tasks
+	Auto: pk.Parallel(
+		// commits.Validate, // Validate commit messages against conventional commits
+		golang.Tasks(),
+		markdown.Format, // Format markdown files from root
+		pk.WithOptions(
+			github.Workflows,
+			pk.WithFlag(github.Workflows, "skip-pocket", true),
+			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+		),
 	),
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello.Manual(), // ./pok hello -name "World"
+		Hello.Manual(),              // ./pok hello -name "World"
+		git.Diff.Manual(),           // ./pok git-diff
+		github.Matrix(matrixConfig), // ./pok gha-matrix (for GitHub Actions)
 	},
+
+	// Shims controls which shim scripts are generated.
+	// Set to nil for default (POSIX only), or configure explicitly.
+	Shims: pk.AllShimsConfig(), // pok, pok.cmd, pok.ps1
 }
 
 // Hello flags.

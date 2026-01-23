@@ -267,7 +267,36 @@ Specifically targeted changes:
 - [x] Refactor version logic into `pk/version.go`
 - [x] Unified and robust signal handling in `pk/cli.go`
 
-## Phase 9: Wrapup & Polish
+## Phase 9: Fixups
+
+- [x] Add configurable directory skip options to Config:
+  - [x] `SkipDirs []string` - directories to skip during filesystem walk
+  - [x] `DefaultSkipDirs` - sensible defaults (vendor, node_modules, dist,
+        \_\_pycache\_\_, venv)
+  - [x] `IncludeHiddenDirs bool` - opt-in to include hidden directories
+  - [x] Tests in `pk/filesystem_test.go`
+- [x] Configurable shim generation in Config:
+  - [x] `Shims *ShimConfig` - controls which shims are generated
+  - [x] `DefaultShimConfig()` - POSIX only (default when nil)
+  - [x] `AllShimsConfig()` - all three shims enabled
+  - [x] Scaffold template shows explicit config with all shims enabled
+  - [x] Plan stores and exposes ShimConfig for generate task
+- [x] Tools like golangci-lint and stylua comes with config files. Let's discuss
+      a way to have a task use these, or fall back to e.g. a repo root config
+      file. You can see what we did in pocket-v1 for this. (Already handled)
+- [x] Pocket-v1 had a github-workflows task which copied very common github
+      workflows into place. Let's add that back in.
+  - [x] Created `tasks/github/` package with `Workflows` task
+  - [x] Embedded templates for pocket, pr, release, stale, sync workflows
+  - [x] Skip flags for selective generation, platforms flag for customization
+  - [x] Silent by default, verbose with `-v`
+- [ ] Pocket-v1 also had a much more complex matrix-based github workflow which
+      hooked into the plan and generated concurrent workflow jobs. Let's analyze
+      how we can get that back into pocket v2!
+- [ ] Verify that all documentation is up to date. We need to mention all public
+      API methods and configurable parts.
+
+## Phase 10: Wrapup & Polish
 
 - [ ] Analyze Pocket
   - [ ] DX - do we have good developer experience?
