@@ -6,6 +6,8 @@ import (
 )
 
 // Tasks returns all tree-sitter tasks composed as a Runnable.
+// Tasks run serially to ensure the ts_query_ls install completes
+// before any task tries to use it.
 func Tasks() pk.Runnable {
-	return pk.Parallel(QueryFormat, QueryLint)
+	return pk.Serial(QueryFormat, QueryLint)
 }
