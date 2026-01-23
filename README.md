@@ -187,7 +187,8 @@ matrix generation**—instead of manually syncing your CI configuration with you
 tasks, let Pocket generate it.
 
 Here's an example using the [GitHub Actions matrix](./docs/github-actions.md)
-integration ([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
+integration
+([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
 
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"
