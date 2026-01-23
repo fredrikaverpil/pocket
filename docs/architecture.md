@@ -183,10 +183,10 @@ var Hello = pk.NewTask("hello", "greet user", flags, pk.Do(fn))
 Manual tasks appear in a separate section:
 
 ```
-Tasks:
+Auto tasks:
   go-lint       run golangci-lint
 
-Manual tasks (explicit invocation only):
+Manual tasks:
   hello         print a greeting message
 ```
 

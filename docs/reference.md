@@ -177,12 +177,13 @@ pk.Do(func(ctx context.Context) error {
 })
 ```
 
-`Exec` features:
+`Exec` behavior:
 
+- **With `-v`:** Output streams to stdout/stderr in real-time
+- **Without `-v`:** Output captured, shown on error or if warnings detected
+- Detects: `warn`, `deprecat`, `notice`, `caution`, `error` (case-insensitive)
 - Adds `.pocket/bin` to PATH
-- Respects context cancellation
 - Sends SIGINT for graceful shutdown (Unix)
-- Correctly buffers output for parallel execution
 
 ### Output Functions
 

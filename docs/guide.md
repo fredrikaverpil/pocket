@@ -158,9 +158,19 @@ pk.Do(func(ctx context.Context) error {
 })
 ```
 
-**Features:**
+**Output behavior:**
 
-- Correctly captures and buffers output (important for parallel execution)
+- **With `-v` flag:** Output streams to stdout/stderr in real-time
+- **Without `-v` flag:** Output is captured and shown if:
+  - The command fails, OR
+  - The output contains warnings (detects: `warn`, `deprecat`, `notice`,
+    `caution`, `error`)
+
+This keeps CI logs clean while ensuring warnings and deprecation notices are
+never silently hidden.
+
+**Other features:**
+
 - Respects context cancellation (graceful shutdown)
 - Adds `.pocket/bin` to the command's `PATH`
 - Sends SIGINT on cancellation (Unix), allowing graceful cleanup

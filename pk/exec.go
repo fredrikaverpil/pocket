@@ -96,7 +96,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 		return cmd.Run()
 	}
 
-	// Capture output and only show on error.
+	// Capture output and only show on error (or if warnings detected).
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -106,7 +106,22 @@ func Exec(ctx context.Context, name string, args ...string) error {
 		// Include output in error for debugging.
 		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, buf.String())
 	}
+
+	// Even on success, show output if it contains warnings/notices.
+	if output := buf.String(); containsNotice(output) {
+		_, _ = out.Stderr.Write([]byte(output))
+	}
 	return nil
+}
+
+// containsNotice returns true if the output contains warning-like patterns.
+func containsNotice(output string) bool {
+	lower := strings.ToLower(output)
+	return strings.Contains(lower, "warn") ||
+		strings.Contains(lower, "deprecat") ||
+		strings.Contains(lower, "notice") ||
+		strings.Contains(lower, "caution") ||
+		strings.Contains(lower, "error")
 }
 
 // prependBinToPath adds .pocket/bin to the front of PATH.
