@@ -32,10 +32,12 @@ func installGotestsum() pk.Runnable {
 		Version, assetName,
 	)
 
+	// Note: gotestsum archives contain the binary with platform-appropriate name
+	// (gotestsum on Unix, gotestsum.exe on Windows), so we use binaryName for both
 	return pk.Download(url,
 		pk.WithDestDir(binDir),
 		pk.WithFormat("tar.gz"),
-		pk.WithExtract(pk.WithRenameFile(Name, binaryName)),
+		pk.WithExtract(pk.WithExtractFile(binaryName)),
 		pk.WithSymlink(),
 		pk.WithSkipIfExists(binaryPath),
 	)
