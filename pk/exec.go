@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -150,6 +151,13 @@ func lookPathInEnv(name string, env []string) string {
 		path := filepath.Join(dir, name)
 		if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
 			return path
+		}
+		// On Windows, binaries have .exe extension.
+		if runtime.GOOS == Windows {
+			exePath := path + ".exe"
+			if fi, err := os.Stat(exePath); err == nil && !fi.IsDir() {
+				return exePath
+			}
 		}
 	}
 
