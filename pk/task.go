@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"slices"
 )
 
 // Task represents a named, executable unit of work.
@@ -71,6 +72,17 @@ func (t *Task) run(ctx context.Context) error {
 			path := PathFromContext(ctx)
 			if alreadyDone := tracker.markDone(t.name, path); alreadyDone {
 				return nil // Silent skip.
+			}
+		}
+	}
+
+	// Check if this task should run at this path based on the Plan's pathMappings.
+	// This handles task-specific excludes (WithExcludeTask).
+	if plan := PlanFromContext(ctx); plan != nil {
+		if info, ok := plan.pathMappings[t.name]; ok {
+			path := PathFromContext(ctx)
+			if !slices.Contains(info.resolvedPaths, path) {
+				return nil // Task is excluded from this path.
 			}
 		}
 	}

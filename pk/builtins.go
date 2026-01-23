@@ -188,8 +188,8 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 	switch v := r.(type) {
 	case *Task:
 		paths := []string{"."}
-		if info, ok := pathMappings[v.Name()]; ok && len(info.resolvedPaths) > 0 {
-			paths = info.resolvedPaths
+		if info, ok := pathMappings[v.Name()]; ok {
+			paths = info.resolvedPaths // May be empty for excluded tasks.
 		}
 
 		return map[string]interface{}{
@@ -244,8 +244,8 @@ func buildTaskList(tasks []*Task, pathMappings map[string]pathInfo) []map[string
 
 	for _, task := range tasks {
 		paths := []string{"."}
-		if info, ok := pathMappings[task.Name()]; ok && len(info.resolvedPaths) > 0 {
-			paths = info.resolvedPaths
+		if info, ok := pathMappings[task.Name()]; ok {
+			paths = info.resolvedPaths // May be empty for excluded tasks.
 		}
 
 		taskJSON := map[string]interface{}{
@@ -286,8 +286,12 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 		}
 
 		paths := "[root]"
-		if info, ok := pathMappings[v.Name()]; ok && len(info.resolvedPaths) > 0 {
-			paths = formatPaths(info.resolvedPaths)
+		if info, ok := pathMappings[v.Name()]; ok {
+			if len(info.resolvedPaths) > 0 {
+				paths = formatPaths(info.resolvedPaths)
+			} else {
+				paths = "[skipped]"
+			}
 		}
 
 		Printf(ctx, "%s%s%s%s\n", prefix, branch, v.Name(), marker)
