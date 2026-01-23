@@ -115,11 +115,11 @@ func run(cfg *Config) (*executionTracker, error) {
 }
 
 // printFinalStatus prints success, warning, or error message with TTY-aware emojis.
+// All status messages go to stderr to avoid polluting command output (e.g., JSON from gha-matrix).
 func printFinalStatus(tracker *executionTracker, err error) {
 	isTTY := isTerminal(os.Stdout)
 
 	var emoji, message string
-	toStderr := true
 
 	switch {
 	case errors.Is(err, ErrGitDiffUncommitted):
@@ -130,7 +130,6 @@ func printFinalStatus(tracker *executionTracker, err error) {
 		emoji, message = "👀", "Completed with warnings"
 	case tracker != nil:
 		emoji, message = "🚀", "Done"
-		toStderr = false
 	default:
 		return
 	}
@@ -139,11 +138,7 @@ func printFinalStatus(tracker *executionTracker, err error) {
 		message = emoji + " " + message
 	}
 
-	if toStderr {
-		fmt.Fprintln(os.Stderr, message)
-	} else {
-		fmt.Println(message)
-	}
+	fmt.Fprintln(os.Stderr, message)
 }
 
 // findTaskByName looks up a task by name in the Plan.
