@@ -51,27 +51,33 @@ var generateTask = NewTask("generate", "regenerate shims in all directories", ni
 	return nil
 }))
 
-// cleanTask removes .pocket/tools and .pocket/bin directories.
-var cleanTask = NewTask("clean", "remove .pocket/tools and .pocket/bin", nil, Do(func(ctx context.Context) error {
-	gitRoot := findGitRoot()
-	pocketDir := filepath.Join(gitRoot, ".pocket")
+// cleanTask removes .pocket/tools, .pocket/bin, and .pocket/venvs directories.
+var cleanTask = NewTask(
+	"clean",
+	"remove .pocket/tools, .pocket/bin, and .pocket/venvs",
+	nil,
+	Do(func(ctx context.Context) error {
+		gitRoot := findGitRoot()
+		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-	dirsToRemove := []string{
-		filepath.Join(pocketDir, "tools"),
-		filepath.Join(pocketDir, "bin"),
-	}
-
-	for _, dir := range dirsToRemove {
-		if err := os.RemoveAll(dir); err != nil {
-			return fmt.Errorf("removing %s: %w", dir, err)
+		dirsToRemove := []string{
+			filepath.Join(pocketDir, "tools"),
+			filepath.Join(pocketDir, "bin"),
+			filepath.Join(pocketDir, "venvs"),
 		}
-		if Verbose(ctx) {
-			Printf(ctx, "  removed: %s\n", dir)
-		}
-	}
 
-	return nil
-}))
+		for _, dir := range dirsToRemove {
+			if err := os.RemoveAll(dir); err != nil {
+				return fmt.Errorf("removing %s: %w", dir, err)
+			}
+			if Verbose(ctx) {
+				Printf(ctx, "  removed: %s\n", dir)
+			}
+		}
+
+		return nil
+	}),
+)
 
 // updateTask updates Pocket and regenerates scaffolded files.
 var updateTask = NewTask(

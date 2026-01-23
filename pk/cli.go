@@ -328,7 +328,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	Printf(ctx, "  %-*s  %s\n", maxWidth, "plan", "show execution plan without running tasks")
 	Printf(ctx, "  %-*s  %s\n", maxWidth, "generate", "regenerate shims in all directories")
 	Printf(ctx, "  %-*s  %s\n", maxWidth, "update", "update Pocket and regenerate scaffolded files")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "clean", "remove .pocket/tools and .pocket/bin")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "clean", "remove .pocket/tools, .pocket/bin, and .pocket/venvs")
 }
 
 // printTaskSection prints a section of tasks with a header.
