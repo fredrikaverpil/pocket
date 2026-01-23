@@ -183,8 +183,15 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 			}
 		}
 	default:
-		// No detection and no new include patterns - keep filtered candidates.
-		results = candidates
+		// No detection and no include patterns specified.
+		// If we're nested inside another pathFilter, inherit its paths.
+		// If we have exclude patterns, use all directories (excludes apply later).
+		// Otherwise, default to root only.
+		if pc.currentPath != nil || len(pf.excludePaths) > 0 {
+			results = candidates
+		} else {
+			results = []string{"."}
+		}
 	}
 
 	return results
@@ -348,6 +355,46 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 	sort.Strings(dirs)
 
 	return dirs
+}
+
+// TaskInfo represents a task for introspection.
+// This is the public type for CI/CD integration (e.g., matrix generation).
+type TaskInfo struct {
+	Name   string   // CLI command name
+	Usage  string   // Description/help text
+	Paths  []string // Directories this task runs in (resolved)
+	Hidden bool     // Whether task is hidden from help
+	Manual bool     // Whether task is manual-only
+}
+
+// Tasks returns task information for all tasks in the plan.
+// This is the public introspection API for CI/CD integration.
+func (p *Plan) Tasks() []TaskInfo {
+	if p == nil {
+		return nil
+	}
+
+	result := make([]TaskInfo, 0, len(p.tasks))
+	for _, t := range p.tasks {
+		info := TaskInfo{
+			Name:   t.name,
+			Usage:  t.usage,
+			Hidden: t.hidden,
+			Manual: t.manual,
+		}
+
+		// Get resolved paths from path mappings
+		if pm, ok := p.pathMappings[t.name]; ok {
+			info.Paths = pm.resolvedPaths
+		}
+		if len(info.Paths) == 0 {
+			info.Paths = []string{"."}
+		}
+
+		result = append(result, info)
+	}
+
+	return result
 }
 
 // taskRunsInPath checks if a task is visible/runnable from a specific path context.

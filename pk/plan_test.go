@@ -6,6 +6,134 @@ import (
 	"testing"
 )
 
+func TestPlan_Tasks(t *testing.T) {
+	allDirs := []string{".", "services", "services/api", "pkg"}
+
+	newTask := func(name, usage string) *Task {
+		return NewTask(name, usage, nil, Do(func(_ context.Context) error { return nil }))
+	}
+
+	t.Run("BasicTasks", func(t *testing.T) {
+		task1 := newTask("lint", "lint code")
+		task2 := newTask("test", "run tests")
+
+		cfg := &Config{
+			Auto: Parallel(task1, task2),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+		if len(tasks) != 2 {
+			t.Fatalf("expected 2 tasks, got %d", len(tasks))
+		}
+
+		// Find lint task
+		var lint *TaskInfo
+		for i := range tasks {
+			if tasks[i].Name == "lint" {
+				lint = &tasks[i]
+				break
+			}
+		}
+		if lint == nil {
+			t.Fatal("expected to find lint task")
+		}
+		if lint.Usage != "lint code" {
+			t.Errorf("expected usage 'lint code', got %q", lint.Usage)
+		}
+		if lint.Hidden {
+			t.Error("expected hidden=false")
+		}
+		if lint.Manual {
+			t.Error("expected manual=false")
+		}
+		// Without path filtering, tasks run at root
+		if !slices.Contains(lint.Paths, ".") {
+			t.Errorf("expected paths to contain '.', got %v", lint.Paths)
+		}
+	})
+
+	t.Run("HiddenTask", func(t *testing.T) {
+		task := newTask("internal", "internal task").Hidden()
+
+		cfg := &Config{
+			Auto: task,
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+		if len(tasks) != 1 {
+			t.Fatalf("expected 1 task, got %d", len(tasks))
+		}
+		if !tasks[0].Hidden {
+			t.Error("expected hidden=true")
+		}
+	})
+
+	t.Run("ManualTask", func(t *testing.T) {
+		task := newTask("deploy", "deploy to prod").Manual()
+
+		cfg := &Config{
+			Manual: []Runnable{task},
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+		if len(tasks) != 1 {
+			t.Fatalf("expected 1 task, got %d", len(tasks))
+		}
+		if !tasks[0].Manual {
+			t.Error("expected manual=true")
+		}
+	})
+
+	t.Run("WithPathFiltering", func(t *testing.T) {
+		task := newTask("lint", "lint code")
+
+		cfg := &Config{
+			Auto: WithOptions(task, WithIncludePath("services")),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+		if len(tasks) != 1 {
+			t.Fatalf("expected 1 task, got %d", len(tasks))
+		}
+
+		// Should have resolved paths from path filtering
+		if !slices.Contains(tasks[0].Paths, "services") {
+			t.Errorf("expected paths to contain 'services', got %v", tasks[0].Paths)
+		}
+		if !slices.Contains(tasks[0].Paths, "services/api") {
+			t.Errorf("expected paths to contain 'services/api', got %v", tasks[0].Paths)
+		}
+	})
+
+	t.Run("NilPlan", func(t *testing.T) {
+		var plan *Plan
+		tasks := plan.Tasks()
+		if tasks != nil {
+			t.Errorf("expected nil, got %v", tasks)
+		}
+	})
+}
+
 func TestNewPlan_NestedFilters(t *testing.T) {
 	allDirs := []string{
 		".",
@@ -22,6 +150,30 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 	newTask := func(name string) *Task {
 		return NewTask(name, "usage", nil, Do(func(_ context.Context) error { return nil }))
 	}
+
+	t.Run("WithOptionsDefaultsToRoot", func(t *testing.T) {
+		task := newTask("flag-only-task")
+
+		// WithOptions with only flags (no path options) should default to root
+		cfg := &Config{
+			Auto: WithOptions(task), // No path options at all
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		info := plan.pathMappings["flag-only-task"]
+
+		// Should only run at root, not in all directories
+		if len(info.resolvedPaths) != 1 {
+			t.Errorf("expected 1 path (root), got %d: %v", len(info.resolvedPaths), info.resolvedPaths)
+		}
+		if info.resolvedPaths[0] != "." {
+			t.Errorf("expected path '.', got %q", info.resolvedPaths[0])
+		}
+	})
 
 	t.Run("IntersectionOfInclusions", func(t *testing.T) {
 		task := newTask("test-task")

@@ -11,19 +11,33 @@ import (
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
+// matrixConfig is the configuration for the GitHub Actions matrix.
+var matrixConfig = github.MatrixConfig{
+	DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+	TaskOverrides: map[string]github.TaskOverride{
+		"go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on linux
+	},
+	ExcludeTasks: []string{"github-workflows"}, // don't run in CI
+}
+
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
 	Auto: pk.Parallel(
 		// commits.Validate, // Validate commit messages against conventional commits
 		golang.Tasks(),
-		markdown.Format,   // Format markdown files from root
-		github.Workflows,  // Bootstrap GitHub workflow files
+		markdown.Format, // Format markdown files from root
+		pk.WithOptions(
+			github.Workflows,
+			pk.WithFlag(github.Workflows, "skip-pocket", true),
+			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+		),
 	),
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello.Manual(),    // ./pok hello -name "World"
-		git.Diff.Manual(), // ./pok git-diff
+		Hello.Manual(),              // ./pok hello -name "World"
+		git.Diff.Manual(),           // ./pok git-diff
+		github.Matrix(matrixConfig), // ./pok gha-matrix (for GitHub Actions)
 	},
 
 	// Shims controls which shim scripts are generated.

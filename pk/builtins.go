@@ -300,20 +300,27 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 		}
 
 	case *pathFilter:
-		Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
-		childPrefix := prefix
-		if isLast {
-			childPrefix += "    "
+		// Only show "With paths" wrapper if there are actual path options
+		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 || v.detectFunc != nil
+		if hasPathOptions {
+			Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
+			childPrefix := prefix
+			if isLast {
+				childPrefix += "    "
+			} else {
+				childPrefix += "│   "
+			}
+			if len(v.includePaths) > 0 {
+				Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
+			}
+			if len(v.excludePaths) > 0 {
+				Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
+			}
+			printTree(ctx, v.inner, childPrefix, true, pathMappings)
 		} else {
-			childPrefix += "│   "
+			// No path options - just pass through to inner without wrapper
+			printTree(ctx, v.inner, prefix, isLast, pathMappings)
 		}
-		if len(v.includePaths) > 0 {
-			Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
-		}
-		if len(v.excludePaths) > 0 {
-			Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
-		}
-		printTree(ctx, v.inner, childPrefix, true, pathMappings)
 	}
 }
 

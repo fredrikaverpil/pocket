@@ -293,6 +293,8 @@ Specifically targeted changes:
 - [ ] Pocket-v1 also had a much more complex matrix-based github workflow which
       hooked into the plan and generated concurrent workflow jobs. Let's analyze
       how we can get that back into pocket v2!
+- [ ] Verify that all documentation is up to date. We need to mention all public
+      API methods and configurable parts.
 
 ## Phase 10: Wrapup & Polish
 
