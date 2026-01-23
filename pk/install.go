@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 // FromPocketDir constructs an absolute path within the .pocket directory.
@@ -55,33 +57,37 @@ type goInstaller struct {
 }
 
 func (g *goInstaller) run(ctx context.Context) error {
-	// Extract binary name from package path (last segment)
-	binaryName := filepath.Base(g.pkg)
-
-	// Check if already installed at this version
-	binPath := FromBinDir(binaryName)
-	toolBinDir := FromToolsDir("go", g.pkg, g.version, "bin")
-	toolBinPath := filepath.Join(toolBinDir, binaryName)
-
-	// If symlink exists and points to correct version, skip
-	if target, err := os.Readlink(binPath); err == nil {
-		if target == toolBinPath {
-			if Verbose(ctx) {
-				Printf(ctx, "  [install] %s@%s already installed\n", binaryName, g.version)
-			}
-			return nil
-		}
+	// Extract binary name from package path.
+	binaryName := goBinaryName(g.pkg)
+	if runtime.GOOS == Windows {
+		binaryName += ".exe"
 	}
 
-	// Create tool directory
-	if err := os.MkdirAll(toolBinDir, 0o755); err != nil {
+	// Destination directory: .pocket/tools/go/<pkg>/<version>/
+	toolDir := FromToolsDir("go", g.pkg, g.version)
+	toolBinPath := filepath.Join(toolDir, binaryName)
+
+	// Check if already installed.
+	if _, err := os.Stat(toolBinPath); err == nil {
+		// Already installed, ensure symlink exists.
+		if _, err := CreateSymlink(toolBinPath); err != nil {
+			return err
+		}
+		if Verbose(ctx) {
+			Printf(ctx, "  [install] %s@%s already installed\n", binaryName, g.version)
+		}
+		return nil
+	}
+
+	// Create tool directory.
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
 		return fmt.Errorf("creating tool directory: %w", err)
 	}
 
-	// Run go install with GOBIN set
+	// Run go install with GOBIN set.
 	pkgWithVersion := g.pkg + "@" + g.version
 	cmd := exec.CommandContext(ctx, "go", "install", pkgWithVersion)
-	cmd.Env = append(os.Environ(), "GOBIN="+toolBinDir)
+	cmd.Env = append(os.Environ(), "GOBIN="+toolDir)
 	out := OutputFromContext(ctx)
 
 	if Verbose(ctx) {
@@ -97,23 +103,42 @@ func (g *goInstaller) run(ctx context.Context) error {
 		}
 	}
 
-	// Create bin directory if needed
-	binDir := FromBinDir()
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		return fmt.Errorf("creating bin directory: %w", err)
-	}
-
-	// Remove existing symlink if present
-	_ = os.Remove(binPath)
-
-	// Create symlink from .pocket/bin/<name> to .pocket/tools/go/<pkg>/<version>/bin/<name>
-	if err := os.Symlink(toolBinPath, binPath); err != nil {
-		return fmt.Errorf("creating symlink: %w", err)
+	// Create symlink (or copy on Windows).
+	if _, err := CreateSymlink(toolBinPath); err != nil {
+		return err
 	}
 
 	if Verbose(ctx) {
-		Printf(ctx, "  [install] linked %s -> %s\n", binPath, toolBinPath)
+		Printf(ctx, "  [install] linked %s\n", toolBinPath)
 	}
 
 	return nil
+}
+
+// goBinaryName extracts the binary name from a Go package path.
+func goBinaryName(pkg string) string {
+	parts := strings.Split(pkg, "/")
+	// If path ends with /cmd/<name>, use <name>
+	if len(parts) >= 2 && parts[len(parts)-2] == "cmd" {
+		return parts[len(parts)-1]
+	}
+	// Otherwise use last non-version component.
+	for i := len(parts) - 1; i >= 0; i-- {
+		if !strings.HasPrefix(parts[i], "v") || !isGoVersion(parts[i]) {
+			return parts[i]
+		}
+	}
+	return parts[len(parts)-1]
+}
+
+func isGoVersion(s string) bool {
+	if len(s) < 2 || s[0] != 'v' {
+		return false
+	}
+	for _, c := range s[1:] {
+		if c != '.' && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
 }
