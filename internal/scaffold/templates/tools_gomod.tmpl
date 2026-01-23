@@ -1,0 +1,8 @@
+// This file creates a module boundary to prevent `go mod tidy` from scanning
+// downloaded tools in .pocket/tools/. Without this, the Go toolchain's internal
+// test files (which contain intentionally malformed imports) would cause
+// `go mod tidy` to fail when run in the .pocket directory.
+
+module pocket-tools
+
+go 1.23

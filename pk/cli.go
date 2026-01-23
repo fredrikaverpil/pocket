@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"syscall"
+
+	"github.com/fredrikaverpil/pocket/internal/scaffold"
 )
 
 // RunMain is the main CLI entry point that handles argument parsing and dispatch.
@@ -23,6 +26,14 @@ func RunMain(cfg *Config) {
 }
 
 func run(cfg *Config) (*executionTracker, error) {
+	// Ensure tools/go.mod exists to prevent go mod tidy from scanning downloaded tools.
+	// This must happen before any go commands that might scan the module.
+	gitRoot := findGitRoot()
+	pocketDir := filepath.Join(gitRoot, ".pocket")
+	if err := scaffold.EnsureToolsGomod(pocketDir); err != nil {
+		return nil, fmt.Errorf("ensuring tools/go.mod: %w", err)
+	}
+
 	// Parse command-line flags
 	fs := flag.NewFlagSet("pok", flag.ExitOnError)
 
