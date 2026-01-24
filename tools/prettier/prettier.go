@@ -58,35 +58,28 @@ func installPrettier() pk.Runnable {
 		installDir := pk.FromToolsDir(Name, Version())
 		binary := bun.BinaryPath(installDir, Name)
 
-		// Skip if already installed.
-		if _, err := os.Stat(binary); err == nil {
-			// Ensure symlink exists (may be missing after cache restore).
-			// Windows uses bun.Run() instead of symlinks (see Exec function).
-			if runtime.GOOS != pk.Windows {
-				if _, err := pk.CreateSymlink(binary); err != nil {
-					return err
-				}
+		// Download and install only if binary doesn't exist.
+		if _, err := os.Stat(binary); err != nil {
+			// Create install directory and write lockfile.
+			if err := os.MkdirAll(installDir, 0o755); err != nil {
+				return err
 			}
-			return nil
-		}
+			if err := os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644); err != nil {
+				return err
+			}
 
-		// Create install directory and write lockfile.
-		if err := os.MkdirAll(installDir, 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644); err != nil {
-			return err
-		}
-		if err := os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644); err != nil {
-			return err
-		}
-
-		// Install prettier using bun with frozen lockfile.
-		if err := bun.InstallFromLockfile(ctx, installDir); err != nil {
-			return err
+			// Install prettier using bun with frozen lockfile.
+			if err := bun.InstallFromLockfile(ctx, installDir); err != nil {
+				return err
+			}
 		}
 
 		// Create symlink on non-Windows platforms.
+		// Always run to handle cache restore (tools restored but bin/ not).
+		// Windows uses bun.Run() instead of symlinks (see Exec function).
 		if runtime.GOOS != pk.Windows {
 			if _, err := pk.CreateSymlink(binary); err != nil {
 				return err
