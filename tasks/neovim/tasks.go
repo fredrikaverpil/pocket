@@ -22,5 +22,5 @@ func Detect() pk.DetectFunc {
 // Tasks returns plenary test task with default configuration.
 // For custom configuration, use Test() directly with options.
 func Tasks() pk.Runnable {
-	return Test()
+	return PlenaryTest()
 }

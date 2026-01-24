@@ -10,8 +10,8 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
-// TestConfig configures plenary test execution.
-type TestConfig struct {
+// PlenaryTestConfig configures plenary test execution.
+type PlenaryTestConfig struct {
 	// Bootstrap is the path to the bootstrap.lua file (runs once before all tests).
 	// This file typically sets up the test environment, downloads plugins, etc.
 	Bootstrap string
@@ -31,46 +31,46 @@ type TestConfig struct {
 	Version string
 }
 
-// TestOpt configures plenary test execution.
-type TestOpt func(*TestConfig)
+// PlenaryTestOpt configures plenary test execution.
+type PlenaryTestOpt func(*PlenaryTestConfig)
 
-// WithBootstrap sets the bootstrap.lua file path.
-func WithBootstrap(path string) TestOpt {
-	return func(cfg *TestConfig) {
+// WithPlenaryBootstrap sets the bootstrap.lua file path.
+func WithPlenaryBootstrap(path string) PlenaryTestOpt {
+	return func(cfg *PlenaryTestConfig) {
 		cfg.Bootstrap = path
 	}
 }
 
-// WithMinimalInit sets the minimal_init.lua file path.
-func WithMinimalInit(path string) TestOpt {
-	return func(cfg *TestConfig) {
+// WithPlenaryMinimalInit sets the minimal_init.lua file path.
+func WithPlenaryMinimalInit(path string) PlenaryTestOpt {
+	return func(cfg *PlenaryTestConfig) {
 		cfg.MinimalInit = path
 	}
 }
 
-// WithTestDir sets the test directory.
-func WithTestDir(dir string) TestOpt {
-	return func(cfg *TestConfig) {
+// WithPlenaryTestDir sets the test directory.
+func WithPlenaryTestDir(dir string) PlenaryTestOpt {
+	return func(cfg *PlenaryTestConfig) {
 		cfg.TestDir = dir
 	}
 }
 
-// WithTimeout sets the test timeout in milliseconds.
-func WithTimeout(ms int) TestOpt {
-	return func(cfg *TestConfig) {
+// WithPlenaryTimeout sets the test timeout in milliseconds.
+func WithPlenaryTimeout(ms int) PlenaryTestOpt {
+	return func(cfg *PlenaryTestConfig) {
 		cfg.Timeout = ms
 	}
 }
 
-// WithVersion sets the Neovim version.
-func WithVersion(version string) TestOpt {
-	return func(cfg *TestConfig) {
+// WithPlenaryNvimVersion sets the Neovim version.
+func WithPlenaryNvimVersion(version string) PlenaryTestOpt {
+	return func(cfg *PlenaryTestConfig) {
 		cfg.Version = version
 	}
 }
 
-func newTestConfig(opts []TestOpt) *TestConfig {
-	cfg := &TestConfig{
+func newPlenaryTestConfig(opts []PlenaryTestOpt) *PlenaryTestConfig {
+	cfg := &PlenaryTestConfig{
 		Bootstrap:   "spec/bootstrap.lua",
 		MinimalInit: "spec/minimal_init.lua",
 		TestDir:     "spec/",
@@ -83,20 +83,20 @@ func newTestConfig(opts []TestOpt) *TestConfig {
 	return cfg
 }
 
-// Test creates a task that runs Neovim plenary tests.
+// PlenaryTest creates a task that runs Neovim plenary tests.
 //
 // Example usage:
 //
-//	neovim.Test() // uses defaults: spec/bootstrap.lua, spec/minimal_init.lua, spec/
+//	neovim.PlenaryTest() // uses defaults: spec/bootstrap.lua, spec/minimal_init.lua, spec/
 //
-//	neovim.Test(
+//	neovim.PlenaryTest(
 //	    neovim.WithBootstrap("test/bootstrap.lua"),
 //	    neovim.WithMinimalInit("test/minimal_init.lua"),
 //	    neovim.WithTestDir("test/"),
 //	    neovim.WithVersion(neovim.Nightly),
 //	)
-func Test(opts ...TestOpt) *pk.Task {
-	cfg := newTestConfig(opts)
+func PlenaryTest(opts ...PlenaryTestOpt) *pk.Task {
+	cfg := newPlenaryTestConfig(opts)
 
 	taskName := "nvim-test"
 	if cfg.Version != neovim.DefaultVersion {
@@ -114,7 +114,7 @@ func Test(opts ...TestOpt) *pk.Task {
 	)
 }
 
-func runPlenaryTests(cfg *TestConfig) pk.Runnable {
+func runPlenaryTests(cfg *PlenaryTestConfig) pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		// Build the PlenaryBustedDirectory command
 		// nvim --headless --noplugin -i NONE -u {bootstrap} \
