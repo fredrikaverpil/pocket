@@ -22,12 +22,12 @@ func Detect() pk.DetectFunc {
 	return pk.DetectByFile("pyproject.toml", "uv.lock", "setup.py", "setup.cfg")
 }
 
-// coverageMarker is a marker type for WithCoverage option.
-type coverageMarker struct{}
+// CoverageMarker is a marker type for WithCoverage option.
+type CoverageMarker struct{}
 
 // WithCoverage enables coverage for the test task when used with WithPython.
-func WithCoverage() coverageMarker {
-	return coverageMarker{}
+func WithCoverage() CoverageMarker {
+	return CoverageMarker{}
 }
 
 // WithPython creates Python tasks for a specific version.
@@ -50,7 +50,7 @@ func WithPython(version string, items ...any) pk.Runnable {
 
 	for _, item := range items {
 		switch v := item.(type) {
-		case coverageMarker:
+		case CoverageMarker:
 			coverage = true
 		case *pk.Task:
 			tasks = append(tasks, v)

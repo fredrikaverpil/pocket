@@ -204,8 +204,32 @@ pk.Do(func(ctx context.Context) error {
 
 ## Tool Management
 
-One of Pocket's strengths is automated tool installation. Tools are downloaded,
-versioned, and cached in `.pocket/tools/`, then symlinked to `.pocket/bin/`.
+One of Pocket's strengths is automated tool installation. Each tool package owns
+its complete lifecycle: installation, versioning, and making itself available
+for execution.
+
+### Tool Availability Patterns
+
+Tools make themselves available through one of three patterns:
+
+| Pattern         | When to use                                          | How tasks invoke                 |
+| :-------------- | :--------------------------------------------------- | :------------------------------- |
+| **Symlink**     | Native binaries (Go, Rust, C)                        | `pk.Exec(ctx, "tool", ...)`      |
+| **Tool Exec**   | Standalone runtime-dependent tools                   | `tool.Exec(ctx, ...)`            |
+| **Runtime Run** | Project-managed tools (pyproject.toml, package.json) | `uv.Run(ctx, opts, "tool", ...)` |
+
+**Symlink pattern:** The tool downloads a self-contained binary to
+`.pocket/tools/<tool>/<version>/` and symlinks it to `.pocket/bin/`. Since
+`pk.Exec` adds `.pocket/bin/` to PATH, tasks can invoke it by name.
+
+**Tool Exec pattern:** For tools that require a runtime (Node.js, Python), the
+tool package exposes an `Exec()` function that handles runtime invocation
+internally. No symlink is created because the tool's shebang
+(`#!/usr/bin/env node`) would fail without the runtime on system PATH.
+
+**Runtime Run pattern:** For tools defined in the project's dependency file
+(pyproject.toml, package.json), use the runtime's `Run()` function directly. The
+project controls tool versions, not Pocket.
 
 ### Go Tools
 
@@ -430,36 +454,64 @@ var Docs = pk.NewTask("docs", "build documentation", nil,
 
 #### Standalone Python Tools
 
-For tools managed entirely by Pocket (not from pyproject.toml), install into
-`.pocket/tools/`:
+For tools managed entirely by Pocket (not from pyproject.toml), create a tool
+package in `tools/<toolname>/` that provides an `Exec()` function. This follows
+the **Tool Exec pattern**—no symlink is created because Python scripts have
+shebangs that require the runtime on PATH.
+
+See `tools/mdformat/` for a complete example:
 
 ```go
-const ruffVersion = "0.14.0"
+// tools/mdformat/mdformat.go
+package mdformat
 
-var installRuff = pk.NewTask("install:ruff", "install ruff linter", nil,
-    pk.Serial(
-        uv.Install,
-        pk.Do(func(ctx context.Context) error {
-            venvDir := pk.FromToolsDir("ruff", ruffVersion)
-            binary := uv.BinaryPath(venvDir, "ruff")
-
-            if _, err := os.Stat(binary); err == nil {
-                _, err := pk.CreateSymlink(binary)
-                return err
-            }
-
-            if err := uv.CreateVenv(ctx, venvDir, ""); err != nil {
-                return err
-            }
-            if err := uv.PipInstall(ctx, venvDir, "ruff=="+ruffVersion); err != nil {
-                return err
-            }
-
-            _, err := pk.CreateSymlink(binary)
-            return err
-        }),
-    ),
+// Install ensures mdformat is available.
+var Install = pk.NewTask("install:mdformat", "install mdformat", nil,
+    pk.Serial(uv.Install, installMdformat()),
 ).Hidden().Global()
+
+func installMdformat() pk.Runnable {
+    return pk.Do(func(ctx context.Context) error {
+        venvDir := pk.FromToolsDir("mdformat", Version())
+        binary := uv.BinaryPath(venvDir, "mdformat")
+
+        // Skip if already installed.
+        if _, err := os.Stat(binary); err == nil {
+            return nil
+        }
+
+        // Create venv and install.
+        if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
+            return err
+        }
+        reqPath := filepath.Join(venvDir, "requirements.txt")
+        if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
+            return err
+        }
+        // No symlink - Exec() handles invocation.
+        return uv.PipInstallRequirements(ctx, venvDir, reqPath)
+    })
+}
+
+// Exec runs mdformat with the given arguments.
+func Exec(ctx context.Context, args ...string) error {
+    venvDir := pk.FromToolsDir("mdformat", Version())
+    python := uv.BinaryPath(venvDir, "python")
+    // Run as module to avoid shebang path issues.
+    execArgs := append([]string{"-m", "mdformat"}, args...)
+    return pk.Exec(ctx, python, execArgs...)
+}
+```
+
+Tasks use the tool via its `Exec()` function:
+
+```go
+// tasks/markdown/format.go
+var Format = pk.NewTask("md-format", "format Markdown files", nil,
+    pk.Serial(mdformat.Install, pk.Do(func(ctx context.Context) error {
+        return mdformat.Exec(ctx, "--wrap", "80", ".")
+    })),
+)
 ```
 
 **When to use which pattern:**
@@ -468,8 +520,8 @@ var installRuff = pk.NewTask("install:ruff", "install ruff linter", nil,
 | :-------------- | :---------------------------- | :--------------------------------- |
 | Version control | Pocket controls version       | Project's pyproject.toml           |
 | Use case        | Shared tools across projects  | Project-specific tooling           |
-| Example         | Global linters                | Test runners, doc generators       |
-| Symlink to bin  | Yes                           | No (use `uv.Run`)                  |
+| Example         | mdformat, prettier            | ruff, mypy, pytest                 |
+| Invocation      | `tool.Exec(ctx, ...)`         | `uv.Run(ctx, opts, "tool", ...)`   |
 
 ### Node Tools
 
@@ -477,11 +529,16 @@ Pocket provides bun for JavaScript/TypeScript tools via the `tools/bun` package.
 
 #### Standalone Node Tools
 
-For tools managed entirely by Pocket—embed `package.json` and `bun.lock` to
-control versions centrally:
+For tools managed entirely by Pocket, create a tool package in
+`tools/<toolname>/` that provides an `Exec()` function. Embed `package.json` and
+`bun.lock` to control versions. This follows the **Tool Exec pattern**—no
+symlink is created because Node scripts have shebangs that require Node on PATH.
+
+See `tools/prettier/` for a complete example:
 
 ```go
-import "github.com/fredrikaverpil/pocket/tools/bun"
+// tools/prettier/prettier.go
+package prettier
 
 //go:embed package.json
 var packageJSON []byte
@@ -489,30 +546,48 @@ var packageJSON []byte
 //go:embed bun.lock
 var lockfile []byte
 
-const eslintVersion = "9.0.0"
-
-var installESLint = pk.NewTask("install:eslint", "install eslint", nil,
-    pk.Serial(
-        bun.Install,  // Ensure bun is available
-        pk.Do(func(ctx context.Context) error {
-            installDir := pk.FromToolsDir("eslint", eslintVersion)
-            binary := bun.BinaryPath(installDir, "eslint")
-
-            // Skip if already installed.
-            if _, err := os.Stat(binary); err == nil {
-                return nil
-            }
-
-            // Write embedded lockfiles.
-            os.MkdirAll(installDir, 0o755)
-            os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644)
-            os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644)
-
-            // Install with frozen lockfile.
-            return bun.InstallFromLockfile(ctx, installDir)
-        }),
-    ),
+// Install ensures prettier is available.
+var Install = pk.NewTask("install:prettier", "install prettier", nil,
+    pk.Serial(bun.Install, installPrettier()),
 ).Hidden().Global()
+
+func installPrettier() pk.Runnable {
+    return pk.Do(func(ctx context.Context) error {
+        installDir := pk.FromToolsDir(Name, Version())
+        binary := bun.BinaryPath(installDir, Name)
+
+        // Skip if already installed.
+        if _, err := os.Stat(binary); err == nil {
+            return nil
+        }
+
+        // Write embedded lockfiles.
+        os.MkdirAll(installDir, 0o755)
+        os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644)
+        os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644)
+
+        // No symlink - Exec() handles invocation.
+        return bun.InstallFromLockfile(ctx, installDir)
+    })
+}
+
+// Exec runs prettier with the given arguments.
+func Exec(ctx context.Context, args ...string) error {
+    installDir := pk.FromToolsDir(Name, Version())
+    // Run via bun since prettier is a Node.js script.
+    return bun.Run(ctx, installDir, Name, args...)
+}
+```
+
+Tasks use the tool via its `Exec()` function:
+
+```go
+// tasks/markdown/format.go
+var Format = pk.NewTask("md-format", "format Markdown files", nil,
+    pk.Serial(prettier.Install, pk.Do(func(ctx context.Context) error {
+        return prettier.Exec(ctx, "--write", "**/*.md")
+    })),
+)
 ```
 
 **Key functions:**
@@ -558,7 +633,8 @@ var Build = pk.NewTask("build", "build frontend", nil,
 | Version control  | Pocket (embedded lockfile)    | Project's package.json + bun.lock |
 | Storage location | `.pocket/tools/<tool>/<ver>/` | Project's node_modules/           |
 | Use case         | Shared tools across projects  | Project-specific tooling          |
-| Example          | Formatters, linters           | Build tools, test runners         |
+| Example          | prettier                      | Build tools, test runners         |
+| Invocation       | `tool.Exec(ctx, ...)`         | `bun.Run(ctx, dir, "tool", ...)`  |
 
 ### Platform Helpers
 

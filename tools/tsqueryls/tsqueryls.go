@@ -18,10 +18,10 @@ const Version = "v3.15.1"
 // Install creates a task that ensures ts_query_ls is available.
 // ts_query_ls is used for formatting and linting tree-sitter query (.scm) files.
 var Install = pk.NewTask("install:ts_query_ls", "install ts_query_ls", nil,
-	installTsQueryLs(),
+	installTSQueryLs(),
 ).Hidden().Global()
 
-func installTsQueryLs() pk.Runnable {
+func installTSQueryLs() pk.Runnable {
 	binDir := pk.FromToolsDir("tsqueryls", Version, "bin")
 	binaryName := pk.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)

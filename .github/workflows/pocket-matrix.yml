@@ -27,7 +27,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: .pocket/go.mod
-          cache-dependency-path: "**/go.sum"
+          cache: false
+      - name: Restore cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            .pocket/bin
+            .pocket/tools
+            .pocket/venvs
+          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-pocket-
       - id: matrix
         run: echo "matrix=$(./pok gha-matrix)" >> "$GITHUB_OUTPUT"
 
@@ -45,7 +57,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: .pocket/go.mod
-          cache-dependency-path: "**/go.sum"
+          cache: false
+      - name: Restore cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            .pocket/bin
+            .pocket/tools
+            .pocket/venvs
+          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-pocket-
       - name: ${{ matrix.task }} (unix)
         if: ${{ !contains(matrix.os, 'windows') }}
         shell: bash
@@ -58,3 +82,14 @@ jobs:
         if: ${{ matrix.gitDiff }}
         shell: bash
         run: git diff --exit-code
+      - name: Save cache
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            .pocket/bin
+            .pocket/tools
+            .pocket/venvs
+          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}

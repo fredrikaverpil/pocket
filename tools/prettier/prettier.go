@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/fredrikaverpil/pocket/pk"
@@ -58,35 +57,25 @@ func installPrettier() pk.Runnable {
 		installDir := pk.FromToolsDir(Name, Version())
 		binary := bun.BinaryPath(installDir, Name)
 
-		// Download and install only if binary doesn't exist.
-		if _, err := os.Stat(binary); err != nil {
-			// Create install directory and write lockfile.
-			if err := os.MkdirAll(installDir, 0o755); err != nil {
-				return err
-			}
-			if err := os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644); err != nil {
-				return err
-			}
-			if err := os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644); err != nil {
-				return err
-			}
-
-			// Install prettier using bun with frozen lockfile.
-			if err := bun.InstallFromLockfile(ctx, installDir); err != nil {
-				return err
-			}
+		// Skip if already installed.
+		if _, err := os.Stat(binary); err == nil {
+			return nil
 		}
 
-		// Create symlink on non-Windows platforms.
-		// Always run to handle cache restore (tools restored but bin/ not).
-		// Windows uses bun.Run() instead of symlinks (see Exec function).
-		if runtime.GOOS != pk.Windows {
-			if _, err := pk.CreateSymlink(binary); err != nil {
-				return err
-			}
+		// Create install directory and write lockfile.
+		if err := os.MkdirAll(installDir, 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644); err != nil {
+			return err
 		}
 
-		return nil
+		// Install prettier using bun with frozen lockfile.
+		// No symlink needed since Exec() runs via bun.Run().
+		return bun.InstallFromLockfile(ctx, installDir)
 	})
 }
 
@@ -121,11 +110,6 @@ func EnsureIgnoreFile() (string, error) {
 // Exec runs prettier with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
 	installDir := pk.FromToolsDir(Name, Version())
-
-	// On Windows, use bun.Run() to avoid shim execution issues.
-	if runtime.GOOS == pk.Windows {
-		return bun.Run(ctx, installDir, Name, args...)
-	}
-
-	return pk.Exec(ctx, Name, args...)
+	// Run via bun since prettier is a Node.js script (shebang: #!/usr/bin/env node).
+	return bun.Run(ctx, installDir, Name, args...)
 }

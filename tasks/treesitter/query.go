@@ -62,7 +62,8 @@ func queryLintCmd() pk.Runnable {
 		}
 
 		for _, dir := range dirs {
-			cmdArgs := append(args, dir)
+			cmdArgs := append([]string{}, args...)
+			cmdArgs = append(cmdArgs, dir)
 			if err := pk.Exec(ctx, tsqueryls.Name, cmdArgs...); err != nil {
 				return err
 			}
@@ -81,7 +82,7 @@ func findQueryDirs(ctx context.Context) []string {
 	// Walk the directory looking for .scm files.
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
 
 		// Skip common directories that shouldn't contain query files.

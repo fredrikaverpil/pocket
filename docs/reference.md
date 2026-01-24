@@ -220,6 +220,26 @@ pk.Printf(ctx, "Processing %d items...\n", count)
 
 ## Tool Installation
 
+Each tool package owns its complete lifecycle: installation, versioning, and
+making itself available for execution.
+
+### Tool Availability Patterns
+
+| Pattern         | When to use                        | How tasks invoke                 |
+| :-------------- | :--------------------------------- | :------------------------------- |
+| **Symlink**     | Native binaries (Go, Rust, C)      | `pk.Exec(ctx, "tool", ...)`      |
+| **Tool Exec**   | Standalone runtime-dependent tools | `tool.Exec(ctx, ...)`            |
+| **Runtime Run** | Project-managed tools              | `uv.Run(ctx, opts, "tool", ...)` |
+
+**Symlink:** Binary symlinked to `.pocket/bin/`, tasks invoke by name via
+`pk.Exec`.
+
+**Tool Exec:** Tool package exposes `Exec()` function that handles runtime
+invocation internally. No symlink (shebangs fail without runtime on PATH).
+
+**Runtime Run:** Project controls versions via pyproject.toml or package.json.
+Use runtime's `Run()` function directly.
+
 ### Go Tools
 
 ```go
@@ -227,10 +247,24 @@ func InstallGo(pkg, version string) Runnable
 ```
 
 Installs a Go package to `.pocket/tools/go/<pkg>/<version>/bin/` and symlinks to
-`.pocket/bin/`.
+`.pocket/bin/`. Uses **Symlink pattern**.
 
 ```go
 pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8")
+```
+
+### Runtime-Dependent Tools
+
+For Python/Node tools, see `tools/prettier/` and `tools/mdformat/` for examples
+of the **Tool Exec pattern**. Each exposes:
+
+- `Install` - Task ensuring the tool is available
+- `Exec(ctx, args...)` - Function to invoke the tool
+
+```go
+// Usage in tasks
+prettier.Exec(ctx, "--write", "**/*.md")
+mdformat.Exec(ctx, "--wrap", "80", ".")
 ```
 
 ---

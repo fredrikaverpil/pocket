@@ -43,8 +43,7 @@ func installMdformat() pk.Runnable {
 
 		// Skip if already installed.
 		if _, err := os.Stat(binary); err == nil {
-			_, err := pk.CreateSymlink(binary)
-			return err
+			return nil
 		}
 
 		// Create virtual environment with Python 3.13+.
@@ -59,12 +58,16 @@ func installMdformat() pk.Runnable {
 		}
 
 		// Install from requirements.txt.
-		if err := uv.PipInstallRequirements(ctx, venvDir, reqPath); err != nil {
-			return err
-		}
-
-		// Create symlink to .pocket/bin/.
-		_, err := pk.CreateSymlink(binary)
-		return err
+		// No symlink needed since Exec() runs via venv Python.
+		return uv.PipInstallRequirements(ctx, venvDir, reqPath)
 	})
+}
+
+// Exec runs mdformat with the given arguments.
+func Exec(ctx context.Context, args ...string) error {
+	venvDir := pk.FromToolsDir("mdformat", Version())
+	python := uv.BinaryPath(venvDir, "python")
+	// Run as module to avoid shebang path issues.
+	execArgs := append([]string{"-m", "mdformat"}, args...)
+	return pk.Exec(ctx, python, execArgs...)
 }
