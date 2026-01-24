@@ -61,6 +61,7 @@ func installPrettier() pk.Runnable {
 		// Skip if already installed.
 		if _, err := os.Stat(binary); err == nil {
 			// Ensure symlink exists (may be missing after cache restore).
+			// Windows uses bun.Run() instead of symlinks (see Exec function).
 			if runtime.GOOS != pk.Windows {
 				if _, err := pk.CreateSymlink(binary); err != nil {
 					return err
