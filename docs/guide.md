@@ -348,9 +348,9 @@ python.WithPython("3.9", python.Format, python.Lint)
 python.WithPython("3.9", python.WithCoverage(), python.Format, python.Test)
 ```
 
-| Option                  | Description                        |
-| :---------------------- | :--------------------------------- |
-| `python.WithCoverage()` | Enable coverage for the test task  |
+| Option                  | Description                       |
+| :---------------------- | :-------------------------------- |
+| `python.WithCoverage()` | Enable coverage for the test task |
 
 **Available base tasks:**
 
