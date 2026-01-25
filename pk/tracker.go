@@ -6,13 +6,13 @@ import (
 )
 
 // taskID uniquely identifies a task execution for deduplication.
-// Format: "effectiveName@path" where effectiveName may contain colons (e.g., "py-test:3.9").
+// Used directly as a map key (Go structs with comparable fields are valid map keys).
 type taskID struct {
 	Name string // Effective name (may include suffix like "py-test:3.9")
 	Path string // Execution path relative to git root
 }
 
-// String returns the string representation used as the map key.
+// String implements fmt.Stringer for debugging and logging.
 func (id taskID) String() string {
 	return id.Name + "@" + id.Path
 }
@@ -23,27 +23,26 @@ func (id taskID) String() string {
 // but will only run once per unique combination.
 type executionTracker struct {
 	mu          sync.Mutex
-	done        map[string]bool // key: taskID.String()
+	done        map[taskID]bool
 	hadWarnings bool
 }
 
 // newExecutionTracker creates a new execution tracker.
 func newExecutionTracker() *executionTracker {
 	return &executionTracker{
-		done: make(map[string]bool),
+		done: make(map[taskID]bool),
 	}
 }
 
 // markDone records that a task has executed.
 // Returns true if it was already done (should skip), false if first time.
 func (t *executionTracker) markDone(id taskID) bool {
-	key := id.String()
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.done[key] {
+	if t.done[id] {
 		return true // already done, should skip
 	}
-	t.done[key] = true
+	t.done[id] = true
 	return false // first time
 }
 
@@ -58,18 +57,11 @@ func (t *executionTracker) executed() []executedTaskPath {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	result := make([]executedTaskPath, 0, len(t.done))
-	for key := range t.done {
-		// Parse "effectiveName@path" back into components.
-		// Find the last @ (paths don't contain @, effective names might contain colons).
-		for i := len(key) - 1; i >= 0; i-- {
-			if key[i] == '@' {
-				result = append(result, executedTaskPath{
-					TaskName: key[:i],
-					Path:     key[i+1:],
-				})
-				break
-			}
-		}
+	for id := range t.done {
+		result = append(result, executedTaskPath{
+			TaskName: id.Name,
+			Path:     id.Path,
+		})
 	}
 	return result
 }

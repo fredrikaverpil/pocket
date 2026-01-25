@@ -300,17 +300,10 @@ Specifically targeted changes:
        1. Remove the false example - Keep golang using the -race flag as-is  
        2. Implement golang.WithTestRace() - Add the option for consistency with
       python
-- [ ] We recently added pk.WithName which affects the task name, but I also feel
-      it affects the task deduplication logic. I've got this idea now that maybe
-      we need to introduce a formal task ID. We have the task "name", which we
-      use to invoke the task, like task py-test-3.9, which can now be overridden
-      by pk.WithName. I'm not sure how it works, but I think you introduced a
-      deduplication suffix? I know that our deduplication also must take the
-      path in which the task will execute. Does this mean we should formally
-      introduce a task ID, perhaps? And that this task ID should be part of the
-      `./pok plan -json` for example? Would it perhaps be needed? We also
-      absolutely must have tests around how the task deduplication logic should
-      work now, so we don't accidentally break it later.
+- [x] Task deduplication uses `taskID` struct as map key (not string
+      concatenation). Dedup key is `(effectiveName, path)` where effectiveName
+      includes any suffix from `pk.WithName`. Global tasks dedupe by base name
+      only. Comprehensive tests exist in `pk/task_test.go`.
 - [ ] We have introduced a number of ways to pass options to tasks. We have
       pk.WithOptions which is the main wrapper you need to use when passing such
       options. We have then formalized that we have golang.Tasks() or
@@ -339,6 +332,8 @@ Specifically targeted changes:
       documentation better, and here I'm actually thinking alot about LLMs
       finding one place where documentation needs updating and doesn't see the
       other file which also needs updating.
+- [ ] The Matrix configuration for github workflows using the matrix-pocket
+      workflow has weird UX. Is this well documented somewhere?
 
 ## Phase 10: Wrapup & Polish
 
