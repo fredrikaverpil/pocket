@@ -2,11 +2,64 @@
 package python
 
 import (
+	"context"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
+
+// versionKey is the context key for Python version.
+type versionKey struct{}
+
+// coverageKey is the context key for coverage enabled flag.
+type coverageKey struct{}
+
+// WithVersion sets the Python version for tasks in this scope.
+// Use with pk.WithName to also suffix the task names.
+//
+// Example:
+//
+//	pk.WithOptions(
+//	    python.Tasks(),
+//	    pk.WithName("3.9"),
+//	    python.WithVersion("3.9"),
+//	    pk.WithDetect(python.Detect()),
+//	)
+func WithVersion(version string) pk.PathOption {
+	return pk.WithContextValue(versionKey{}, version)
+}
+
+// WithCoverage enables coverage for the test task.
+//
+// Example:
+//
+//	pk.WithOptions(
+//	    python.Test,
+//	    pk.WithName("3.9"),
+//	    python.WithVersion("3.9"),
+//	    python.WithCoverage(),
+//	)
+func WithCoverage() pk.PathOption {
+	return pk.WithContextValue(coverageKey{}, true)
+}
+
+// VersionFromContext returns the Python version from context.
+// Returns empty string if not set.
+func VersionFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(versionKey{}).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// coverageFromContext returns whether coverage is enabled.
+func coverageFromContext(ctx context.Context) bool {
+	if v, ok := ctx.Value(coverageKey{}).(bool); ok {
+		return v
+	}
+	return false
+}
 
 // pythonVersionToRuff converts a Python version (e.g., "3.9") to ruff's format (e.g., "py39").
 func pythonVersionToRuff(version string) string {
@@ -22,68 +75,17 @@ func Detect() pk.DetectFunc {
 	return pk.DetectByFile("pyproject.toml", "uv.lock", "setup.py", "setup.cfg")
 }
 
-// CoverageMarker is a marker type for WithCoverage option.
-type CoverageMarker struct{}
-
-// WithCoverage enables coverage for the test task when used with WithPython.
-func WithCoverage() CoverageMarker {
-	return CoverageMarker{}
-}
-
-// WithPython creates Python tasks for a specific version.
-// If no tasks are specified, all tasks (Format, Lint, Typecheck, Test) are included.
-// Use WithCoverage() to enable coverage for the test task.
+// Tasks returns all Python tasks (Format, Lint, Typecheck, Test).
+// Use with WithVersion and pk.WithName to specify the Python version.
 //
-// Examples:
+// Example:
 //
-//	// All tasks with Python 3.9
-//	python.WithPython("3.9")
-//
-//	// Specific tasks with Python 3.9
-//	python.WithPython("3.9", python.Format, python.Lint)
-//
-//	// With coverage for test
-//	python.WithPython("3.9", python.WithCoverage(), python.Format, python.Test)
-func WithPython(version string, items ...any) pk.Runnable {
-	coverage := false
-	var tasks []*pk.Task
-
-	for _, item := range items {
-		switch v := item.(type) {
-		case CoverageMarker:
-			coverage = true
-		case *pk.Task:
-			tasks = append(tasks, v)
-		}
-	}
-
-	// If no tasks specified, include all
-	if len(tasks) == 0 {
-		tasks = []*pk.Task{Format, Lint, Typecheck, Test}
-	}
-
-	var versioned []pk.Runnable
-	versioned = append(versioned, uv.Install)
-
-	for _, t := range tasks {
-		switch t {
-		case Format:
-			versioned = append(versioned, formatWith(version))
-		case Lint:
-			versioned = append(versioned, lintWith(version))
-		case Typecheck:
-			versioned = append(versioned, typecheckWith(version))
-		case Test:
-			if coverage {
-				versioned = append(versioned, testWithCoverage(version))
-			} else {
-				versioned = append(versioned, testWith(version))
-			}
-		default:
-			// Unknown task, include as-is
-			versioned = append(versioned, t)
-		}
-	}
-
-	return pk.Serial(versioned...)
+//	pk.WithOptions(
+//	    python.Tasks(),
+//	    pk.WithName("3.9"),
+//	    python.WithVersion("3.9"),
+//	    pk.WithDetect(python.Detect()),
+//	)
+func Tasks() pk.Runnable {
+	return pk.Serial(uv.Install, Format, Lint, Typecheck, Test)
 }

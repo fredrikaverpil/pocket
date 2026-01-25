@@ -177,7 +177,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
 		"tree":              buildJSONTree(tree, p.pathMappings),
-		"tasks":             buildTaskList(p.tasks, p.pathMappings),
+		"tasks":             buildTaskList(p.taskEntries, p.pathMappings),
 	}
 
 	encoder := json.NewEncoder(OutputFromContext(ctx).Stdout)
@@ -245,19 +245,19 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 }
 
 // buildTaskList creates a JSON-friendly task list.
-func buildTaskList(tasks []*Task, pathMappings map[string]pathInfo) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(tasks))
+func buildTaskList(entries []taskEntry, pathMappings map[string]pathInfo) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(entries))
 
-	for _, task := range tasks {
+	for _, entry := range entries {
 		paths := []string{"."}
-		if info, ok := pathMappings[task.Name()]; ok {
+		if info, ok := pathMappings[entry.name]; ok {
 			paths = info.resolvedPaths // May be empty for excluded tasks.
 		}
 
 		taskJSON := map[string]interface{}{
-			"name":   task.Name(),
-			"hidden": task.IsHidden(),
-			"manual": task.IsManual(),
+			"name":   entry.name, // Use effective name (may include suffix).
+			"hidden": entry.task.IsHidden(),
+			"manual": entry.task.IsManual(),
 			"paths":  paths,
 		}
 		result = append(result, taskJSON)

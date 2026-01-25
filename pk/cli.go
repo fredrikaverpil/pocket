@@ -153,13 +153,14 @@ func printFinalStatus(tracker *executionTracker, err error) {
 }
 
 // findTaskByName looks up a task by name in the Plan.
+// The name can be an effective name including suffix (e.g., "py-test:3.9").
 func findTaskByName(p *Plan, name string) *Task {
 	if p == nil {
 		return nil
 	}
-	for _, task := range p.tasks {
-		if task.Name() == name {
-			return task
+	for _, entry := range p.taskEntries {
+		if entry.name == name {
+			return entry.task
 		}
 	}
 	return nil
@@ -273,19 +274,19 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	// Filter tasks by visibility and split into regular vs manual:
 	// 1. Not hidden
 	// 2. Runs in current path context (from TASK_SCOPE env var)
-	var regularTasks []*Task
-	var manualTasks []*Task
+	var regularTasks []taskEntry
+	var manualTasks []taskEntry
 
-	if plan != nil && len(plan.tasks) > 0 {
+	if plan != nil && len(plan.taskEntries) > 0 {
 		taskScope := os.Getenv("TASK_SCOPE")
-		for _, task := range plan.tasks {
-			if task.IsHidden() || !plan.taskRunsInPath(task.Name(), taskScope) {
+		for _, entry := range plan.taskEntries {
+			if entry.task.IsHidden() || !plan.taskRunsInPath(entry.name, taskScope) {
 				continue
 			}
-			if task.IsManual() {
-				manualTasks = append(manualTasks, task)
+			if entry.task.IsManual() {
+				manualTasks = append(manualTasks, entry)
 			} else {
-				regularTasks = append(regularTasks, task)
+				regularTasks = append(regularTasks, entry)
 			}
 		}
 	}
@@ -297,11 +298,11 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 		// Builtins
 		"plan", "generate", "update", "clean",
 	}
-	for _, task := range regularTasks {
-		allNames = append(allNames, task.Name())
+	for _, entry := range regularTasks {
+		allNames = append(allNames, entry.name)
 	}
-	for _, task := range manualTasks {
-		allNames = append(allNames, task.Name())
+	for _, entry := range manualTasks {
+		allNames = append(allNames, entry.name)
 	}
 
 	maxWidth := 0
@@ -332,22 +333,22 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 }
 
 // printTaskSection prints a section of tasks with a header.
-func printTaskSection(ctx context.Context, header string, tasks []*Task, width int) {
-	if len(tasks) == 0 {
+func printTaskSection(ctx context.Context, header string, entries []taskEntry, width int) {
+	if len(entries) == 0 {
 		return
 	}
 
 	Println(ctx)
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].Name() < tasks[j].Name()
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].name < entries[j].name
 	})
 
 	Println(ctx, header)
-	for _, task := range tasks {
-		if task.Usage() != "" {
-			Printf(ctx, "  %-*s  %s\n", width, task.Name(), task.Usage())
+	for _, entry := range entries {
+		if entry.task.Usage() != "" {
+			Printf(ctx, "  %-*s  %s\n", width, entry.name, entry.task.Usage())
 		} else {
-			Printf(ctx, "  %s\n", task.Name())
+			Printf(ctx, "  %s\n", entry.name)
 		}
 	}
 }

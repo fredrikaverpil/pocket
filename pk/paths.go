@@ -100,6 +100,38 @@ func WithDetect(fn DetectFunc) PathOption {
 	}
 }
 
+// WithContextValue adds a key-value pair to the context for tasks in this scope.
+// This allows runtime-specific options (like Python version) to be passed to tasks.
+//
+// Example:
+//
+//	pk.WithOptions(
+//	    python.Tasks(),
+//	    pk.WithContextValue(python.VersionKey, "3.9"),
+//	)
+func WithContextValue(key, value any) PathOption {
+	return func(pf *pathFilter) {
+		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})
+	}
+}
+
+// WithName adds a suffix to task names within this scope.
+// The suffix is appended with a colon separator (e.g., "py-test" becomes "py-test:3.9").
+// This affects CLI invocation, help output, and matrix generation.
+//
+// Example:
+//
+//	pk.WithOptions(
+//	    python.Test,
+//	    pk.WithName("3.9"),
+//	    python.WithVersion("3.9"),
+//	)
+func WithName(suffix string) PathOption {
+	return func(pf *pathFilter) {
+		pf.nameSuffix = suffix
+	}
+}
+
 // WithOptions wraps a Runnable with path filtering options.
 // The wrapped Runnable will execute in directories determined by
 // include/exclude patterns resolved against the filesystem.
@@ -128,9 +160,16 @@ type pathFilter struct {
 	excludePaths  []excludePattern
 	skippedTasks  []string
 	flags         []flagOverride
-	detectFunc    DetectFunc // Optional detection function for dynamic path discovery.
-	resolvedPaths []string   // Cached resolved paths from plan building.
-	forceRun      bool       // Disable task deduplication for the wrapped Runnable.
+	contextValues []contextValue // Key-value pairs to add to context.
+	nameSuffix    string         // Suffix to append to task names (e.g., ":3.9").
+	detectFunc    DetectFunc     // Optional detection function for dynamic path discovery.
+	resolvedPaths []string       // Cached resolved paths from plan building.
+	forceRun      bool           // Disable task deduplication for the wrapped Runnable.
+}
+
+type contextValue struct {
+	key   any
+	value any
 }
 
 type excludePattern struct {
@@ -156,6 +195,16 @@ func (pf *pathFilter) run(ctx context.Context) error {
 	// Apply flag overrides to the context.
 	for _, f := range pf.flags {
 		ctx = withFlagOverride(ctx, f.taskName, f.flagName, f.value)
+	}
+
+	// Apply context values.
+	for _, cv := range pf.contextValues {
+		ctx = context.WithValue(ctx, cv.key, cv.value)
+	}
+
+	// Apply name suffix to context.
+	if pf.nameSuffix != "" {
+		ctx = withNameSuffix(ctx, pf.nameSuffix)
 	}
 
 	// Execute inner Runnable for each resolved path.

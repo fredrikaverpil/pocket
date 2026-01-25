@@ -27,6 +27,8 @@ const (
 	gitDiffKey
 	// envKey is the context key for environment variable overrides.
 	envKey
+	// nameSuffixKey is the context key for task name suffix.
+	nameSuffixKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -146,4 +148,23 @@ func envConfigFromContext(ctx context.Context) envConfig {
 		return newCfg
 	}
 	return envConfig{}
+}
+
+// withNameSuffix returns a new context with the given name suffix.
+// Name suffixes are accumulated (e.g., nested WithName calls combine).
+func withNameSuffix(ctx context.Context, suffix string) context.Context {
+	existing := nameSuffixFromContext(ctx)
+	if existing != "" {
+		suffix = existing + ":" + suffix
+	}
+	return context.WithValue(ctx, nameSuffixKey, suffix)
+}
+
+// nameSuffixFromContext returns the name suffix from the context.
+// Returns empty string if no suffix is set.
+func nameSuffixFromContext(ctx context.Context) string {
+	if s, ok := ctx.Value(nameSuffixKey).(string); ok {
+		return s
+	}
+	return ""
 }

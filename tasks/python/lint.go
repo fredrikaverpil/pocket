@@ -16,30 +16,16 @@ var (
 
 // Lint lints Python files using ruff check with auto-fix enabled by default.
 // Requires ruff as a project dependency in pyproject.toml.
+// Python version can be set via flag (-python) or via python.WithVersion() option.
 var Lint = pk.NewTask("py-lint", "lint Python files", lintFlags,
 	pk.Serial(uv.Install, lintSyncCmd(), lintCmd()),
 )
 
-// lintWith creates a lint task for a specific Python version.
-func lintWith(pythonVersion string) *pk.Task {
-	return pk.NewTask("py-lint:"+pythonVersion, "lint Python files", nil,
-		pk.Serial(uv.Install, lintSyncCmdWith(pythonVersion), lintCmdWith(pythonVersion, false)),
-	)
-}
-
 func lintSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		version := resolveVersion(ctx, *lintPyVer)
 		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: *lintPyVer,
-			AllGroups:     true,
-		})
-	})
-}
-
-func lintSyncCmdWith(pythonVersion string) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: pythonVersion,
+			PythonVersion: version,
 			AllGroups:     true,
 		})
 	})
@@ -47,13 +33,8 @@ func lintSyncCmdWith(pythonVersion string) pk.Runnable {
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		return runLint(ctx, *lintPyVer, *lintSkipFix)
-	})
-}
-
-func lintCmdWith(pythonVersion string, skipFix bool) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return runLint(ctx, pythonVersion, skipFix)
+		version := resolveVersion(ctx, *lintPyVer)
+		return runLint(ctx, version, *lintSkipFix)
 	})
 }
 

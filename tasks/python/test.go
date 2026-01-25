@@ -14,39 +14,19 @@ var (
 	testSkipCoverage = testFlags.Bool("skip-coverage", false, "disable coverage generation")
 )
 
-// Test runs Python tests using pytest with coverage by default.
-// Requires pytest and coverage as project dependencies in pyproject.toml.
+// Test runs Python tests using pytest.
+// Requires pytest as a project dependency in pyproject.toml.
+// Python version can be set via flag (-python) or via python.WithVersion() option.
+// Coverage can be enabled via python.WithCoverage() option.
 var Test = pk.NewTask("py-test", "run Python tests", testFlags,
 	pk.Serial(uv.Install, testSyncCmd(), testCmd()),
 )
 
-// testWith creates a test task for a specific Python version without coverage.
-func testWith(pythonVersion string) *pk.Task {
-	return pk.NewTask("py-test:"+pythonVersion, "run Python tests", nil,
-		pk.Serial(uv.Install, testSyncCmdWith(pythonVersion), testCmdWith(pythonVersion, true)),
-	)
-}
-
-// testWithCoverage creates a test task for a specific Python version with coverage.
-func testWithCoverage(pythonVersion string) *pk.Task {
-	return pk.NewTask("py-test:"+pythonVersion, "run Python tests with coverage", nil,
-		pk.Serial(uv.Install, testSyncCmdWith(pythonVersion), testCmdWith(pythonVersion, false)),
-	)
-}
-
 func testSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		version := resolveVersion(ctx, *testPyVer)
 		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: *testPyVer,
-			AllGroups:     true,
-		})
-	})
-}
-
-func testSyncCmdWith(pythonVersion string) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: pythonVersion,
+			PythonVersion: version,
 			AllGroups:     true,
 		})
 	})
@@ -54,13 +34,10 @@ func testSyncCmdWith(pythonVersion string) pk.Runnable {
 
 func testCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		return runTest(ctx, *testPyVer, *testSkipCoverage)
-	})
-}
-
-func testCmdWith(pythonVersion string, skipCoverage bool) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return runTest(ctx, pythonVersion, skipCoverage)
+		version := resolveVersion(ctx, *testPyVer)
+		// Coverage enabled via flag (inverted) or context option
+		skipCoverage := *testSkipCoverage || !coverageFromContext(ctx)
+		return runTest(ctx, version, skipCoverage)
 	})
 }
 

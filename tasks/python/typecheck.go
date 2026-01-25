@@ -15,30 +15,16 @@ var (
 
 // Typecheck type-checks Python files using mypy.
 // Requires mypy as a project dependency in pyproject.toml.
+// Python version can be set via flag (-python) or via python.WithVersion() option.
 var Typecheck = pk.NewTask("py-typecheck", "type-check Python files", typecheckFlags,
 	pk.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
 )
 
-// typecheckWith creates a typecheck task for a specific Python version.
-func typecheckWith(pythonVersion string) *pk.Task {
-	return pk.NewTask("py-typecheck:"+pythonVersion, "type-check Python files", nil,
-		pk.Serial(uv.Install, typecheckSyncCmdWith(pythonVersion), typecheckCmdWith(pythonVersion)),
-	)
-}
-
 func typecheckSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		version := resolveVersion(ctx, *typecheckPyVer)
 		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: *typecheckPyVer,
-			AllGroups:     true,
-		})
-	})
-}
-
-func typecheckSyncCmdWith(pythonVersion string) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: pythonVersion,
+			PythonVersion: version,
 			AllGroups:     true,
 		})
 	})
@@ -46,13 +32,8 @@ func typecheckSyncCmdWith(pythonVersion string) pk.Runnable {
 
 func typecheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		return runTypecheck(ctx, *typecheckPyVer)
-	})
-}
-
-func typecheckCmdWith(pythonVersion string) pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		return runTypecheck(ctx, pythonVersion)
+		version := resolveVersion(ctx, *typecheckPyVer)
+		return runTypecheck(ctx, version)
 	})
 }
 

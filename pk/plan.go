@@ -23,11 +23,12 @@ type Plan struct {
 	// This is exposed as a Runnable, but the concrete types are internal.
 	tree Runnable
 
-	// tasks is a flat list of all tasks for lookup, CLI dispatch, and help.
+	// taskEntries is a flat list of all tasks with their effective names.
 	// This is extracted from walking the Auto tree.
-	tasks []*Task
+	// The effective name includes any suffix from WithName (e.g., "py-test:3.9").
+	taskEntries []taskEntry
 
-	// pathMappings maps task names to their execution directories.
+	// pathMappings maps effective task names to their execution directories.
 	// Each task may execute in one or more directories based on path filtering.
 	pathMappings map[string]pathInfo
 
@@ -91,7 +92,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	if cfg == nil {
 		return &Plan{
 			tree:              nil,
-			tasks:             []*Task{},
+			taskEntries:       []taskEntry{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        nil,
@@ -107,7 +108,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	if cfg.Auto == nil && len(cfg.Manual) == 0 {
 		return &Plan{
 			tree:              nil,
-			tasks:             []*Task{},
+			taskEntries:       []taskEntry{},
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        shimConfig,
@@ -115,8 +116,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	}
 
 	collector := &taskCollector{
-		tasks:        make([]*Task, 0),
-		seenTasks:    make(map[*Task]bool),
+		taskEntries:  make([]taskEntry, 0),
+		seenTasks:    make(map[taskKey]bool),
 		pathMappings: make(map[string]pathInfo),
 		currentPath:  nil,
 		gitRoot:      gitRoot,
@@ -142,26 +143,39 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 
 	return &Plan{
 		tree:              cfg.Auto, // Preserve the composition tree!
-		tasks:             collector.tasks,
+		taskEntries:       collector.taskEntries,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
 		shimConfig:        shimConfig,
 	}, nil
 }
 
+// taskEntry stores a task with its effective name (including any suffix).
+type taskEntry struct {
+	task *Task
+	name string // Effective name (may include suffix like "py-test:3.9")
+}
+
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
-	tasks        []*Task
-	seenTasks    map[*Task]bool // Track seen task pointers for deduplication.
+	taskEntries  []taskEntry      // Tasks with their effective names.
+	seenTasks    map[taskKey]bool // Track seen (task, suffix) pairs for deduplication.
 	pathMappings map[string]pathInfo
 	currentPath  *pathFilter // Current path context during tree walk.
 	gitRoot      string      // Git repository root.
 	allDirs      []string    // Cached directory list from filesystem walk.
 
 	// Cumulative state
-	candidates     []string         // Current allowed directories.
-	activeExcludes []excludePattern // All excludes in current scope.
-	activeSkips    []string         // All skipped tasks in current scope.
+	candidates       []string         // Current allowed directories.
+	activeExcludes   []excludePattern // All excludes in current scope.
+	activeSkips      []string         // All skipped tasks in current scope.
+	activeNameSuffix string           // Current name suffix from WithName.
+}
+
+// taskKey uniquely identifies a task in a specific naming context.
+type taskKey struct {
+	task   *Task
+	suffix string
 }
 
 // filterPaths applies detection function or include patterns, then exclude patterns.
@@ -228,10 +242,20 @@ func (pc *taskCollector) walk(r Runnable) error {
 			return nil
 		}
 
-		// Only collect unique task pointers for the flat tasks list.
-		if !pc.seenTasks[v] {
-			pc.seenTasks[v] = true
-			pc.tasks = append(pc.tasks, v)
+		// Build effective name with suffix (e.g., "py-test:3.9").
+		effectiveName := v.name
+		if pc.activeNameSuffix != "" {
+			effectiveName = v.name + ":" + pc.activeNameSuffix
+		}
+
+		// Only collect unique (task, suffix) pairs for the flat tasks list.
+		key := taskKey{task: v, suffix: pc.activeNameSuffix}
+		if !pc.seenTasks[key] {
+			pc.seenTasks[key] = true
+			pc.taskEntries = append(pc.taskEntries, taskEntry{
+				task: v,
+				name: effectiveName,
+			})
 		}
 
 		// Determine final paths for this task.
@@ -259,7 +283,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			if len(finalPaths) == 0 && len(pc.candidates) > 0 {
 				return fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
 					"either adjust excludes or use WithSkipTask to skip this task entirely",
-					v.name, len(pc.candidates))
+					effectiveName, len(pc.candidates))
 			}
 
 			// Apply task-specific excludes (WithExcludeTask).
@@ -271,7 +295,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
-		// Record path mapping.
+		// Record path mapping using effective name.
 		// Use ALL include paths from the hierarchy for visibility/shims.
 		var allIncludes []string
 		if pc.currentPath != nil {
@@ -281,7 +305,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			allIncludes = []string{"."}
 		}
 
-		pc.pathMappings[v.name] = pathInfo{
+		pc.pathMappings[effectiveName] = pathInfo{
 			includePaths:  allIncludes,
 			resolvedPaths: finalPaths,
 		}
@@ -309,12 +333,22 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevExcludes := pc.activeExcludes
 		prevSkips := pc.activeSkips
 		prevPath := pc.currentPath
+		prevNameSuffix := pc.activeNameSuffix
 
 		// 3. Update state with new constraints.
 		pc.candidates = v.resolvedPaths
 		pc.activeExcludes = append(pc.activeExcludes, v.excludePaths...)
 		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
 		pc.currentPath = v
+
+		// Apply name suffix (cumulative: "3.9" + "foo" -> "3.9:foo").
+		if v.nameSuffix != "" {
+			if pc.activeNameSuffix != "" {
+				pc.activeNameSuffix = pc.activeNameSuffix + ":" + v.nameSuffix
+			} else {
+				pc.activeNameSuffix = v.nameSuffix
+			}
+		}
 
 		// 4. Walk inner with cumulative state.
 		if err := pc.walk(v.inner); err != nil {
@@ -326,6 +360,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeExcludes = prevExcludes
 		pc.activeSkips = prevSkips
 		pc.currentPath = prevPath
+		pc.activeNameSuffix = prevNameSuffix
 
 	default:
 		// Unknown runnable type - skip it
@@ -404,17 +439,17 @@ func (p *Plan) Tasks() []TaskInfo {
 		return nil
 	}
 
-	result := make([]TaskInfo, 0, len(p.tasks))
-	for _, t := range p.tasks {
+	result := make([]TaskInfo, 0, len(p.taskEntries))
+	for _, entry := range p.taskEntries {
 		info := TaskInfo{
-			Name:   t.name,
-			Usage:  t.usage,
-			Hidden: t.hidden,
-			Manual: t.manual,
+			Name:   entry.name, // Use effective name (may include suffix).
+			Usage:  entry.task.usage,
+			Hidden: entry.task.hidden,
+			Manual: entry.task.manual,
 		}
 
-		// Get resolved paths from path mappings
-		if pm, ok := p.pathMappings[t.name]; ok {
+		// Get resolved paths from path mappings using effective name.
+		if pm, ok := p.pathMappings[entry.name]; ok {
 			info.Paths = pm.resolvedPaths
 		}
 		if len(info.Paths) == 0 {
