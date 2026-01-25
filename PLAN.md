@@ -342,6 +342,7 @@ Specifically targeted changes:
       identifying/classifying tasks in one way? Or is this not a problem? This
       all revolves around me wanting to make sure there is one "canonical" way
       to identify, classify and refer to tasks.
+- [ ] Add zensical as tool, with flags -serve and -build.
 
 ## Phase 10: Wrapup & Polish
 
