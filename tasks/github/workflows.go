@@ -26,7 +26,6 @@ var (
 	skipPR      = workflowFlags.Bool("skip-pr", false, "exclude PR workflow")
 	skipRelease = workflowFlags.Bool("skip-release", false, "exclude release-please workflow")
 	skipStale   = workflowFlags.Bool("skip-stale", false, "exclude stale workflow")
-	skipSync    = workflowFlags.Bool("skip-sync", false, "exclude sync workflow")
 
 	includePocketMatrix = workflowFlags.Bool(
 		"include-pocket-matrix",
@@ -107,7 +106,6 @@ func runWorkflows(ctx context.Context) error {
 		{"pr.yml.tmpl", "pr.yml", nil, !*skipPR},
 		{"release.yml.tmpl", "release.yml", nil, !*skipRelease},
 		{"stale.yml.tmpl", "stale.yml", staleConfig, !*skipStale},
-		{"sync.yml.tmpl", "sync.yml", nil, !*skipSync},
 	}
 
 	// Clean up managed workflow files before generating.
