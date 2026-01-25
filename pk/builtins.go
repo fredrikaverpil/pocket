@@ -249,19 +249,19 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 }
 
 // buildTaskList creates a JSON-friendly task list.
-func buildTaskList(entries []taskInstance, pathMappings map[string]pathInfo) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(entries))
+func buildTaskList(instances []taskInstance, pathMappings map[string]pathInfo) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(instances))
 
-	for _, entry := range entries {
+	for _, instance := range instances {
 		paths := []string{"."}
-		if info, ok := pathMappings[entry.name]; ok {
+		if info, ok := pathMappings[instance.name]; ok {
 			paths = info.resolvedPaths // May be empty for excluded tasks.
 		}
 
 		taskJSON := map[string]interface{}{
-			"name":   entry.name, // Use effective name (may include suffix).
-			"hidden": entry.task.IsHidden(),
-			"manual": entry.manual, // Use pre-computed value (from Config.Manual or Task.Manual()).
+			"name":   instance.name, // Use effective name (may include suffix).
+			"hidden": instance.task.IsHidden(),
+			"manual": instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 			"paths":  paths,
 		}
 		result = append(result, taskJSON)

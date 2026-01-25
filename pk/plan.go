@@ -176,7 +176,7 @@ type taskInstance struct {
 	name          string         // Effective name (may include suffix like "py-test:3.9")
 	contextValues []contextValue // Context values to apply when executing this task instance.
 	flags         map[string]any // Pre-merged flag overrides for this task.
-	manual        bool           // Whether task is manual (from Config.Manual or Task.Manual()).
+	isManual      bool           // Whether task is manual (from Config.Manual or Task.Manual()).
 }
 
 // taskCollector is the internal state for walking the tree.
@@ -299,7 +299,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 				name:          effectiveName,
 				contextValues: ctxValues,
 				flags:         mergedFlags,
-				manual:        pc.inManualSection || v.IsManual(),
+				isManual:      pc.inManualSection || v.IsManual(),
 			})
 		}
 
@@ -493,16 +493,16 @@ func (p *Plan) Tasks() []TaskInfo {
 	}
 
 	result := make([]TaskInfo, 0, len(p.taskInstances))
-	for _, entry := range p.taskInstances {
+	for _, instance := range p.taskInstances {
 		info := TaskInfo{
-			Name:   entry.name, // Use effective name (may include suffix).
-			Usage:  entry.task.usage,
-			Hidden: entry.task.hidden,
-			Manual: entry.manual, // Use pre-computed value (from Config.Manual or Task.Manual()).
+			Name:   instance.name, // Use effective name (may include suffix).
+			Usage:  instance.task.usage,
+			Hidden: instance.task.hidden,
+			Manual: instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 		}
 
 		// Get resolved paths from path mappings using effective name.
-		if pm, ok := p.pathMappings[entry.name]; ok {
+		if pm, ok := p.pathMappings[instance.name]; ok {
 			info.Paths = pm.resolvedPaths
 		}
 		if len(info.Paths) == 0 {
@@ -548,7 +548,7 @@ func (p *Plan) taskRunsInPath(taskName, path string) bool {
 
 // checkTaskNameConflicts returns an error if any task names conflict.
 // This includes conflicts with builtins and duplicate user task names.
-func checkTaskNameConflicts(entries []taskInstance) error {
+func checkTaskNameConflicts(instances []taskInstance) error {
 	seen := make(map[string]bool)
 
 	// First, mark builtins as seen
@@ -557,14 +557,14 @@ func checkTaskNameConflicts(entries []taskInstance) error {
 	}
 
 	// Check each task
-	for _, entry := range entries {
-		if slices.Contains(builtinTaskNames, entry.name) {
-			return fmt.Errorf("⚠️  task name %q conflicts with builtin command; choose a different name", entry.name)
+	for _, instance := range instances {
+		if slices.Contains(builtinTaskNames, instance.name) {
+			return fmt.Errorf("⚠️  task name %q conflicts with builtin command; choose a different name", instance.name)
 		}
-		if seen[entry.name] {
-			return fmt.Errorf("⚠️  duplicate task name %q; task names must be unique", entry.name)
+		if seen[instance.name] {
+			return fmt.Errorf("⚠️  duplicate task name %q; task names must be unique", instance.name)
 		}
-		seen[entry.name] = true
+		seen[instance.name] = true
 	}
 	return nil
 }

@@ -589,26 +589,26 @@ func TestPlan_ContextValues(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Find the 3.9 entry and verify it has the correct context value
-		entry39 := findTaskByName(plan, "py-test:3.9")
-		if entry39 == nil {
+		// Find the 3.9 instance and verify it has the correct context value
+		instance39 := findTaskByName(plan, "py-test:3.9")
+		if instance39 == nil {
 			t.Fatal("expected to find py-test:3.9")
 		}
-		if len(entry39.contextValues) != 1 {
-			t.Errorf("expected 1 context value, got %d", len(entry39.contextValues))
-		} else if entry39.contextValues[0].value != "3.9" {
-			t.Errorf("expected context value '3.9', got %v", entry39.contextValues[0].value)
+		if len(instance39.contextValues) != 1 {
+			t.Errorf("expected 1 context value, got %d", len(instance39.contextValues))
+		} else if instance39.contextValues[0].value != "3.9" {
+			t.Errorf("expected context value '3.9', got %v", instance39.contextValues[0].value)
 		}
 
-		// Find the 3.10 entry and verify it has the correct context value
-		entry310 := findTaskByName(plan, "py-test:3.10")
-		if entry310 == nil {
+		// Find the 3.10 instance and verify it has the correct context value
+		instance310 := findTaskByName(plan, "py-test:3.10")
+		if instance310 == nil {
 			t.Fatal("expected to find py-test:3.10")
 		}
-		if len(entry310.contextValues) != 1 {
-			t.Errorf("expected 1 context value, got %d", len(entry310.contextValues))
-		} else if entry310.contextValues[0].value != "3.10" {
-			t.Errorf("expected context value '3.10', got %v", entry310.contextValues[0].value)
+		if len(instance310.contextValues) != 1 {
+			t.Errorf("expected 1 context value, got %d", len(instance310.contextValues))
+		} else if instance310.contextValues[0].value != "3.10" {
+			t.Errorf("expected context value '3.10', got %v", instance310.contextValues[0].value)
 		}
 	})
 
@@ -631,14 +631,14 @@ func TestPlan_ContextValues(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		entry := findTaskByName(plan, "test")
-		if entry == nil {
+		instance := findTaskByName(plan, "test")
+		if instance == nil {
 			t.Fatal("expected to find test")
 		}
 
 		// Should have both context values (outer first, then inner)
-		if len(entry.contextValues) != 2 {
-			t.Errorf("expected 2 context values, got %d", len(entry.contextValues))
+		if len(instance.contextValues) != 2 {
+			t.Errorf("expected 2 context values, got %d", len(instance.contextValues))
 		}
 	})
 }

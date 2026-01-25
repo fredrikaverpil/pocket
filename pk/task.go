@@ -60,8 +60,8 @@ func (t *Task) run(ctx context.Context) error {
 	// Flags are pre-merged during planning and stored on taskInstance.
 	if t.flags != nil {
 		if plan := PlanFromContext(ctx); plan != nil {
-			if entry := plan.taskInstanceByName(effectiveName); entry != nil && entry.flags != nil {
-				for name, value := range entry.flags {
+			if instance := plan.taskInstanceByName(effectiveName); instance != nil && instance.flags != nil {
+				for name, value := range instance.flags {
 					if f := t.flags.Lookup(name); f != nil {
 						if err := f.Value.Set(fmt.Sprint(value)); err != nil {
 							return fmt.Errorf("task %q: setting flag %q to %v: %w", effectiveName, name, value, err)
