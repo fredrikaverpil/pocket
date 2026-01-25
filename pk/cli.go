@@ -292,7 +292,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 			if entry.task.IsHidden() || !plan.taskRunsInPath(entry.name, taskScope) {
 				continue
 			}
-			if entry.task.IsManual() {
+			if entry.manual {
 				manualTasks = append(manualTasks, entry)
 			} else {
 				regularTasks = append(regularTasks, entry)

@@ -137,7 +137,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		}
 	}
 
-	// Walk manual tasks (they are marked as manual via Task.Manual())
+	// Walk manual tasks - tasks in Config.Manual are automatically marked manual.
+	collector.inManualSection = true
 	for _, r := range cfg.Manual {
 		if err := collector.walk(r); err != nil {
 			return nil, err
@@ -175,6 +176,7 @@ type taskInstance struct {
 	name          string         // Effective name (may include suffix like "py-test:3.9")
 	contextValues []contextValue // Context values to apply when executing this task instance.
 	flags         map[string]any // Pre-merged flag overrides for this task.
+	manual        bool           // Whether task is manual (from Config.Manual or Task.Manual()).
 }
 
 // taskCollector is the internal state for walking the tree.
@@ -193,6 +195,7 @@ type taskCollector struct {
 	activeNameSuffix    string           // Current name suffix from WithName.
 	activeContextValues []contextValue   // Context values in current scope.
 	activeFlags         []flagOverride   // All flag overrides in current scope.
+	inManualSection     bool             // True when walking Config.Manual tasks.
 }
 
 // taskKey uniquely identifies a task in a specific naming context.
@@ -296,6 +299,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 				name:          effectiveName,
 				contextValues: ctxValues,
 				flags:         mergedFlags,
+				manual:        pc.inManualSection || v.IsManual(),
 			})
 		}
 
@@ -494,7 +498,7 @@ func (p *Plan) Tasks() []TaskInfo {
 			Name:   entry.name, // Use effective name (may include suffix).
 			Usage:  entry.task.usage,
 			Hidden: entry.task.hidden,
-			Manual: entry.task.manual,
+			Manual: entry.manual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 		}
 
 		// Get resolved paths from path mappings using effective name.

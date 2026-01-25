@@ -205,20 +205,24 @@ Manual tasks only run when explicitly invoked (e.g., `./pok hello`), not on bare
 
 ### Config.Manual
 
+Tasks in `Config.Manual` are automatically marked as manual during planning. You
+don't need to call `.Manual()` on tasks placed here:
+
 ```go
 var Config = &pk.Config{
     Auto: pk.Serial(golang.Tasks()),  // Runs on bare ./pok
 
     Manual: []pk.Runnable{
-        Hello.Manual(),  // Only runs via ./pok hello
-        Deploy,          // Only runs via ./pok deploy
+        Hello,   // Automatically manual - only runs via ./pok hello
+        Deploy,  // Automatically manual - only runs via ./pok deploy
     },
 }
 ```
 
 ### Task.Manual()
 
-The `Manual()` method returns a copy of the task marked as manual:
+The `Manual()` method returns a copy of the task marked as manual. Use this when
+you want a task to be manual even when placed in `Config.Auto`:
 
 ```go
 var Hello = pk.NewTask("hello", "greet user", flags, pk.Do(fn))

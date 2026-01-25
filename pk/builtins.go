@@ -261,7 +261,7 @@ func buildTaskList(entries []taskInstance, pathMappings map[string]pathInfo) []m
 		taskJSON := map[string]interface{}{
 			"name":   entry.name, // Use effective name (may include suffix).
 			"hidden": entry.task.IsHidden(),
-			"manual": entry.task.IsManual(),
+			"manual": entry.manual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 			"paths":  paths,
 		}
 		result = append(result, taskJSON)
