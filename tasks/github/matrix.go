@@ -11,7 +11,7 @@ import (
 
 // MatrixConfig configures GitHub Actions matrix generation.
 type MatrixConfig struct {
-	// DefaultPlatforms for all tasks. Default: ["ubuntu-latest"]
+	// DefaultPlatforms for all tasks. Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
 	DefaultPlatforms []string
 
 	// TaskOverrides provides per-task platform configuration.
@@ -48,7 +48,7 @@ type TaskOverride struct {
 // DefaultMatrixConfig returns sensible defaults.
 func DefaultMatrixConfig() MatrixConfig {
 	return MatrixConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
+		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 		WindowsShell:     "powershell",
 		WindowsShim:      "ps1",
 	}
@@ -71,7 +71,7 @@ type matrixOutput struct {
 // GenerateMatrix creates the GitHub Actions matrix JSON from tasks.
 func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig) ([]byte, error) {
 	if cfg.DefaultPlatforms == nil {
-		cfg.DefaultPlatforms = []string{"ubuntu-latest"}
+		cfg.DefaultPlatforms = []string{"ubuntu-latest", "macos-latest", "windows-latest"}
 	}
 	if cfg.WindowsShell == "" {
 		cfg.WindowsShell = "powershell"

@@ -25,17 +25,19 @@ func TestGenerateMatrix_Default(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	// Default is ubuntu-latest only, so 2 tasks = 2 entries
-	if len(output.Include) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(output.Include))
+	// Default is all three platforms, so 2 tasks × 3 platforms = 6 entries
+	if len(output.Include) != 6 {
+		t.Fatalf("expected 6 entries, got %d", len(output.Include))
 	}
 
+	// Verify all platforms are present for each task
+	platforms := make(map[string]int)
 	for _, entry := range output.Include {
-		if entry.OS != "ubuntu-latest" {
-			t.Errorf("expected os 'ubuntu-latest', got %q", entry.OS)
-		}
-		if entry.Shim != "./pok" {
-			t.Errorf("expected shim './pok', got %q", entry.Shim)
+		platforms[entry.OS]++
+	}
+	for _, p := range []string{"ubuntu-latest", "macos-latest", "windows-latest"} {
+		if platforms[p] != 2 { // 2 tasks per platform
+			t.Errorf("expected 2 entries for platform %q, got %d", p, platforms[p])
 		}
 	}
 }
@@ -169,12 +171,14 @@ func TestGenerateMatrix_HiddenTasksExcluded(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	// Only non-hidden task
-	if len(output.Include) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(output.Include))
+	// Only non-hidden task × 3 platforms = 3 entries
+	if len(output.Include) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(output.Include))
 	}
-	if output.Include[0].Task != "lint" {
-		t.Errorf("expected task 'lint', got %q", output.Include[0].Task)
+	for _, entry := range output.Include {
+		if entry.Task != "lint" {
+			t.Errorf("expected task 'lint', got %q", entry.Task)
+		}
 	}
 }
 
@@ -195,12 +199,14 @@ func TestGenerateMatrix_ManualTasksExcluded(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	// Only non-manual task
-	if len(output.Include) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(output.Include))
+	// Only non-manual task × 3 platforms = 3 entries
+	if len(output.Include) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(output.Include))
 	}
-	if output.Include[0].Task != "lint" {
-		t.Errorf("expected task 'lint', got %q", output.Include[0].Task)
+	for _, entry := range output.Include {
+		if entry.Task != "lint" {
+			t.Errorf("expected task 'lint', got %q", entry.Task)
+		}
 	}
 }
 
@@ -303,11 +309,14 @@ func TestGenerateMatrix_EmptyTasks(t *testing.T) {
 func TestDefaultMatrixConfig(t *testing.T) {
 	cfg := DefaultMatrixConfig()
 
-	if len(cfg.DefaultPlatforms) != 1 {
-		t.Errorf("expected 1 default platform, got %d", len(cfg.DefaultPlatforms))
+	expectedPlatforms := []string{"ubuntu-latest", "macos-latest", "windows-latest"}
+	if len(cfg.DefaultPlatforms) != len(expectedPlatforms) {
+		t.Errorf("expected %d default platforms, got %d", len(expectedPlatforms), len(cfg.DefaultPlatforms))
 	}
-	if cfg.DefaultPlatforms[0] != "ubuntu-latest" {
-		t.Errorf("expected default platform 'ubuntu-latest', got %q", cfg.DefaultPlatforms[0])
+	for i, p := range expectedPlatforms {
+		if i < len(cfg.DefaultPlatforms) && cfg.DefaultPlatforms[i] != p {
+			t.Errorf("expected platform[%d] = %q, got %q", i, p, cfg.DefaultPlatforms[i])
+		}
 	}
 	if cfg.WindowsShell != "powershell" {
 		t.Errorf("expected default WindowsShell 'powershell', got %q", cfg.WindowsShell)
