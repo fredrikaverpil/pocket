@@ -106,20 +106,20 @@ pk.WithOptions(task, pk.WithIncludePath("services"))
 
 Options passed to `WithOptions` to control where and how tasks execute.
 
-### Generic Options (pk.With*)
+### Generic Options (pk.With\*)
 
 These options work with any task:
 
-| Option            | Description                                           |
-| :---------------- | :---------------------------------------------------- |
-| `WithIncludePath` | Run only in directories matching the regex patterns   |
-| `WithExcludePath` | Skip directories matching the regex patterns          |
-| `WithDetect`      | Dynamically discover paths using a detection function |
+| Option            | Description                                                |
+| :---------------- | :--------------------------------------------------------- |
+| `WithIncludePath` | Run only in directories matching the regex patterns        |
+| `WithExcludePath` | Skip directories matching the regex patterns               |
+| `WithDetect`      | Dynamically discover paths using a detection function      |
 | `WithName`        | Add suffix to task names (e.g., `py-test` → `py-test:3.9`) |
-| `WithForceRun`    | Bypass task deduplication for the wrapped runnable    |
-| `WithFlag`        | Set a default flag value for a task in scope          |
-| `WithSkipTask`    | Skip specified tasks within this scope                |
-| `WithExcludeTask` | Exclude a task from directories matching patterns     |
+| `WithForceRun`    | Bypass task deduplication for the wrapped runnable         |
+| `WithFlag`        | Set a default flag value for a task in scope               |
+| `WithSkipTask`    | Skip specified tasks within this scope                     |
+| `WithExcludeTask` | Exclude a task from directories matching patterns          |
 
 ```go
 pk.WithOptions(
@@ -134,10 +134,10 @@ pk.WithOptions(
 
 Task packages provide their own options that may combine multiple effects:
 
-| Option                  | Package  | Description                              |
-| :---------------------- | :------- | :--------------------------------------- |
-| `python.WithVersion(v)` | `python` | Set Python version AND name suffix       |
-| `python.WithTestCoverage()` | `python` | Enable coverage for the Test task            |
+| Option                      | Package  | Description                        |
+| :-------------------------- | :------- | :--------------------------------- |
+| `python.WithVersion(v)`     | `python` | Set Python version AND name suffix |
+| `python.WithTestCoverage()` | `python` | Enable coverage for the Test task  |
 
 ```go
 pk.WithOptions(
@@ -226,12 +226,13 @@ var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
 Tasks are deduplicated during execution to prevent running the same work twice.
 The deduplication key depends on task type:
 
-| Task Type | Deduplication Key | Use Case |
-| :-------- | :---------------- | :------- |
+| Task Type | Deduplication Key    | Use Case                       |
+| :-------- | :------------------- | :----------------------------- |
 | Regular   | `effectiveName@path` | Most tasks - run once per path |
-| Global    | `baseName@.` | Install tasks - run once total |
+| Global    | `baseName@.`         | Install tasks - run once total |
 
 **Effective name** = base name + optional suffix from `WithName`:
+
 - Base name: `py-test` (defined in `NewTask`)
 - Effective name: `py-test:3.9` (with `python.WithVersion("3.9")`)
 

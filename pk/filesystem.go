@@ -103,7 +103,6 @@ func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]s
 }
 
 // matchPattern checks if a path matches a regex pattern.
-// Returns true if path matches the pattern.
 func matchPattern(path, pattern string) bool {
 	matched, _ := regexp.MatchString(pattern, path)
 	return matched

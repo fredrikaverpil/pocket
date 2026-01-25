@@ -2,6 +2,8 @@ package pk
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -133,21 +135,16 @@ func WithoutEnv(ctx context.Context, prefix string) context.Context {
 }
 
 // envConfigFromContext returns the environment config from the context.
+// Returns a copy to avoid mutating the original.
 func envConfigFromContext(ctx context.Context) envConfig {
-	if cfg, ok := ctx.Value(envKey).(envConfig); ok {
-		// Return a copy to avoid mutating the original
-		newCfg := envConfig{
-			filter: append([]string(nil), cfg.filter...),
-		}
-		if cfg.set != nil {
-			newCfg.set = make(map[string]string, len(cfg.set))
-			for k, v := range cfg.set {
-				newCfg.set[k] = v
-			}
-		}
-		return newCfg
+	cfg, ok := ctx.Value(envKey).(envConfig)
+	if !ok {
+		return envConfig{}
 	}
-	return envConfig{}
+	return envConfig{
+		set:    maps.Clone(cfg.set),
+		filter: slices.Clone(cfg.filter),
+	}
 }
 
 // withNameSuffix returns a new context with the given name suffix.

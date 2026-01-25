@@ -363,21 +363,21 @@ var Config = &pk.Config{
 
 **Python-specific options:**
 
-| Option                     | Description                                            |
-| :------------------------- | :----------------------------------------------------- |
-| `python.WithVersion("X")` | Set Python version AND task name suffix (e.g., `:3.9`) |
-| `python.WithTestCoverage()`    | Enable coverage for the Test task                      |
+| Option                      | Description                                            |
+| :-------------------------- | :----------------------------------------------------- |
+| `python.WithVersion("X")`   | Set Python version AND task name suffix (e.g., `:3.9`) |
+| `python.WithTestCoverage()` | Enable coverage for the Test task                      |
 
 **Available tasks:**
 
-| Task               | Description                          |
-| :----------------- | :----------------------------------- |
+| Task               | Description                              |
+| :----------------- | :--------------------------------------- |
 | `python.Tasks()`   | All tasks: Format, Lint, Typecheck, Test |
-| `python.Format`    | Format with ruff                     |
-| `python.Lint`      | Lint with ruff (auto-fix by default) |
-| `python.Typecheck` | Type-check with mypy                 |
-| `python.Test`      | Run pytest                           |
-| `python.Detect()`  | DetectFunc for pyproject.toml        |
+| `python.Format`    | Format with ruff                         |
+| `python.Lint`      | Lint with ruff (auto-fix by default)     |
+| `python.Typecheck` | Type-check with mypy                     |
+| `python.Test`      | Run pytest                               |
+| `python.Detect()`  | DetectFunc for pyproject.toml            |
 
 When `python.WithVersion("3.9")` is used, tasks are automatically named with a
 suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix
@@ -730,23 +730,23 @@ specific directories. All path patterns are **regular expressions**.
 
 **Generic options (`pk.With*`)** work with any task:
 
-| Option                               | Description                          |
-| :----------------------------------- | :----------------------------------- |
-| `pk.WithIncludePath(patterns...)`    | Only run in matching directories     |
-| `pk.WithExcludePath(patterns...)`    | Skip matching directories            |
-| `pk.WithDetect(fn)`                  | Auto-detect directories              |
-| `pk.WithName(suffix)`                | Add suffix to task names (e.g., `:v2`) |
-| `pk.WithFlag(task, name, value)`     | Override a task's flag               |
-| `pk.WithSkipTask(tasks...)`          | Remove tasks from scope              |
-| `pk.WithForceRun()`                  | Disable deduplication                |
+| Option                            | Description                            |
+| :-------------------------------- | :------------------------------------- |
+| `pk.WithIncludePath(patterns...)` | Only run in matching directories       |
+| `pk.WithExcludePath(patterns...)` | Skip matching directories              |
+| `pk.WithDetect(fn)`               | Auto-detect directories                |
+| `pk.WithName(suffix)`             | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithFlag(task, name, value)`  | Override a task's flag                 |
+| `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
+| `pk.WithForceRun()`               | Disable deduplication                  |
 
 **Task-specific options** are provided by task packages:
 
-| Option                   | Package  | Description                              |
-| :----------------------- | :------- | :--------------------------------------- |
-| `python.WithVersion(v)`  | `python` | Set Python version AND name suffix       |
-| `python.WithTestCoverage()`  | `python` | Enable coverage for test task            |
-| `golang.WithRace()`      | `golang` | Enable race detector (if available)      |
+| Option                      | Package  | Description                         |
+| :-------------------------- | :------- | :---------------------------------- |
+| `python.WithVersion(v)`     | `python` | Set Python version AND name suffix  |
+| `python.WithTestCoverage()` | `python` | Enable coverage for test task       |
+| `golang.WithRace()`         | `golang` | Enable race detector (if available) |
 
 Task-specific options may combine multiple effects. For example,
 `python.WithVersion("3.9")` sets both the Python version for runtime AND adds
