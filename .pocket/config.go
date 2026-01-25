@@ -10,15 +10,6 @@ import (
 	"github.com/fredrikaverpil/pocket/tasks/markdown"
 )
 
-// matrixConfig is the configuration for the GitHub Actions matrix.
-var matrixConfig = github.MatrixConfig{
-	DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
-	TaskOverrides: map[string]github.TaskOverride{
-		"go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on linux
-	},
-	ExcludeTasks: []string{"github-workflows"}, // don't run in CI
-}
-
 // Config is the Pocket configuration for this project.
 var Config = &pk.Config{
 	Auto: pk.Parallel(
@@ -27,15 +18,20 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			pk.WithFlag(github.Workflows, "skip-pocket", true),
-			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+			github.WithSkipPocket(),
+			github.WithMatrixWorkflow(github.MatrixConfig{
+				DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+				TaskOverrides: map[string]github.TaskOverride{
+					"go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on linux
+				},
+				ExcludeTasks: []string{"github-workflows"}, // don't run in CI
+			}),
 		),
 	),
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello.Manual(),              // ./pok hello -name "World"
-		github.Matrix(matrixConfig), // ./pok gha-matrix (for GitHub Actions)
+		Hello.Manual(), // ./pok hello -name "World"
 	},
 
 	// Plan configuration: shims, directories, and CI settings.

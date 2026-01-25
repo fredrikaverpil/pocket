@@ -164,31 +164,47 @@ func shimForPlatform(platform, windowsShell, windowsShim string) string {
 	return "./pok"
 }
 
+// matrix creates the gha-matrix task that reads config from context.
+// Used internally by Tasks(). Config is passed via WithMatrixWorkflow().
+func matrix() *pk.Task {
+	return pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", nil,
+		pk.Do(func(ctx context.Context) error {
+			// Get config from context, or use defaults.
+			cfg := DefaultMatrixConfig()
+			if v := ctx.Value(matrixConfigKey{}); v != nil {
+				cfg = v.(MatrixConfig)
+			}
+
+			plan := pk.PlanFromContext(ctx)
+			if plan == nil {
+				pk.Printf(ctx, `{"include":[]}`)
+				return nil
+			}
+			tasks := plan.Tasks()
+			data, err := GenerateMatrix(tasks, cfg)
+			if err != nil {
+				return err
+			}
+			pk.Printf(ctx, "%s\n", data)
+			return nil
+		}),
+	).Hidden().HideHeader()
+}
+
 // Matrix creates the gha-matrix task for GitHub Actions matrix generation.
 // The task outputs JSON that can be used with GitHub Actions' fromJson() function.
 //
-// Example usage in .pocket/config.go:
+// Deprecated: Use github.Tasks() with github.WithMatrixWorkflow() instead:
 //
-//	var Config = &pk.Config{
-//	    Auto: pk.Parallel(
-//	        pk.WithOptions(golang.Tasks(), pk.WithDetect(golang.Detect())),
-//	    ),
-//	    Manual: []pk.Runnable{
-//	        github.Matrix(github.MatrixConfig{
-//	            DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
-//	            TaskOverrides: map[string]github.TaskOverride{
-//	                "go-lint": {Platforms: []string{"ubuntu-latest"}},
-//	            },
-//	            ExcludeTasks: []string{"github-workflows"},
-//	        }),
-//	    },
-//	}
+//	pk.WithOptions(
+//	    github.Tasks(),
+//	    github.WithMatrixWorkflow(github.MatrixConfig{...}),
+//	)
 func Matrix(cfg MatrixConfig) *pk.Task {
 	return pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", nil,
 		pk.Do(func(ctx context.Context) error {
 			plan := pk.PlanFromContext(ctx)
 			if plan == nil {
-				// No plan available, output empty matrix
 				pk.Printf(ctx, `{"include":[]}`)
 				return nil
 			}
