@@ -137,13 +137,13 @@ Task packages provide their own options that may combine multiple effects:
 | Option                  | Package  | Description                              |
 | :---------------------- | :------- | :--------------------------------------- |
 | `python.WithVersion(v)` | `python` | Set Python version AND name suffix       |
-| `python.WithCoverage()` | `python` | Enable coverage for test task            |
+| `python.WithTestCoverage()` | `python` | Enable coverage for the Test task            |
 
 ```go
 pk.WithOptions(
     python.Tasks(),
     python.WithVersion("3.9"),  // Sets version + adds ":3.9" to task names
-    python.WithCoverage(),
+    python.WithTestCoverage(),
     pk.WithDetect(python.Detect()),
 )
 ```
@@ -220,6 +220,24 @@ var Deploy = pk.NewTask("deploy", "...", nil, body).Manual()
 var Matrix = pk.NewTask("matrix", "...", nil, body).HideHeader()
 var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
 ```
+
+### Task Identity and Deduplication
+
+Tasks are deduplicated during execution to prevent running the same work twice.
+The deduplication key depends on task type:
+
+| Task Type | Deduplication Key | Use Case |
+| :-------- | :---------------- | :------- |
+| Regular   | `effectiveName@path` | Most tasks - run once per path |
+| Global    | `baseName@.` | Install tasks - run once total |
+
+**Effective name** = base name + optional suffix from `WithName`:
+- Base name: `py-test` (defined in `NewTask`)
+- Effective name: `py-test:3.9` (with `python.WithVersion("3.9")`)
+
+This enables multi-version testing where `py-test:3.9` and `py-test:3.10` run
+separately, while `install:uv` (a global task) runs only once regardless of
+which Python version triggered it.
 
 ---
 

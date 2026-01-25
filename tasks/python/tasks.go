@@ -32,17 +32,17 @@ func WithVersion(version string) pk.PathOption {
 	)
 }
 
-// WithCoverage enables coverage for the test task.
+// WithTestCoverage enables coverage for the Test task.
 //
 // Example:
 //
 //	pk.WithOptions(
 //	    python.Tasks(),
 //	    python.WithVersion("3.9"),
-//	    python.WithCoverage(),
+//	    python.WithTestCoverage(),
 //	    pk.WithDetect(python.Detect()),
 //	)
-func WithCoverage() pk.PathOption {
+func WithTestCoverage() pk.PathOption {
 	return pk.WithContextValue(coverageKey{}, true)
 }
 
@@ -85,9 +85,9 @@ func Detect() pk.DetectFunc {
 //	pk.WithOptions(
 //	    python.Tasks(),
 //	    python.WithVersion("3.9"),
-//	    python.WithCoverage(),
+//	    python.WithTestCoverage(),
 //	    pk.WithDetect(python.Detect()),
 //	)
 func Tasks() pk.Runnable {
-	return pk.Serial(uv.Install, Format, Lint, Typecheck, Test)
+	return pk.Serial(uv.Install, Format, Lint, pk.Parallel(Typecheck, Test))
 }

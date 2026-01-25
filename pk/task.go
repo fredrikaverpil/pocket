@@ -50,6 +50,12 @@ func (t *Task) run(ctx context.Context) error {
 		return fmt.Errorf("task %q has no implementation", t.name)
 	}
 
+	// Build effective name using suffix from context (e.g., "py-test:3.9").
+	effectiveName := t.name
+	if suffix := nameSuffixFromContext(ctx); suffix != "" {
+		effectiveName = t.name + ":" + suffix
+	}
+
 	// Apply flag overrides from context.
 	if t.flags != nil {
 		overrides := flagOverridesFromContext(ctx)
@@ -58,7 +64,7 @@ func (t *Task) run(ctx context.Context) error {
 				f := t.flags.Lookup(name)
 				if f != nil {
 					if err := f.Value.Set(fmt.Sprint(value)); err != nil {
-						return fmt.Errorf("task %q: setting flag %q to %v: %w", t.name, name, value, err)
+						return fmt.Errorf("task %q: setting flag %q to %v: %w", effectiveName, name, value, err)
 					}
 				}
 			}
@@ -66,15 +72,16 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Check deduplication unless forceRun is set in context.
-	// Deduplication is by (task name, path) tuple, or just task name for global tasks.
+	// Deduplication uses taskID (effective name + path), or base name + "." for global tasks.
+	// Global tasks use base name only (ignoring suffix) to ensure install tasks run once.
 	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			path := PathFromContext(ctx)
+			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
 			if t.global {
-				path = "." // Global tasks deduplicate by name only.
+				id = taskID{Name: t.name, Path: "."} // Global tasks deduplicate by base name only.
 			}
-			if alreadyDone := tracker.markDone(t.name, path); alreadyDone {
+			if alreadyDone := tracker.markDone(id); alreadyDone {
 				return nil // Silent skip.
 			}
 		}
@@ -83,7 +90,7 @@ func (t *Task) run(ctx context.Context) error {
 	// Check if this task should run at this path based on the Plan's pathMappings.
 	// This handles task-specific excludes (WithExcludeTask).
 	if plan := PlanFromContext(ctx); plan != nil {
-		if info, ok := plan.pathMappings[t.name]; ok {
+		if info, ok := plan.pathMappings[effectiveName]; ok {
 			path := PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
 				return nil // Task is excluded from this path.
@@ -95,9 +102,9 @@ func (t *Task) run(ctx context.Context) error {
 	if !t.hideHeader {
 		path := PathFromContext(ctx)
 		if path != "" && path != "." {
-			Printf(ctx, ":: %s [%s]\n", t.name, path)
+			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
 		} else {
-			Printf(ctx, ":: %s\n", t.name)
+			Printf(ctx, ":: %s\n", effectiveName)
 		}
 	}
 

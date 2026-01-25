@@ -295,6 +295,44 @@ Specifically targeted changes:
       how we can get that back into pocket v2!
 - [ ] Verify that all documentation is up to date. We need to mention all public
       API methods and configurable parts.
+- [ ] We had a false example golang.WithRace() in the documentation that doesn't
+      exist. Should we:  
+       1. Remove the false example - Keep golang using the -race flag as-is  
+       2. Implement golang.WithTestRace() - Add the option for consistency with
+      python
+- [ ] We recently added pk.WithName which affects the task name, but I also feel
+      it affects the task deduplication logic. I've got this idea now that maybe
+      we need to introduce a formal task ID. We have the task "name", which we
+      use to invoke the task, like task py-test-3.9, which can now be overridden
+      by pk.WithName. I'm not sure how it works, but I think you introduced a
+      deduplication suffix? I know that our deduplication also must take the
+      path in which the task will execute. Does this mean we should formally
+      introduce a task ID, perhaps? And that this task ID should be part of the
+      `./pok plan -json` for example? Would it perhaps be needed? We also
+      absolutely must have tests around how the task deduplication logic should
+      work now, so we don't accidentally break it later.
+- [ ] We have introduced a number of ways to pass options to tasks. We have
+      pk.WithOptions which is the main wrapper you need to use when passing such
+      options. We have then formalized that we have golang.Tasks() or
+      python.Tasks() for example, if not invoking an individual task (like
+      python.Test or golang.Test). Generic options are introduced as pk-scoped,
+      like pk.WithName. But then the package-level can provide their own
+      options, like python.WithVersion. This notion is important to get across
+      as a pattern in our documentation and also make sure we do this
+      consistently throughout the existing codebase today. I also think that the
+      task-level option functions must be named like
+      <package>.With<Task><Option>, like golang.WithRace is not okay but
+      golang.WithTestRace is good. This way we can type in our IDEs and get
+      completion for all task options by e.g. starting to write golang.WithTest
+      (which would show all options for the test task).
+- [ ] I have a feeling that the reference.md documentation might be out of sync.
+      We might have exported/public symbols we haven't added in here. Both for
+      the pk.XXX API and for the Pocket-bundled tasks.
+- [ ] We are in documentation sometimes distinguishing "end-users" and
+      "task/tool authors". These are for the most part going to be the same
+      person. The difference is really that one person might build tasks/tools
+      and then reuse them in multiple projects. We should make that more clear
+      in the different markdown documentation files we have.
 
 ## Phase 10: Wrapup & Polish
 

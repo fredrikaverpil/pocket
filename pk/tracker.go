@@ -5,13 +5,25 @@ import (
 	"sync"
 )
 
+// taskID uniquely identifies a task execution for deduplication.
+// Format: "effectiveName@path" where effectiveName may contain colons (e.g., "py-test:3.9").
+type taskID struct {
+	Name string // Effective name (may include suffix like "py-test:3.9")
+	Path string // Execution path relative to git root
+}
+
+// String returns the string representation used as the map key.
+func (id taskID) String() string {
+	return id.Name + "@" + id.Path
+}
+
 // executionTracker tracks which tasks have already executed.
-// It is safe for concurrent use. Deduplication is by (task name, path) tuple -
-// the same task can run multiple times if configured for different paths,
-// but will only run once per path.
+// It is safe for concurrent use. Deduplication is by taskID (effective name + path) -
+// the same task can run multiple times if configured for different paths or suffixes,
+// but will only run once per unique combination.
 type executionTracker struct {
 	mu          sync.Mutex
-	done        map[string]bool // key: "taskName:path"
+	done        map[string]bool // key: taskID.String()
 	hadWarnings bool
 }
 
@@ -22,10 +34,10 @@ func newExecutionTracker() *executionTracker {
 	}
 }
 
-// markDone records that a task has executed in a given path.
+// markDone records that a task has executed.
 // Returns true if it was already done (should skip), false if first time.
-func (t *executionTracker) markDone(taskName, path string) bool {
-	key := taskName + ":" + path
+func (t *executionTracker) markDone(id taskID) bool {
+	key := id.String()
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.done[key] {
@@ -41,16 +53,16 @@ type executedTaskPath struct {
 	Path     string
 }
 
-// executed returns all task:path combinations that have been executed.
+// executed returns all task+path combinations that have been executed.
 func (t *executionTracker) executed() []executedTaskPath {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	result := make([]executedTaskPath, 0, len(t.done))
 	for key := range t.done {
-		// Parse "taskName:path" back into components.
-		// Find the first colon (task names don't contain colons).
-		for i := 0; i < len(key); i++ {
-			if key[i] == ':' {
+		// Parse "effectiveName@path" back into components.
+		// Find the last @ (paths don't contain @, effective names might contain colons).
+		for i := len(key) - 1; i >= 0; i-- {
+			if key[i] == '@' {
 				result = append(result, executedTaskPath{
 					TaskName: key[:i],
 					Path:     key[i+1:],

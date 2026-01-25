@@ -344,7 +344,7 @@ var Config = &pk.Config{
         pk.WithOptions(
             python.Tasks(),
             python.WithVersion("3.9"),
-            python.WithCoverage(),
+            python.WithTestCoverage(),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
@@ -366,7 +366,7 @@ var Config = &pk.Config{
 | Option                     | Description                                            |
 | :------------------------- | :----------------------------------------------------- |
 | `python.WithVersion("X")` | Set Python version AND task name suffix (e.g., `:3.9`) |
-| `python.WithCoverage()`    | Enable coverage for the test task                      |
+| `python.WithTestCoverage()`    | Enable coverage for the Test task                      |
 
 **Available tasks:**
 
@@ -386,7 +386,7 @@ generation.
 > [!NOTE]
 >
 > Tests run without coverage by default to avoid conflicts when testing multiple
-> Python versions. Use `python.WithCoverage()` to enable coverage for one
+> Python versions. Use `python.WithTestCoverage()` to enable coverage for one
 > version.
 
 #### Venv Location
@@ -745,7 +745,7 @@ specific directories. All path patterns are **regular expressions**.
 | Option                   | Package  | Description                              |
 | :----------------------- | :------- | :--------------------------------------- |
 | `python.WithVersion(v)`  | `python` | Set Python version AND name suffix       |
-| `python.WithCoverage()`  | `python` | Enable coverage for test task            |
+| `python.WithTestCoverage()`  | `python` | Enable coverage for test task            |
 | `golang.WithRace()`      | `golang` | Enable race detector (if available)      |
 
 Task-specific options may combine multiple effects. For example,
@@ -756,7 +756,7 @@ Task-specific options may combine multiple effects. For example,
 pk.WithOptions(
     python.Tasks(),
     python.WithVersion("3.9"),  // Task-specific: sets version + name suffix
-    python.WithCoverage(),      // Task-specific: enables coverage
+    python.WithTestCoverage(),      // Task-specific: enables coverage
     pk.WithDetect(python.Detect()), // Generic: auto-detect Python projects
 )
 ```

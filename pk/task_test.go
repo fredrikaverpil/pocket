@@ -267,3 +267,196 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 		}
 	})
 }
+
+// TestTask_Run_NameSuffixDeduplication tests that tasks with same base name
+// but different suffixes (via WithName) are NOT deduplicated.
+// This is critical for multi-version testing (e.g., py-test:3.9, py-test:3.10).
+func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
+	var runCount atomic.Int32
+
+	task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
+		runCount.Add(1)
+		return nil
+	}))
+
+	ctx := context.Background()
+	tracker := newExecutionTracker()
+	ctx = withExecutionTracker(ctx, tracker)
+
+	// Run with suffix "3.9" - should execute.
+	ctx39 := withNameSuffix(ctx, "3.9")
+	if err := task.run(ctx39); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1 after py-test:3.9, got %d", got)
+	}
+
+	// Run with suffix "3.10" - should also execute (different effective name).
+	ctx310 := withNameSuffix(ctx, "3.10")
+	if err := task.run(ctx310); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 2 {
+		t.Errorf("expected runCount=2 after py-test:3.10, got %d", got)
+	}
+
+	// Run again with suffix "3.9" - should be skipped (duplicate).
+	if err := task.run(ctx39); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 2 {
+		t.Errorf("expected runCount=2 after duplicate py-test:3.9, got %d", got)
+	}
+
+	// Run with suffix "3.11" - should execute.
+	ctx311 := withNameSuffix(ctx, "3.11")
+	if err := task.run(ctx311); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 3 {
+		t.Errorf("expected runCount=3 after py-test:3.11, got %d", got)
+	}
+}
+
+// TestTask_Run_GlobalDeduplicationIgnoresSuffix tests that global tasks
+// deduplicate by base name only, ignoring name suffix.
+// This is critical for install tasks that should only run once.
+func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
+	var runCount atomic.Int32
+
+	// Global task - should deduplicate by base name only.
+	task := NewTask("install:uv", "install uv", nil, Do(func(_ context.Context) error {
+		runCount.Add(1)
+		return nil
+	})).Hidden().Global()
+
+	ctx := context.Background()
+	tracker := newExecutionTracker()
+	ctx = withExecutionTracker(ctx, tracker)
+
+	// Run with suffix "3.9" - should execute.
+	ctx39 := withNameSuffix(ctx, "3.9")
+	if err := task.run(ctx39); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1 after first run, got %d", got)
+	}
+
+	// Run with suffix "3.10" - should be skipped (global uses base name only).
+	ctx310 := withNameSuffix(ctx, "3.10")
+	if err := task.run(ctx310); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1 after second run with different suffix (global should skip), got %d", got)
+	}
+
+	// Run with different path - should still be skipped (global ignores path too).
+	ctx39Services := WithPath(ctx39, "services")
+	if err := task.run(ctx39Services); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1 after run with different path (global should skip), got %d", got)
+	}
+}
+
+// TestTask_Run_NonGlobalWithSuffixAndPath tests that non-global tasks
+// deduplicate by (effective name, path) tuple.
+func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
+	var runCount atomic.Int32
+
+	task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+		runCount.Add(1)
+		return nil
+	}))
+
+	ctx := context.Background()
+	tracker := newExecutionTracker()
+	ctx = withExecutionTracker(ctx, tracker)
+
+	// test:3.9 at root - should execute.
+	ctx39 := withNameSuffix(ctx, "3.9")
+	if err := task.run(ctx39); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1, got %d", got)
+	}
+
+	// test:3.9 at services - should execute (different path).
+	ctx39Services := WithPath(ctx39, "services")
+	if err := task.run(ctx39Services); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 2 {
+		t.Errorf("expected runCount=2, got %d", got)
+	}
+
+	// test:3.10 at services - should execute (different suffix).
+	ctx310Services := WithPath(withNameSuffix(ctx, "3.10"), "services")
+	if err := task.run(ctx310Services); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 3 {
+		t.Errorf("expected runCount=3, got %d", got)
+	}
+
+	// test:3.9 at services again - should be skipped (duplicate).
+	if err := task.run(ctx39Services); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 3 {
+		t.Errorf("expected runCount=3 (duplicate should skip), got %d", got)
+	}
+}
+
+// TestTask_Run_EffectiveName tests that the effective name (base name + suffix)
+// is used correctly for task identification.
+func TestTask_Run_EffectiveName(t *testing.T) {
+	t.Run("NoSuffix", func(t *testing.T) {
+		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+		ctx := context.Background()
+		// Effective name should be base name when no suffix.
+		effectiveName := task.name
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
+			effectiveName = task.name + ":" + suffix
+		}
+		if effectiveName != "test" {
+			t.Errorf("expected effectiveName=%q, got %q", "test", effectiveName)
+		}
+	})
+
+	t.Run("WithSuffix", func(t *testing.T) {
+		task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+		ctx := withNameSuffix(context.Background(), "3.9")
+		effectiveName := task.name
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
+			effectiveName = task.name + ":" + suffix
+		}
+		if effectiveName != "py-test:3.9" {
+			t.Errorf("expected effectiveName=%q, got %q", "py-test:3.9", effectiveName)
+		}
+	})
+
+	t.Run("NestedSuffix", func(t *testing.T) {
+		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+		ctx := withNameSuffix(context.Background(), "a")
+		ctx = withNameSuffix(ctx, "b")
+		effectiveName := task.name
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
+			effectiveName = task.name + ":" + suffix
+		}
+		if effectiveName != "test:a:b" {
+			t.Errorf("expected effectiveName=%q, got %q", "test:a:b", effectiveName)
+		}
+	})
+}
