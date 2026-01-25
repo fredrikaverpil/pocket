@@ -16,18 +16,20 @@ type versionKey struct{}
 type coverageKey struct{}
 
 // WithVersion sets the Python version for tasks in this scope.
-// Use with pk.WithName to also suffix the task names.
+// This also sets the task name suffix (e.g., "py-test" becomes "py-test:3.9").
 //
 // Example:
 //
 //	pk.WithOptions(
 //	    python.Tasks(),
-//	    pk.WithName("3.9"),
 //	    python.WithVersion("3.9"),
 //	    pk.WithDetect(python.Detect()),
 //	)
 func WithVersion(version string) pk.PathOption {
-	return pk.WithContextValue(versionKey{}, version)
+	return pk.CombineOptions(
+		pk.WithContextValue(versionKey{}, version),
+		pk.WithName(version),
+	)
 }
 
 // WithCoverage enables coverage for the test task.
@@ -35,10 +37,10 @@ func WithVersion(version string) pk.PathOption {
 // Example:
 //
 //	pk.WithOptions(
-//	    python.Test,
-//	    pk.WithName("3.9"),
+//	    python.Tasks(),
 //	    python.WithVersion("3.9"),
 //	    python.WithCoverage(),
+//	    pk.WithDetect(python.Detect()),
 //	)
 func WithCoverage() pk.PathOption {
 	return pk.WithContextValue(coverageKey{}, true)
@@ -76,14 +78,14 @@ func Detect() pk.DetectFunc {
 }
 
 // Tasks returns all Python tasks (Format, Lint, Typecheck, Test).
-// Use with WithVersion and pk.WithName to specify the Python version.
+// Use with WithVersion to specify the Python version.
 //
 // Example:
 //
 //	pk.WithOptions(
 //	    python.Tasks(),
-//	    pk.WithName("3.9"),
 //	    python.WithVersion("3.9"),
+//	    python.WithCoverage(),
 //	    pk.WithDetect(python.Detect()),
 //	)
 func Tasks() pk.Runnable {

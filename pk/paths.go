@@ -101,17 +101,35 @@ func WithDetect(fn DetectFunc) PathOption {
 }
 
 // WithContextValue adds a key-value pair to the context for tasks in this scope.
-// This allows runtime-specific options (like Python version) to be passed to tasks.
 //
-// Example:
+// This is a low-level helper primarily for task package authors to pass runtime
+// configuration to their tasks. End users should typically use task-specific options
+// like python.WithVersion() instead of calling this directly.
 //
-//	pk.WithOptions(
-//	    python.Tasks(),
-//	    pk.WithContextValue(python.VersionKey, "3.9"),
-//	)
+// Task packages should combine this with WithName using CombineOptions to provide
+// a clean user experience. See CombineOptions for an example.
 func WithContextValue(key, value any) PathOption {
 	return func(pf *pathFilter) {
 		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})
+	}
+}
+
+// CombineOptions combines multiple PathOptions into a single PathOption.
+// This is useful for task packages that want to set multiple options at once.
+//
+// Example (in a task package):
+//
+//	func WithVersion(version string) pk.PathOption {
+//	    return pk.CombineOptions(
+//	        pk.WithName(version),
+//	        internalVersionOption(version),
+//	    )
+//	}
+func CombineOptions(opts ...PathOption) PathOption {
+	return func(pf *pathFilter) {
+		for _, opt := range opts {
+			opt(pf)
+		}
 	}
 }
 
@@ -119,12 +137,15 @@ func WithContextValue(key, value any) PathOption {
 // The suffix is appended with a colon separator (e.g., "py-test" becomes "py-test:3.9").
 // This affects CLI invocation, help output, and matrix generation.
 //
+// Task-specific options like python.WithVersion() typically call WithName internally,
+// so you usually don't need to call this directly. Use it when you want a custom suffix
+// or when composing tasks that don't have their own version option.
+//
 // Example:
 //
 //	pk.WithOptions(
-//	    python.Test,
-//	    pk.WithName("3.9"),
-//	    python.WithVersion("3.9"),
+//	    pk.Parallel(taskA, taskB),
+//	    pk.WithName("variant-1"),
 //	)
 func WithName(suffix string) PathOption {
 	return func(pf *pathFilter) {

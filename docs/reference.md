@@ -106,11 +106,16 @@ pk.WithOptions(task, pk.WithIncludePath("services"))
 
 Options passed to `WithOptions` to control where and how tasks execute.
 
+### Generic Options (pk.With*)
+
+These options work with any task:
+
 | Option            | Description                                           |
 | :---------------- | :---------------------------------------------------- |
 | `WithIncludePath` | Run only in directories matching the regex patterns   |
 | `WithExcludePath` | Skip directories matching the regex patterns          |
 | `WithDetect`      | Dynamically discover paths using a detection function |
+| `WithName`        | Add suffix to task names (e.g., `py-test` → `py-test:3.9`) |
 | `WithForceRun`    | Bypass task deduplication for the wrapped runnable    |
 | `WithFlag`        | Set a default flag value for a task in scope          |
 | `WithSkipTask`    | Skip specified tasks within this scope                |
@@ -123,6 +128,43 @@ pk.WithOptions(
     pk.WithExcludePath("vendor"),
     pk.WithFlag(Test, "race", true),
 )
+```
+
+### Task-Specific Options
+
+Task packages provide their own options that may combine multiple effects:
+
+| Option                  | Package  | Description                              |
+| :---------------------- | :------- | :--------------------------------------- |
+| `python.WithVersion(v)` | `python` | Set Python version AND name suffix       |
+| `python.WithCoverage()` | `python` | Enable coverage for test task            |
+
+```go
+pk.WithOptions(
+    python.Tasks(),
+    python.WithVersion("3.9"),  // Sets version + adds ":3.9" to task names
+    python.WithCoverage(),
+    pk.WithDetect(python.Detect()),
+)
+```
+
+### Creating Custom Options
+
+Use `CombineOptions` and `WithContextValue` when building task packages:
+
+| Function           | Description                                      |
+| :----------------- | :----------------------------------------------- |
+| `CombineOptions`   | Combine multiple PathOptions into one            |
+| `WithContextValue` | Add key-value pair to context (for task authors) |
+
+```go
+// In your task package
+func WithVersion(version string) pk.PathOption {
+    return pk.CombineOptions(
+        pk.WithContextValue(versionKey{}, version),
+        pk.WithName(version),
+    )
+}
 ```
 
 ---
@@ -412,22 +454,34 @@ The `Plan` represents the execution plan created from a Config.
 
 ```go
 type Plan struct {
-    // Internal: tree, tasks, pathMappings, moduleDirectories, shimConfig
+    // Internal: tree, taskEntries, pathMappings, moduleDirectories, shimConfig
+}
+
+type TaskInfo struct {
+    Name   string   // Effective name (may include suffix, e.g., "py-test:3.9")
+    Usage  string   // Description/help text
+    Paths  []string // Directories this task runs in
+    Hidden bool     // Whether task is hidden from help
+    Manual bool     // Whether task is manual-only
 }
 ```
 
 | Function/Method   | Description                                     |
 | :---------------- | :---------------------------------------------- |
 | `NewPlan`         | Create plan from Config (walks filesystem once) |
-| `Plan.Tasks`      | Returns all `[]*Task` in the plan               |
+| `Plan.Tasks`      | Returns `[]TaskInfo` with effective names       |
 | `Plan.ShimConfig` | Returns resolved `*ShimConfig`                  |
 
 ```go
 plan := pk.PlanFromContext(ctx)
-for _, task := range plan.Tasks() {
-    fmt.Printf("Task: %s - %s\n", task.Name(), task.Usage())
+for _, info := range plan.Tasks() {
+    fmt.Printf("Task: %s - %s (paths: %v)\n", info.Name, info.Usage, info.Paths)
 }
 ```
+
+Task names in `TaskInfo` include any suffix from `WithName`. For example, a task
+named `py-test` wrapped with `python.WithVersion("3.9")` will have
+`Name: "py-test:3.9"`.
 
 ---
 

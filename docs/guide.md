@@ -342,16 +342,18 @@ var Config = &pk.Config{
     Auto: pk.Serial(
         // Format, lint, typecheck, and test with Python 3.9 (with coverage)
         pk.WithOptions(
-            python.WithPython("3.9", python.WithCoverage()),
+            python.Tasks(),
+            python.WithVersion("3.9"),
+            python.WithCoverage(),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                python.WithPython("3.10", python.Test),
-                python.WithPython("3.11", python.Test),
-                python.WithPython("3.12", python.Test),
-                python.WithPython("3.13", python.Test),
+                pk.WithOptions(python.Test, python.WithVersion("3.10")),
+                pk.WithOptions(python.Test, python.WithVersion("3.11")),
+                pk.WithOptions(python.Test, python.WithVersion("3.12")),
+                pk.WithOptions(python.Test, python.WithVersion("3.13")),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -359,35 +361,27 @@ var Config = &pk.Config{
 }
 ```
 
-**WithPython API:**
+**Python-specific options:**
 
-```go
-// All tasks (Format, Lint, Typecheck, Test) with Python 3.9
-python.WithPython("3.9")
+| Option                     | Description                                            |
+| :------------------------- | :----------------------------------------------------- |
+| `python.WithVersion("X")` | Set Python version AND task name suffix (e.g., `:3.9`) |
+| `python.WithCoverage()`    | Enable coverage for the test task                      |
 
-// Specific tasks with Python 3.9
-python.WithPython("3.9", python.Format, python.Lint)
+**Available tasks:**
 
-// With coverage for test
-python.WithPython("3.9", python.WithCoverage(), python.Format, python.Test)
-```
+| Task               | Description                          |
+| :----------------- | :----------------------------------- |
+| `python.Tasks()`   | All tasks: Format, Lint, Typecheck, Test |
+| `python.Format`    | Format with ruff                     |
+| `python.Lint`      | Lint with ruff (auto-fix by default) |
+| `python.Typecheck` | Type-check with mypy                 |
+| `python.Test`      | Run pytest                           |
+| `python.Detect()`  | DetectFunc for pyproject.toml        |
 
-| Option                  | Description                       |
-| :---------------------- | :-------------------------------- |
-| `python.WithCoverage()` | Enable coverage for the test task |
-
-**Available base tasks:**
-
-| Task               | Description                            |
-| :----------------- | :------------------------------------- |
-| `python.Format`    | Format with ruff (uses `-python` flag) |
-| `python.Lint`      | Lint with ruff (auto-fix by default)   |
-| `python.Typecheck` | Type-check with mypy                   |
-| `python.Test`      | Run pytest with coverage               |
-| `python.Detect()`  | DetectFunc for pyproject.toml          |
-
-When used with `WithPython("3.9", ...)`, tasks are named `py-<task>:3.9` (e.g.,
-`py-test:3.9`) for GitHub Actions matrix generation.
+When `python.WithVersion("3.9")` is used, tasks are automatically named with a
+suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix
+generation.
 
 > [!NOTE]
 >
@@ -729,6 +723,55 @@ pk.WithOptions(
 
 In monorepos or multi-module projects, you often want to run tasks only in
 specific directories. All path patterns are **regular expressions**.
+
+### Option Types
+
+`pk.WithOptions` accepts two types of options:
+
+**Generic options (`pk.With*`)** work with any task:
+
+| Option                               | Description                          |
+| :----------------------------------- | :----------------------------------- |
+| `pk.WithIncludePath(patterns...)`    | Only run in matching directories     |
+| `pk.WithExcludePath(patterns...)`    | Skip matching directories            |
+| `pk.WithDetect(fn)`                  | Auto-detect directories              |
+| `pk.WithName(suffix)`                | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithFlag(task, name, value)`     | Override a task's flag               |
+| `pk.WithSkipTask(tasks...)`          | Remove tasks from scope              |
+| `pk.WithForceRun()`                  | Disable deduplication                |
+
+**Task-specific options** are provided by task packages:
+
+| Option                   | Package  | Description                              |
+| :----------------------- | :------- | :--------------------------------------- |
+| `python.WithVersion(v)`  | `python` | Set Python version AND name suffix       |
+| `python.WithCoverage()`  | `python` | Enable coverage for test task            |
+| `golang.WithRace()`      | `golang` | Enable race detector (if available)      |
+
+Task-specific options may combine multiple effects. For example,
+`python.WithVersion("3.9")` sets both the Python version for runtime AND adds
+`:3.9` to task names for CLI/matrix generation.
+
+```go
+pk.WithOptions(
+    python.Tasks(),
+    python.WithVersion("3.9"),  // Task-specific: sets version + name suffix
+    python.WithCoverage(),      // Task-specific: enables coverage
+    pk.WithDetect(python.Detect()), // Generic: auto-detect Python projects
+)
+```
+
+**Creating task-specific options:** When building your own task packages, use
+`pk.CombineOptions` to compose multiple effects:
+
+```go
+func WithVersion(version string) pk.PathOption {
+    return pk.CombineOptions(
+        pk.WithContextValue(versionKey{}, version), // Runtime config
+        pk.WithName(version),                        // Name suffix
+    )
+}
+```
 
 ### Include and Exclude
 
