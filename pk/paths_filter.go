@@ -1,11 +1,20 @@
 package pk
 
-import "context"
+import (
+	"context"
+	"os"
+	"path/filepath"
+)
 
 // PathOption configures path filtering and execution behavior for a Runnable.
 // Path options determine which directories a task should execute in and
 // control deduplication behavior.
 type PathOption func(*pathFilter)
+
+// DetectFunc is a function that filters directories to find those with specific markers.
+// It receives the pre-walked directory list and git root path, and returns matching directories.
+// Used with WithDetect to dynamically discover paths for task execution.
+type DetectFunc func(dirs []string, gitRoot string) []string
 
 // WithIncludePath adds include patterns for path filtering.
 // Only directories matching any of the patterns will be included.
@@ -170,6 +179,25 @@ func WithOptions(r Runnable, opts ...PathOption) Runnable {
 	}
 
 	return pf
+}
+
+// DetectByFile returns a DetectFunc that finds directories containing any of the specified files.
+// For example, DetectByFile("go.mod") finds all Go modules.
+func DetectByFile(filenames ...string) DetectFunc {
+	return func(dirs []string, gitRoot string) []string {
+		var result []string
+		for _, dir := range dirs {
+			absDir := filepath.Join(gitRoot, dir)
+			for _, filename := range filenames {
+				path := filepath.Join(absDir, filename)
+				if _, err := os.Stat(path); err == nil {
+					result = append(result, dir)
+					break // Found a match, no need to check other filenames
+				}
+			}
+		}
+		return result
+	}
 }
 
 // pathFilter wraps a Runnable with directory-based filtering.
