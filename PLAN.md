@@ -336,7 +336,7 @@ Specifically targeted changes:
       workflow has weird UX. Is this well documented somewhere?
 - [ ] I'm worried we have implemented too many ways to identify/classify and
       reference a given task in Pocket core (pk package). Like for example, we
-      have Task, taskID, taskEntry and we sometimes refer to the task name
+      have Task, taskID, taskInstance and we sometimes refer to the task name
       (string type). All of which are used to decide whether to do thinks to
       task(s). Is there some way we can consolidate our code around
       identifying/classifying tasks in one way? Or is this not a problem? This

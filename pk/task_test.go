@@ -231,7 +231,25 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 		return nil
 	}))
 
+	// Helper to create a Plan with pre-computed flags for the task.
+	planWithFlags := func(flags map[string]any) *Plan {
+		return &Plan{
+			taskIndex: map[string]*taskInstance{
+				"flag-task": {
+					task:  task,
+					name:  "flag-task",
+					flags: flags,
+				},
+			},
+		}
+	}
+
 	t.Run("DefaultValue", func(t *testing.T) {
+		// Reset flag to default before test.
+		if err := fs.Set("myflag", "default"); err != nil {
+			t.Fatal(err)
+		}
+
 		ctx := context.Background()
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
@@ -242,8 +260,16 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	})
 
 	t.Run("WithOverride", func(t *testing.T) {
+		// Reset flag to default before test.
+		if err := fs.Set("myflag", "default"); err != nil {
+			t.Fatal(err)
+		}
+
 		ctx := context.Background()
-		ctx = withFlagOverride(ctx, task.name, "myflag", "overridden")
+		// Create Plan with pre-computed flag override.
+		plan := planWithFlags(map[string]any{"myflag": "overridden"})
+		ctx = WithPlan(ctx, plan)
+
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -252,18 +278,23 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("NestedOverrides", func(t *testing.T) {
+	t.Run("PreMergedOverrides", func(t *testing.T) {
+		// Reset flag to default before test.
+		if err := fs.Set("myflag", "default"); err != nil {
+			t.Fatal(err)
+		}
+
 		ctx := context.Background()
-		// Outer sets to "outer"
-		ctx = withFlagOverride(ctx, "flag-task", "myflag", "outer")
-		// Inner sets to "inner"
-		ctx = withFlagOverride(ctx, "flag-task", "myflag", "inner")
+		// In the new model, flags are pre-merged during planning.
+		// The final value ("inner") is what gets stored in the Plan.
+		plan := planWithFlags(map[string]any{"myflag": "inner"})
+		ctx = WithPlan(ctx, plan)
 
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
 		}
 		if flagValue != "inner" {
-			t.Errorf("expected inner override to win, got %q", flagValue)
+			t.Errorf("expected pre-merged override value, got %q", flagValue)
 		}
 	})
 }

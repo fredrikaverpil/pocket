@@ -41,13 +41,60 @@ When running from root (`./pok`):
 
 ## Plan
 
+Pocket separates **planning** from **execution**. All computation happens during
+planning; execution only reads the plan and runs tasks.
+
+### Design Principle
+
+| Phase         | Responsibility                             |
+| ------------- | ------------------------------------------ |
+| **Planning**  | Walk tree, resolve paths, pre-compute data |
+| **Execution** | Iterate plan, run task functions           |
+
+This separation ensures:
+
+- Expensive operations (filesystem walks, path resolution, flag merging) happen
+  once
+- Execution is simple iteration with no conditional logic or lookups
+- The plan can be introspected before execution (`./pok plan -json`)
+
+### Planning Phase
+
 The plan is built once by walking the composition tree and filesystem:
 
-- Tree walked once → extracts tasks and path mappings
-- Filesystem walked once → cached directory list for path resolution
-- `pathMappings` stores both `includePaths` (for visibility) and `resolvedPaths`
-  (for execution)
-- `moduleDirectories` derived from `pathMappings` (single source of truth)
+- **Tree walked once** → extracts tasks, effective names, context values
+- **Filesystem walked once** → cached directory list for path resolution
+- **Flags pre-merged** → `WithFlag` overrides accumulated and stored per task
+- **Paths resolved** → include/exclude patterns evaluated against filesystem
+
+Data structures populated during planning:
+
+| Field               | Contents                                            |
+| ------------------- | --------------------------------------------------- |
+| `taskInstances`     | Tasks with effective names, context values, flags   |
+| `taskIndex`         | O(1) lookup of taskInstance by effective name       |
+| `pathMappings`      | `includePaths` (visibility) + `resolvedPaths` (run) |
+| `moduleDirectories` | Directories where shims are generated               |
+
+### Execution Phase
+
+Execution walks the composition tree and runs tasks:
+
+- **Serial/Parallel** → controls concurrency, nothing else
+- **pathFilter** → iterates pre-resolved paths, sets path in context
+- **Task** → reads pre-computed data from plan, runs function
+
+Tasks read their configuration from the plan:
+
+```go
+// Task.run() reads pre-computed flags from Plan
+if entry := plan.taskInstanceByName(effectiveName); entry != nil {
+    // Apply pre-merged flags - no runtime accumulation
+    for name, value := range entry.flags {
+        t.flags.Lookup(name).Value.Set(value)
+    }
+}
+```
 
 No double traversal - data is collected once and shared throughout execution.
 

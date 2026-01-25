@@ -235,15 +235,11 @@ type flagOverride struct {
 // run implements the Runnable interface.
 // It executes the inner Runnable for each resolved path.
 // Paths are resolved during plan building and cached in resolvedPaths.
+// Flag overrides are pre-computed during planning and read from Plan.taskInstanceByName().
 func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
 	if pf.forceRun {
 		ctx = withForceRun(ctx)
-	}
-
-	// Apply flag overrides to the context.
-	for _, f := range pf.flags {
-		ctx = withFlagOverride(ctx, f.taskName, f.flagName, f.value)
 	}
 
 	// Apply context values.

@@ -23,10 +23,14 @@ type Plan struct {
 	// This is exposed as a Runnable, but the concrete types are internal.
 	tree Runnable
 
-	// taskEntries is a flat list of all tasks with their effective names.
+	// taskInstances is a flat list of all tasks with their effective names.
 	// This is extracted from walking the Auto tree.
 	// The effective name includes any suffix from WithName (e.g., "py-test:3.9").
-	taskEntries []taskEntry
+	taskInstances []taskInstance
+
+	// taskIndex maps effective task names to taskInstance for fast lookup.
+	// This is used during execution to retrieve pre-computed data.
+	taskIndex map[string]*taskInstance
 
 	// pathMappings maps effective task names to their execution directories.
 	// Each task may execute in one or more directories based on path filtering.
@@ -92,7 +96,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	if cfg == nil {
 		return &Plan{
 			tree:              nil,
-			taskEntries:       []taskEntry{},
+			taskInstances:     []taskInstance{},
+			taskIndex:         make(map[string]*taskInstance),
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        nil,
@@ -108,7 +113,8 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	if cfg.Auto == nil && len(cfg.Manual) == 0 {
 		return &Plan{
 			tree:              nil,
-			taskEntries:       []taskEntry{},
+			taskInstances:     []taskInstance{},
+			taskIndex:         make(map[string]*taskInstance),
 			pathMappings:      make(map[string]pathInfo),
 			moduleDirectories: []string{},
 			shimConfig:        shimConfig,
@@ -116,12 +122,12 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	}
 
 	collector := &taskCollector{
-		taskEntries:  make([]taskEntry, 0),
-		seenTasks:    make(map[taskKey]bool),
-		pathMappings: make(map[string]pathInfo),
-		currentPath:  nil,
-		gitRoot:      gitRoot,
-		allDirs:      allDirs,
+		taskInstances: make([]taskInstance, 0),
+		seenTasks:     make(map[taskKey]bool),
+		pathMappings:  make(map[string]pathInfo),
+		currentPath:   nil,
+		gitRoot:       gitRoot,
+		allDirs:       allDirs,
 	}
 
 	// Walk the Auto tree
@@ -139,37 +145,46 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	}
 
 	// Check for task name conflicts (builtins and duplicates)
-	if err := checkTaskNameConflicts(collector.taskEntries); err != nil {
+	if err := checkTaskNameConflicts(collector.taskInstances); err != nil {
 		return nil, err
 	}
 
 	// Derive ModuleDirectories from pathMappings (single source of truth)
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
+	// Build task index for fast lookup during execution.
+	taskIndex := make(map[string]*taskInstance, len(collector.taskInstances))
+	for i := range collector.taskInstances {
+		taskIndex[collector.taskInstances[i].name] = &collector.taskInstances[i]
+	}
+
 	return &Plan{
 		tree:              cfg.Auto, // Preserve the composition tree!
-		taskEntries:       collector.taskEntries,
+		taskInstances:     collector.taskInstances,
+		taskIndex:         taskIndex,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
 		shimConfig:        shimConfig,
 	}, nil
 }
 
-// taskEntry stores a task with its effective name and configuration.
-type taskEntry struct {
+// taskInstance stores a task with its effective name and pre-computed configuration.
+// All computation happens during planning; execution just reads these values.
+type taskInstance struct {
 	task          *Task
 	name          string         // Effective name (may include suffix like "py-test:3.9")
 	contextValues []contextValue // Context values to apply when executing this task instance.
+	flags         map[string]any // Pre-merged flag overrides for this task.
 }
 
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
-	taskEntries  []taskEntry      // Tasks with their effective names.
-	seenTasks    map[taskKey]bool // Track seen (task, suffix) pairs for deduplication.
-	pathMappings map[string]pathInfo
-	currentPath  *pathFilter // Current path context during tree walk.
-	gitRoot      string      // Git repository root.
-	allDirs      []string    // Cached directory list from filesystem walk.
+	taskInstances []taskInstance   // Tasks with their effective names.
+	seenTasks     map[taskKey]bool // Track seen (task, suffix) pairs for deduplication.
+	pathMappings  map[string]pathInfo
+	currentPath   *pathFilter // Current path context during tree walk.
+	gitRoot       string      // Git repository root.
+	allDirs       []string    // Cached directory list from filesystem walk.
 
 	// Cumulative state
 	candidates          []string         // Current allowed directories.
@@ -177,6 +192,7 @@ type taskCollector struct {
 	activeSkips         []string         // All skipped tasks in current scope.
 	activeNameSuffix    string           // Current name suffix from WithName.
 	activeContextValues []contextValue   // Context values in current scope.
+	activeFlags         []flagOverride   // All flag overrides in current scope.
 }
 
 // taskKey uniquely identifies a task in a specific naming context.
@@ -265,10 +281,21 @@ func (pc *taskCollector) walk(r Runnable) error {
 				ctxValues = make([]contextValue, len(pc.activeContextValues))
 				copy(ctxValues, pc.activeContextValues)
 			}
-			pc.taskEntries = append(pc.taskEntries, taskEntry{
+			// Pre-merge flags for this task from all active scopes.
+			var mergedFlags map[string]any
+			for _, f := range pc.activeFlags {
+				if f.taskName == v.name {
+					if mergedFlags == nil {
+						mergedFlags = make(map[string]any)
+					}
+					mergedFlags[f.flagName] = f.value
+				}
+			}
+			pc.taskInstances = append(pc.taskInstances, taskInstance{
 				task:          v,
 				name:          effectiveName,
 				contextValues: ctxValues,
+				flags:         mergedFlags,
 			})
 		}
 
@@ -349,11 +376,13 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevPath := pc.currentPath
 		prevNameSuffix := pc.activeNameSuffix
 		prevContextValues := pc.activeContextValues
+		prevFlags := pc.activeFlags
 
 		// 3. Update state with new constraints.
 		pc.candidates = v.resolvedPaths
 		pc.activeExcludes = append(pc.activeExcludes, v.excludePaths...)
 		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
+		pc.activeFlags = append(pc.activeFlags, v.flags...)
 		pc.currentPath = v
 
 		// Apply name suffix (cumulative: "3.9" + "foo" -> "3.9:foo").
@@ -380,6 +409,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.currentPath = prevPath
 		pc.activeNameSuffix = prevNameSuffix
 		pc.activeContextValues = prevContextValues
+		pc.activeFlags = prevFlags
 
 	default:
 		// Unknown runnable type - skip it
@@ -458,8 +488,8 @@ func (p *Plan) Tasks() []TaskInfo {
 		return nil
 	}
 
-	result := make([]TaskInfo, 0, len(p.taskEntries))
-	for _, entry := range p.taskEntries {
+	result := make([]TaskInfo, 0, len(p.taskInstances))
+	for _, entry := range p.taskInstances {
 		info := TaskInfo{
 			Name:   entry.name, // Use effective name (may include suffix).
 			Usage:  entry.task.usage,
@@ -479,6 +509,15 @@ func (p *Plan) Tasks() []TaskInfo {
 	}
 
 	return result
+}
+
+// taskInstanceByName returns the taskInstance for the given effective name.
+// Returns nil if not found.
+func (p *Plan) taskInstanceByName(name string) *taskInstance {
+	if p == nil || p.taskIndex == nil {
+		return nil
+	}
+	return p.taskIndex[name]
 }
 
 // taskRunsInPath checks if a task is visible/runnable from a specific path context.
@@ -505,7 +544,7 @@ func (p *Plan) taskRunsInPath(taskName, path string) bool {
 
 // checkTaskNameConflicts returns an error if any task names conflict.
 // This includes conflicts with builtins and duplicate user task names.
-func checkTaskNameConflicts(entries []taskEntry) error {
+func checkTaskNameConflicts(entries []taskInstance) error {
 	seen := make(map[string]bool)
 
 	// First, mark builtins as seen

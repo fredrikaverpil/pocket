@@ -56,15 +56,16 @@ func (t *Task) run(ctx context.Context) error {
 		effectiveName = t.name + ":" + suffix
 	}
 
-	// Apply flag overrides from context.
+	// Apply pre-computed flag overrides from Plan.
+	// Flags are pre-merged during planning and stored on taskInstance.
 	if t.flags != nil {
-		overrides := flagOverridesFromContext(ctx)
-		if taskOverrides, ok := overrides[t.name]; ok {
-			for name, value := range taskOverrides {
-				f := t.flags.Lookup(name)
-				if f != nil {
-					if err := f.Value.Set(fmt.Sprint(value)); err != nil {
-						return fmt.Errorf("task %q: setting flag %q to %v: %w", effectiveName, name, value, err)
+		if plan := PlanFromContext(ctx); plan != nil {
+			if entry := plan.taskInstanceByName(effectiveName); entry != nil && entry.flags != nil {
+				for name, value := range entry.flags {
+					if f := t.flags.Lookup(name); f != nil {
+						if err := f.Value.Set(fmt.Sprint(value)); err != nil {
+							return fmt.Errorf("task %q: setting flag %q to %v: %w", effectiveName, name, value, err)
+						}
 					}
 				}
 			}

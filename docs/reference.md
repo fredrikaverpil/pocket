@@ -473,7 +473,7 @@ The `Plan` represents the execution plan created from a Config.
 
 ```go
 type Plan struct {
-    // Internal: tree, taskEntries, pathMappings, moduleDirectories, shimConfig
+    // Internal: tree, taskInstances, pathMappings, moduleDirectories, shimConfig
 }
 
 type TaskInfo struct {

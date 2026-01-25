@@ -154,14 +154,14 @@ func printFinalStatus(tracker *executionTracker, err error) {
 
 // findTaskByName looks up a task entry by name in the Plan.
 // The name can be an effective name including suffix (e.g., "py-test:3.9").
-// Returns the full taskEntry which includes context values for this task instance.
-func findTaskByName(p *Plan, name string) *taskEntry {
+// Returns the full taskInstance which includes context values for this task instance.
+func findTaskByName(p *Plan, name string) *taskInstance {
 	if p == nil {
 		return nil
 	}
-	for i := range p.taskEntries {
-		if p.taskEntries[i].name == name {
-			return &p.taskEntries[i]
+	for i := range p.taskInstances {
+		if p.taskInstances[i].name == name {
+			return &p.taskInstances[i]
 		}
 	}
 	return nil
@@ -198,14 +198,14 @@ func printTaskHelp(ctx context.Context, task *Task) {
 // ExecuteTask runs a single task with proper path context.
 // This is the public API for external callers.
 func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
-	// Wrap the task in a minimal taskEntry for the internal function.
-	entry := &taskEntry{task: task, name: task.Name()}
+	// Wrap the task in a minimal taskInstance for the internal function.
+	entry := &taskInstance{task: task, name: task.Name()}
 	_, err := executeTask(ctx, entry, p)
 	return err
 }
 
 // executeTask runs a single task with proper path context and returns the tracker.
-func executeTask(ctx context.Context, entry *taskEntry, p *Plan) (*executionTracker, error) {
+func executeTask(ctx context.Context, entry *taskInstance, p *Plan) (*executionTracker, error) {
 	// Determine execution paths.
 	var paths []string
 
@@ -283,12 +283,12 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	// Filter tasks by visibility and split into regular vs manual:
 	// 1. Not hidden
 	// 2. Runs in current path context (from TASK_SCOPE env var)
-	var regularTasks []taskEntry
-	var manualTasks []taskEntry
+	var regularTasks []taskInstance
+	var manualTasks []taskInstance
 
-	if plan != nil && len(plan.taskEntries) > 0 {
+	if plan != nil && len(plan.taskInstances) > 0 {
 		taskScope := os.Getenv("TASK_SCOPE")
-		for _, entry := range plan.taskEntries {
+		for _, entry := range plan.taskInstances {
 			if entry.task.IsHidden() || !plan.taskRunsInPath(entry.name, taskScope) {
 				continue
 			}
@@ -342,7 +342,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 }
 
 // printTaskSection prints a section of tasks with a header.
-func printTaskSection(ctx context.Context, header string, entries []taskEntry, width int) {
+func printTaskSection(ctx context.Context, header string, entries []taskInstance, width int) {
 	if len(entries) == 0 {
 		return
 	}

@@ -528,7 +528,7 @@ func TestPlan_ContextValues(t *testing.T) {
 	// Define a context key for testing
 	type versionKey struct{}
 
-	t.Run("ContextValuesAreCapturedInTaskEntry", func(t *testing.T) {
+	t.Run("ContextValuesAreCapturedInTaskInstance", func(t *testing.T) {
 		task := NewTask("py-test", "test", nil, Do(func(_ context.Context) error {
 			return nil
 		}))
