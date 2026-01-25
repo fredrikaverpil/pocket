@@ -521,3 +521,80 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 		}
 	})
 }
+
+func TestPlan_ContextValues(t *testing.T) {
+	allDirs := []string{"."}
+
+	// Define a context key for testing
+	type versionKey struct{}
+
+	t.Run("ContextValuesAreCapturedInTaskEntry", func(t *testing.T) {
+		task := NewTask("py-test", "test", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithName("3.9"), WithContextValue(versionKey{}, "3.9")),
+				WithOptions(task, WithName("3.10"), WithContextValue(versionKey{}, "3.10")),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Find the 3.9 entry and verify it has the correct context value
+		entry39 := findTaskByName(plan, "py-test:3.9")
+		if entry39 == nil {
+			t.Fatal("expected to find py-test:3.9")
+		}
+		if len(entry39.contextValues) != 1 {
+			t.Errorf("expected 1 context value, got %d", len(entry39.contextValues))
+		} else if entry39.contextValues[0].value != "3.9" {
+			t.Errorf("expected context value '3.9', got %v", entry39.contextValues[0].value)
+		}
+
+		// Find the 3.10 entry and verify it has the correct context value
+		entry310 := findTaskByName(plan, "py-test:3.10")
+		if entry310 == nil {
+			t.Fatal("expected to find py-test:3.10")
+		}
+		if len(entry310.contextValues) != 1 {
+			t.Errorf("expected 1 context value, got %d", len(entry310.contextValues))
+		} else if entry310.contextValues[0].value != "3.10" {
+			t.Errorf("expected context value '3.10', got %v", entry310.contextValues[0].value)
+		}
+	})
+
+	t.Run("NestedContextValuesAccumulate", func(t *testing.T) {
+		type otherKey struct{}
+
+		task := NewTask("test", "test", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		cfg := &Config{
+			Auto: WithOptions(
+				WithOptions(task, WithContextValue(otherKey{}, "inner")),
+				WithContextValue(versionKey{}, "outer"),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		entry := findTaskByName(plan, "test")
+		if entry == nil {
+			t.Fatal("expected to find test")
+		}
+
+		// Should have both context values (outer first, then inner)
+		if len(entry.contextValues) != 2 {
+			t.Errorf("expected 2 context values, got %d", len(entry.contextValues))
+		}
+	})
+}

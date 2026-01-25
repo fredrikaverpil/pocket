@@ -155,10 +155,11 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	}, nil
 }
 
-// taskEntry stores a task with its effective name (including any suffix).
+// taskEntry stores a task with its effective name and configuration.
 type taskEntry struct {
-	task *Task
-	name string // Effective name (may include suffix like "py-test:3.9")
+	task          *Task
+	name          string         // Effective name (may include suffix like "py-test:3.9")
+	contextValues []contextValue // Context values to apply when executing this task instance.
 }
 
 // taskCollector is the internal state for walking the tree.
@@ -171,10 +172,11 @@ type taskCollector struct {
 	allDirs      []string    // Cached directory list from filesystem walk.
 
 	// Cumulative state
-	candidates       []string         // Current allowed directories.
-	activeExcludes   []excludePattern // All excludes in current scope.
-	activeSkips      []string         // All skipped tasks in current scope.
-	activeNameSuffix string           // Current name suffix from WithName.
+	candidates          []string         // Current allowed directories.
+	activeExcludes      []excludePattern // All excludes in current scope.
+	activeSkips         []string         // All skipped tasks in current scope.
+	activeNameSuffix    string           // Current name suffix from WithName.
+	activeContextValues []contextValue   // Context values in current scope.
 }
 
 // taskKey uniquely identifies a task in a specific naming context.
@@ -257,9 +259,16 @@ func (pc *taskCollector) walk(r Runnable) error {
 		key := taskKey{task: v, suffix: pc.activeNameSuffix}
 		if !pc.seenTasks[key] {
 			pc.seenTasks[key] = true
+			// Copy context values to avoid sharing the slice.
+			var ctxValues []contextValue
+			if len(pc.activeContextValues) > 0 {
+				ctxValues = make([]contextValue, len(pc.activeContextValues))
+				copy(ctxValues, pc.activeContextValues)
+			}
 			pc.taskEntries = append(pc.taskEntries, taskEntry{
-				task: v,
-				name: effectiveName,
+				task:          v,
+				name:          effectiveName,
+				contextValues: ctxValues,
 			})
 		}
 
@@ -339,6 +348,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevSkips := pc.activeSkips
 		prevPath := pc.currentPath
 		prevNameSuffix := pc.activeNameSuffix
+		prevContextValues := pc.activeContextValues
 
 		// 3. Update state with new constraints.
 		pc.candidates = v.resolvedPaths
@@ -355,6 +365,9 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
+		// Accumulate context values (later values override earlier ones with same key).
+		pc.activeContextValues = append(pc.activeContextValues, v.contextValues...)
+
 		// 4. Walk inner with cumulative state.
 		if err := pc.walk(v.inner); err != nil {
 			return err
@@ -366,6 +379,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeSkips = prevSkips
 		pc.currentPath = prevPath
 		pc.activeNameSuffix = prevNameSuffix
+		pc.activeContextValues = prevContextValues
 
 	default:
 		// Unknown runnable type - skip it

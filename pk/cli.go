@@ -100,25 +100,25 @@ func run(cfg *Config) (*executionTracker, error) {
 		taskArgs := args[1:]
 
 		// Find task by name
-		task := findTaskByName(plan, taskName)
-		if task == nil {
+		entry := findTaskByName(plan, taskName)
+		if entry == nil {
 			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
 		// Check for task-specific help
 		if hasHelpFlag(taskArgs) {
-			printTaskHelp(ctx, task)
+			printTaskHelp(ctx, entry.task)
 			return nil, nil
 		}
 
 		// Parse task flags if present
-		if task.Flags() != nil && len(taskArgs) > 0 {
-			if err := task.Flags().Parse(taskArgs); err != nil {
+		if entry.task.Flags() != nil && len(taskArgs) > 0 {
+			if err := entry.task.Flags().Parse(taskArgs); err != nil {
 				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
 		}
 
-		return executeTask(ctx, task, plan)
+		return executeTask(ctx, entry, plan)
 	}
 
 	// Execute the full configuration with pre-built Plan.
@@ -152,15 +152,16 @@ func printFinalStatus(tracker *executionTracker, err error) {
 	fmt.Fprintln(os.Stderr, message)
 }
 
-// findTaskByName looks up a task by name in the Plan.
+// findTaskByName looks up a task entry by name in the Plan.
 // The name can be an effective name including suffix (e.g., "py-test:3.9").
-func findTaskByName(p *Plan, name string) *Task {
+// Returns the full taskEntry which includes context values for this task instance.
+func findTaskByName(p *Plan, name string) *taskEntry {
 	if p == nil {
 		return nil
 	}
-	for _, entry := range p.taskEntries {
-		if entry.name == name {
-			return entry.task
+	for i := range p.taskEntries {
+		if p.taskEntries[i].name == name {
+			return &p.taskEntries[i]
 		}
 	}
 	return nil
@@ -197,12 +198,14 @@ func printTaskHelp(ctx context.Context, task *Task) {
 // ExecuteTask runs a single task with proper path context.
 // This is the public API for external callers.
 func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
-	_, err := executeTask(ctx, task, p)
+	// Wrap the task in a minimal taskEntry for the internal function.
+	entry := &taskEntry{task: task, name: task.Name()}
+	_, err := executeTask(ctx, entry, p)
 	return err
 }
 
 // executeTask runs a single task with proper path context and returns the tracker.
-func executeTask(ctx context.Context, task *Task, p *Plan) (*executionTracker, error) {
+func executeTask(ctx context.Context, entry *taskEntry, p *Plan) (*executionTracker, error) {
 	// Determine execution paths.
 	var paths []string
 
@@ -216,7 +219,8 @@ func executeTask(ctx context.Context, task *Task, p *Plan) (*executionTracker, e
 		paths = []string{taskScope}
 	case p != nil:
 		// Running from root - use paths from Plan.
-		if info, ok := p.pathMappings[task.Name()]; ok {
+		// Use effective name (entry.name) to look up path mappings.
+		if info, ok := p.pathMappings[entry.name]; ok {
 			// Task is in pathMappings - use resolved paths (may be empty if excluded).
 			paths = info.resolvedPaths
 		} else {
@@ -231,11 +235,16 @@ func executeTask(ctx context.Context, task *Task, p *Plan) (*executionTracker, e
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
 
+	// Apply context values from the task entry (e.g., Python version).
+	for _, cv := range entry.contextValues {
+		ctx = context.WithValue(ctx, cv.key, cv.value)
+	}
+
 	// Execute task for each path.
 	for _, path := range paths {
 		pathCtx := WithPath(ctx, path)
-		if err := task.run(pathCtx); err != nil {
-			return tracker, fmt.Errorf("task %s in %s: %w", task.Name(), path, err)
+		if err := entry.task.run(pathCtx); err != nil {
+			return tracker, fmt.Errorf("task %s in %s: %w", entry.name, path, err)
 		}
 	}
 
