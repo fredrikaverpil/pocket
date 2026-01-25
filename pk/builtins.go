@@ -15,8 +15,12 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/shim"
 )
 
+// builtinTaskNames is the list of reserved builtin task names.
+// User tasks cannot use these names.
+var builtinTaskNames = []string{"plan", "shims", "self-update", "purge"}
+
 // generateTask regenerates shims in all directories.
-var generateTask = NewTask("generate", "regenerate shims in all directories", nil, Do(func(ctx context.Context) error {
+var generateTask = NewTask("shims", "regenerate shims in all directories", nil, Do(func(ctx context.Context) error {
 	gitRoot := findGitRoot()
 	pocketDir := filepath.Join(gitRoot, ".pocket")
 
@@ -53,7 +57,7 @@ var generateTask = NewTask("generate", "regenerate shims in all directories", ni
 
 // cleanTask removes .pocket/tools, .pocket/bin, and .pocket/venvs directories.
 var cleanTask = NewTask(
-	"clean",
+	"purge",
 	"remove .pocket/tools, .pocket/bin, and .pocket/venvs",
 	nil,
 	Do(func(ctx context.Context) error {
@@ -81,7 +85,7 @@ var cleanTask = NewTask(
 
 // updateTask updates Pocket and regenerates scaffolded files.
 var updateTask = NewTask(
-	"update",
+	"self-update",
 	"update Pocket and regenerate scaffolded files",
 	nil,
 	Do(func(ctx context.Context) error {

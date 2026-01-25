@@ -333,6 +333,12 @@ Specifically targeted changes:
       person. The difference is really that one person might build tasks/tools
       and then reuse them in multiple projects. We should make that more clear
       in the different markdown documentation files we have.
+- [ ] We keep documentation on reference, architecture, user guides. Is there
+      overlap and/or risk of updating one but not the other and then cause a
+      drift where the documentation is not aligned? Can we consolidate the
+      documentation better, and here I'm actually thinking alot about LLMs
+      finding one place where documentation needs updating and doesn't see the
+      other file which also needs updating.
 
 ## Phase 10: Wrapup & Polish
 

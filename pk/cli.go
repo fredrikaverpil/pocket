@@ -85,11 +85,11 @@ func run(cfg *Config) (*executionTracker, error) {
 		switch args[0] {
 		case "plan":
 			return nil, handlePlan(ctx, plan, args[1:])
-		case "generate":
+		case "shims":
 			return nil, generateTask.run(ctx)
-		case "update":
+		case "self-update":
 			return nil, updateTask.run(ctx)
-		case "clean":
+		case "purge":
 			return nil, cleanTask.run(ctx)
 		}
 	}
@@ -296,7 +296,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 		// Flags
 		"-g, --gitdiff", "-h, --help", "-v, --verbose", "--version",
 		// Builtins
-		"plan", "generate", "update", "clean",
+		"plan", "shims", "self-update", "purge",
 	}
 	for _, entry := range regularTasks {
 		allNames = append(allNames, entry.name)
@@ -327,9 +327,9 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	Println(ctx)
 	Println(ctx, "Builtin tasks:")
 	Printf(ctx, "  %-*s  %s\n", maxWidth, "plan", "show execution plan without running tasks")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "generate", "regenerate shims in all directories")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "update", "update Pocket and regenerate scaffolded files")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "clean", "remove .pocket/tools, .pocket/bin, and .pocket/venvs")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "shims", "regenerate shims in all directories")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "self-update", "update Pocket and regenerate scaffolded files")
+	Printf(ctx, "  %-*s  %s\n", maxWidth, "purge", "remove .pocket/tools, .pocket/bin, and .pocket/venvs")
 }
 
 // printTaskSection prints a section of tasks with a header.

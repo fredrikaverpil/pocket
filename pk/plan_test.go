@@ -425,3 +425,99 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		}
 	})
 }
+
+func TestNewPlan_BuiltinConflict(t *testing.T) {
+	allDirs := []string{"."}
+
+	// Each builtin name should cause an error
+	for _, builtin := range builtinTaskNames {
+		t.Run(builtin, func(t *testing.T) {
+			task := NewTask(builtin, "conflicting task", nil, Do(func(_ context.Context) error {
+				return nil
+			}))
+
+			cfg := &Config{Auto: task}
+			_, err := newPlan(cfg, "/tmp", allDirs)
+
+			if err == nil {
+				t.Errorf("expected error for task named %q, got nil", builtin)
+			} else if !strings.Contains(err.Error(), "conflicts with builtin") {
+				t.Errorf("expected 'conflicts with builtin' error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestNewPlan_NoBuiltinConflict(t *testing.T) {
+	allDirs := []string{"."}
+
+	// These should NOT conflict (old builtin names are now available)
+	validNames := []string{"build", "lint", "test", "clean", "generate", "update"}
+
+	for _, name := range validNames {
+		t.Run(name, func(t *testing.T) {
+			task := NewTask(name, "valid task", nil, Do(func(_ context.Context) error {
+				return nil
+			}))
+
+			cfg := &Config{Auto: task}
+			_, err := newPlan(cfg, "/tmp", allDirs)
+			if err != nil {
+				t.Errorf("unexpected error for task named %q: %v", name, err)
+			}
+		})
+	}
+}
+
+func TestNewPlan_DuplicateTaskName(t *testing.T) {
+	allDirs := []string{"."}
+
+	t.Run("SameNameDifferentTasks", func(t *testing.T) {
+		task1 := NewTask("lint", "first lint", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+		task2 := NewTask("lint", "second lint", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		cfg := &Config{Auto: Serial(task1, task2)}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+
+		if err == nil {
+			t.Error("expected error for duplicate task name, got nil")
+		} else if !strings.Contains(err.Error(), "duplicate task name") {
+			t.Errorf("expected 'duplicate task name' error, got: %v", err)
+		}
+	})
+
+	t.Run("SameTaskTwiceIsOK", func(t *testing.T) {
+		// Same task instance used twice is fine (it's deduplicated in collection)
+		task := NewTask("lint", "lint code", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		cfg := &Config{Auto: Serial(task, task)}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Errorf("unexpected error for same task used twice: %v", err)
+		}
+	})
+
+	t.Run("DifferentSuffixesAreOK", func(t *testing.T) {
+		// Same base name with different suffixes is fine
+		task := NewTask("py-test", "test", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithName("3.9")),
+				WithOptions(task, WithName("3.10")),
+			),
+		}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Errorf("unexpected error for different suffixes: %v", err)
+		}
+	})
+}

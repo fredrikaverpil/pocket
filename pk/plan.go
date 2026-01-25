@@ -138,6 +138,11 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		}
 	}
 
+	// Check for task name conflicts (builtins and duplicates)
+	if err := checkTaskNameConflicts(collector.taskEntries); err != nil {
+		return nil, err
+	}
+
 	// Derive ModuleDirectories from pathMappings (single source of truth)
 	moduleDirectories := deriveModuleDirectories(collector.pathMappings)
 
@@ -482,4 +487,27 @@ func (p *Plan) taskRunsInPath(taskName, path string) bool {
 	}
 
 	return slices.Contains(info.includePaths, path)
+}
+
+// checkTaskNameConflicts returns an error if any task names conflict.
+// This includes conflicts with builtins and duplicate user task names.
+func checkTaskNameConflicts(entries []taskEntry) error {
+	seen := make(map[string]bool)
+
+	// First, mark builtins as seen
+	for _, builtin := range builtinTaskNames {
+		seen[builtin] = true
+	}
+
+	// Check each task
+	for _, entry := range entries {
+		if slices.Contains(builtinTaskNames, entry.name) {
+			return fmt.Errorf("⚠️  task name %q conflicts with builtin command; choose a different name", entry.name)
+		}
+		if seen[entry.name] {
+			return fmt.Errorf("⚠️  duplicate task name %q; task names must be unique", entry.name)
+		}
+		seen[entry.name] = true
+	}
+	return nil
 }
