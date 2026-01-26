@@ -22,9 +22,9 @@ var Config = &pk.Config{
 			github.WithMatrixWorkflow(github.MatrixConfig{
 				DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 				TaskOverrides: map[string]github.TaskOverride{
-					"go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on linux
+					"github-workflows": {Platforms: []string{"ubuntu-latest"}},
+					"go-lint":          {Platforms: []string{"ubuntu-latest"}},
 				},
-				ExcludeTasks: []string{"github-workflows"}, // don't run in CI
 			}),
 		),
 	),
