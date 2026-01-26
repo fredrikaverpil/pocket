@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -106,6 +107,24 @@ func WithForceRun() PathOption {
 func WithDetect(fn DetectFunc) PathOption {
 	return func(pf *pathFilter) {
 		pf.detectFunc = fn
+	}
+}
+
+// WithExplicitPath sets a fixed execution path, bypassing filesystem resolution.
+// Unlike WithIncludePath (regex-matched against walked directories), this path
+// is used directly and the directory is created if it doesn't exist.
+// Path is relative to the git root.
+func WithExplicitPath(path string) PathOption {
+	return func(pf *pathFilter) {
+		pf.explicitPath = path
+	}
+}
+
+// WithCleanPath removes and recreates the execution path before running.
+// Has no effect when the execution path is "." (git root).
+func WithCleanPath() PathOption {
+	return func(pf *pathFilter) {
+		pf.cleanPath = true
 	}
 }
 
@@ -214,6 +233,8 @@ type pathFilter struct {
 	detectFunc    DetectFunc     // Optional detection function for dynamic path discovery.
 	resolvedPaths []string       // Cached resolved paths from plan building.
 	forceRun      bool           // Disable task deduplication for the wrapped Runnable.
+	explicitPath  string         // Bypass filesystem resolution, use this path directly.
+	cleanPath     bool           // Remove and recreate the path before running.
 }
 
 type contextValue struct {
@@ -254,6 +275,24 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
+		if path != "." {
+			absPath := FromGitRoot(path)
+
+			// Clean: remove existing directory.
+			if pf.cleanPath {
+				if err := os.RemoveAll(absPath); err != nil {
+					return fmt.Errorf("clean path %s: %w", path, err)
+				}
+			}
+
+			// Ensure explicit/cleaned path exists.
+			if pf.explicitPath != "" || pf.cleanPath {
+				if err := os.MkdirAll(absPath, 0o755); err != nil {
+					return fmt.Errorf("create path %s: %w", path, err)
+				}
+			}
+		}
+
 		pathCtx := WithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err

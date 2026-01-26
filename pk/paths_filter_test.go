@@ -164,6 +164,133 @@ func TestPathFilter_DeduplicationByTaskAndPath(t *testing.T) {
 	}
 }
 
+func TestWithCleanPath(t *testing.T) {
+	t.Run("RemovesAndRecreatesDirectory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Create a directory with a file inside.
+		testPath := "sub/dir"
+		absPath := filepath.Join(tmpDir, testPath)
+		if err := os.MkdirAll(absPath, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		markerFile := filepath.Join(absPath, "marker.txt")
+		if err := os.WriteFile(markerFile, []byte("should be deleted"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		task := NewTask("clean-test", "test", nil, Do(func(ctx context.Context) error {
+			// Verify marker file is gone.
+			if _, err := os.Stat(markerFile); !os.IsNotExist(err) {
+				t.Error("expected marker file to be removed by cleanPath")
+			}
+			// Verify directory exists (recreated).
+			if _, err := os.Stat(absPath); err != nil {
+				t.Errorf("expected directory to exist after cleanPath: %v", err)
+			}
+			return nil
+		}))
+
+		ctx := context.Background()
+		// Override git root so FromGitRoot resolves to our tmpDir.
+		origFindGitRoot := findGitRootFunc
+		findGitRootFunc = func() string { return tmpDir }
+		defer func() { findGitRootFunc = origFindGitRoot }()
+
+		pf := WithOptions(task, WithCleanPath()).(*pathFilter)
+		pf.resolvedPaths = []string{testPath}
+
+		if err := pf.run(ctx); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("SkipsRoot", func(t *testing.T) {
+		task := NewTask("clean-root-test", "test", nil, Do(func(_ context.Context) error {
+			return nil
+		}))
+
+		ctx := context.Background()
+
+		pf := WithOptions(task, WithCleanPath()).(*pathFilter)
+		pf.resolvedPaths = []string{"."}
+
+		// Should not error — cleaning root is a no-op.
+		if err := pf.run(ctx); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestWithExplicitPath(t *testing.T) {
+	t.Run("CreatesDirectory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		testPath := "explicit/new/dir"
+		absPath := filepath.Join(tmpDir, testPath)
+
+		task := NewTask("explicit-test", "test", nil, Do(func(ctx context.Context) error {
+			// Verify directory was created.
+			if _, err := os.Stat(absPath); err != nil {
+				t.Errorf("expected directory to be created: %v", err)
+			}
+			return nil
+		}))
+
+		ctx := context.Background()
+		origFindGitRoot := findGitRootFunc
+		findGitRootFunc = func() string { return tmpDir }
+		defer func() { findGitRootFunc = origFindGitRoot }()
+
+		pf := WithOptions(task, WithExplicitPath(testPath)).(*pathFilter)
+		pf.resolvedPaths = []string{testPath}
+
+		if err := pf.run(ctx); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("CombinedWithCleanPath", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		testPath := "combo/dir"
+		absPath := filepath.Join(tmpDir, testPath)
+
+		// Pre-create directory with a marker file.
+		if err := os.MkdirAll(absPath, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		markerFile := filepath.Join(absPath, "old-artifact.txt")
+		if err := os.WriteFile(markerFile, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		task := NewTask("combo-test", "test", nil, Do(func(ctx context.Context) error {
+			// Marker should be gone (cleaned).
+			if _, err := os.Stat(markerFile); !os.IsNotExist(err) {
+				t.Error("expected marker file to be removed")
+			}
+			// Directory should exist (recreated).
+			if _, err := os.Stat(absPath); err != nil {
+				t.Errorf("expected directory to exist: %v", err)
+			}
+			return nil
+		}))
+
+		ctx := context.Background()
+		origFindGitRoot := findGitRootFunc
+		findGitRootFunc = func() string { return tmpDir }
+		defer func() { findGitRootFunc = origFindGitRoot }()
+
+		pf := WithOptions(task, WithExplicitPath(testPath), WithCleanPath()).(*pathFilter)
+		pf.resolvedPaths = []string{testPath}
+
+		if err := pf.run(ctx); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
 func TestDetectByFile(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()

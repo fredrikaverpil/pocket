@@ -642,3 +642,58 @@ func TestPlan_ContextValues(t *testing.T) {
 		}
 	})
 }
+
+func TestNewPlan_ExplicitPath(t *testing.T) {
+	// allDirs does NOT include ".tests/stable" — explicit path bypasses resolution.
+	allDirs := []string{".", "services", "pkg"}
+
+	newTask := func(name string) *Task {
+		return NewTask(name, "usage", nil, Do(func(_ context.Context) error { return nil }))
+	}
+
+	t.Run("ReturnsExplicitPathEvenWhenNotInAllDirs", func(t *testing.T) {
+		task := newTask("nvim-test")
+
+		cfg := &Config{
+			Auto: WithOptions(task, WithExplicitPath(".tests/stable")),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		info := plan.pathMappings["nvim-test"]
+		if len(info.resolvedPaths) != 1 {
+			t.Fatalf("expected 1 resolved path, got %d: %v", len(info.resolvedPaths), info.resolvedPaths)
+		}
+		if info.resolvedPaths[0] != ".tests/stable" {
+			t.Errorf("expected resolved path '.tests/stable', got %q", info.resolvedPaths[0])
+		}
+	})
+
+	t.Run("ExplicitPathOverridesIncludes", func(t *testing.T) {
+		task := newTask("nvim-test-override")
+
+		// Both explicit path and include are set; explicit should win.
+		cfg := &Config{
+			Auto: WithOptions(task,
+				WithExplicitPath(".tests/nightly"),
+				WithIncludePath("services"),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		info := plan.pathMappings["nvim-test-override"]
+		if len(info.resolvedPaths) != 1 {
+			t.Fatalf("expected 1 resolved path, got %d: %v", len(info.resolvedPaths), info.resolvedPaths)
+		}
+		if info.resolvedPaths[0] != ".tests/nightly" {
+			t.Errorf("expected resolved path '.tests/nightly', got %q", info.resolvedPaths[0])
+		}
+	})
+}

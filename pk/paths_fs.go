@@ -11,12 +11,18 @@ import (
 var (
 	gitRootOnce  sync.Once
 	gitRootCache string
+
+	// findGitRootFunc allows overriding findGitRoot for tests.
+	findGitRootFunc func() string
 )
 
 // findGitRoot walks up from the current directory to find the git repository root.
 // Returns "." if not in a git repository.
 // The result is cached after the first call for performance.
 func findGitRoot() string {
+	if findGitRootFunc != nil {
+		return findGitRootFunc()
+	}
 	gitRootOnce.Do(func() {
 		gitRootCache = doFindGitRoot()
 	})

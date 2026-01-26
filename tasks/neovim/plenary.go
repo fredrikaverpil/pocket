@@ -69,6 +69,16 @@ func WithPlenaryNvimVersion(version string) PlenaryTestOpt {
 	}
 }
 
+// WithPlenaryTestOption returns a PathOption that isolates plenary test execution.
+// Each version gets its own directory (.tests/{version}/) which is cleaned
+// before running. This allows stable and nightly to run in parallel.
+func WithPlenaryTestOption(version string) pk.PathOption {
+	return pk.CombineOptions(
+		pk.WithExplicitPath(fmt.Sprintf(".tests/%s", version)),
+		pk.WithCleanPath(),
+	)
+}
+
 func newPlenaryTestConfig(opts []PlenaryTestOpt) *PlenaryTestConfig {
 	cfg := &PlenaryTestConfig{
 		Bootstrap:   "spec/bootstrap.lua",
@@ -116,19 +126,24 @@ func PlenaryTest(opts ...PlenaryTestOpt) *pk.Task {
 
 func runPlenaryTests(cfg *PlenaryTestConfig) pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		// Resolve paths from git root so they work regardless of execution directory.
+		bootstrap := pk.FromGitRoot(cfg.Bootstrap)
+		minimalInit := pk.FromGitRoot(cfg.MinimalInit)
+		testDir := pk.FromGitRoot(cfg.TestDir)
+
 		// Build the PlenaryBustedDirectory command
 		// nvim --headless --noplugin -i NONE -u {bootstrap} \
 		//   -c "PlenaryBustedDirectory {dir} { minimal_init = '{init}', timeout = {timeout} }"
 		plenaryCmd := fmt.Sprintf(
 			"PlenaryBustedDirectory %s { minimal_init = '%s', timeout = %d }",
-			cfg.TestDir, cfg.MinimalInit, cfg.Timeout,
+			testDir, minimalInit, cfg.Timeout,
 		)
 
 		return pk.Exec(ctx, neovim.Name,
 			"--headless",
 			"--noplugin",
 			"-i", "NONE",
-			"-u", cfg.Bootstrap,
+			"-u", bootstrap,
 			"-c", plenaryCmd,
 		)
 	})

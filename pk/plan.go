@@ -205,8 +205,13 @@ type taskKey struct {
 }
 
 // filterPaths applies detection function or include patterns, then exclude patterns.
+// If explicitPath is set, it is returned directly (bypassing filesystem resolution).
 // If detectFunc is set, it takes precedence over includePaths.
 func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
+	if pf.explicitPath != "" {
+		return []string{pf.explicitPath}
+	}
+
 	var results []string
 
 	// Start with current candidates, but apply all GLOBAL active excludes first.
