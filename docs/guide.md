@@ -1132,14 +1132,14 @@ Running `./pok gha-matrix` outputs:
 
 All options are `pk.PathOption` values passed to `pk.WithOptions`:
 
-| Option                             | Description                                           |
-| :--------------------------------- | :---------------------------------------------------- |
-| `github.WithSkipPocket()`          | Exclude `pocket.yml` workflow                         |
-| `github.WithSkipPR()`              | Exclude `pr.yml` workflow                             |
-| `github.WithSkipRelease()`         | Exclude `release.yml` workflow                        |
-| `github.WithSkipStale()`           | Exclude `stale.yml` workflow                          |
-| `github.WithPlatforms(platforms)`  | Override platforms for `pocket.yml` (comma-separated) |
-| `github.WithMatrixWorkflow(cfg)`   | Enable `pocket-matrix.yml` + register matrix task     |
+| Option                            | Description                                           |
+| :-------------------------------- | :---------------------------------------------------- |
+| `github.WithSkipPocket()`         | Exclude `pocket.yml` workflow                         |
+| `github.WithSkipPR()`             | Exclude `pr.yml` workflow                             |
+| `github.WithSkipRelease()`        | Exclude `release.yml` workflow                        |
+| `github.WithSkipStale()`          | Exclude `stale.yml` workflow                          |
+| `github.WithPlatforms(platforms)` | Override platforms for `pocket.yml` (comma-separated) |
+| `github.WithMatrixWorkflow(cfg)`  | Enable `pocket-matrix.yml` + register matrix task     |
 
 ### MatrixConfig Options
 

@@ -186,8 +186,8 @@ Tasks can access the full execution plan at runtime via
 matrix generation**—instead of manually syncing your CI configuration with your
 tasks, let Pocket generate it.
 
-Here's an example using the [GitHub Actions matrix](./docs/guide.md#matrix-workflow)
-integration
+Here's an example using the
+[GitHub Actions matrix](./docs/guide.md#matrix-workflow) integration
 ([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
 
 ```go

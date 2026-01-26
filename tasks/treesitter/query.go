@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 	"github.com/fredrikaverpil/pocket/tools/tsqueryls"
 )
 
@@ -19,16 +20,21 @@ var (
 
 // QueryFormat formats tree-sitter query files using ts_query_ls.
 var QueryFormat = pk.NewTask("query-format", "format tree-sitter query files", queryFormatFlags,
-	pk.Serial(tsqueryls.Install, queryFormatCmd()),
+	pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
 )
 
 // QueryLint lints tree-sitter query files using ts_query_ls.
 var QueryLint = pk.NewTask("query-lint", "lint tree-sitter query files", queryLintFlags,
-	pk.Serial(tsqueryls.Install, queryLintCmd()),
+	pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
 )
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		parserDir, err := ensureParsers(ctx)
+		if err != nil {
+			return err
+		}
+
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
 			if pk.Verbose(ctx) {
@@ -37,8 +43,12 @@ func queryFormatCmd() pk.Runnable {
 			return nil
 		}
 
+		configArgs := tsQueryLsConfigArgs(parserDir)
 		for _, dir := range dirs {
-			if err := pk.Exec(ctx, tsqueryls.Name, "format", dir); err != nil {
+			args := []string{"format"}
+			args = append(args, configArgs...)
+			args = append(args, dir)
+			if err := pk.Exec(ctx, tsqueryls.Name, args...); err != nil {
 				return err
 			}
 		}
@@ -48,6 +58,11 @@ func queryFormatCmd() pk.Runnable {
 
 func queryLintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		parserDir, err := ensureParsers(ctx)
+		if err != nil {
+			return err
+		}
+
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
 			if pk.Verbose(ctx) {
@@ -56,15 +71,15 @@ func queryLintCmd() pk.Runnable {
 			return nil
 		}
 
-		args := []string{"check"}
-		if *queryLintFix {
-			args = append(args, "--fix")
-		}
-
+		configArgs := tsQueryLsConfigArgs(parserDir)
 		for _, dir := range dirs {
-			cmdArgs := append([]string{}, args...)
-			cmdArgs = append(cmdArgs, dir)
-			if err := pk.Exec(ctx, tsqueryls.Name, cmdArgs...); err != nil {
+			args := []string{"check"}
+			if *queryLintFix {
+				args = append(args, "--fix")
+			}
+			args = append(args, configArgs...)
+			args = append(args, dir)
+			if err := pk.Exec(ctx, tsqueryls.Name, args...); err != nil {
 				return err
 			}
 		}

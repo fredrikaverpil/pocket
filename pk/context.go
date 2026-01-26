@@ -29,6 +29,9 @@ const (
 	envKey
 	// nameSuffixKey is the context key for task name suffix.
 	nameSuffixKey
+	// autoExecKey is the context key for auto execution mode.
+	// When set, manual tasks are skipped.
+	autoExecKey
 )
 
 // WithPath returns a new context with the given path set.
@@ -99,6 +102,18 @@ func gitDiffEnabledFromContext(ctx context.Context) bool {
 		return v
 	}
 	return false
+}
+
+// withAutoExec returns a new context with auto execution mode enabled.
+// When auto exec is active, manual tasks are skipped.
+func withAutoExec(ctx context.Context) context.Context {
+	return context.WithValue(ctx, autoExecKey, true)
+}
+
+// isAutoExec returns whether auto execution mode is active.
+func isAutoExec(ctx context.Context) bool {
+	v, _ := ctx.Value(autoExecKey).(bool)
+	return v
 }
 
 // envConfig holds environment variable overrides for command execution.

@@ -50,6 +50,11 @@ func (t *Task) run(ctx context.Context) error {
 		return fmt.Errorf("task %q has no implementation", t.name)
 	}
 
+	// Skip manual tasks during auto execution.
+	if t.manual && isAutoExec(ctx) {
+		return nil
+	}
+
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
 	effectiveName := t.name
 	if suffix := nameSuffixFromContext(ctx); suffix != "" {

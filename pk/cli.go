@@ -263,8 +263,10 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	}
 
 	// Execute with Plan and execution tracker in context.
+	// Auto exec mode causes manual tasks to be skipped.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
+	ctx = withAutoExec(ctx)
 	if err := c.Auto.run(ctx); err != nil {
 		return tracker, err
 	}
