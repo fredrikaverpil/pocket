@@ -134,10 +134,16 @@ pk.WithOptions(
 
 Task packages provide their own options that may combine multiple effects:
 
-| Option                      | Package  | Description                        |
-| :-------------------------- | :------- | :--------------------------------- |
-| `python.WithVersion(v)`     | `python` | Set Python version AND name suffix |
-| `python.WithTestCoverage()` | `python` | Enable coverage for the Test task  |
+| Option                            | Package  | Description                                       |
+| :-------------------------------- | :------- | :------------------------------------------------ |
+| `python.WithVersion(v)`           | `python` | Set Python version AND name suffix                |
+| `python.WithTestCoverage()`       | `python` | Enable coverage for the Test task                 |
+| `github.WithSkipPocket()`         | `github` | Exclude `pocket.yml` workflow                     |
+| `github.WithSkipPR()`             | `github` | Exclude `pr.yml` workflow                         |
+| `github.WithSkipRelease()`        | `github` | Exclude `release.yml` workflow                    |
+| `github.WithSkipStale()`          | `github` | Exclude `stale.yml` workflow                      |
+| `github.WithPlatforms(platforms)` | `github` | Override platforms for `pocket.yml`               |
+| `github.WithMatrixWorkflow(cfg)`  | `github` | Enable `pocket-matrix.yml` + register matrix task |
 
 ```go
 pk.WithOptions(

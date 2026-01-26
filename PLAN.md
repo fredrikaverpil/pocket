@@ -287,10 +287,10 @@ Specifically targeted changes:
 - [x] Pocket-v1 had a github-workflows task which copied very common github
       workflows into place. Let's add that back in.
   - [x] Created `tasks/github/` package with `Workflows` task
-  - [x] Embedded templates for pocket, pr, release, stale, sync workflows
+  - [x] Embedded templates for pocket, pr, release, stale workflows
   - [x] Skip flags for selective generation, platforms flag for customization
   - [x] Silent by default, verbose with `-v`
-- [ ] Pocket-v1 also had a much more complex matrix-based github workflow which
+- [x] Pocket-v1 also had a much more complex matrix-based github workflow which
       hooked into the plan and generated concurrent workflow jobs. Let's analyze
       how we can get that back into pocket v2!
 - [ ] Verify that all documentation is up to date. We need to mention all public
@@ -332,8 +332,11 @@ Specifically targeted changes:
       documentation better, and here I'm actually thinking alot about LLMs
       finding one place where documentation needs updating and doesn't see the
       other file which also needs updating.
-- [ ] The Matrix configuration for github workflows using the matrix-pocket
+- [x] The Matrix configuration for github workflows using the matrix-pocket
       workflow has weird UX. Is this well documented somewhere?
+      **Resolved:** `github.Tasks()` now includes the matrix task internally.
+      Users configure it via `github.WithMatrixWorkflow(cfg)` in
+      `pk.WithOptions`, eliminating the separate `Manual` entry.
 - [ ] I'm worried we have implemented too many ways to identify/classify and
       reference a given task in Pocket core (pk package). Like for example, we
       have Task, taskID, taskInstance and we sometimes refer to the task name

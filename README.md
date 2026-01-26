@@ -186,7 +186,7 @@ Tasks can access the full execution plan at runtime via
 matrix generation**—instead of manually syncing your CI configuration with your
 tasks, let Pocket generate it.
 
-Here's an example using the [GitHub Actions matrix](./docs/github-actions.md)
+Here's an example using the [GitHub Actions matrix](./docs/guide.md#matrix-workflow)
 integration
 ([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
 
@@ -194,15 +194,19 @@ integration
 import "github.com/fredrikaverpil/pocket/tasks/github"
 
 var Config = &pk.Config{
-    Auto: pk.Parallel(Lint, Test, Build),
-    Manual: []pk.Runnable{
-        github.Matrix(github.MatrixConfig{
-            DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
-            TaskOverrides: map[string]github.TaskOverride{
-                "lint": {Platforms: []string{"ubuntu-latest"}},
-            },
-        }),
-    },
+    Auto: pk.Parallel(
+        Lint, Test, Build,
+        pk.WithOptions(
+            github.Tasks(),
+            github.WithSkipPocket(),
+            github.WithMatrixWorkflow(github.MatrixConfig{
+                DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
+                TaskOverrides: map[string]github.TaskOverride{
+                    "lint": {Platforms: []string{"ubuntu-latest"}},
+                },
+            }),
+        ),
+    ),
 }
 ```
 

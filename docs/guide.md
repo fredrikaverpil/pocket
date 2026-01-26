@@ -742,11 +742,11 @@ specific directories. All path patterns are **regular expressions**.
 
 **Task-specific options** are provided by task packages:
 
-| Option                      | Package  | Description                         |
-| :-------------------------- | :------- | :---------------------------------- |
-| `python.WithVersion(v)`     | `python` | Set Python version AND name suffix  |
-| `python.WithTestCoverage()` | `python` | Enable coverage for test task       |
-| `golang.WithRace()`         | `golang` | Enable race detector (if available) |
+| Option                           | Package  | Description                                       |
+| :------------------------------- | :------- | :------------------------------------------------ |
+| `python.WithVersion(v)`          | `python` | Set Python version AND name suffix                |
+| `python.WithTestCoverage()`      | `python` | Enable coverage for test task                     |
+| `github.WithMatrixWorkflow(cfg)` | `github` | Enable `pocket-matrix.yml` + register matrix task |
 
 Task-specific options may combine multiple effects. For example,
 `python.WithVersion("3.9")` sets both the Python version for runtime AND adds
@@ -1023,23 +1023,26 @@ func (p *Plan) ShimConfig() *ShimConfig  // Resolved shim configuration
 
 ## GitHub Actions Integration
 
-Pocket provides two approaches for GitHub Actions CI/CD integration.
+Pocket provides two approaches for GitHub Actions CI/CD integration. Both are
+configured through `github.Tasks()` and `pk.WithOptions`.
 
-### Simple Workflow
+### Simple Workflow (Default)
 
-A static workflow that runs all tasks on configured platforms:
+By default, `github.Tasks()` generates a simple `pocket.yml` workflow that runs
+all tasks on configured platforms:
 
-```bash
-./pok github-workflows
+```go
+import "github.com/fredrikaverpil/pocket/tasks/github"
+
+var Config = &pk.Config{
+    Auto: pk.Parallel(
+        golang.Tasks(),
+        pk.WithOptions(
+            github.Tasks(),
+        ),
+    ),
+}
 ```
-
-> [!NOTE]
->
-> The `github-workflows` task has several flags (e.g., `-include-pocket-matrix`,
-> `-skip-pr`). If you configure these via `WithFlag` in your composition,
-> remember that flag overrides only apply when running through the composition
-> tree (bare `./pok`). When invoking `./pok github-workflows` directly, pass
-> flags explicitly: `./pok github-workflows -include-pocket-matrix`.
 
 This generates `.github/workflows/pocket.yml`:
 
@@ -1061,8 +1064,9 @@ jobs:
 
 ### Matrix Workflow
 
-A two-phase approach that generates a GitHub Actions matrix from your task
-configuration:
+For per-task parallelism and platform customization, use
+`github.WithMatrixWorkflow()`. This replaces the simple workflow with a
+two-phase approach:
 
 **Phase 1 (Plan):** Runs `./pok gha-matrix` to generate JSON matrix.
 
@@ -1071,21 +1075,28 @@ configuration:
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"
 
-var matrixConfig = github.MatrixConfig{
-    DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
-    TaskOverrides: map[string]github.TaskOverride{
-        "go-lint": {Platforms: []string{"ubuntu-latest"}},  // lint only on Linux
-    },
-    ExcludeTasks: []string{"github-workflows"},
-}
-
 var Config = &pk.Config{
-    Auto: pk.Parallel(golang.Tasks()),
-    Manual: []pk.Runnable{
-        github.Matrix(matrixConfig),
-    },
+    Auto: pk.Parallel(
+        golang.Tasks(),
+        pk.WithOptions(
+            github.Tasks(),
+            github.WithSkipPocket(),
+            github.WithMatrixWorkflow(github.MatrixConfig{
+                DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+                TaskOverrides: map[string]github.TaskOverride{
+                    "go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on Linux
+                },
+                ExcludeTasks: []string{"github-workflows"},
+            }),
+        ),
+    ),
 }
 ```
+
+`WithMatrixWorkflow` does two things:
+
+1. Enables the `pocket-matrix.yml` workflow file generation
+2. Passes the `MatrixConfig` to the `gha-matrix` task via context
 
 Running `./pok gha-matrix` outputs:
 
@@ -1096,29 +1107,46 @@ Running `./pok gha-matrix` outputs:
       "task": "go-lint",
       "os": "ubuntu-latest",
       "shell": "bash",
-      "shim": "./pok"
+      "shim": "./pok",
+      "gitDiff": true
     },
     {
       "task": "go-test",
       "os": "ubuntu-latest",
       "shell": "bash",
-      "shim": "./pok"
+      "shim": "./pok",
+      "gitDiff": true
     },
     {
       "task": "go-test",
       "os": "macos-latest",
       "shell": "bash",
-      "shim": "./pok"
+      "shim": "./pok",
+      "gitDiff": true
     }
   ]
 }
 ```
 
+### GitHub Task Options
+
+All options are `pk.PathOption` values passed to `pk.WithOptions`:
+
+| Option                             | Description                                           |
+| :--------------------------------- | :---------------------------------------------------- |
+| `github.WithSkipPocket()`          | Exclude `pocket.yml` workflow                         |
+| `github.WithSkipPR()`              | Exclude `pr.yml` workflow                             |
+| `github.WithSkipRelease()`         | Exclude `release.yml` workflow                        |
+| `github.WithSkipStale()`           | Exclude `stale.yml` workflow                          |
+| `github.WithPlatforms(platforms)`  | Override platforms for `pocket.yml` (comma-separated) |
+| `github.WithMatrixWorkflow(cfg)`   | Enable `pocket-matrix.yml` + register matrix task     |
+
 ### MatrixConfig Options
 
 ```go
 type MatrixConfig struct {
-    // DefaultPlatforms for all tasks. Default: ["ubuntu-latest"]
+    // DefaultPlatforms for all tasks.
+    // Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
     DefaultPlatforms []string
 
     // TaskOverrides provides per-task platform configuration.
@@ -1133,6 +1161,10 @@ type MatrixConfig struct {
 
     // WindowsShim: "ps1" (default) or "cmd"
     WindowsShim string
+
+    // DisableGitDiff prevents -g from being added in CI.
+    // Default (false): matrix outputs gitDiff: true for all tasks.
+    DisableGitDiff bool
 }
 
 type TaskOverride struct {
@@ -1140,6 +1172,15 @@ type TaskOverride struct {
     Platforms []string
 }
 ```
+
+> [!NOTE]
+>
+> The `github-workflows` task also accepts flags directly (e.g.,
+> `-include-pocket-matrix`, `-skip-pr`). If you configure these via
+> `github.With*` options in your composition, remember that flag overrides only
+> apply when running through the composition tree (bare `./pok`). When invoking
+> `./pok github-workflows` directly, pass flags explicitly:
+> `./pok github-workflows -include-pocket-matrix`.
 
 **Benefits comparison:**
 
