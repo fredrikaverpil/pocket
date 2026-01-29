@@ -19,8 +19,8 @@ func Detect() pk.DetectFunc {
 	}
 }
 
-// Tasks returns the plenary test task with the default Neovim version.
-// For version-specific tests, use PlenaryTest(version) directly.
+// Tasks returns the plenary test task.
+// Use WithNeovimStable() or WithNeovimNightly() to configure the version.
 func Tasks() pk.Runnable {
-	return PlenaryTest(neovim.DefaultVersion)
+	return PlenaryTest
 }

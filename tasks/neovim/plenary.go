@@ -19,54 +19,77 @@ var (
 	plenaryTimeout     = plenaryFlags.Int("timeout", 500000, "test timeout in ms")
 )
 
-// WithPlenaryVersion returns a PathOption that isolates plenary test execution.
-// Each version gets its own directory (.tests/{version}/) which is cleaned
-// before running. This allows stable and nightly to run in parallel.
-func WithPlenaryVersion(version string) pk.PathOption {
+// Context keys for configuration
+type versionKey struct{}
+
+// versionFromContext returns the Neovim version from context.
+// Returns neovim.DefaultVersion if not set.
+func versionFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(versionKey{}).(string); ok {
+		return v
+	}
+	return neovim.DefaultVersion
+}
+
+// WithNeovimStable configures PlenaryTest to use stable Neovim.
+// This sets version, task name suffix, and path isolation.
+func WithNeovimStable() pk.PathOption {
 	return pk.CombineOptions(
-		pk.WithExplicitPath(fmt.Sprintf(".tests/%s", version)),
+		pk.WithContextValue(versionKey{}, neovim.Stable),
+		pk.WithName("stable"),
+		pk.WithExplicitPath(".tests/stable"),
 		pk.WithCleanPath(),
 	)
 }
 
-// PlenaryTest creates a task that runs Neovim plenary tests.
-// Version determines which Neovim binary to install.
-//
-// Use pk.WithOptions with WithPlenaryVersion to isolate parallel execution:
-//
-//	pk.Parallel(
-//	    pk.WithOptions(
-//	        neovim.PlenaryTest(neovim.Stable),
-//	        neovim.WithPlenaryVersion(neovim.Stable),
-//	    ),
-//	    pk.WithOptions(
-//	        neovim.PlenaryTest(neovim.Nightly),
-//	        neovim.WithPlenaryVersion(neovim.Nightly),
-//	    ),
-//	)
-func PlenaryTest(version string) *pk.Task {
-	if version == "" {
-		version = neovim.DefaultVersion
-	}
-
-	taskName := "nvim-test"
-	if version != neovim.DefaultVersion {
-		taskName = fmt.Sprintf("nvim-test-%s", version)
-	}
-
-	return pk.NewTask(taskName, "run neovim plenary tests", plenaryFlags,
-		pk.Serial(
-			pk.Parallel(
-				neovim.Install(version),
-				treesitter.Install, // Required for nvim-treesitter parser compilation
-			),
-			runPlenaryTests(version),
-		),
+// WithNeovimNightly configures PlenaryTest to use nightly Neovim.
+// This sets version, task name suffix, and path isolation.
+func WithNeovimNightly() pk.PathOption {
+	return pk.CombineOptions(
+		pk.WithContextValue(versionKey{}, neovim.Nightly),
+		pk.WithName("nightly"),
+		pk.WithExplicitPath(".tests/nightly"),
+		pk.WithCleanPath(),
 	)
 }
 
-func runPlenaryTests(version string) pk.Runnable {
+
+// PlenaryTest runs Neovim plenary tests.
+// Use with PathOptions to configure version:
+//
+//	pk.Parallel(
+//	    pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimStable()),
+//	    pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimNightly()),
+//	)
+//
+// Dependencies (neovim, treesitter) are installed in parallel.
+// Since they're Global tasks, each only runs once regardless of how many
+// times PlenaryTest is invoked with different versions.
+//
+// For additional dependencies (e.g., gotestsum), compose them in your config:
+//
+//	pk.Serial(
+//	    gotestsum.Install,
+//	    pk.Parallel(
+//	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimStable()),
+//	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimNightly()),
+//	    ),
+//	)
+var PlenaryTest = pk.NewTask("nvim-test", "run neovim plenary tests", plenaryFlags,
+	pk.Serial(
+		pk.Parallel(
+			neovim.Install(neovim.Stable),
+			neovim.Install(neovim.Nightly),
+			treesitter.Install,
+		),
+		runPlenaryTests(),
+	),
+)
+
+func runPlenaryTests() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		version := versionFromContext(ctx)
+
 		// Resolve paths from git root so they work regardless of execution directory.
 		bootstrap := pk.FromGitRoot(*plenaryBootstrap)
 		minimalInit := pk.FromGitRoot(*plenaryMinimalInit)
