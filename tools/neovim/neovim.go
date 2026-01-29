@@ -103,11 +103,11 @@ func installNeovim(version string) pk.Runnable {
 			pk.WithSkipIfExists(binaryPath),
 		),
 		// Create symlink manually (WithSymlink doesn't work with full extraction)
-		createSymlink(binaryPath),
+		createSymlink(binaryPath, version),
 	)
 }
 
-func createSymlink(binaryPath string) pk.Runnable {
+func createSymlink(binaryPath, version string) pk.Runnable {
 	return pk.Do(func(_ context.Context) error {
 		binDir := filepath.Dir(binaryPath)
 
@@ -118,8 +118,10 @@ func createSymlink(binaryPath string) pk.Runnable {
 			return nil
 		}
 
-		// On Unix, symlink works fine.
-		_, err := pk.CreateSymlink(binaryPath)
+		// On Unix, create version-specific symlink to avoid collisions
+		// when installing multiple versions in parallel.
+		symlinkName := pk.BinaryName(fmt.Sprintf("%s-%s", Name, version))
+		_, err := pk.CreateSymlinkAs(binaryPath, symlinkName)
 		return err
 	})
 }

@@ -11,6 +11,14 @@ import (
 // On Windows, it copies the file instead since symlinks require admin privileges.
 // Returns the path to the symlink (or copy on Windows).
 func CreateSymlink(binaryPath string) (string, error) {
+	name := filepath.Base(binaryPath)
+	return CreateSymlinkAs(binaryPath, name)
+}
+
+// CreateSymlinkAs creates a symlink with a custom name in .pocket/bin/ pointing to the given binary.
+// On Windows, it copies the file instead since symlinks require admin privileges.
+// Returns the path to the symlink (or copy on Windows).
+func CreateSymlinkAs(binaryPath, name string) (string, error) {
 	binDir := FromBinDir()
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return "", fmt.Errorf("create bin dir: %w", err)
@@ -21,7 +29,6 @@ func CreateSymlink(binaryPath string) (string, error) {
 		return "", err
 	}
 
-	name := filepath.Base(binaryPath)
 	linkPath := filepath.Join(binDir, name)
 
 	// Remove existing file/symlink if it exists.
