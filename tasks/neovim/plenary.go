@@ -60,19 +60,24 @@ func PlenaryTest(version string) *pk.Task {
 				neovim.Install(version),
 				treesitter.Install, // Required for nvim-treesitter parser compilation
 			),
-			runPlenaryTests(),
+			runPlenaryTests(version),
 		),
 	)
 }
 
-func runPlenaryTests() pk.Runnable {
+func runPlenaryTests(version string) pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		// Resolve paths from git root so they work regardless of execution directory.
 		bootstrap := pk.FromGitRoot(*plenaryBootstrap)
 		minimalInit := pk.FromGitRoot(*plenaryMinimalInit)
 		testDir := pk.FromGitRoot(*plenaryTestDir)
 
+		// Use the specific neovim binary for this version to avoid symlink collisions
+		// when running multiple versions in parallel.
+		nvimBinary := neovim.BinaryPath(version)
+
 		if pk.Verbose(ctx) {
+			pk.Printf(ctx, "  nvim:        %s\n", nvimBinary)
 			pk.Printf(ctx, "  bootstrap:   %s\n", bootstrap)
 			pk.Printf(ctx, "  minimal_init: %s\n", minimalInit)
 			pk.Printf(ctx, "  test_dir:    %s\n", testDir)
@@ -85,7 +90,7 @@ func runPlenaryTests() pk.Runnable {
 			testDir, minimalInit, *plenaryTimeout,
 		)
 
-		return pk.Exec(ctx, neovim.Name,
+		return pk.Exec(ctx, nvimBinary,
 			"--headless",
 			"--noplugin",
 			"-i", "NONE",

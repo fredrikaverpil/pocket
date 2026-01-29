@@ -23,6 +23,43 @@ const (
 // renovate: datasource=github-releases depName=neovim/neovim
 const DefaultVersion = "v0.11.5"
 
+// BinaryPath returns the full path to the neovim binary for a given version.
+// Use this instead of Name when running specific versions to avoid symlink collisions.
+func BinaryPath(version string) string {
+	if version == "" {
+		version = DefaultVersion
+	}
+	resolvedVersion := version
+	if version == Stable {
+		resolvedVersion = DefaultVersion
+	}
+
+	hostOS := pk.HostOS()
+	hostArch := pk.HostArch()
+	nvimArch := hostArch
+	if hostArch == pk.AMD64 {
+		nvimArch = pk.X8664
+	}
+
+	var platform string
+	switch hostOS {
+	case pk.Windows:
+		if hostArch == pk.ARM64 {
+			platform = "win-arm64"
+		} else {
+			platform = "win64"
+		}
+	case pk.Darwin:
+		platform = fmt.Sprintf("macos-%s", nvimArch)
+	default:
+		platform = fmt.Sprintf("linux-%s", nvimArch)
+	}
+
+	installDir := pk.FromToolsDir("neovim", resolvedVersion)
+	binaryName := pk.BinaryName(Name)
+	return filepath.Join(installDir, fmt.Sprintf("nvim-%s", platform), "bin", binaryName)
+}
+
 // Install creates a task that ensures Neovim is available at the specified version.
 // Supported versions: "stable", "nightly", or a specific version like "v0.10.0".
 func Install(version string) *pk.Task {
