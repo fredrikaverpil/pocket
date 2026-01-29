@@ -2,66 +2,11 @@
 package python
 
 import (
-	"context"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
-
-// versionKey is the context key for Python version.
-type versionKey struct{}
-
-// coverageKey is the context key for coverage enabled flag.
-type coverageKey struct{}
-
-// WithVersion sets the Python version for tasks in this scope.
-// This also sets the task name suffix (e.g., "py-test" becomes "py-test:3.9").
-//
-// Example:
-//
-//	pk.WithOptions(
-//	    python.Tasks(),
-//	    python.WithVersion("3.9"),
-//	    pk.WithDetect(python.Detect()),
-//	)
-func WithVersion(version string) pk.PathOption {
-	return pk.CombineOptions(
-		pk.WithContextValue(versionKey{}, version),
-		pk.WithName(version),
-	)
-}
-
-// WithTestCoverage enables coverage for the Test task.
-//
-// Example:
-//
-//	pk.WithOptions(
-//	    python.Tasks(),
-//	    python.WithVersion("3.9"),
-//	    python.WithTestCoverage(),
-//	    pk.WithDetect(python.Detect()),
-//	)
-func WithTestCoverage() pk.PathOption {
-	return pk.WithContextValue(coverageKey{}, true)
-}
-
-// VersionFromContext returns the Python version from context.
-// Returns empty string if not set.
-func VersionFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(versionKey{}).(string); ok {
-		return v
-	}
-	return ""
-}
-
-// coverageFromContext returns whether coverage is enabled.
-func coverageFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(coverageKey{}).(bool); ok {
-		return v
-	}
-	return false
-}
 
 // pythonVersionToRuff converts a Python version (e.g., "3.9") to ruff's format (e.g., "py39").
 func pythonVersionToRuff(version string) string {

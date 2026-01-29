@@ -15,7 +15,7 @@ var (
 
 // Typecheck type-checks Python files using mypy.
 // Requires mypy as a project dependency in pyproject.toml.
-// Python version can be set via flag (-python) or via python.WithVersion() option.
+// Python version can be set via the -python flag.
 var Typecheck = pk.NewTask("py-typecheck", "type-check Python files", typecheckFlags,
 	pk.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
 )

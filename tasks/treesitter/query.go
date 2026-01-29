@@ -13,9 +13,11 @@ import (
 )
 
 var (
-	queryFormatFlags = flag.NewFlagSet("query-format", flag.ContinueOnError)
-	queryLintFlags   = flag.NewFlagSet("query-lint", flag.ContinueOnError)
-	queryLintFix     = queryLintFlags.Bool("fix", false, "auto-fix lint issues")
+	queryFormatFlags   = flag.NewFlagSet("query-format", flag.ContinueOnError)
+	queryFormatParsers = queryFormatFlags.String("parsers", "", "comma-separated parser names to compile")
+	queryLintFlags     = flag.NewFlagSet("query-lint", flag.ContinueOnError)
+	queryLintParsers   = queryLintFlags.String("parsers", "", "comma-separated parser names to compile")
+	queryLintFix       = queryLintFlags.Bool("fix", false, "auto-fix lint issues")
 )
 
 // QueryFormat formats tree-sitter query files using ts_query_ls.
@@ -30,7 +32,8 @@ var QueryLint = pk.NewTask("query-lint", "lint tree-sitter query files", queryLi
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parserDir, err := ensureParsers(ctx)
+		parsers := parseParsers(*queryFormatParsers)
+		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
 		}
@@ -58,7 +61,8 @@ func queryFormatCmd() pk.Runnable {
 
 func queryLintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parserDir, err := ensureParsers(ctx)
+		parsers := parseParsers(*queryLintParsers)
+		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
 		}
@@ -122,4 +126,12 @@ func findQueryDirs(ctx context.Context) []string {
 	})
 
 	return dirs
+}
+
+// parseParsers parses a comma-separated list of parser names.
+func parseParsers(csv string) []string {
+	if csv == "" {
+		return nil
+	}
+	return strings.Split(csv, ",")
 }

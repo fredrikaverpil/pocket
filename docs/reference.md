@@ -132,43 +132,42 @@ pk.WithOptions(
 
 ### Task-Specific Options
 
-Task packages provide their own options that may combine multiple effects:
-
-| Option                            | Package  | Description                                       |
-| :-------------------------------- | :------- | :------------------------------------------------ |
-| `python.WithVersion(v)`           | `python` | Set Python version AND name suffix                |
-| `python.WithTestCoverage()`       | `python` | Enable coverage for the Test task                 |
-| `github.WithSkipPocket()`         | `github` | Exclude `pocket.yml` workflow                     |
-| `github.WithSkipPR()`             | `github` | Exclude `pr.yml` workflow                         |
-| `github.WithSkipRelease()`        | `github` | Exclude `release.yml` workflow                    |
-| `github.WithSkipStale()`          | `github` | Exclude `stale.yml` workflow                      |
-| `github.WithPlatforms(platforms)` | `github` | Override platforms for `pocket.yml`               |
-| `github.WithMatrixWorkflow(cfg)`  | `github` | Enable `pocket-matrix.yml` + register matrix task |
+Task configuration is done explicitly via `pk.WithFlag()` and `pk.WithName()`:
 
 ```go
 pk.WithOptions(
     python.Tasks(),
-    python.WithVersion("3.9"),  // Sets version + adds ":3.9" to task names
-    python.WithTestCoverage(),
+    pk.WithName("3.9"),                          // Add ":3.9" suffix to task names
+    pk.WithFlag(python.Format, "python", "3.9"), // Set Python version
+    pk.WithFlag(python.Lint, "python", "3.9"),
+    pk.WithFlag(python.Test, "python", "3.9"),
+    pk.WithFlag(python.Test, "coverage", true),  // Enable coverage flag
     pk.WithDetect(python.Detect()),
 )
 ```
 
 ### Creating Custom Options
 
-Use `CombineOptions` and `WithContextValue` when building task packages:
+Use `CombineOptions`, `WithFlag`, and `WithContextValue` when building task
+packages:
 
 | Function           | Description                                      |
 | :----------------- | :----------------------------------------------- |
 | `CombineOptions`   | Combine multiple PathOptions into one            |
+| `WithFlag`         | Set a task flag value (preferred for CLI flags)  |
 | `WithContextValue` | Add key-value pair to context (for task authors) |
 
 ```go
-// In your task package
-func WithVersion(version string) pk.PathOption {
+// Simple example: enable a feature via flag
+func EnableFeature() pk.PathOption {
+    return pk.WithFlag(MyTask, "feature", true)
+}
+
+// Advanced example: combine multiple effects
+func WithCustomConfig(value string) pk.PathOption {
     return pk.CombineOptions(
-        pk.WithContextValue(versionKey{}, version),
-        pk.WithName(version),
+        pk.WithContextValue(configKey{}, value), // Runtime config
+        pk.WithName(value),                      // Name suffix
     )
 }
 ```
@@ -240,7 +239,7 @@ The deduplication key depends on task type:
 **Effective name** = base name + optional suffix from `WithName`:
 
 - Base name: `py-test` (defined in `NewTask`)
-- Effective name: `py-test:3.9` (with `python.WithVersion("3.9")`)
+- Effective name: `py-test:3.9` (with `pk.WithName("3.9")`)
 
 This enables multi-version testing where `py-test:3.9` and `py-test:3.10` run
 separately, while `install:uv` (a global task) runs only once regardless of
@@ -505,7 +504,7 @@ for _, info := range plan.Tasks() {
 ```
 
 Task names in `TaskInfo` include any suffix from `WithName`. For example, a task
-named `py-test` wrapped with `python.WithVersion("3.9")` will have
+named `py-test` wrapped with `pk.WithName("3.9")` will have
 `Name: "py-test:3.9"`.
 
 ---

@@ -164,41 +164,19 @@ func shimForPlatform(platform, windowsShell, windowsShim string) string {
 	return "./pok"
 }
 
-// matrix creates the gha-matrix task that reads config from context.
-// Used internally by Tasks(). Config is passed via WithMatrixWorkflow().
-func matrix() *pk.Task {
-	return pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", nil,
-		pk.Do(func(ctx context.Context) error {
-			// Get config from context, or use defaults.
-			cfg := DefaultMatrixConfig()
-			if v := ctx.Value(matrixConfigKey{}); v != nil {
-				cfg = v.(MatrixConfig)
-			}
-
-			plan := pk.PlanFromContext(ctx)
-			if plan == nil {
-				pk.Printf(ctx, `{"include":[]}`)
-				return nil
-			}
-			tasks := plan.Tasks()
-			data, err := GenerateMatrix(tasks, cfg)
-			if err != nil {
-				return err
-			}
-			pk.Printf(ctx, "%s\n", data)
-			return nil
-		}),
-	).Hidden().HideHeader()
-}
-
 // Matrix creates the gha-matrix task for GitHub Actions matrix generation.
 // The task outputs JSON that can be used with GitHub Actions' fromJson() function.
 //
-// Deprecated: Use github.Tasks() with github.WithMatrixWorkflow() instead:
+// Example:
 //
-//	pk.WithOptions(
-//	    github.Tasks(),
-//	    github.WithMatrixWorkflow(github.MatrixConfig{...}),
+//	pk.Serial(
+//	    pk.WithOptions(
+//	        github.Workflows,
+//	        pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+//	    ),
+//	    github.Matrix(github.MatrixConfig{
+//	        DefaultPlatforms: []string{"ubuntu-latest"},
+//	    }),
 //	)
 func Matrix(cfg MatrixConfig) *pk.Task {
 	return pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", nil,

@@ -239,7 +239,13 @@ Additional completed:
       field and `(*Task).Manual()` method for tasks that only run when
       explicitly invoked (not on bare `./pok`).
 
-## Phase 7: Mid-review
+## Phase 8: pk.WithOptions vs pk.WithFlag
+
+- [ ] Why do we have both? Do we need both? Or could we opt for only defining
+      task flags, and then pass the desired flags in the `Config{Auto: {...}}`
+      composition?
+
+## Phase 9: Mid-review
 
 Where are we currently at? What works great, what works less great?
 
@@ -253,7 +259,7 @@ Specifically targeted changes:
 - [ ] Can the `./pok --version` be generated from Git tag? (currently, no tag
       exists and that needs to work too)
 
-## Phase 8: Documentation
+## Phase 10: Documentation
 
 - [x] Add README.md; professional high-level overview with quickstart
 - [x] Create detailed guides in `docs/`:
@@ -267,7 +273,7 @@ Specifically targeted changes:
 - [x] Refactor version logic into `pk/version.go`
 - [x] Unified and robust signal handling in `pk/cli.go`
 
-## Phase 9: Fixups
+## Phase 11: Fixups
 
 - [x] Add configurable directory skip options to Config:
   - [x] `SkipDirs []string` - directories to skip during filesystem walk
@@ -347,7 +353,7 @@ Specifically targeted changes:
       to identify, classify and refer to tasks.
 - [ ] Add zensical as tool, with flags -serve and -build.
 
-## Phase 10: Wrapup & Polish
+## Phase 12: Wrapup & Polish
 
 - [ ] Analyze Pocket
   - [ ] DX - do we have good developer experience?

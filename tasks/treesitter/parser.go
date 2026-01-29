@@ -10,11 +10,10 @@ import (
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
-// ensureParsers compiles any parsers specified via WithParser and returns
+// ensureParsers compiles the specified parsers and returns
 // the directory containing the compiled parser libraries.
 // Returns ("", nil) if no parsers were specified.
-func ensureParsers(ctx context.Context) (string, error) {
-	parsers := parsersFromContext(ctx)
+func ensureParsers(ctx context.Context, parsers []string) (string, error) {
 	if len(parsers) == 0 {
 		return "", nil
 	}

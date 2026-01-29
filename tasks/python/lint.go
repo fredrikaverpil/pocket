@@ -16,7 +16,7 @@ var (
 
 // Lint lints Python files using ruff check with auto-fix enabled by default.
 // Requires ruff as a project dependency in pyproject.toml.
-// Python version can be set via flag (-python) or via python.WithVersion() option.
+// Python version can be set via the -python flag.
 var Lint = pk.NewTask("py-lint", "lint Python files", lintFlags,
 	pk.Serial(uv.Install, lintSyncCmd(), lintCmd()),
 )

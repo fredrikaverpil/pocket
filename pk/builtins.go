@@ -165,7 +165,7 @@ func handlePlan(ctx context.Context, p *Plan, args []string) error {
 
 	// Show composition tree
 	Printf(ctx, "Composition Tree:\n")
-	printTree(ctx, p.tree, "", true, p.pathMappings)
+	printTree(ctx, p.tree, "", true, "", p.pathMappings)
 
 	Println(ctx)
 	Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
@@ -180,7 +180,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 	output := map[string]any{
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
-		"tree":              buildJSONTree(tree, p.pathMappings),
+		"tree":              buildJSONTree(tree, "", p.pathMappings),
 		"tasks":             buildTaskList(p.taskInstances),
 	}
 
@@ -190,21 +190,28 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 }
 
 // buildJSONTree recursively builds a JSON representation of the composition tree.
-func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]interface{} {
+// The nameSuffix parameter tracks accumulated name suffixes from WithName() wrappers.
+// This must match the suffix accumulation logic in plan.go's taskCollector.walk().
+func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathInfo) map[string]interface{} {
 	if r == nil {
 		return nil
 	}
 
 	switch v := r.(type) {
 	case *Task:
+		effectiveName := v.Name()
+		if nameSuffix != "" {
+			effectiveName = v.Name() + ":" + nameSuffix
+		}
+
 		paths := []string{"."}
-		if info, ok := pathMappings[v.Name()]; ok {
-			paths = info.resolvedPaths // May be empty for excluded tasks.
+		if info, ok := pathMappings[effectiveName]; ok {
+			paths = info.resolvedPaths
 		}
 
 		return map[string]interface{}{
 			"type":   "task",
-			"name":   v.Name(),
+			"name":   effectiveName,
 			"hidden": v.IsHidden(),
 			"manual": v.IsManual(),
 			"paths":  paths,
@@ -213,7 +220,7 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 	case *serial:
 		children := make([]map[string]interface{}, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, pathMappings); childJSON != nil {
+			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
@@ -225,7 +232,7 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 	case *parallel:
 		children := make([]map[string]interface{}, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, pathMappings); childJSON != nil {
+			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
@@ -235,11 +242,21 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 		}
 
 	case *pathFilter:
+		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b")
+		childSuffix := nameSuffix
+		if v.nameSuffix != "" {
+			if nameSuffix != "" {
+				childSuffix = nameSuffix + ":" + v.nameSuffix
+			} else {
+				childSuffix = v.nameSuffix
+			}
+		}
+
 		node := map[string]interface{}{
 			"type":    "pathFilter",
 			"include": v.includePaths,
 			"exclude": v.excludePaths,
-			"inner":   buildJSONTree(v.inner, pathMappings),
+			"inner":   buildJSONTree(v.inner, childSuffix, pathMappings),
 		}
 		if v.explicitPath != "" {
 			node["explicitPath"] = v.explicitPath
@@ -275,7 +292,9 @@ func buildTaskList(instances []taskInstance) []map[string]interface{} {
 }
 
 // printTree recursively prints the composition tree structure.
-func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, pathMappings map[string]pathInfo) {
+// The nameSuffix parameter tracks accumulated name suffixes from WithName() wrappers.
+// This must match the suffix accumulation logic in plan.go's taskCollector.walk().
+func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, nameSuffix string, pathMappings map[string]pathInfo) {
 	if r == nil {
 		return
 	}
@@ -299,8 +318,13 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 			marker = " [" + strings.Join(markers, ", ") + "]"
 		}
 
+		effectiveName := v.Name()
+		if nameSuffix != "" {
+			effectiveName = v.Name() + ":" + nameSuffix
+		}
+
 		paths := "[root]"
-		if info, ok := pathMappings[v.Name()]; ok {
+		if info, ok := pathMappings[effectiveName]; ok {
 			if len(info.resolvedPaths) > 0 {
 				paths = formatPaths(info.resolvedPaths)
 			} else {
@@ -308,7 +332,7 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 			}
 		}
 
-		Printf(ctx, "%s%s%s%s\n", prefix, branch, v.Name(), marker)
+		Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
 
 		continuation := "│   "
 		if isLast {
@@ -325,7 +349,7 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, pathMappings)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, pathMappings)
 		}
 
 	case *parallel:
@@ -337,10 +361,20 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, pathMappings)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, pathMappings)
 		}
 
 	case *pathFilter:
+		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b")
+		childSuffix := nameSuffix
+		if v.nameSuffix != "" {
+			if nameSuffix != "" {
+				childSuffix = nameSuffix + ":" + v.nameSuffix
+			} else {
+				childSuffix = v.nameSuffix
+			}
+		}
+
 		// Only show "With paths" wrapper if there are actual path options
 		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
 			v.detectFunc != nil || v.explicitPath != ""
@@ -361,10 +395,10 @@ func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, path
 			if len(v.excludePaths) > 0 {
 				Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
 			}
-			printTree(ctx, v.inner, childPrefix, true, pathMappings)
+			printTree(ctx, v.inner, childPrefix, true, childSuffix, pathMappings)
 		} else {
-			// No path options - just pass through to inner without wrapper
-			printTree(ctx, v.inner, prefix, isLast, pathMappings)
+			// No path options - pass through to inner without wrapper
+			printTree(ctx, v.inner, prefix, isLast, childSuffix, pathMappings)
 		}
 	}
 }

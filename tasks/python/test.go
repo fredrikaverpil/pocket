@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	testFlags        = flag.NewFlagSet("py-test", flag.ContinueOnError)
-	testPyVer        = testFlags.String("python", "", "Python version to use (e.g., 3.9)")
-	testSkipCoverage = testFlags.Bool("skip-coverage", false, "disable coverage generation")
+	testFlags    = flag.NewFlagSet("py-test", flag.ContinueOnError)
+	testPyVer    = testFlags.String("python", "", "Python version to use (e.g., 3.9)")
+	testCoverage = testFlags.Bool("coverage", false, "enable coverage reporting")
 )
 
 // Test runs Python tests using pytest.
 // Requires pytest as a project dependency in pyproject.toml.
-// Python version can be set via flag (-python) or via python.WithVersion() option.
-// Coverage can be enabled via python.WithCoverage() option.
+// Python version can be set via the -python flag.
+// Coverage can be enabled via the -coverage flag.
 var Test = pk.NewTask("py-test", "run Python tests", testFlags,
 	pk.Serial(uv.Install, testSyncCmd(), testCmd()),
 )
@@ -35,9 +35,7 @@ func testSyncCmd() pk.Runnable {
 func testCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		version := resolveVersion(ctx, *testPyVer)
-		// Coverage enabled via flag (inverted) or context option
-		skipCoverage := *testSkipCoverage || !coverageFromContext(ctx)
-		return runTest(ctx, version, skipCoverage)
+		return runTest(ctx, version, !*testCoverage)
 	})
 }
 

@@ -15,7 +15,7 @@ var (
 
 // Format formats Python files using ruff format.
 // Requires ruff as a project dependency in pyproject.toml.
-// Python version can be set via flag (-python) or via python.WithVersion() option.
+// Python version can be set via the -python flag.
 var Format = pk.NewTask("py-format", "format Python files", formatFlags,
 	pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
 )
@@ -53,11 +53,7 @@ func runFormat(ctx context.Context, pythonVersion string) error {
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }
 
-// resolveVersion returns the Python version from flag or context.
-// Flag takes precedence over context value.
+// resolveVersion returns the Python version from the flag.
 func resolveVersion(ctx context.Context, flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
-	return VersionFromContext(ctx)
+	return flagValue
 }

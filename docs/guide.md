@@ -343,17 +343,21 @@ var Config = &pk.Config{
         // Format, lint, typecheck, and test with Python 3.9 (with coverage)
         pk.WithOptions(
             python.Tasks(),
-            python.WithVersion("3.9"),
-            python.WithTestCoverage(),
+            pk.WithName("3.9"),
+            pk.WithFlag(python.Format, "python", "3.9"),
+            pk.WithFlag(python.Lint, "python", "3.9"),
+            pk.WithFlag(python.Typecheck, "python", "3.9"),
+            pk.WithFlag(python.Test, "python", "3.9"),
+            pk.WithFlag(python.Test, "coverage", true),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                pk.WithOptions(python.Test, python.WithVersion("3.10")),
-                pk.WithOptions(python.Test, python.WithVersion("3.11")),
-                pk.WithOptions(python.Test, python.WithVersion("3.12")),
-                pk.WithOptions(python.Test, python.WithVersion("3.13")),
+                pk.WithOptions(python.Test, pk.WithName("3.10"), pk.WithFlag(python.Test, "python", "3.10")),
+                pk.WithOptions(python.Test, pk.WithName("3.11"), pk.WithFlag(python.Test, "python", "3.11")),
+                pk.WithOptions(python.Test, pk.WithName("3.12"), pk.WithFlag(python.Test, "python", "3.12")),
+                pk.WithOptions(python.Test, pk.WithName("3.13"), pk.WithFlag(python.Test, "python", "3.13")),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -361,12 +365,9 @@ var Config = &pk.Config{
 }
 ```
 
-**Python-specific options:**
+**Configuring Python tasks:**
 
-| Option                      | Description                                            |
-| :-------------------------- | :----------------------------------------------------- |
-| `python.WithVersion("X")`   | Set Python version AND task name suffix (e.g., `:3.9`) |
-| `python.WithTestCoverage()` | Enable coverage for the Test task                      |
+Use `pk.WithName()` to add a suffix to task names (e.g., `py-test:3.9`) and `pk.WithFlag()` to set the Python version and enable coverage:
 
 **Available tasks:**
 
@@ -379,7 +380,7 @@ var Config = &pk.Config{
 | `python.Test`      | Run pytest                               |
 | `python.Detect()`  | DetectFunc for pyproject.toml            |
 
-When `python.WithVersion("3.9")` is used, tasks are automatically named with a
+When `pk.WithName("3.9")` is used, tasks are automatically named with a
 suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix
 generation.
 
@@ -740,35 +741,35 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |
 
-**Task-specific options** are provided by task packages:
-
-| Option                           | Package  | Description                                       |
-| :------------------------------- | :------- | :------------------------------------------------ |
-| `python.WithVersion(v)`          | `python` | Set Python version AND name suffix                |
-| `python.WithTestCoverage()`      | `python` | Enable coverage for test task                     |
-| `github.WithMatrixWorkflow(cfg)` | `github` | Enable `pocket-matrix.yml` + register matrix task |
-
-Task-specific options may combine multiple effects. For example,
-`python.WithVersion("3.9")` sets both the Python version for runtime AND adds
-`:3.9` to task names for CLI/matrix generation.
+Use `pk.WithFlag()` to set task flags explicitly:
 
 ```go
 pk.WithOptions(
     python.Tasks(),
-    python.WithVersion("3.9"),  // Task-specific: sets version + name suffix
-    python.WithTestCoverage(),      // Task-specific: enables coverage
-    pk.WithDetect(python.Detect()), // Generic: auto-detect Python projects
+    pk.WithName("3.9"),                          // Add :3.9 suffix to task names
+    pk.WithFlag(python.Format, "python", "3.9"), // Set Python version for format
+    pk.WithFlag(python.Lint, "python", "3.9"),   // Set Python version for lint
+    pk.WithFlag(python.Test, "python", "3.9"),   // Set Python version for test
+    pk.WithFlag(python.Test, "coverage", true),  // Enable coverage for test
+    pk.WithDetect(python.Detect()),              // Auto-detect Python projects
 )
 ```
 
-**Creating task-specific options:** When building your own task packages, use
-`pk.CombineOptions` to compose multiple effects:
+**Creating custom options:** When building your own task packages, use
+`pk.WithFlag` to set task flags, or `pk.CombineOptions` to compose multiple
+effects:
 
 ```go
-func WithVersion(version string) pk.PathOption {
+// Simple example: enable a feature via flag
+func EnableFeature() pk.PathOption {
+    return pk.WithFlag(MyTask, "feature", true)
+}
+
+// Advanced example: combine multiple effects
+func WithCustomConfig(value string) pk.PathOption {
     return pk.CombineOptions(
-        pk.WithContextValue(versionKey{}, version), // Runtime config
-        pk.WithName(version),                        // Name suffix
+        pk.WithContextValue(configKey{}, value), // Runtime config
+        pk.WithName(value),                      // Name suffix
     )
 }
 ```
@@ -1078,10 +1079,13 @@ import "github.com/fredrikaverpil/pocket/tasks/github"
 var Config = &pk.Config{
     Auto: pk.Parallel(
         golang.Tasks(),
-        pk.WithOptions(
-            github.Tasks(),
-            github.WithSkipPocket(),
-            github.WithMatrixWorkflow(github.MatrixConfig{
+        pk.Serial(
+            pk.WithOptions(
+                github.Workflows,
+                pk.WithFlag(github.Workflows, "skip-pocket", true),
+                pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+            ),
+            github.Matrix(github.MatrixConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on Linux
@@ -1093,10 +1097,10 @@ var Config = &pk.Config{
 }
 ```
 
-`WithMatrixWorkflow` does two things:
+This configuration:
 
-1. Enables the `pocket-matrix.yml` workflow file generation
-2. Passes the `MatrixConfig` to the `gha-matrix` task via context
+1. Enables the `pocket-matrix.yml` workflow file generation via the `include-pocket-matrix` flag
+2. Adds the `gha-matrix` task with the specified `MatrixConfig`
 
 Running `./pok gha-matrix` outputs:
 
@@ -1128,18 +1132,28 @@ Running `./pok gha-matrix` outputs:
 }
 ```
 
-### GitHub Task Options
+### GitHub Task Configuration
 
-All options are `pk.PathOption` values passed to `pk.WithOptions`:
+Use `pk.WithFlag()` to configure the `github.Workflows` task:
 
-| Option                            | Description                                           |
-| :-------------------------------- | :---------------------------------------------------- |
-| `github.WithSkipPocket()`         | Exclude `pocket.yml` workflow                         |
-| `github.WithSkipPR()`             | Exclude `pr.yml` workflow                             |
-| `github.WithSkipRelease()`        | Exclude `release.yml` workflow                        |
-| `github.WithSkipStale()`          | Exclude `stale.yml` workflow                          |
-| `github.WithPlatforms(platforms)` | Override platforms for `pocket.yml` (comma-separated) |
-| `github.WithMatrixWorkflow(cfg)`  | Enable `pocket-matrix.yml` + register matrix task     |
+| Flag                      | Type   | Description                                           |
+| :------------------------ | :----- | :---------------------------------------------------- |
+| `skip-pocket`             | `bool` | Exclude `pocket.yml` workflow                         |
+| `skip-pr`                 | `bool` | Exclude `pr.yml` workflow                             |
+| `skip-release`            | `bool` | Exclude `release.yml` workflow                        |
+| `skip-stale`              | `bool` | Exclude `stale.yml` workflow                          |
+| `platforms`               | `str`  | Override platforms for `pocket.yml` (comma-separated) |
+| `include-pocket-matrix`   | `bool` | Enable `pocket-matrix.yml` workflow                   |
+
+Example:
+
+```go
+pk.WithOptions(
+    github.Workflows,
+    pk.WithFlag(github.Workflows, "skip-pocket", true),
+    pk.WithFlag(github.Workflows, "platforms", "ubuntu-latest,macos-latest"),
+)
+```
 
 ### MatrixConfig Options
 
