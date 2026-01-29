@@ -13,41 +13,21 @@ import (
 
 var (
 	plenaryFlags       = flag.NewFlagSet("nvim-test", flag.ContinueOnError)
+	plenaryVersion     = plenaryFlags.String("version", neovim.DefaultVersion, "neovim version (stable, nightly, or specific like v0.10.0)")
+	plenarySiteDir     = plenaryFlags.String("site-dir", ".tests/default", "site directory for plugin isolation")
 	plenaryBootstrap   = plenaryFlags.String("bootstrap", "spec/bootstrap.lua", "bootstrap.lua file path")
 	plenaryMinimalInit = plenaryFlags.String("minimal-init", "spec/minimal_init.lua", "minimal_init.lua file path")
 	plenaryTestDir     = plenaryFlags.String("test-dir", "spec/", "test directory")
 	plenaryTimeout     = plenaryFlags.Int("timeout", 500000, "test timeout in ms")
 )
 
-// Context keys for configuration.
-type versionKey struct{}
-type siteDirKey struct{}
-
-// versionFromContext returns the Neovim version from context.
-// Returns neovim.DefaultVersion if not set.
-func versionFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(versionKey{}).(string); ok {
-		return v
-	}
-	return neovim.DefaultVersion
-}
-
-// siteDirFromContext returns the site directory from context.
-// Returns ".tests/default" if not set.
-func siteDirFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(siteDirKey{}).(string); ok {
-		return v
-	}
-	return ".tests/default"
-}
-
 // WithNeovimStable configures PlenaryTest to use stable Neovim.
 // This sets version, task name suffix, and site directory for isolation.
 // Tests run from the git root but plugins are installed in .tests/stable/.
 func WithNeovimStable() pk.PathOption {
 	return pk.CombineOptions(
-		pk.WithContextValue(versionKey{}, neovim.Stable),
-		pk.WithContextValue(siteDirKey{}, ".tests/stable"),
+		pk.WithFlag(PlenaryTest, "version", neovim.Stable),
+		pk.WithFlag(PlenaryTest, "site-dir", ".tests/stable"),
 		pk.WithName("stable"),
 	)
 }
@@ -57,8 +37,8 @@ func WithNeovimStable() pk.PathOption {
 // Tests run from the git root but plugins are installed in .tests/nightly/.
 func WithNeovimNightly() pk.PathOption {
 	return pk.CombineOptions(
-		pk.WithContextValue(versionKey{}, neovim.Nightly),
-		pk.WithContextValue(siteDirKey{}, ".tests/nightly"),
+		pk.WithFlag(PlenaryTest, "version", neovim.Nightly),
+		pk.WithFlag(PlenaryTest, "site-dir", ".tests/nightly"),
 		pk.WithName("nightly"),
 	)
 }
@@ -90,8 +70,8 @@ var PlenaryTest = pk.NewTask("nvim-test", "run neovim plenary tests", plenaryFla
 
 func runPlenaryTests() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := versionFromContext(ctx)
-		siteDir := siteDirFromContext(ctx)
+		version := *plenaryVersion
+		siteDir := *plenarySiteDir
 
 		// Clean and create site directory for isolation.
 		absSiteDir := pk.FromGitRoot(siteDir)
