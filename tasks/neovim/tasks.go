@@ -26,8 +26,7 @@ func Detect() pk.DetectFunc {
 	}
 }
 
-// Tasks returns the plenary test task.
-// Use WithNeovimStable() or WithNeovimNightly() to configure the version.
+// Tasks returns both plenary test tasks (stable and nightly) for composition.
 func Tasks() pk.Runnable {
-	return PlenaryTest
+	return pk.Parallel(PlenaryTestStable, PlenaryTestNightly)
 }

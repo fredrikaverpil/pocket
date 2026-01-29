@@ -11,70 +11,57 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/neovim"
 )
 
+// addCommonFlags adds common flags to a flag set and returns pointers to their values.
+func addCommonFlags(fs *flag.FlagSet) (bootstrap, minInit, testDir *string, timeout *int) {
+	return fs.String("bootstrap", "spec/bootstrap.lua", "bootstrap.lua file path"),
+		fs.String("minimal-init", "spec/minimal_init.lua", "minimal_init.lua file path"),
+		fs.String("test-dir", "spec/", "test directory"),
+		fs.Int("timeout", 500000, "test timeout in ms")
+}
+
+// Stable task flags with stable defaults.
 var (
-	plenaryFlags       = flag.NewFlagSet("nvim-test", flag.ContinueOnError)
-	plenaryVersion     = plenaryFlags.String("version", neovim.DefaultVersion, "neovim version (stable, nightly, or specific like v0.10.0)")
-	plenarySiteDir     = plenaryFlags.String("site-dir", ".tests/default", "site directory for plugin isolation")
-	plenaryBootstrap   = plenaryFlags.String("bootstrap", "spec/bootstrap.lua", "bootstrap.lua file path")
-	plenaryMinimalInit = plenaryFlags.String("minimal-init", "spec/minimal_init.lua", "minimal_init.lua file path")
-	plenaryTestDir     = plenaryFlags.String("test-dir", "spec/", "test directory")
-	plenaryTimeout     = plenaryFlags.Int("timeout", 500000, "test timeout in ms")
+	stableFlags                                        = flag.NewFlagSet("nvim-test:stable", flag.ContinueOnError)
+	stableVersion                                      = stableFlags.String("version", neovim.Stable, "neovim version")
+	stableSiteDir                                      = stableFlags.String("site-dir", ".tests/stable", "site directory")
+	stableBootstrap, stableMinInit, stableTestDir, stableTimeout = addCommonFlags(stableFlags)
 )
 
-// WithNeovimStable configures PlenaryTest to use stable Neovim.
-// This sets version, task name suffix, and site directory for isolation.
-// Tests run from the git root but plugins are installed in .tests/stable/.
-func WithNeovimStable() pk.PathOption {
-	return pk.CombineOptions(
-		pk.WithFlag(PlenaryTest, "version", neovim.Stable),
-		pk.WithFlag(PlenaryTest, "site-dir", ".tests/stable"),
-		pk.WithName("stable"),
-	)
-}
+// Nightly task flags with nightly defaults.
+var (
+	nightlyFlags                                           = flag.NewFlagSet("nvim-test:nightly", flag.ContinueOnError)
+	nightlyVersion                                         = nightlyFlags.String("version", neovim.Nightly, "neovim version")
+	nightlySiteDir                                         = nightlyFlags.String("site-dir", ".tests/nightly", "site directory")
+	nightlyBootstrap, nightlyMinInit, nightlyTestDir, nightlyTimeout = addCommonFlags(nightlyFlags)
+)
 
-// WithNeovimNightly configures PlenaryTest to use nightly Neovim.
-// This sets version, task name suffix, and site directory for isolation.
-// Tests run from the git root but plugins are installed in .tests/nightly/.
-func WithNeovimNightly() pk.PathOption {
-	return pk.CombineOptions(
-		pk.WithFlag(PlenaryTest, "version", neovim.Nightly),
-		pk.WithFlag(PlenaryTest, "site-dir", ".tests/nightly"),
-		pk.WithName("nightly"),
-	)
-}
-
-// PlenaryTest runs Neovim plenary tests.
-// Dependencies (neovim, treesitter, gotestsum) should be composed explicitly:
+// PlenaryTestStable runs Neovim plenary tests with stable Neovim.
+// Dependencies (neovim, treesitter) should be composed explicitly:
 //
 //	pk.Serial(
-//	    gotestsum.Install,
 //	    pk.Parallel(
 //	        neovim.InstallStable,
 //	        neovim.InstallNightly,
 //	        treesitter.Install,
 //	    ),
 //	    pk.Parallel(
-//	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimStable()),
-//	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimNightly()),
+//	        neovim.PlenaryTestStable,
+//	        neovim.PlenaryTestNightly,
 //	    ),
 //	)
-//
-// This explicit composition ensures:
-//   - Install tasks are outside WithOptions, avoiding suffix propagation
-//   - Each installer has a unique name (install:nvim-stable, install:nvim-nightly)
-//   - Global deduplication works naturally
-//   - Serial ensures installs complete before tests start
-var PlenaryTest = pk.NewTask("nvim-test", "run neovim plenary tests", plenaryFlags,
-	runPlenaryTests(),
+var PlenaryTestStable = pk.NewTask("nvim-test:stable", "run neovim plenary tests (stable)", stableFlags,
+	runPlenaryTests(stableVersion, stableSiteDir, stableBootstrap, stableMinInit, stableTestDir, stableTimeout),
 )
 
-func runPlenaryTests() pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		version := *plenaryVersion
-		siteDir := *plenarySiteDir
+// PlenaryTestNightly runs Neovim plenary tests with nightly Neovim.
+var PlenaryTestNightly = pk.NewTask("nvim-test:nightly", "run neovim plenary tests (nightly)", nightlyFlags,
+	runPlenaryTests(nightlyVersion, nightlySiteDir, nightlyBootstrap, nightlyMinInit, nightlyTestDir, nightlyTimeout),
+)
 
+func runPlenaryTests(version, siteDir, bootstrap, minInit, testDir *string, timeout *int) pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
 		// Clean and create site directory for isolation.
-		absSiteDir := pk.FromGitRoot(siteDir)
+		absSiteDir := pk.FromGitRoot(*siteDir)
 		if err := os.RemoveAll(absSiteDir); err != nil {
 			return fmt.Errorf("clean site directory: %w", err)
 		}
@@ -86,33 +73,33 @@ func runPlenaryTests() pk.Runnable {
 		ctx = pk.WithEnv(ctx, fmt.Sprintf("NEOTEST_SITE_DIR=%s", absSiteDir))
 
 		// Resolve paths from git root so they work regardless of execution directory.
-		bootstrap := pk.FromGitRoot(*plenaryBootstrap)
-		minimalInit := pk.FromGitRoot(*plenaryMinimalInit)
-		testDir := pk.FromGitRoot(*plenaryTestDir)
+		bootstrapPath := pk.FromGitRoot(*bootstrap)
+		minimalInitPath := pk.FromGitRoot(*minInit)
+		testDirPath := pk.FromGitRoot(*testDir)
 
 		// Use the specific neovim binary for this version to avoid symlink collisions
 		// when running multiple versions in parallel.
-		nvimBinary := neovim.BinaryPath(version)
+		nvimBinary := neovim.BinaryPath(*version)
 
 		if pk.Verbose(ctx) {
 			pk.Printf(ctx, "  nvim:        %s\n", nvimBinary)
-			pk.Printf(ctx, "  bootstrap:   %s\n", bootstrap)
-			pk.Printf(ctx, "  minimal_init: %s\n", minimalInit)
-			pk.Printf(ctx, "  test_dir:    %s\n", testDir)
-			pk.Printf(ctx, "  timeout:     %d\n", *plenaryTimeout)
+			pk.Printf(ctx, "  bootstrap:   %s\n", bootstrapPath)
+			pk.Printf(ctx, "  minimal_init: %s\n", minimalInitPath)
+			pk.Printf(ctx, "  test_dir:    %s\n", testDirPath)
+			pk.Printf(ctx, "  timeout:     %d\n", *timeout)
 			pk.Printf(ctx, "  site_dir:    %s\n", absSiteDir)
 		}
 
 		plenaryCmd := fmt.Sprintf(
 			"PlenaryBustedDirectory %s { minimal_init = '%s', timeout = %d }",
-			testDir, minimalInit, *plenaryTimeout,
+			testDirPath, minimalInitPath, *timeout,
 		)
 
 		return pk.Exec(ctx, nvimBinary,
 			"--headless",
 			"--noplugin",
 			"-i", "NONE",
-			"-u", bootstrap,
+			"-u", bootstrapPath,
 			"-c", plenaryCmd,
 		)
 	})
