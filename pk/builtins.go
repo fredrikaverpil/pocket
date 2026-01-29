@@ -181,7 +181,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
 		"tree":              buildJSONTree(tree, p.pathMappings),
-		"tasks":             buildTaskList(p.taskInstances, p.pathMappings),
+		"tasks":             buildTaskList(p.taskInstances),
 	}
 
 	encoder := json.NewEncoder(OutputFromContext(ctx).Stdout)
@@ -253,13 +253,13 @@ func buildJSONTree(r Runnable, pathMappings map[string]pathInfo) map[string]inte
 }
 
 // buildTaskList creates a JSON-friendly task list.
-func buildTaskList(instances []taskInstance, pathMappings map[string]pathInfo) []map[string]interface{} {
+func buildTaskList(instances []taskInstance) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(instances))
 
 	for _, instance := range instances {
-		paths := []string{"."}
-		if info, ok := pathMappings[instance.name]; ok {
-			paths = info.resolvedPaths // May be empty for excluded tasks.
+		paths := instance.resolvedPaths
+		if len(paths) == 0 {
+			paths = []string{"."}
 		}
 
 		taskJSON := map[string]interface{}{

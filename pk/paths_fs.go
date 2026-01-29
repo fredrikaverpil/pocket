@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -122,6 +123,28 @@ func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]s
 	})
 
 	return dirs, err
+}
+
+// preparePath ensures an execution path is ready for use.
+// If clean is true, the path is removed first.
+// If ensure is true, the path is created if it doesn't exist.
+// Has no effect when path is "." (git root).
+func preparePath(path string, clean, ensure bool) error {
+	if path == "." {
+		return nil
+	}
+	absPath := FromGitRoot(path)
+	if clean {
+		if err := os.RemoveAll(absPath); err != nil {
+			return fmt.Errorf("clean path %s: %w", path, err)
+		}
+	}
+	if ensure {
+		if err := os.MkdirAll(absPath, 0o755); err != nil {
+			return fmt.Errorf("create path %s: %w", path, err)
+		}
+	}
+	return nil
 }
 
 // matchPattern checks if a path matches a regex pattern.

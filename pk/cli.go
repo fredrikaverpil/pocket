@@ -118,7 +118,7 @@ func run(cfg *Config) (*executionTracker, error) {
 			}
 		}
 
-		return executeTask(ctx, instance, plan)
+		return executeTask(ctx, instance)
 	}
 
 	// Execute the full configuration with pre-built Plan.
@@ -198,58 +198,66 @@ func printTaskHelp(ctx context.Context, task *Task) {
 // ExecuteTask runs a single task with proper path context.
 // This is the public API for external callers.
 func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
-	// Wrap the task in a minimal taskInstance for the internal function.
-	instance := &taskInstance{task: task, name: task.Name()}
-	_, err := executeTask(ctx, instance, p)
+	// Use the pre-built instance from the plan if available,
+	// so that all execution context (paths, directory management) is applied.
+	instance := findTaskByName(p, task.Name())
+	if instance == nil {
+		instance = &taskInstance{task: task, name: task.Name()}
+	}
+	_, err := executeTask(ctx, instance)
 	return err
 }
 
 // executeTask runs a single task with proper path context and returns the tracker.
-func executeTask(ctx context.Context, instance *taskInstance, p *Plan) (*executionTracker, error) {
-	// Determine execution paths.
-	var paths []string
-
-	// Check TASK_SCOPE environment variable (set by shim).
-	// "." means root - use all paths from Plan.
-	// Any other value means subdirectory shim - only run in that path.
-	taskScope := os.Getenv("TASK_SCOPE")
-	switch {
-	case taskScope != "" && taskScope != ".":
-		// Running from a subdirectory via shim - only run in that path.
-		paths = []string{taskScope}
-	case p != nil:
-		// Running from root - use paths from Plan.
-		// Use effective name (instance.name) to look up path mappings.
-		if info, ok := p.pathMappings[instance.name]; ok {
-			// Task is in pathMappings - use resolved paths (may be empty if excluded).
-			paths = info.resolvedPaths
-		} else {
-			// No path mapping - run at root.
-			paths = []string{"."}
-		}
-	default:
-		paths = []string{"."}
-	}
-
-	// Set up execution tracker.
+func executeTask(ctx context.Context, instance *taskInstance) (*executionTracker, error) {
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
 
-	// Apply context values from the task instance (e.g., Python version).
-	for _, cv := range instance.contextValues {
-		ctx = context.WithValue(ctx, cv.key, cv.value)
-	}
-
-	// Execute task for each path.
-	for _, path := range paths {
-		pathCtx := WithPath(ctx, path)
-		if err := instance.task.run(pathCtx); err != nil {
-			return tracker, fmt.Errorf("task %s in %s: %w", instance.name, path, err)
-		}
+	if err := instance.execute(ctx); err != nil {
+		return tracker, err
 	}
 
 	// Run git diff check after task completes (only if -g flag was passed).
 	return tracker, runGitDiff(ctx)
+}
+
+// execute runs the task in its resolved paths with proper directory management.
+// This is the single place where "execute a task in its paths" is defined,
+// used by both single-task CLI execution and the public ExecuteTask API.
+//
+// Named "execute" rather than "run" to avoid satisfying the Runnable interface,
+// since taskInstance is not a composable Runnable.
+func (inst *taskInstance) execute(ctx context.Context) error {
+	// Apply context values from the task instance (e.g., Python version).
+	for _, cv := range inst.contextValues {
+		ctx = context.WithValue(ctx, cv.key, cv.value)
+	}
+
+	// Determine execution paths.
+	paths := inst.resolvedPaths
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+
+	// Check TASK_SCOPE environment variable (set by shim).
+	// "." means root - use all paths from the instance.
+	// Any other value means subdirectory shim - only run in that path.
+	if taskScope := os.Getenv("TASK_SCOPE"); taskScope != "" && taskScope != "." {
+		paths = []string{taskScope}
+	}
+
+	// Execute task for each path.
+	for _, path := range paths {
+		if err := preparePath(path, inst.cleanPath, inst.ensurePath); err != nil {
+			return err
+		}
+
+		pathCtx := WithPath(ctx, path)
+		if err := inst.task.run(pathCtx); err != nil {
+			return fmt.Errorf("task %s in %s: %w", inst.name, path, err)
+		}
+	}
+	return nil
 }
 
 func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, error) {

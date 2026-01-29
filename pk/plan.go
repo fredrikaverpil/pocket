@@ -177,6 +177,11 @@ type taskInstance struct {
 	contextValues []contextValue // Context values to apply when executing this task instance.
 	flags         map[string]any // Pre-merged flag overrides for this task.
 	isManual      bool           // Whether task is manual (from Config.Manual or Task.Manual()).
+
+	// Execution context from path filter.
+	resolvedPaths []string // Directories where this task executes.
+	cleanPath     bool     // Remove and recreate path before running.
+	ensurePath    bool     // Create path if it doesn't exist.
 }
 
 // taskCollector is the internal state for walking the tree.
@@ -279,35 +284,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 			effectiveName = v.name + ":" + pc.activeNameSuffix
 		}
 
-		// Only collect unique (task, suffix) pairs for the flat tasks list.
-		key := taskKey{task: v, suffix: pc.activeNameSuffix}
-		if !pc.seenTasks[key] {
-			pc.seenTasks[key] = true
-			// Copy context values to avoid sharing the slice.
-			var ctxValues []contextValue
-			if len(pc.activeContextValues) > 0 {
-				ctxValues = make([]contextValue, len(pc.activeContextValues))
-				copy(ctxValues, pc.activeContextValues)
-			}
-			// Pre-merge flags for this task from all active scopes.
-			var mergedFlags map[string]any
-			for _, f := range pc.activeFlags {
-				if f.taskName == v.name {
-					if mergedFlags == nil {
-						mergedFlags = make(map[string]any)
-					}
-					mergedFlags[f.flagName] = f.value
-				}
-			}
-			pc.taskInstances = append(pc.taskInstances, taskInstance{
-				task:          v,
-				name:          effectiveName,
-				contextValues: ctxValues,
-				flags:         mergedFlags,
-				isManual:      pc.inManualSection || v.IsManual(),
-			})
-		}
-
 		// Determine final paths for this task.
 		// If task is NOT inside any pathFilter, run at root only.
 		// If inside a pathFilter, use the filtered candidates with excludes applied.
@@ -345,8 +321,47 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
+		// Compute execution context from path filter.
+		var ensurePath, cleanPath bool
+		if pc.currentPath != nil {
+			ensurePath = pc.currentPath.explicitPath != "" || pc.currentPath.cleanPath
+			cleanPath = pc.currentPath.cleanPath
+		}
+
+		// Only collect unique (task, suffix) pairs for the flat tasks list.
+		key := taskKey{task: v, suffix: pc.activeNameSuffix}
+		if !pc.seenTasks[key] {
+			pc.seenTasks[key] = true
+			// Copy context values to avoid sharing the slice.
+			var ctxValues []contextValue
+			if len(pc.activeContextValues) > 0 {
+				ctxValues = make([]contextValue, len(pc.activeContextValues))
+				copy(ctxValues, pc.activeContextValues)
+			}
+			// Pre-merge flags for this task from all active scopes.
+			var mergedFlags map[string]any
+			for _, f := range pc.activeFlags {
+				if f.taskName == v.name {
+					if mergedFlags == nil {
+						mergedFlags = make(map[string]any)
+					}
+					mergedFlags[f.flagName] = f.value
+				}
+			}
+			pc.taskInstances = append(pc.taskInstances, taskInstance{
+				task:          v,
+				name:          effectiveName,
+				contextValues: ctxValues,
+				flags:         mergedFlags,
+				isManual:      pc.inManualSection || v.IsManual(),
+				resolvedPaths: finalPaths,
+				cleanPath:     cleanPath,
+				ensurePath:    ensurePath,
+			})
+		}
+
 		// Record path mapping using effective name.
-		// Use ALL include paths from the hierarchy for visibility/shims.
+		// Used for visibility filtering, shim generation, and plan introspection.
 		var allIncludes []string
 		if pc.currentPath != nil {
 			allIncludes = pc.currentPath.includePaths
@@ -506,10 +521,8 @@ func (p *Plan) Tasks() []TaskInfo {
 			Manual: instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 		}
 
-		// Get resolved paths from path mappings using effective name.
-		if pm, ok := p.pathMappings[instance.name]; ok {
-			info.Paths = pm.resolvedPaths
-		}
+		// Use resolved paths from the instance.
+		info.Paths = instance.resolvedPaths
 		if len(info.Paths) == 0 {
 			info.Paths = []string{"."}
 		}

@@ -2,7 +2,6 @@ package pk
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -275,22 +274,8 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		if path != "." {
-			absPath := FromGitRoot(path)
-
-			// Clean: remove existing directory.
-			if pf.cleanPath {
-				if err := os.RemoveAll(absPath); err != nil {
-					return fmt.Errorf("clean path %s: %w", path, err)
-				}
-			}
-
-			// Ensure explicit/cleaned path exists.
-			if pf.explicitPath != "" || pf.cleanPath {
-				if err := os.MkdirAll(absPath, 0o755); err != nil {
-					return fmt.Errorf("create path %s: %w", path, err)
-				}
-			}
+		if err := preparePath(path, pf.cleanPath, pf.explicitPath != "" || pf.cleanPath); err != nil {
+			return err
 		}
 
 		pathCtx := WithPath(ctx, path)

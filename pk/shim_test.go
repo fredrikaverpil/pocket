@@ -165,7 +165,11 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 
 	// Create plan with task mapped to multiple paths
 	p := &Plan{
-		taskInstances: []taskInstance{{task: task, name: "scoped-task"}},
+		taskInstances: []taskInstance{{
+			task:          task,
+			name:          "scoped-task",
+			resolvedPaths: []string{"pk", "internal"},
+		}},
 		pathMappings: map[string]pathInfo{
 			"scoped-task": {
 				includePaths:  []string{"pk", "internal"},

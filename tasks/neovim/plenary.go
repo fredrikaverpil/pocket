@@ -72,6 +72,14 @@ func runPlenaryTests() pk.Runnable {
 		minimalInit := pk.FromGitRoot(*plenaryMinimalInit)
 		testDir := pk.FromGitRoot(*plenaryTestDir)
 
+		if pk.Verbose(ctx) {
+			pk.Printf(ctx, "  bootstrap:   %s\n", bootstrap)
+			pk.Printf(ctx, "  minimal_init: %s\n", minimalInit)
+			pk.Printf(ctx, "  test_dir:    %s\n", testDir)
+			pk.Printf(ctx, "  timeout:     %d\n", *plenaryTimeout)
+			pk.Printf(ctx, "  cwd:         %s\n", pk.FromGitRoot(pk.PathFromContext(ctx)))
+		}
+
 		plenaryCmd := fmt.Sprintf(
 			"PlenaryBustedDirectory %s { minimal_init = '%s', timeout = %d }",
 			testDir, minimalInit, *plenaryTimeout,
