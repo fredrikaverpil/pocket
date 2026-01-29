@@ -11,6 +11,13 @@ const (
 	Nightly = neovim.Nightly
 )
 
+// Re-export install tasks for convenience.
+// These are Global tasks that only run once regardless of path.
+var (
+	InstallStable  = neovim.InstallStable
+	InstallNightly = neovim.InstallNightly
+)
+
 // Detect returns a DetectFunc for Neovim plugin projects.
 // Returns repository root since Lua files are typically scattered.
 func Detect() pk.DetectFunc {

@@ -23,6 +23,14 @@ const (
 // renovate: datasource=github-releases depName=neovim/neovim
 const DefaultVersion = "v0.11.5"
 
+var (
+	// InstallStable installs stable Neovim (DefaultVersion).
+	InstallStable = Install(Stable)
+
+	// InstallNightly installs nightly Neovim.
+	InstallNightly = Install(Nightly)
+)
+
 // BinaryPath returns the full path to the neovim binary for a given version.
 // Use this instead of Name when running specific versions to avoid symlink collisions.
 func BinaryPath(version string) string {

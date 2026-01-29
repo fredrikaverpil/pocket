@@ -9,7 +9,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/neovim"
-	"github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
 var (
@@ -65,35 +64,28 @@ func WithNeovimNightly() pk.PathOption {
 }
 
 // PlenaryTest runs Neovim plenary tests.
-// Use with PathOptions to configure version:
-//
-//	pk.Parallel(
-//	    pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimStable()),
-//	    pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimNightly()),
-//	)
-//
-// Dependencies (neovim, treesitter) are installed in parallel.
-// Since they're Global tasks, each only runs once regardless of how many
-// times PlenaryTest is invoked with different versions.
-//
-// For additional dependencies (e.g., gotestsum), compose them in your config:
+// Dependencies (neovim, treesitter, gotestsum) should be composed explicitly:
 //
 //	pk.Serial(
 //	    gotestsum.Install,
+//	    pk.Parallel(
+//	        neovim.InstallStable,
+//	        neovim.InstallNightly,
+//	        treesitter.Install,
+//	    ),
 //	    pk.Parallel(
 //	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimStable()),
 //	        pk.WithOptions(neovim.PlenaryTest, neovim.WithNeovimNightly()),
 //	    ),
 //	)
+//
+// This explicit composition ensures:
+//   - Install tasks are outside WithOptions, avoiding suffix propagation
+//   - Each installer has a unique name (install:nvim-stable, install:nvim-nightly)
+//   - Global deduplication works naturally
+//   - Serial ensures installs complete before tests start
 var PlenaryTest = pk.NewTask("nvim-test", "run neovim plenary tests", plenaryFlags,
-	pk.Serial(
-		pk.Parallel(
-			neovim.Install(neovim.Stable),
-			neovim.Install(neovim.Nightly),
-			treesitter.Install,
-		),
-		runPlenaryTests(),
-	),
+	runPlenaryTests(),
 )
 
 func runPlenaryTests() pk.Runnable {
