@@ -8,7 +8,9 @@ import (
 	"os"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tools/gotestsum"
 	"github.com/fredrikaverpil/pocket/tools/neovim"
+	"github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
 // addCommonFlags adds common flags to a flag set and returns pointers to their values.
@@ -21,41 +23,73 @@ func addCommonFlags(fs *flag.FlagSet) (bootstrap, minInit, testDir *string, time
 
 // Stable task flags with stable defaults.
 var (
-	stableFlags                                        = flag.NewFlagSet("nvim-test:stable", flag.ContinueOnError)
-	stableVersion                                      = stableFlags.String("version", neovim.Stable, "neovim version")
-	stableSiteDir                                      = stableFlags.String("site-dir", ".tests/stable", "site directory")
+	stableFlags = flag.NewFlagSet(
+		"nvim-test:stable",
+		flag.ContinueOnError,
+	)
+	stableVersion = stableFlags.String(
+		"version",
+		neovim.Stable,
+		"neovim version",
+	)
+	stableSiteDir = stableFlags.String(
+		"site-dir",
+		".tests/stable",
+		"site directory",
+	)
 	stableBootstrap, stableMinInit, stableTestDir, stableTimeout = addCommonFlags(stableFlags)
 )
 
 // Nightly task flags with nightly defaults.
 var (
-	nightlyFlags                                           = flag.NewFlagSet("nvim-test:nightly", flag.ContinueOnError)
-	nightlyVersion                                         = nightlyFlags.String("version", neovim.Nightly, "neovim version")
-	nightlySiteDir                                         = nightlyFlags.String("site-dir", ".tests/nightly", "site directory")
+	nightlyFlags = flag.NewFlagSet(
+		"nvim-test:nightly",
+		flag.ContinueOnError,
+	)
+	nightlyVersion = nightlyFlags.String(
+		"version",
+		neovim.Nightly,
+		"neovim version",
+	)
+	nightlySiteDir = nightlyFlags.String(
+		"site-dir",
+		".tests/nightly",
+		"site directory",
+	)
 	nightlyBootstrap, nightlyMinInit, nightlyTestDir, nightlyTimeout = addCommonFlags(nightlyFlags)
 )
 
 // PlenaryTestStable runs Neovim plenary tests with stable Neovim.
-// Dependencies (neovim, treesitter) should be composed explicitly:
-//
-//	pk.Serial(
-//	    pk.Parallel(
-//	        neovim.InstallStable,
-//	        neovim.InstallNightly,
-//	        treesitter.Install,
-//	    ),
-//	    pk.Parallel(
-//	        neovim.PlenaryTestStable,
-//	        neovim.PlenaryTestNightly,
-//	    ),
-//	)
+// Automatically installs all prerequisites (neovim, gotestsum, tree-sitter).
 var PlenaryTestStable = pk.NewTask("nvim-test:stable", "run neovim plenary tests (stable)", stableFlags,
-	runPlenaryTests(stableVersion, stableSiteDir, stableBootstrap, stableMinInit, stableTestDir, stableTimeout),
+	pk.Serial(
+		pk.Parallel(
+			neovim.InstallStable,
+			gotestsum.Install,
+			treesitter.Install,
+		),
+		runPlenaryTests(stableVersion, stableSiteDir, stableBootstrap, stableMinInit, stableTestDir, stableTimeout),
+	),
 )
 
 // PlenaryTestNightly runs Neovim plenary tests with nightly Neovim.
+// Automatically installs all prerequisites (neovim, gotestsum, tree-sitter).
 var PlenaryTestNightly = pk.NewTask("nvim-test:nightly", "run neovim plenary tests (nightly)", nightlyFlags,
-	runPlenaryTests(nightlyVersion, nightlySiteDir, nightlyBootstrap, nightlyMinInit, nightlyTestDir, nightlyTimeout),
+	pk.Serial(
+		pk.Parallel(
+			neovim.InstallNightly,
+			gotestsum.Install,
+			treesitter.Install,
+		),
+		runPlenaryTests(
+			nightlyVersion,
+			nightlySiteDir,
+			nightlyBootstrap,
+			nightlyMinInit,
+			nightlyTestDir,
+			nightlyTimeout,
+		),
+	),
 )
 
 func runPlenaryTests(version, siteDir, bootstrap, minInit, testDir *string, timeout *int) pk.Runnable {
