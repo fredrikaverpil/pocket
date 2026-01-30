@@ -337,6 +337,12 @@ func buildTaskList(instances []taskInstance) []map[string]interface{} {
 			"manual": instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
 			"paths":  paths,
 		}
+
+		// Include flags if present (from pk.WithFlag overrides).
+		if len(instance.flags) > 0 {
+			taskJSON["flags"] = instance.flags
+		}
+
 		result = append(result, taskJSON)
 	}
 

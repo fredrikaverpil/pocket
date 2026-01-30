@@ -42,7 +42,7 @@ jobs:
             {{`${{ runner.os }}`}}-pocket-
       - name: Run {{ .Task }}
         shell: {{ .Shell }}
-        run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}
+        run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}{{ if .FlagsArgs }} {{ .FlagsArgs }}{{ end }}
 {{- if .GitDiff }}
       - name: Check for uncommitted changes
         shell: bash

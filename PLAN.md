@@ -279,6 +279,15 @@ Additional completed:
        var selfUpdateTask = NewTask("self-update", ..., selfUpdateFlags, ...)
       The IIFE pattern is valid Go but inconsistent. Would you like me to align
       planTask with the selfUpdateTask pattern for consistency?
+- [ ] The generated GHA matrix workflow contains a separate git diff job. This
+      we can remove, as each Pocket task runs with `./pok -g` and the -g flag
+      instructs Pocket to run the git diff task after the given task that runs.
+      So right now, we don't need the "Check for uncommitted changes" job.
+- [ ] Is not all tasks' TaskInfo part of the plan, and doesn't the plan JSON get
+      derived from the plan?  
+      It seeks like you are manually registering what should be going into a
+      special taskJSON map or something when the  
+      JSON should be generated purely from data in the plan.
 
 ## Phase 9: Mid-review
 

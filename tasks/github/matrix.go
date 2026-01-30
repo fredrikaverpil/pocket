@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
@@ -70,13 +72,14 @@ func matrixConfigFromContext(ctx context.Context) MatrixConfig {
 
 // StaticJob represents a single job in the static workflow.
 type StaticJob struct {
-	ID       string // GHA job identifier, e.g., "go-test-ubuntu"
-	Name     string // Display name, e.g., "go-test (ubuntu-latest)"
-	Task     string // Task name, e.g., "go-test"
-	Platform string // Runner platform, e.g., "ubuntu-latest"
-	Shell    string // Shell to use, "bash" or "pwsh"
-	Shim     string // Shim command, "./pok" or ".\\pok.ps1"
-	GitDiff  bool   // Whether to check for uncommitted changes
+	ID        string // GHA job identifier, e.g., "go-test-ubuntu"
+	Name      string // Display name, e.g., "go-test (ubuntu-latest)"
+	Task      string // Task name, e.g., "go-test"
+	Platform  string // Runner platform, e.g., "ubuntu-latest"
+	Shell     string // Shell to use, "bash" or "pwsh"
+	Shim      string // Shim command, "./pok" or ".\\pok.ps1"
+	GitDiff   bool   // Whether to check for uncommitted changes
+	FlagsArgs string // Pre-formatted CLI flags, e.g., "-python 3.9 -coverage"
 }
 
 // GenerateStaticJobs creates static job definitions from tasks.
@@ -112,16 +115,20 @@ func GenerateStaticJobs(tasks []pk.TaskInfo, cfg MatrixConfig) []StaticJob {
 			platforms = override.Platforms
 		}
 
+		// Format flags as CLI arguments.
+		flagsArgs := formatFlagsArgs(task.Flags)
+
 		// Create job for each platform
 		for _, platform := range platforms {
 			jobs = append(jobs, StaticJob{
-				ID:       jobID(task.Name, platform),
-				Name:     task.Name + " (" + platform + ")",
-				Task:     task.Name,
-				Platform: platform,
-				Shell:    shellForPlatform(platform, cfg.WindowsShell),
-				Shim:     shimForPlatform(platform, cfg.WindowsShell, cfg.WindowsShim),
-				GitDiff:  !cfg.DisableGitDiff,
+				ID:        jobID(task.Name, platform),
+				Name:      task.Name + " (" + platform + ")",
+				Task:      task.Name,
+				Platform:  platform,
+				Shell:     shellForPlatform(platform, cfg.WindowsShell),
+				Shim:      shimForPlatform(platform, cfg.WindowsShell, cfg.WindowsShim),
+				GitDiff:   !cfg.DisableGitDiff,
+				FlagsArgs: flagsArgs,
 			})
 		}
 	}
@@ -202,4 +209,42 @@ func shimForPlatform(platform, windowsShell, windowsShim string) string {
 		}
 	}
 	return "./pok"
+}
+
+// formatFlagsArgs converts a flag map to CLI argument string.
+// Bool true values become "-flag", strings become "-flag value".
+// Bool false values are skipped.
+// Output is sorted alphabetically for deterministic ordering.
+func formatFlagsArgs(flags map[string]any) string {
+	if len(flags) == 0 {
+		return ""
+	}
+
+	// Sort keys for deterministic output.
+	keys := make([]string, 0, len(flags))
+	for k := range flags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var parts []string
+	for _, k := range keys {
+		v := flags[k]
+		switch val := v.(type) {
+		case bool:
+			if val {
+				parts = append(parts, fmt.Sprintf("-%s", k))
+			}
+			// Skip false bools.
+		case string:
+			if val != "" {
+				parts = append(parts, fmt.Sprintf("-%s %s", k, val))
+			}
+		default:
+			// For other types, convert to string.
+			parts = append(parts, fmt.Sprintf("-%s %v", k, v))
+		}
+	}
+
+	return strings.Join(parts, " ")
 }
