@@ -244,20 +244,21 @@ Additional completed:
 - [x] Why do we have both pk.WithFlag and xxx.WithXOption ? Do we need both? Or
       could we opt for only defining task flags, and then pass the desired flags
       in the `Config{Auto: {...}}` composition?
-- [ ] We recently introduced parsing of pk.WithName so that we appended the
-      value as a task suffix. Is the entire name properly evaluated by e.g. the
-      GitHub pocket-matrix workflow logic? Are we sure that task names are
-      treated everywhere with this suffix applied?
-- [ ] For GitHub pocket matrix workflow, can we change how this works, so that
-      we instead generate the workflow file that will be executed? This makes it
-      a lot easier to debug and write tests for the GitHub workflows. Right now,
-      the more complex GHA matrix workflow generates jobs on the fly in GHA
-      which is difficult to debug.
+- [ ] We recently (in sha `bff236d410dcf9c33a2977ebb81992d2e5a7811d`) introduced
+      parsing of pk.WithName so that we appended the value to the task's
+      effective name. Is the entire name properly evaluated by e.g. the GitHub
+      pocket-matrix workflow logic? Are we sure that task names are treated
+      everywhere with this suffix applied?
 - [ ] Unless something changed, tasks have both a "name" and an "id". Is this
       really necessary? Can we just opt for a name which we will treat as the
       id, and require that tasks must have unique names? I noticed the
       `./pok plan -json` only outputs the "name" (not the "id"). When would we
       _actually_ need to have a separate ID?
+- [ ] For GitHub pocket matrix workflow, can we change how this works, so that
+      we instead generate the workflow file that will be executed? This makes it
+      a lot easier to debug and write tests for the GitHub workflows. Right now,
+      the more complex GHA matrix workflow generates jobs on the fly in GHA
+      which is difficult to debug.
 
 ## Phase 9: Mid-review
 
