@@ -486,3 +486,284 @@ func TestGenerateMatrix_GitDiff_Disabled(t *testing.T) {
 		}
 	}
 }
+
+// Tests for static job generation
+
+func TestGenerateStaticJobs_Default(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := DefaultMatrixConfig()
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	// 2 tasks × 3 platforms = 6 jobs
+	if len(jobs) != 6 {
+		t.Fatalf("expected 6 jobs, got %d", len(jobs))
+	}
+
+	// Verify job structure
+	for _, job := range jobs {
+		if job.ID == "" {
+			t.Error("job ID should not be empty")
+		}
+		if job.Name == "" {
+			t.Error("job Name should not be empty")
+		}
+		if job.Task == "" {
+			t.Error("job Task should not be empty")
+		}
+		if job.Platform == "" {
+			t.Error("job Platform should not be empty")
+		}
+		if job.Shell == "" {
+			t.Error("job Shell should not be empty")
+		}
+		if job.Shim == "" {
+			t.Error("job Shim should not be empty")
+		}
+	}
+}
+
+func TestGenerateStaticJobs_JobID(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "go-test", Usage: "test go code"},
+	}
+
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest"},
+	}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(jobs))
+	}
+
+	job := jobs[0]
+	if job.ID != "go-test-ubuntu" {
+		t.Errorf("expected ID 'go-test-ubuntu', got %q", job.ID)
+	}
+	if job.Name != "go-test (ubuntu-latest)" {
+		t.Errorf("expected Name 'go-test (ubuntu-latest)', got %q", job.Name)
+	}
+}
+
+func TestGenerateStaticJobs_TaskOverrides(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+		TaskOverrides: map[string]TaskOverride{
+			"lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on ubuntu
+		},
+	}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	// lint: 1 platform, test: 3 platforms = 4 jobs
+	if len(jobs) != 4 {
+		t.Fatalf("expected 4 jobs, got %d", len(jobs))
+	}
+
+	// Count lint jobs
+	lintCount := 0
+	for _, job := range jobs {
+		if job.Task == "lint" {
+			lintCount++
+			if job.Platform != "ubuntu-latest" {
+				t.Errorf("lint should only run on ubuntu-latest, got %q", job.Platform)
+			}
+		}
+	}
+	if lintCount != 1 {
+		t.Errorf("expected 1 lint job, got %d", lintCount)
+	}
+}
+
+func TestGenerateStaticJobs_ExcludeTasks(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "format", Usage: "format code"},
+		{Name: "lint", Usage: "lint code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest"},
+		ExcludeTasks:     []string{"format"},
+	}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	// 3 tasks - 1 excluded = 2 jobs
+	if len(jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(jobs))
+	}
+
+	for _, job := range jobs {
+		if job.Task == "format" {
+			t.Error("format task should be excluded")
+		}
+	}
+}
+
+func TestGenerateStaticJobs_HiddenTasksExcluded(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code", Hidden: false},
+		{Name: "install:tool", Usage: "install tool", Hidden: true},
+	}
+
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest"},
+	}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	// Only non-hidden task = 1 job
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(jobs))
+	}
+	if jobs[0].Task != "lint" {
+		t.Errorf("expected task 'lint', got %q", jobs[0].Task)
+	}
+}
+
+func TestGenerateStaticJobs_ManualTasksExcluded(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code", Manual: false},
+		{Name: "deploy", Usage: "deploy to prod", Manual: true},
+	}
+
+	cfg := MatrixConfig{
+		DefaultPlatforms: []string{"ubuntu-latest"},
+	}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	// Only non-manual task = 1 job
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(jobs))
+	}
+	if jobs[0].Task != "lint" {
+		t.Errorf("expected task 'lint', got %q", jobs[0].Task)
+	}
+}
+
+func TestGenerateStaticJobs_GitDiff(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+	}
+
+	// Default: gitDiff enabled
+	cfg := DefaultMatrixConfig()
+	cfg.DefaultPlatforms = []string{"ubuntu-latest"}
+	jobs := GenerateStaticJobs(tasks, cfg)
+
+	if !jobs[0].GitDiff {
+		t.Error("expected GitDiff=true by default")
+	}
+
+	// Disabled
+	cfg.DisableGitDiff = true
+	jobs = GenerateStaticJobs(tasks, cfg)
+
+	if jobs[0].GitDiff {
+		t.Error("expected GitDiff=false when DisableGitDiff=true")
+	}
+}
+
+func TestGenerateStaticJobs_WindowsShell(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "test", Usage: "run tests"},
+	}
+
+	tests := []struct {
+		name         string
+		windowsShell string
+		windowsShim  string
+		wantShell    string
+		wantShim     string
+	}{
+		{"default", "", "", "pwsh", ".\\pok.ps1"},
+		{"powershell_ps1", "powershell", "ps1", "pwsh", ".\\pok.ps1"},
+		{"powershell_cmd", "powershell", "cmd", "pwsh", ".\\pok.cmd"},
+		{"bash", "bash", "", "bash", "./pok"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := MatrixConfig{
+				DefaultPlatforms: []string{"windows-latest"},
+				WindowsShell:     tt.windowsShell,
+				WindowsShim:      tt.windowsShim,
+			}
+			jobs := GenerateStaticJobs(tasks, cfg)
+
+			if len(jobs) != 1 {
+				t.Fatalf("expected 1 job, got %d", len(jobs))
+			}
+			if jobs[0].Shell != tt.wantShell {
+				t.Errorf("expected Shell %q, got %q", tt.wantShell, jobs[0].Shell)
+			}
+			if jobs[0].Shim != tt.wantShim {
+				t.Errorf("expected Shim %q, got %q", tt.wantShim, jobs[0].Shim)
+			}
+		})
+	}
+}
+
+func TestGenerateStaticJobs_Empty(t *testing.T) {
+	cfg := DefaultMatrixConfig()
+	jobs := GenerateStaticJobs(nil, cfg)
+
+	if len(jobs) != 0 {
+		t.Errorf("expected 0 jobs, got %d", len(jobs))
+	}
+}
+
+func TestJobID(t *testing.T) {
+	tests := []struct {
+		task     string
+		platform string
+		want     string
+	}{
+		{"go-test", "ubuntu-latest", "go-test-ubuntu"},
+		{"go-test", "macos-latest", "go-test-macos"},
+		{"go-test", "windows-latest", "go-test-windows"},
+		{"py-test:3.9", "ubuntu-latest", "py-test-3-9-ubuntu"},
+		{"py-test:3.10", "macos-latest", "py-test-3-10-macos"},
+		{"lint", "ubuntu-22.04", "lint-ubuntu-22-04"},
+		{"test.unit", "ubuntu-latest", "test-unit-ubuntu"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.task+"_"+tt.platform, func(t *testing.T) {
+			got := jobID(tt.task, tt.platform)
+			if got != tt.want {
+				t.Errorf("jobID(%q, %q) = %q, want %q", tt.task, tt.platform, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlatformShort(t *testing.T) {
+	tests := []struct {
+		platform string
+		want     string
+	}{
+		{"ubuntu-latest", "ubuntu"},
+		{"macos-latest", "macos"},
+		{"windows-latest", "windows"},
+		{"ubuntu-22.04", "ubuntu-22-04"},
+		{"macos-13", "macos-13"},
+		{"windows-2022", "windows-2022"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.platform, func(t *testing.T) {
+			got := platformShort(tt.platform)
+			if got != tt.want {
+				t.Errorf("platformShort(%q) = %q, want %q", tt.platform, got, tt.want)
+			}
+		})
+	}
+}

@@ -102,18 +102,23 @@ func runWorkflows(ctx context.Context) error {
 
 	workflowDefs := []workflowDef{
 		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !*skipPocket},
-		{"pocket-matrix.yml.tmpl", "pocket-matrix.yml", nil, *includePocketMatrix},
 		{"pr.yml.tmpl", "pr.yml", nil, !*skipPR},
 		{"release.yml.tmpl", "release.yml", nil, !*skipRelease},
 		{"stale.yml.tmpl", "stale.yml", staleConfig, !*skipStale},
 	}
 
+	// Also manage pocket-matrix.yml (generated separately via static generation)
+	allManagedFiles := []string{"pocket-matrix.yml"}
+	for _, wf := range workflowDefs {
+		allManagedFiles = append(allManagedFiles, wf.outFile)
+	}
+
 	// Clean up managed workflow files before generating.
 	// This ensures disabled workflows are removed.
-	for _, wf := range workflowDefs {
-		destPath := filepath.Join(workflowDir, wf.outFile)
+	for _, outFile := range allManagedFiles {
+		destPath := filepath.Join(workflowDir, outFile)
 		if err := os.Remove(destPath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove %s: %w", wf.outFile, err)
+			return fmt.Errorf("remove %s: %w", outFile, err)
 		}
 	}
 
@@ -160,8 +165,60 @@ func runWorkflows(ctx context.Context) error {
 		copied++
 	}
 
+	// Generate static pocket-matrix workflow if requested
+	if *includePocketMatrix {
+		if err := generateStaticMatrixWorkflow(ctx, workflowDir, verbose); err != nil {
+			return fmt.Errorf("generate pocket-matrix workflow: %w", err)
+		}
+		copied++
+	}
+
 	if verbose && copied > 0 {
 		pk.Printf(ctx, "  Bootstrapped %d workflow(s)\n", copied)
+	}
+
+	return nil
+}
+
+// staticMatrixData holds the data for the static matrix workflow template.
+type staticMatrixData struct {
+	Jobs []StaticJob
+}
+
+func generateStaticMatrixWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
+	plan := pk.PlanFromContext(ctx)
+	if plan == nil {
+		return fmt.Errorf("plan not available in context")
+	}
+
+	cfg := matrixConfigFromContext(ctx)
+	jobs := GenerateStaticJobs(plan.Tasks(), cfg)
+
+	// Read template
+	tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", "pocket-matrix-static.yml.tmpl"))
+	if err != nil {
+		return fmt.Errorf("read template: %w", err)
+	}
+
+	// Parse and execute template
+	tmpl, err := template.New("pocket-matrix-static.yml.tmpl").Parse(string(tmplContent))
+	if err != nil {
+		return fmt.Errorf("parse template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, staticMatrixData{Jobs: jobs}); err != nil {
+		return fmt.Errorf("execute template: %w", err)
+	}
+
+	// Write workflow file
+	destPath := filepath.Join(workflowDir, "pocket-matrix.yml")
+	if err := os.WriteFile(destPath, buf.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("write workflow: %w", err)
+	}
+
+	if verbose {
+		pk.Printf(ctx, "  Created %s (%d jobs)\n", destPath, len(jobs))
 	}
 
 	return nil

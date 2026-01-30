@@ -258,7 +258,27 @@ Additional completed:
       we instead generate the workflow file that will be executed? This makes it
       a lot easier to debug and write tests for the GitHub workflows. Right now,
       the more complex GHA matrix workflow generates jobs on the fly in GHA
-      which is difficult to debug.
+      which is difficult to debug. A complex case is the GitHub Matrix in
+      ~/code/public/creosote which today does not quite work as `./pok plan` and
+      `./pok -h` looks right with task naming (several variants of py-test), but
+      where the CI does not use the same task names (suffix missing, from
+      pk.WithName): https://github.com/fredrikaverpil/neotest-golang/pull/541
+- [ ] Found during investigation: ⚠️ Minor inconsistency found planTask uses an
+      IIFE pattern to capture flags:  
+       var planTask = func() *Task {  
+       fs := flag.NewFlagSet("plan", flag.ContinueOnError)  
+       jsonFlag := fs.Bool("json", false, "output as JSON")  
+       return NewTask("plan", ..., fs, Do(func(ctx context.Context) error {  
+       if *jsonFlag { ... }  
+       })).HideHeader()  
+       }() While selfUpdateTask uses package-level vars:  
+       var (  
+       selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)  
+       selfUpdateForce = selfUpdateFlags.Bool("force", false, "...")  
+       )  
+       var selfUpdateTask = NewTask("self-update", ..., selfUpdateFlags, ...)
+      The IIFE pattern is valid Go but inconsistent. Would you like me to align
+      planTask with the selfUpdateTask pattern for consistency?
 
 ## Phase 9: Mid-review
 

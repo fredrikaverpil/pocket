@@ -81,42 +81,47 @@ var (
 )
 
 // planTask displays the execution plan.
-var planTask = NewTask("plan", "show execution plan without running tasks", planFlags, Do(func(ctx context.Context) error {
-	p := PlanFromContext(ctx)
-	if p == nil {
-		return fmt.Errorf("plan not found in context")
-	}
-
-	if *planJSON {
-		return printPlanJSON(ctx, p.tree, p)
-	}
-
-	// Text output
-	Printf(ctx, "Execution Plan\n")
-	Printf(ctx, "==============\n\n")
-
-	// Show module directories where shims will be generated
-	if len(p.moduleDirectories) > 0 {
-		Printf(ctx, "Shim Generation:\n")
-		for _, dir := range p.moduleDirectories {
-			if dir == "." {
-				Printf(ctx, "  • root\n")
-			} else {
-				Printf(ctx, "  • %s\n", dir)
-			}
+var planTask = NewTask(
+	"plan",
+	"show execution plan without running tasks",
+	planFlags,
+	Do(func(ctx context.Context) error {
+		p := PlanFromContext(ctx)
+		if p == nil {
+			return fmt.Errorf("plan not found in context")
 		}
+
+		if *planJSON {
+			return printPlanJSON(ctx, p.tree, p)
+		}
+
+		// Text output
+		Printf(ctx, "Execution Plan\n")
+		Printf(ctx, "==============\n\n")
+
+		// Show module directories where shims will be generated
+		if len(p.moduleDirectories) > 0 {
+			Printf(ctx, "Shim Generation:\n")
+			for _, dir := range p.moduleDirectories {
+				if dir == "." {
+					Printf(ctx, "  • root\n")
+				} else {
+					Printf(ctx, "  • %s\n", dir)
+				}
+			}
+			Println(ctx)
+		}
+
+		// Show composition tree
+		Printf(ctx, "Composition Tree:\n")
+		printTree(ctx, p.tree, "", true, "", p.pathMappings)
+
 		Println(ctx)
-	}
+		Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 
-	// Show composition tree
-	Printf(ctx, "Composition Tree:\n")
-	printTree(ctx, p.tree, "", true, "", p.pathMappings)
-
-	Println(ctx)
-	Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
-
-	return nil
-})).HideHeader()
+		return nil
+	}),
+).HideHeader()
 
 // gitDiffTask checks for uncommitted changes.
 // Hidden because it's controlled via the -g flag, not direct invocation.

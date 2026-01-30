@@ -54,6 +54,6 @@ func runFormat(ctx context.Context, pythonVersion string) error {
 }
 
 // resolveVersion returns the Python version from the flag.
-func resolveVersion(ctx context.Context, flagValue string) string {
+func resolveVersion(_ context.Context, flagValue string) string {
 	return flagValue
 }

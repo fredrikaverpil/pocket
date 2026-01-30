@@ -1205,8 +1205,8 @@ type TaskOverride struct {
 
 > [!NOTE]
 >
-> The `github-workflows` and `gha-matrix` tasks also accept flags directly (e.g.,
-> `./pok github-workflows -include-pocket-matrix`). Flag overrides via
+> The `github-workflows` and `gha-matrix` tasks also accept flags directly
+> (e.g., `./pok github-workflows -include-pocket-matrix`). Flag overrides via
 > `pk.WithFlag` only apply when running through the composition tree (bare
 > `./pok`). When invoking tasks directly, pass flags explicitly.
 

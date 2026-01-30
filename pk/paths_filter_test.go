@@ -179,7 +179,7 @@ func TestWithCleanPath(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		task := NewTask("clean-test", "test", nil, Do(func(ctx context.Context) error {
+		task := NewTask("clean-test", "test", nil, Do(func(_ context.Context) error {
 			// Verify marker file is gone.
 			if _, err := os.Stat(markerFile); !os.IsNotExist(err) {
 				t.Error("expected marker file to be removed by cleanPath")
@@ -229,7 +229,7 @@ func TestWithExplicitPath(t *testing.T) {
 		testPath := "explicit/new/dir"
 		absPath := filepath.Join(tmpDir, testPath)
 
-		task := NewTask("explicit-test", "test", nil, Do(func(ctx context.Context) error {
+		task := NewTask("explicit-test", "test", nil, Do(func(_ context.Context) error {
 			// Verify directory was created.
 			if _, err := os.Stat(absPath); err != nil {
 				t.Errorf("expected directory to be created: %v", err)
@@ -265,7 +265,7 @@ func TestWithExplicitPath(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		task := NewTask("combo-test", "test", nil, Do(func(ctx context.Context) error {
+		task := NewTask("combo-test", "test", nil, Do(func(_ context.Context) error {
 			// Marker should be gone (cleaned).
 			if _, err := os.Stat(markerFile); !os.IsNotExist(err) {
 				t.Error("expected marker file to be removed")
