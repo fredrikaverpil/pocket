@@ -83,22 +83,33 @@ var cleanTask = NewTask(
 	}),
 )
 
+// self-update flags.
+var (
+	selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)
+	selfUpdateForce = selfUpdateFlags.Bool("force", false, "bypass Go proxy cache (slower, but guarantees latest)")
+)
+
 // updateTask updates Pocket and regenerates scaffolded files.
 var updateTask = NewTask(
 	"self-update",
 	"update Pocket and regenerate scaffolded files",
-	nil,
+	selfUpdateFlags,
 	Do(func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		// 1. go get latest (use GOPROXY=direct to bypass proxy cache)
-		if Verbose(ctx) {
-			Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
-		}
+		// 1. go get latest
 		cmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
 		cmd.Dir = pocketDir
-		cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
+		if *selfUpdateForce {
+			// Bypass proxy cache to guarantee absolute latest
+			cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
+			if Verbose(ctx) {
+				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
+			}
+		} else if Verbose(ctx) {
+			Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+		}
 		out := OutputFromContext(ctx)
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr

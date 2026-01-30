@@ -88,6 +88,16 @@ func run(cfg *Config) (*executionTracker, error) {
 		case "shims":
 			return nil, generateTask.run(ctx)
 		case "self-update":
+			taskArgs := args[1:]
+			if hasHelpFlag(taskArgs) {
+				printTaskHelp(ctx, updateTask)
+				return nil, nil
+			}
+			if updateTask.Flags() != nil && len(taskArgs) > 0 {
+				if err := updateTask.Flags().Parse(taskArgs); err != nil {
+					return nil, fmt.Errorf("parsing flags for self-update: %w", err)
+				}
+			}
 			return nil, updateTask.run(ctx)
 		case "purge":
 			return nil, cleanTask.run(ctx)
