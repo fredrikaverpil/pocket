@@ -97,6 +97,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	cmd.Dir = targetDir
 	cmd.Env = env
 	cmd.Env = append(cmd.Env, colorEnvVars...)
+	cmd.Stdin = nil // Prevent subprocess from reading stdin (avoids CI hangs)
 	cmd.WaitDelay = WaitDelay
 	setGracefulShutdown(cmd)
 
