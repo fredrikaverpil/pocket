@@ -244,6 +244,14 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 		ctx = context.WithValue(ctx, cv.key, cv.value)
 	}
 
+	// Extract and apply name suffix from instance name (e.g., "py-lint:3.9" -> "3.9").
+	// This ensures flag overrides are found when task.run() looks up by effective name.
+	baseName := inst.task.Name()
+	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
+		suffix := inst.name[len(baseName)+1:]
+		ctx = withNameSuffix(ctx, suffix)
+	}
+
 	// Determine execution paths.
 	paths := inst.resolvedPaths
 	if len(paths) == 0 {
