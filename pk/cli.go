@@ -86,20 +86,31 @@ func run(cfg *Config) (*executionTracker, error) {
 		case "plan":
 			return nil, handlePlan(ctx, plan, args[1:])
 		case "shims":
+			if err := generateTask.Flags().Parse(args[1:]); err != nil {
+				if errors.Is(err, flag.ErrHelp) {
+					printTaskHelp(ctx, generateTask)
+					return nil, nil
+				}
+				return nil, fmt.Errorf("parsing flags for shims: %w", err)
+			}
 			return nil, generateTask.run(ctx)
 		case "self-update":
-			taskArgs := args[1:]
-			if hasHelpFlag(taskArgs) {
-				printTaskHelp(ctx, updateTask)
-				return nil, nil
-			}
-			if updateTask.Flags() != nil && len(taskArgs) > 0 {
-				if err := updateTask.Flags().Parse(taskArgs); err != nil {
-					return nil, fmt.Errorf("parsing flags for self-update: %w", err)
+			if err := updateTask.Flags().Parse(args[1:]); err != nil {
+				if errors.Is(err, flag.ErrHelp) {
+					printTaskHelp(ctx, updateTask)
+					return nil, nil
 				}
+				return nil, fmt.Errorf("parsing flags for self-update: %w", err)
 			}
 			return nil, updateTask.run(ctx)
 		case "purge":
+			if err := cleanTask.Flags().Parse(args[1:]); err != nil {
+				if errors.Is(err, flag.ErrHelp) {
+					printTaskHelp(ctx, cleanTask)
+					return nil, nil
+				}
+				return nil, fmt.Errorf("parsing flags for purge: %w", err)
+			}
 			return nil, cleanTask.run(ctx)
 		}
 	}
@@ -115,17 +126,13 @@ func run(cfg *Config) (*executionTracker, error) {
 			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
-		// Check for task-specific help
-		if hasHelpFlag(taskArgs) {
-			printTaskHelp(ctx, instance.task)
-			return nil, nil
-		}
-
-		// Parse task flags if present
-		if instance.task.Flags() != nil && len(taskArgs) > 0 {
-			if err := instance.task.Flags().Parse(taskArgs); err != nil {
-				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
+		// Parse task flags (handles -h/--help via flag.ErrHelp)
+		if err := instance.task.Flags().Parse(taskArgs); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				printTaskHelp(ctx, instance.task)
+				return nil, nil
 			}
+			return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 		}
 
 		return executeTask(ctx, instance)
@@ -177,23 +184,17 @@ func findTaskByName(p *Plan, name string) *taskInstance {
 	return nil
 }
 
-// hasHelpFlag checks if the arguments contain a help flag.
-func hasHelpFlag(args []string) bool {
-	for _, arg := range args {
-		if arg == "-h" || arg == "--help" || arg == "-help" {
-			return true
-		}
-	}
-	return false
-}
-
 // printTaskHelp prints help for a specific task.
 func printTaskHelp(ctx context.Context, task *Task) {
 	Printf(ctx, "%s - %s\n", task.Name(), task.Usage())
 	Println(ctx)
 	Printf(ctx, "Usage: pok %s [flags]\n", task.Name())
 
-	if task.Flags() == nil {
+	// Check if the FlagSet has any flags defined.
+	hasFlags := false
+	task.Flags().VisitAll(func(*flag.Flag) { hasFlags = true })
+
+	if !hasFlags {
 		Println(ctx)
 		Println(ctx, "This task accepts no flags.")
 		return

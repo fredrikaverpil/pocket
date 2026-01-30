@@ -162,8 +162,16 @@ func TestTask_Accessors(t *testing.T) {
 	if got := task.Usage(); got != "my usage" {
 		t.Errorf("expected Usage()=%q, got %q", "my usage", got)
 	}
-	if got := task.Flags(); got != nil {
-		t.Errorf("expected Flags()=nil for task without flags, got %v", got)
+	// Flags() always returns a non-nil FlagSet (for uniform flag.ErrHelp handling).
+	// For tasks created without flags, verify the FlagSet exists but is empty.
+	if got := task.Flags(); got == nil {
+		t.Errorf("expected Flags() to return non-nil FlagSet, got nil")
+	} else {
+		var flagCount int
+		got.VisitAll(func(*flag.Flag) { flagCount++ })
+		if flagCount != 0 {
+			t.Errorf("expected empty FlagSet for task without flags, got %d flags", flagCount)
+		}
 	}
 	if got := task.IsHidden(); got {
 		t.Errorf("expected IsHidden()=false, got %v", got)

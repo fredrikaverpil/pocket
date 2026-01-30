@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"slices"
 )
 
@@ -23,6 +24,9 @@ type Task struct {
 // NewTask creates a new task with a Runnable body and optional CLI flags.
 // Use Do() to wrap a function as a Runnable.
 //
+// If flags is nil, an empty FlagSet is created. This ensures every task
+// has a FlagSet for uniform -h/--help handling via flag.ErrHelp.
+//
 // Example with function body:
 //
 //	var Hello = pk.NewTask("hello", "greet", flags, pk.Do(func(ctx context.Context) error {
@@ -34,6 +38,11 @@ type Task struct {
 //
 //	var Lint = pk.NewTask("lint", "run linters", nil, pk.Serial(Install, lintCmd()))
 func NewTask(name, usage string, flags *flag.FlagSet, body Runnable) *Task {
+	if flags == nil {
+		flags = flag.NewFlagSet(name, flag.ContinueOnError)
+	}
+	// Suppress default flag.Usage output; we use printTaskHelp for custom help.
+	flags.SetOutput(io.Discard)
 	return &Task{
 		name:  name,
 		usage: usage,
