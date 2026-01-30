@@ -1066,11 +1066,8 @@ jobs:
 ### Matrix Workflow
 
 For per-task parallelism and platform customization, enable the matrix workflow.
-This replaces the simple workflow with a two-phase approach:
-
-**Phase 1 (Plan):** Runs `./pok gha-matrix` to generate JSON matrix.
-
-**Phase 2 (Run):** Uses the matrix to run each task as a separate job.
+This generates static job definitions at workflow creation time—each
+task/platform combination becomes a separate job in the YAML file.
 
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"
@@ -1096,42 +1093,40 @@ var Config = &pk.Config{
 
 This configuration:
 
-1. `github.Tasks()` returns both `Workflows` and `Matrix` tasks
+1. `github.Tasks()` returns the `Workflows` task
 2. `pk.WithFlag(github.Workflows, "skip-pocket", true)` disables the simple
    `pocket.yml` workflow
 3. `pk.WithFlag(github.Workflows, "include-pocket-matrix", true)` enables the
    `pocket-matrix.yml` workflow
-4. `pk.WithContextValue(github.MatrixConfigKey{}, cfg)` passes the full
-   `MatrixConfig` (including `TaskOverrides`) to the Matrix task
+4. `pk.WithContextValue(github.MatrixConfigKey{}, cfg)` configures platforms and
+   task overrides for job generation
 
-Running `./pok gha-matrix` outputs:
+Running `./pok github-workflows` generates jobs like:
 
-```json
-{
-  "include": [
-    {
-      "task": "go-lint",
-      "os": "ubuntu-latest",
-      "shell": "bash",
-      "shim": "./pok",
-      "gitDiff": true
-    },
-    {
-      "task": "go-test",
-      "os": "ubuntu-latest",
-      "shell": "bash",
-      "shim": "./pok",
-      "gitDiff": true
-    },
-    {
-      "task": "go-test",
-      "os": "macos-latest",
-      "shell": "bash",
-      "shim": "./pok",
-      "gitDiff": true
-    }
-  ]
-}
+```yaml
+jobs:
+  go-lint-ubuntu:
+    name: go-lint (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ... setup steps ...
+      - run: ./pok -v -g go-lint
+
+  go-test-ubuntu:
+    name: go-test (ubuntu-latest)
+    runs-on: ubuntu-latest
+    # ...
+
+  go-test-macos:
+    name: go-test (macos-latest)
+    runs-on: macos-latest
+    # ...
+
+  go-test-windows:
+    name: go-test (windows-latest)
+    runs-on: windows-latest
+    # ...
 ```
 
 ### GitHub Task Configuration
@@ -1147,31 +1142,10 @@ Use `pk.WithFlag()` to configure the `github.Workflows` task:
 | `platforms`             | `str`  | Override platforms for `pocket.yml` (comma-separated) |
 | `include-pocket-matrix` | `bool` | Enable `pocket-matrix.yml` workflow                   |
 
-Use `pk.WithFlag()` to configure the `github.Matrix` task:
-
-| Flag               | Type   | Description                                      |
-| :----------------- | :----- | :----------------------------------------------- |
-| `platforms`        | `str`  | Default platforms (comma-separated)              |
-| `exclude`          | `str`  | Tasks to exclude (comma-separated)               |
-| `windows-shell`    | `str`  | Windows shell: `powershell` (default) or `bash`  |
-| `windows-shim`     | `str`  | Windows shim: `ps1` (default) or `cmd`           |
-| `disable-git-diff` | `bool` | Disable `-g` flag in CI                          |
-| `task-overrides`   | `str`  | JSON map of task overrides (for complex configs) |
-
-Example:
-
-```go
-pk.WithOptions(
-    github.Tasks(),
-    pk.WithFlag(github.Workflows, "skip-pocket", true),
-    pk.WithFlag(github.Matrix, "platforms", "ubuntu-latest,macos-latest"),
-)
-```
-
 ### MatrixConfig Options
 
 For complex configuration like `TaskOverrides`, use `pk.WithContextValue` to
-pass a `MatrixConfig` to the Matrix task:
+pass a `MatrixConfig` for workflow generation:
 
 ```go
 type MatrixConfig struct {
@@ -1205,8 +1179,8 @@ type TaskOverride struct {
 
 > [!NOTE]
 >
-> The `github-workflows` and `gha-matrix` tasks also accept flags directly
-> (e.g., `./pok github-workflows -include-pocket-matrix`). Flag overrides via
+> The `github-workflows` task also accepts flags directly (e.g.,
+> `./pok github-workflows -include-pocket-matrix`). Flag overrides via
 > `pk.WithFlag` only apply when running through the composition tree (bare
 > `./pok`). When invoking tasks directly, pass flags explicitly.
 
