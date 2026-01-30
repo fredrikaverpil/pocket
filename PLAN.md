@@ -264,22 +264,17 @@ Additional completed:
       where the CI does not use the same task names (suffix missing, from
       pk.WithName): https://github.com/fredrikaverpil/neotest-golang/pull/541
 - [x] Found during investigation: ⚠️ Minor inconsistency found planTask uses an
-      IIFE pattern to capture flags:
-       var planTask = func() *Task {
-       fs := flag.NewFlagSet("plan", flag.ContinueOnError)
-       jsonFlag := fs.Bool("json", false, "output as JSON")
-       return NewTask("plan", ..., fs, Do(func(ctx context.Context) error {
-       if *jsonFlag { ... }
-       })).HideHeader()
-       }() While selfUpdateTask uses package-level vars:
-       var (
-       selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)
-       selfUpdateForce = selfUpdateFlags.Bool("force", false, "...")
-       )
-       var selfUpdateTask = NewTask("self-update", ..., selfUpdateFlags, ...)
-      The IIFE pattern is valid Go but inconsistent. Would you like me to align
-      planTask with the selfUpdateTask pattern for consistency? **Resolved:** Both
-      now use consistent package-level vars pattern.
+      IIFE pattern to capture flags: var planTask = func() *Task { fs :=
+      flag.NewFlagSet("plan", flag.ContinueOnError) jsonFlag := fs.Bool("json",
+      false, "output as JSON") return NewTask("plan", ..., fs, Do(func(ctx
+      context.Context) error { if *jsonFlag { ... } })).HideHeader() }() While
+      selfUpdateTask uses package-level vars: var ( selfUpdateFlags =
+      flag.NewFlagSet("self-update", flag.ContinueOnError) selfUpdateForce =
+      selfUpdateFlags.Bool("force", false, "...") ) var selfUpdateTask =
+      NewTask("self-update", ..., selfUpdateFlags, ...) The IIFE pattern is
+      valid Go but inconsistent. Would you like me to align planTask with the
+      selfUpdateTask pattern for consistency? **Resolved:** Both now use
+      consistent package-level vars pattern.
 - [x] The generated GHA matrix workflow contains a separate git diff job. This
       we can remove, as each Pocket task runs with `./pok -g` and the -g flag
       instructs Pocket to run the git diff task after the given task that runs.
