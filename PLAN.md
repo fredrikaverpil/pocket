@@ -254,7 +254,7 @@ Additional completed:
       id, and require that tasks must have unique names? I noticed the
       `./pok plan -json` only outputs the "name" (not the "id"). When would we
       _actually_ need to have a separate ID?
-- [ ] For GitHub pocket matrix workflow, can we change how this works, so that
+- [x] For GitHub pocket matrix workflow, can we change how this works, so that
       we instead generate the workflow file that will be executed? This makes it
       a lot easier to debug and write tests for the GitHub workflows. Right now,
       the more complex GHA matrix workflow generates jobs on the fly in GHA
@@ -283,11 +283,11 @@ Additional completed:
       we can remove, as each Pocket task runs with `./pok -g` and the -g flag
       instructs Pocket to run the git diff task after the given task that runs.
       So right now, we don't need the "Check for uncommitted changes" job.
-- [ ] Is not all tasks' TaskInfo part of the plan, and doesn't the plan JSON get
+- [x] Is not all tasks' TaskInfo part of the plan, and doesn't the plan JSON get
       derived from the plan?  
-      It seeks like you are manually registering what should be going into a
+       It seeks like you are manually registering what should be going into a
       special taskJSON map or something when the  
-      JSON should be generated purely from data in the plan.
+       JSON should be generated purely from data in the plan.
 
 ## Phase 9: Mid-review
 
