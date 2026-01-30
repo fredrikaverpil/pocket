@@ -2,7 +2,6 @@ package github
 
 import (
 	"context"
-	"encoding/json"
 	"regexp"
 	"strings"
 
@@ -203,73 +202,4 @@ func shimForPlatform(platform, windowsShell, windowsShim string) string {
 		}
 	}
 	return "./pok"
-}
-
-// Deprecated types and functions for dynamic matrix generation.
-// These are kept for backwards compatibility but should not be used.
-// Use GenerateStaticJobs instead for static workflow generation.
-
-// matrixEntry is a single entry in the GHA matrix.
-// Deprecated: Use StaticJob and GenerateStaticJobs instead.
-type matrixEntry struct {
-	Task    string `json:"task"`
-	OS      string `json:"os"`
-	Shell   string `json:"shell"`
-	Shim    string `json:"shim"`
-	GitDiff bool   `json:"gitDiff"`
-}
-
-// matrixOutput is the JSON structure for fromJson().
-// Deprecated: Use StaticJob and GenerateStaticJobs instead.
-type matrixOutput struct {
-	Include []matrixEntry `json:"include"`
-}
-
-// GenerateMatrix creates the GitHub Actions matrix JSON from tasks.
-// Deprecated: Use GenerateStaticJobs instead for static workflow generation.
-func GenerateMatrix(tasks []pk.TaskInfo, cfg MatrixConfig) ([]byte, error) {
-	if cfg.DefaultPlatforms == nil {
-		cfg.DefaultPlatforms = []string{"ubuntu-latest", "macos-latest", "windows-latest"}
-	}
-	if cfg.WindowsShell == "" {
-		cfg.WindowsShell = "powershell"
-	}
-	if cfg.WindowsShim == "" {
-		cfg.WindowsShim = "ps1"
-	}
-
-	excludeSet := make(map[string]bool)
-	for _, name := range cfg.ExcludeTasks {
-		excludeSet[name] = true
-	}
-
-	entries := make([]matrixEntry, 0)
-	for _, task := range tasks {
-		// Skip hidden, manual, and excluded tasks
-		if task.Hidden || task.Manual || excludeSet[task.Name] {
-			continue
-		}
-
-		// Get override for this task (if any) using regexp matching
-		override := getTaskOverride(task.Name, cfg.TaskOverrides)
-
-		// Determine platforms for this task
-		platforms := cfg.DefaultPlatforms
-		if len(override.Platforms) > 0 {
-			platforms = override.Platforms
-		}
-
-		// Create entry for each platform
-		for _, platform := range platforms {
-			entries = append(entries, matrixEntry{
-				Task:    task.Name,
-				OS:      platform,
-				Shell:   shellForPlatform(platform, cfg.WindowsShell),
-				Shim:    shimForPlatform(platform, cfg.WindowsShell, cfg.WindowsShim),
-				GitDiff: !cfg.DisableGitDiff,
-			})
-		}
-	}
-
-	return json.Marshal(matrixOutput{Include: entries})
 }
