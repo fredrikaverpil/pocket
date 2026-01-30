@@ -263,26 +263,28 @@ Additional completed:
       `./pok -h` looks right with task naming (several variants of py-test), but
       where the CI does not use the same task names (suffix missing, from
       pk.WithName): https://github.com/fredrikaverpil/neotest-golang/pull/541
-- [ ] Found during investigation: ⚠️ Minor inconsistency found planTask uses an
-      IIFE pattern to capture flags:  
-       var planTask = func() *Task {  
-       fs := flag.NewFlagSet("plan", flag.ContinueOnError)  
-       jsonFlag := fs.Bool("json", false, "output as JSON")  
-       return NewTask("plan", ..., fs, Do(func(ctx context.Context) error {  
-       if *jsonFlag { ... }  
-       })).HideHeader()  
-       }() While selfUpdateTask uses package-level vars:  
-       var (  
-       selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)  
-       selfUpdateForce = selfUpdateFlags.Bool("force", false, "...")  
-       )  
+- [x] Found during investigation: ⚠️ Minor inconsistency found planTask uses an
+      IIFE pattern to capture flags:
+       var planTask = func() *Task {
+       fs := flag.NewFlagSet("plan", flag.ContinueOnError)
+       jsonFlag := fs.Bool("json", false, "output as JSON")
+       return NewTask("plan", ..., fs, Do(func(ctx context.Context) error {
+       if *jsonFlag { ... }
+       })).HideHeader()
+       }() While selfUpdateTask uses package-level vars:
+       var (
+       selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)
+       selfUpdateForce = selfUpdateFlags.Bool("force", false, "...")
+       )
        var selfUpdateTask = NewTask("self-update", ..., selfUpdateFlags, ...)
       The IIFE pattern is valid Go but inconsistent. Would you like me to align
-      planTask with the selfUpdateTask pattern for consistency?
-- [ ] The generated GHA matrix workflow contains a separate git diff job. This
+      planTask with the selfUpdateTask pattern for consistency? **Resolved:** Both
+      now use consistent package-level vars pattern.
+- [x] The generated GHA matrix workflow contains a separate git diff job. This
       we can remove, as each Pocket task runs with `./pok -g` and the -g flag
       instructs Pocket to run the git diff task after the given task that runs.
       So right now, we don't need the "Check for uncommitted changes" job.
+      **Resolved:** Removed redundant step from `pocket-matrix-static.yml.tmpl`.
 - [x] Is not all tasks' TaskInfo part of the plan, and doesn't the plan JSON get
       derived from the plan?  
        It seeks like you are manually registering what should be going into a

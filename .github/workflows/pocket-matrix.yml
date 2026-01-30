@@ -2,7 +2,7 @@
 # Run `./pok github-workflows` to regenerate.
 # See: https://github.com/fredrikaverpil/pocket
 
-name: pocket-matrix
+name: pocket
 
 on:
   push:
@@ -42,9 +42,6 @@ jobs:
       - name: Run go-fix
         shell: bash
         run: ./pok -v -g go-fix
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -82,9 +79,6 @@ jobs:
       - name: Run go-format
         shell: bash
         run: ./pok -v -g go-format
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -122,9 +116,6 @@ jobs:
       - name: Run go-lint
         shell: bash
         run: ./pok -v -g go-lint
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -162,9 +153,6 @@ jobs:
       - name: Run go-test
         shell: bash
         run: ./pok -v -g go-test
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -202,9 +190,6 @@ jobs:
       - name: Run go-test
         shell: bash
         run: ./pok -v -g go-test
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -242,9 +227,6 @@ jobs:
       - name: Run go-test
         shell: pwsh
         run: .\pok.ps1 -v -g go-test
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -282,9 +264,6 @@ jobs:
       - name: Run go-vulncheck
         shell: bash
         run: ./pok -v -g go-vulncheck
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -322,9 +301,6 @@ jobs:
       - name: Run md-format
         shell: bash
         run: ./pok -v -g md-format
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
@@ -362,9 +338,6 @@ jobs:
       - name: Run github-workflows
         shell: bash
         run: ./pok -v -g github-workflows -include-pocket-matrix -skip-pocket
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4

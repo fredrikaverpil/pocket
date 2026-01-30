@@ -2,7 +2,7 @@
 # Run `./pok github-workflows` to regenerate.
 # See: https://github.com/fredrikaverpil/pocket
 
-name: pocket-matrix
+name: pocket
 
 on:
   push:
@@ -43,11 +43,6 @@ jobs:
       - name: Run {{ .Task }}
         shell: {{ .Shell }}
         run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}{{ if .FlagsArgs }} {{ .FlagsArgs }}{{ end }}
-{{- if .GitDiff }}
-      - name: Check for uncommitted changes
-        shell: bash
-        run: git diff --exit-code
-{{- end }}
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v4
