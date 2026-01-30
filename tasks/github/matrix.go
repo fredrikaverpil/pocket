@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"regexp"
 	"strings"
 
@@ -54,6 +55,21 @@ func DefaultMatrixConfig() MatrixConfig {
 	}
 }
 
+// MatrixConfigKey is the context key for MatrixConfig.
+// Use with pk.WithContextValue to pass MatrixConfig to the Matrix task:
+//
+//	pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{...})
+type MatrixConfigKey struct{}
+
+// matrixConfigFromContext retrieves MatrixConfig from context.
+// Returns DefaultMatrixConfig() if not set.
+func matrixConfigFromContext(ctx context.Context) MatrixConfig {
+	if cfg, ok := ctx.Value(MatrixConfigKey{}).(MatrixConfig); ok {
+		return cfg
+	}
+	return DefaultMatrixConfig()
+}
+
 // matrixEntry is a single entry in the GHA matrix.
 type matrixEntry struct {
 	Task    string `json:"task"`
@@ -66,6 +82,83 @@ type matrixEntry struct {
 // matrixOutput is the JSON structure for fromJson().
 type matrixOutput struct {
 	Include []matrixEntry `json:"include"`
+}
+
+// Matrix task flags.
+var (
+	matrixFlags = flag.NewFlagSet("gha-matrix", flag.ContinueOnError)
+
+	matrixPlatforms      = matrixFlags.String("platforms", "", "default platforms (comma-separated)")
+	matrixExclude        = matrixFlags.String("exclude", "", "tasks to exclude (comma-separated)")
+	matrixWindowsShell   = matrixFlags.String("windows-shell", "", "Windows shell: powershell (default) or bash")
+	matrixWindowsShim    = matrixFlags.String("windows-shim", "", "Windows shim: ps1 (default) or cmd")
+	matrixDisableGitDiff = matrixFlags.Bool("disable-git-diff", false, "disable -g flag in CI")
+	matrixTaskOverrides  = matrixFlags.String("task-overrides", "", "JSON map of task overrides")
+)
+
+// Matrix generates the GitHub Actions matrix JSON.
+// Configuration can be set via:
+//   - Context: Use WithMatrixWorkflow(cfg) for full control including TaskOverrides
+//   - Flags: Use pk.WithFlag(github.Matrix, "platforms", "ubuntu-latest") for simple overrides
+//   - CLI: ./pok gha-matrix -platforms "ubuntu-latest,macos-latest"
+//
+// Flag overrides take precedence over context configuration.
+var Matrix = pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", matrixFlags,
+	pk.Do(runMatrix),
+).Hidden().HideHeader()
+
+func runMatrix(ctx context.Context) error {
+	// Start with config from context (set via WithMatrixWorkflow)
+	cfg := matrixConfigFromContext(ctx)
+
+	// Apply flag overrides (take precedence)
+	if *matrixPlatforms != "" {
+		cfg.DefaultPlatforms = splitTrimmed(*matrixPlatforms, ",")
+	}
+	if *matrixExclude != "" {
+		cfg.ExcludeTasks = splitTrimmed(*matrixExclude, ",")
+	}
+	if *matrixWindowsShell != "" {
+		cfg.WindowsShell = *matrixWindowsShell
+	}
+	if *matrixWindowsShim != "" {
+		cfg.WindowsShim = *matrixWindowsShim
+	}
+	if *matrixDisableGitDiff {
+		cfg.DisableGitDiff = true
+	}
+	if *matrixTaskOverrides != "" {
+		var overrides map[string]TaskOverride
+		if err := json.Unmarshal([]byte(*matrixTaskOverrides), &overrides); err == nil {
+			cfg.TaskOverrides = overrides
+		}
+	}
+
+	plan := pk.PlanFromContext(ctx)
+	if plan == nil {
+		pk.Printf(ctx, `{"include":[]}`)
+		return nil
+	}
+
+	tasks := plan.Tasks()
+	data, err := GenerateMatrix(tasks, cfg)
+	if err != nil {
+		return err
+	}
+	pk.Printf(ctx, "%s\n", data)
+	return nil
+}
+
+// splitTrimmed splits a string by sep and trims whitespace from each element.
+func splitTrimmed(s, sep string) []string {
+	parts := strings.Split(s, sep)
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // GenerateMatrix creates the GitHub Actions matrix JSON from tasks.
@@ -162,37 +255,4 @@ func shimForPlatform(platform, windowsShell, windowsShim string) string {
 		}
 	}
 	return "./pok"
-}
-
-// Matrix creates the gha-matrix task for GitHub Actions matrix generation.
-// The task outputs JSON that can be used with GitHub Actions' fromJson() function.
-//
-// Example:
-//
-//	pk.Serial(
-//	    pk.WithOptions(
-//	        github.Workflows,
-//	        pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-//	    ),
-//	    github.Matrix(github.MatrixConfig{
-//	        DefaultPlatforms: []string{"ubuntu-latest"},
-//	    }),
-//	)
-func Matrix(cfg MatrixConfig) *pk.Task {
-	return pk.NewTask("gha-matrix", "output GitHub Actions matrix JSON", nil,
-		pk.Do(func(ctx context.Context) error {
-			plan := pk.PlanFromContext(ctx)
-			if plan == nil {
-				pk.Printf(ctx, `{"include":[]}`)
-				return nil
-			}
-			tasks := plan.Tasks()
-			data, err := GenerateMatrix(tasks, cfg)
-			if err != nil {
-				return err
-			}
-			pk.Printf(ctx, "%s\n", data)
-			return nil
-		}),
-	).Hidden().HideHeader()
 }

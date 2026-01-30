@@ -341,8 +341,8 @@ Specifically targeted changes:
 - [x] The Matrix configuration for github workflows using the matrix-pocket
       workflow has weird UX. Is this well documented somewhere? **Resolved:**
       `github.Tasks()` now includes the matrix task internally. Users configure
-      it via `github.WithMatrixWorkflow(cfg)` in `pk.WithOptions`, eliminating
-      the separate `Manual` entry.
+      it via `pk.WithFlag` and `pk.WithContextValue` in `pk.WithOptions`,
+      eliminating the separate `Manual` entry.
 - [ ] I'm worried we have implemented too many ways to identify/classify and
       reference a given task in Pocket core (pk package). Like for example, we
       have Task, taskID, taskInstance and we sometimes refer to the task name

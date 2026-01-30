@@ -18,8 +18,9 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			github.WithSkipPocket(),
-			github.WithMatrixWorkflow(github.MatrixConfig{
+			pk.WithFlag(github.Workflows, "skip-pocket", true),
+			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+			pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
 				DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 				TaskOverrides: map[string]github.TaskOverride{
 					"github-workflows": {Platforms: []string{"ubuntu-latest"}},

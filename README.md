@@ -198,8 +198,9 @@ var Config = &pk.Config{
         Lint, Test, Build,
         pk.WithOptions(
             github.Tasks(),
-            github.WithSkipPocket(),
-            github.WithMatrixWorkflow(github.MatrixConfig{
+            pk.WithFlag(github.Workflows, "skip-pocket", true),
+            pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
+            pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "lint": {Platforms: []string{"ubuntu-latest"}},

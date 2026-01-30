@@ -294,7 +294,14 @@ func buildTaskList(instances []taskInstance) []map[string]interface{} {
 // printTree recursively prints the composition tree structure.
 // The nameSuffix parameter tracks accumulated name suffixes from WithName() wrappers.
 // This must match the suffix accumulation logic in plan.go's taskCollector.walk().
-func printTree(ctx context.Context, r Runnable, prefix string, isLast bool, nameSuffix string, pathMappings map[string]pathInfo) {
+func printTree(
+	ctx context.Context,
+	r Runnable,
+	prefix string,
+	isLast bool,
+	nameSuffix string,
+	pathMappings map[string]pathInfo,
+) {
 	if r == nil {
 		return
 	}
