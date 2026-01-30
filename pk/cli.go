@@ -80,66 +80,61 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Get remaining arguments (task names)
 	args := fs.Args()
 
-	// Handle builtin commands
-	if len(args) >= 1 {
-		switch args[0] {
-		case "plan":
-			return nil, handlePlan(ctx, plan, args[1:])
-		case "shims":
-			if err := generateTask.Flags().Parse(args[1:]); err != nil {
-				if errors.Is(err, flag.ErrHelp) {
-					printTaskHelp(ctx, generateTask)
-					return nil, nil
-				}
-				return nil, fmt.Errorf("parsing flags for shims: %w", err)
-			}
-			return nil, generateTask.run(ctx)
-		case "self-update":
-			if err := updateTask.Flags().Parse(args[1:]); err != nil {
-				if errors.Is(err, flag.ErrHelp) {
-					printTaskHelp(ctx, updateTask)
-					return nil, nil
-				}
-				return nil, fmt.Errorf("parsing flags for self-update: %w", err)
-			}
-			return nil, updateTask.run(ctx)
-		case "purge":
-			if err := cleanTask.Flags().Parse(args[1:]); err != nil {
-				if errors.Is(err, flag.ErrHelp) {
-					printTaskHelp(ctx, cleanTask)
-					return nil, nil
-				}
-				return nil, fmt.Errorf("parsing flags for purge: %w", err)
-			}
-			return nil, cleanTask.run(ctx)
-		}
-	}
-
-	// Handle specific task execution
+	// Handle task execution (builtins + user tasks)
 	if len(args) > 0 {
 		taskName := args[0]
 		taskArgs := args[1:]
 
-		// Find task by name
-		instance := findTaskByName(plan, taskName)
-		if instance == nil {
+		task := findTask(plan, taskName)
+		if task == nil {
 			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
 		// Parse task flags (handles -h/--help via flag.ErrHelp)
-		if err := instance.task.Flags().Parse(taskArgs); err != nil {
+		if err := task.Flags().Parse(taskArgs); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				printTaskHelp(ctx, instance.task)
+				printTaskHelp(ctx, task)
 				return nil, nil
 			}
 			return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 		}
 
-		return executeTask(ctx, instance)
+		return executeSingleTask(ctx, task, plan)
 	}
 
 	// Execute the full configuration with pre-built Plan.
 	return executeAll(ctx, *cfg, plan)
+}
+
+// findTask looks up a task by name, checking builtins first then user tasks.
+func findTask(plan *Plan, name string) *Task {
+	// Check builtins first
+	for _, t := range builtins {
+		if t.Name() == name {
+			return t
+		}
+	}
+	// Check user tasks
+	if instance := findTaskByName(plan, name); instance != nil {
+		return instance.task
+	}
+	return nil
+}
+
+// executeSingleTask runs a single task (builtin or user) with proper context.
+func executeSingleTask(ctx context.Context, task *Task, plan *Plan) (*executionTracker, error) {
+	// Check if this is a builtin task
+	if isBuiltinName(task.Name()) {
+		// Builtins run directly without path context
+		return nil, task.run(ctx)
+	}
+
+	// User task - use the pre-built instance from the plan
+	instance := findTaskByName(plan, task.Name())
+	if instance == nil {
+		instance = &taskInstance{task: task, name: task.Name()}
+	}
+	return executeTask(ctx, instance)
 }
 
 // printFinalStatus prints success, warning, or error message with TTY-aware emojis.
@@ -229,7 +224,7 @@ func executeTask(ctx context.Context, instance *taskInstance) (*executionTracker
 	}
 
 	// Run git diff check after task completes (only if -g flag was passed).
-	return tracker, runGitDiff(ctx)
+	return tracker, gitDiffTask.run(ctx)
 }
 
 // execute runs the task in its resolved paths with proper directory management.
@@ -284,8 +279,8 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 		return nil, nil
 	}
 
-	// Generate shims (uses pre-computed ModuleDirectories from Plan)
-	if err := generateTask.run(ctx); err != nil {
+	// Before: generate shims
+	if err := shimsTask.run(ctx); err != nil {
 		return nil, err
 	}
 
@@ -298,8 +293,12 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 		return tracker, err
 	}
 
-	// Run git diff check after all tasks complete (only if -g flag was passed).
-	return tracker, runGitDiff(ctx)
+	// After: git diff check (task checks -g flag internally)
+	if err := gitDiffTask.run(ctx); err != nil {
+		return tracker, err
+	}
+
+	return tracker, nil
 }
 
 // printHelp prints help information including available tasks.
@@ -333,8 +332,12 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	allNames := []string{
 		// Flags
 		"-g, --gitdiff", "-h, --help", "-v, --verbose", "--version",
-		// Builtins
-		"plan", "shims", "self-update", "purge",
+	}
+	// Add visible builtin names
+	for _, t := range builtins {
+		if !t.IsHidden() {
+			allNames = append(allNames, t.Name())
+		}
 	}
 	for _, instance := range regularTasks {
 		allNames = append(allNames, instance.name)
@@ -361,13 +364,14 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	printTaskSection(ctx, "Auto tasks:", regularTasks, maxWidth)
 	printTaskSection(ctx, "Manual tasks:", manualTasks, maxWidth)
 
-	// Print builtin commands last
+	// Print builtin commands from builtins slice
 	Println(ctx)
 	Println(ctx, "Builtin tasks:")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "plan", "show execution plan without running tasks")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "shims", "regenerate shims in all directories")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "self-update", "update Pocket and regenerate scaffolded files")
-	Printf(ctx, "  %-*s  %s\n", maxWidth, "purge", "remove .pocket/tools, .pocket/bin, and .pocket/venvs")
+	for _, t := range builtins {
+		if !t.IsHidden() {
+			Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name(), t.Usage())
+		}
+	}
 }
 
 // printTaskSection prints a section of tasks with a header.

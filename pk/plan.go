@@ -569,14 +569,9 @@ func (p *Plan) taskRunsInPath(taskName, path string) bool {
 func checkTaskNameConflicts(instances []taskInstance) error {
 	seen := make(map[string]bool)
 
-	// First, mark builtins as seen
-	for _, builtin := range builtinTaskNames {
-		seen[builtin] = true
-	}
-
 	// Check each task
 	for _, instance := range instances {
-		if slices.Contains(builtinTaskNames, instance.name) {
+		if isBuiltinName(instance.name) {
 			return fmt.Errorf("⚠️  task name %q conflicts with builtin command; choose a different name", instance.name)
 		}
 		if seen[instance.name] {

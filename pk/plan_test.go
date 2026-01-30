@@ -474,9 +474,9 @@ func TestNewPlan_BuiltinConflict(t *testing.T) {
 	allDirs := []string{"."}
 
 	// Each builtin name should cause an error
-	for _, builtin := range builtinTaskNames {
-		t.Run(builtin, func(t *testing.T) {
-			task := NewTask(builtin, "conflicting task", nil, Do(func(_ context.Context) error {
+	for _, b := range builtins {
+		t.Run(b.Name(), func(t *testing.T) {
+			task := NewTask(b.Name(), "conflicting task", nil, Do(func(_ context.Context) error {
 				return nil
 			}))
 
@@ -484,7 +484,7 @@ func TestNewPlan_BuiltinConflict(t *testing.T) {
 			_, err := newPlan(cfg, "/tmp", allDirs)
 
 			if err == nil {
-				t.Errorf("expected error for task named %q, got nil", builtin)
+				t.Errorf("expected error for task named %q, got nil", b.Name())
 			} else if !strings.Contains(err.Error(), "conflicts with builtin") {
 				t.Errorf("expected 'conflicts with builtin' error, got: %v", err)
 			}

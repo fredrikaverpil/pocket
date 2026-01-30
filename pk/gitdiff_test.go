@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func TestRunGitDiff_Disabled(t *testing.T) {
+func TestGitDiffTask_Disabled(t *testing.T) {
 	ctx := context.Background()
 	ctx = withGitDiffEnabled(ctx, false)
 	ctx = WithOutput(ctx, &Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when git diff is disabled
-	if err := runGitDiff(ctx); err != nil {
-		t.Errorf("runGitDiff() with disabled flag returned error: %v", err)
+	if err := gitDiffTask.run(ctx); err != nil {
+		t.Errorf("gitDiffTask.run() with disabled flag returned error: %v", err)
 	}
 }
 
