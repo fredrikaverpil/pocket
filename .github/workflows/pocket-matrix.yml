@@ -361,7 +361,7 @@ jobs:
             ${{ runner.os }}-pocket-
       - name: Run github-workflows
         shell: bash
-        run: ./pok -v -g github-workflows
+        run: ./pok -v -g github-workflows -include-pocket-matrix -skip-pocket
       - name: Check for uncommitted changes
         shell: bash
         run: git diff --exit-code
