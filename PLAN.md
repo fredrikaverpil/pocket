@@ -244,11 +244,15 @@ Additional completed:
 - [x] Why do we have both pk.WithFlag and xxx.WithXOption ? Do we need both? Or
       could we opt for only defining task flags, and then pass the desired flags
       in the `Config{Auto: {...}}` composition?
-- [ ] We recently (in sha `bff236d410dcf9c33a2977ebb81992d2e5a7811d`) introduced
+- [x] We recently (in sha `bff236d410dcf9c33a2977ebb81992d2e5a7811d`) introduced
       parsing of pk.WithName so that we appended the value to the task's
       effective name. Is the entire name properly evaluated by e.g. the GitHub
       pocket-matrix workflow logic? Are we sure that task names are treated
-      everywhere with this suffix applied?
+      everywhere with this suffix applied? **Resolved:** Fixed in `pk/cli.go` by
+      changing `findTask()` to return `*taskInstance` instead of `*Task`,
+      preserving the effective name with suffix throughout CLI execution. Also
+      changed `ExecuteTask()` public API to take `name string` instead of
+      `*Task` for proper suffix handling.
 - [ ] Unless something changed, tasks have both a "name" and an "id". Is this
       really necessary? Can we just opt for a name which we will treat as the
       id, and require that tasks must have unique names? I noticed the

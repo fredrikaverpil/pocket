@@ -85,21 +85,27 @@ func run(cfg *Config) (*executionTracker, error) {
 		taskName := args[0]
 		taskArgs := args[1:]
 
-		task := findTask(plan, taskName)
-		if task == nil {
+		instance := findTask(plan, taskName)
+		if instance == nil {
 			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
 		// Parse task flags (handles -h/--help via flag.ErrHelp)
-		if err := task.Flags().Parse(taskArgs); err != nil {
+		if err := instance.task.Flags().Parse(taskArgs); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				printTaskHelp(ctx, task)
+				printTaskHelp(ctx, instance.task)
 				return nil, nil
 			}
 			return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 		}
 
-		return executeSingleTask(ctx, task, plan)
+		// Check if this is a builtin task
+		if isBuiltinName(instance.task.Name()) {
+			// Builtins run directly without path context
+			return nil, instance.task.run(ctx)
+		}
+
+		return executeTask(ctx, instance)
 	}
 
 	// Execute the full configuration with pre-built Plan.
@@ -107,34 +113,16 @@ func run(cfg *Config) (*executionTracker, error) {
 }
 
 // findTask looks up a task by name, checking builtins first then user tasks.
-func findTask(plan *Plan, name string) *Task {
+// Returns the full taskInstance to preserve the effective name with any suffix.
+func findTask(plan *Plan, name string) *taskInstance {
 	// Check builtins first
 	for _, t := range builtins {
 		if t.Name() == name {
-			return t
+			return &taskInstance{task: t, name: t.Name()}
 		}
 	}
-	// Check user tasks
-	if instance := findTaskByName(plan, name); instance != nil {
-		return instance.task
-	}
-	return nil
-}
-
-// executeSingleTask runs a single task (builtin or user) with proper context.
-func executeSingleTask(ctx context.Context, task *Task, plan *Plan) (*executionTracker, error) {
-	// Check if this is a builtin task
-	if isBuiltinName(task.Name()) {
-		// Builtins run directly without path context
-		return nil, task.run(ctx)
-	}
-
-	// User task - use the pre-built instance from the plan
-	instance := findTaskByName(plan, task.Name())
-	if instance == nil {
-		instance = &taskInstance{task: task, name: task.Name()}
-	}
-	return executeTask(ctx, instance)
+	// Check user tasks - returns instance with effective name preserved
+	return findTaskByName(plan, name)
 }
 
 // printFinalStatus prints success, warning, or error message with TTY-aware emojis.
@@ -201,14 +189,13 @@ func printTaskHelp(ctx context.Context, task *Task) {
 	task.Flags().PrintDefaults()
 }
 
-// ExecuteTask runs a single task with proper path context.
+// ExecuteTask runs a single task by name with proper path context.
+// The name can include a suffix (e.g., "py-test:3.9") to select a specific task variant.
 // This is the public API for external callers.
-func ExecuteTask(ctx context.Context, task *Task, p *Plan) error {
-	// Use the pre-built instance from the plan if available,
-	// so that all execution context (paths, directory management) is applied.
-	instance := findTaskByName(p, task.Name())
+func ExecuteTask(ctx context.Context, name string, p *Plan) error {
+	instance := findTaskByName(p, name)
 	if instance == nil {
-		instance = &taskInstance{task: task, name: task.Name()}
+		return fmt.Errorf("task %q not found in plan", name)
 	}
 	_, err := executeTask(ctx, instance)
 	return err

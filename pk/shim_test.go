@@ -189,7 +189,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := ExecuteTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, "scoped-task", p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -211,7 +211,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := ExecuteTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, "scoped-task", p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -233,7 +233,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		ctx := context.Background()
 		ctx = withExecutionTracker(ctx, newExecutionTracker())
 
-		if err := ExecuteTask(ctx, task, p); err != nil {
+		if err := ExecuteTask(ctx, "scoped-task", p); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 

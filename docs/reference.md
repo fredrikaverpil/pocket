@@ -526,11 +526,14 @@ named `py-test` wrapped with `pk.WithName("3.9")` will have
 | Function      | Description                                          |
 | :------------ | :--------------------------------------------------- |
 | `RunMain`     | Main entry point; handles args, help, task execution |
-| `ExecuteTask` | Execute a single task with plan context              |
+| `ExecuteTask` | Execute a single task by name with plan context      |
 
 ```go
 // In .pocket/main.go
 func main() {
     pk.RunMain(Config)
 }
+
+// ExecuteTask signature
+func ExecuteTask(ctx context.Context, name string, p *Plan) error
 ```
