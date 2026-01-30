@@ -482,12 +482,12 @@ type Plan struct {
 }
 
 type TaskInfo struct {
-    Name   string         // Effective name (may include suffix, e.g., "py-test:3.9")
-    Usage  string         // Description/help text
-    Paths  []string       // Directories this task runs in
-    Flags  map[string]any // Flag overrides set via pk.WithFlag()
-    Hidden bool           // Whether task is hidden from help
-    Manual bool           // Whether task is manual-only
+    Name   string         `json:"name"`            // Effective name (e.g., "py-test:3.9")
+    Usage  string         `json:"usage,omitempty"` // Description/help text
+    Paths  []string       `json:"paths"`           // Directories this task runs in
+    Flags  map[string]any `json:"flags,omitempty"` // Flag overrides from pk.WithFlag()
+    Hidden bool           `json:"hidden"`          // Whether task is hidden from help
+    Manual bool           `json:"manual"`          // Whether task is manual-only
 }
 ```
 

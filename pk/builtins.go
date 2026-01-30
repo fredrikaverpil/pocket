@@ -233,7 +233,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
 		"tree":              buildJSONTree(tree, "", p.pathMappings),
-		"tasks":             buildTaskList(p.taskInstances),
+		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags
 	}
 
 	encoder := json.NewEncoder(OutputFromContext(ctx).Stdout)
@@ -319,34 +319,6 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 	return map[string]interface{}{
 		"type": "unknown",
 	}
-}
-
-// buildTaskList creates a JSON-friendly task list.
-func buildTaskList(instances []taskInstance) []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(instances))
-
-	for _, instance := range instances {
-		paths := instance.resolvedPaths
-		if len(paths) == 0 {
-			paths = []string{"."}
-		}
-
-		taskJSON := map[string]interface{}{
-			"name":   instance.name, // Use effective name (may include suffix).
-			"hidden": instance.task.IsHidden(),
-			"manual": instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
-			"paths":  paths,
-		}
-
-		// Include flags if present (from pk.WithFlag overrides).
-		if len(instance.flags) > 0 {
-			taskJSON["flags"] = instance.flags
-		}
-
-		result = append(result, taskJSON)
-	}
-
-	return result
 }
 
 // printTree recursively prints the composition tree structure.

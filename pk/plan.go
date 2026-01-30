@@ -498,12 +498,12 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 // TaskInfo represents a task for introspection.
 // This is the public type for CI/CD integration (e.g., matrix generation).
 type TaskInfo struct {
-	Name   string         // CLI command name
-	Usage  string         // Description/help text
-	Paths  []string       // Directories this task runs in (resolved)
-	Flags  map[string]any // Flag overrides set via pk.WithFlag()
-	Hidden bool           // Whether task is hidden from help
-	Manual bool           // Whether task is manual-only
+	Name   string         `json:"name"`            // CLI command name
+	Usage  string         `json:"usage,omitempty"` // Description/help text
+	Paths  []string       `json:"paths"`           // Directories this task runs in (resolved)
+	Flags  map[string]any `json:"flags,omitempty"` // Flag overrides set via pk.WithFlag()
+	Hidden bool           `json:"hidden"`          // Whether task is hidden from help
+	Manual bool           `json:"manual"`          // Whether task is manual-only
 }
 
 // Tasks returns task information for all tasks in the plan.
