@@ -140,6 +140,9 @@ These options work with any task:
 | `WithSkipTask`    | Skip specified tasks within this scope                   |
 | `WithExcludeTask` | Exclude a task from directories matching patterns        |
 
+Tasks run at the repository root (`.`) by default. Use `WithIncludePath` or
+`WithDetect` to run tasks in specific directories.
+
 ```go
 pk.WithOptions(
     pk.Parallel(Lint, Test),
