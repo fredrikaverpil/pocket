@@ -756,21 +756,11 @@ pk.WithOptions(
 ```
 
 **Creating custom options:** When building your own task packages, use
-`pk.WithFlag` to set task flags, or `pk.CombineOptions` to compose multiple
-effects:
+`pk.WithFlag` to set task flags:
 
 ```go
-// Simple example: enable a feature via flag
 func EnableFeature() pk.PathOption {
     return pk.WithFlag(MyTask, "feature", true)
-}
-
-// Advanced example: combine multiple effects
-func WithCustomConfig(value string) pk.PathOption {
-    return pk.CombineOptions(
-        pk.WithContextValue(configKey{}, value), // Runtime config
-        pk.WithName(value),                      // Name suffix
-    )
 }
 ```
 

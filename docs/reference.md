@@ -149,27 +149,16 @@ pk.WithOptions(
 
 ### Creating Custom Options
 
-Use `CombineOptions`, `WithFlag`, and `WithContextValue` when building task
-packages:
+Use `WithFlag` and `WithContextValue` when building task packages:
 
 | Function           | Description                                      |
 | :----------------- | :----------------------------------------------- |
-| `CombineOptions`   | Combine multiple PathOptions into one            |
 | `WithFlag`         | Set a task flag value (preferred for CLI flags)  |
 | `WithContextValue` | Add key-value pair to context (for task authors) |
 
 ```go
-// Simple example: enable a feature via flag
 func EnableFeature() pk.PathOption {
     return pk.WithFlag(MyTask, "feature", true)
-}
-
-// Advanced example: combine multiple effects
-func WithCustomConfig(value string) pk.PathOption {
-    return pk.CombineOptions(
-        pk.WithContextValue(configKey{}, value), // Runtime config
-        pk.WithName(value),                      // Name suffix
-    )
 }
 ```
 
