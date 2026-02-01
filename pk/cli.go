@@ -249,10 +249,6 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Execute task for each path.
 	for _, path := range paths {
-		if err := preparePath(path, inst.cleanPath, inst.ensurePath); err != nil {
-			return err
-		}
-
 		pathCtx := WithPath(ctx, path)
 		if err := inst.task.run(pathCtx); err != nil {
 			return fmt.Errorf("task %s in %s: %w", inst.name, path, err)

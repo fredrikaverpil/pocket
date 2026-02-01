@@ -180,8 +180,6 @@ type taskInstance struct {
 
 	// Execution context from path filter.
 	resolvedPaths []string // Directories where this task executes.
-	cleanPath     bool     // Remove and recreate path before running.
-	ensurePath    bool     // Create path if it doesn't exist.
 }
 
 // taskCollector is the internal state for walking the tree.
@@ -210,13 +208,8 @@ type taskKey struct {
 }
 
 // filterPaths applies detection function or include patterns, then exclude patterns.
-// If explicitPath is set, it is returned directly (bypassing filesystem resolution).
 // If detectFunc is set, it takes precedence over includePaths.
 func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
-	if pf.explicitPath != "" {
-		return []string{pf.explicitPath}
-	}
-
 	var results []string
 
 	// Start with current candidates, but apply all GLOBAL active excludes first.
@@ -321,13 +314,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
-		// Compute execution context from path filter.
-		var ensurePath, cleanPath bool
-		if pc.currentPath != nil {
-			ensurePath = pc.currentPath.explicitPath != "" || pc.currentPath.cleanPath
-			cleanPath = pc.currentPath.cleanPath
-		}
-
 		// Only collect unique (task, suffix) pairs for the flat tasks list.
 		key := taskKey{task: v, suffix: pc.activeNameSuffix}
 		if !pc.seenTasks[key] {
@@ -355,8 +341,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 				flags:         mergedFlags,
 				isManual:      pc.inManualSection || v.IsManual(),
 				resolvedPaths: finalPaths,
-				cleanPath:     cleanPath,
-				ensurePath:    ensurePath,
 			})
 		}
 

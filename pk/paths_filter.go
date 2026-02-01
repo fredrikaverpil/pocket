@@ -109,23 +109,6 @@ func WithDetect(fn DetectFunc) PathOption {
 	}
 }
 
-// WithExplicitPath sets a fixed execution path, bypassing filesystem resolution.
-// Unlike WithIncludePath (regex-matched against walked directories), this path
-// is used directly and the directory is created if it doesn't exist.
-// Path is relative to the git root.
-func WithExplicitPath(path string) PathOption {
-	return func(pf *pathFilter) {
-		pf.explicitPath = path
-	}
-}
-
-// WithCleanPath removes and recreates the execution path before running.
-// Has no effect when the execution path is "." (git root).
-func WithCleanPath() PathOption {
-	return func(pf *pathFilter) {
-		pf.cleanPath = true
-	}
-}
 
 // WithContextValue adds a key-value pair to the context for tasks in this scope.
 //
@@ -229,11 +212,9 @@ type pathFilter struct {
 	flags         []flagOverride
 	contextValues []contextValue // Key-value pairs to add to context.
 	nameSuffix    string         // Suffix to append to task names (e.g., ":3.9").
-	detectFunc    DetectFunc     // Optional detection function for dynamic path discovery.
-	resolvedPaths []string       // Cached resolved paths from plan building.
-	forceRun      bool           // Disable task deduplication for the wrapped Runnable.
-	explicitPath  string         // Bypass filesystem resolution, use this path directly.
-	cleanPath     bool           // Remove and recreate the path before running.
+	detectFunc    DetectFunc // Optional detection function for dynamic path discovery.
+	resolvedPaths []string   // Cached resolved paths from plan building.
+	forceRun      bool       // Disable task deduplication for the wrapped Runnable.
 }
 
 type contextValue struct {
@@ -274,10 +255,6 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		if err := preparePath(path, pf.cleanPath, pf.explicitPath != "" || pf.cleanPath); err != nil {
-			return err
-		}
-
 		pathCtx := WithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err
