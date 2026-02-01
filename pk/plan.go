@@ -25,7 +25,7 @@ type Plan struct {
 
 	// taskInstances is a flat list of all tasks with their effective names.
 	// This is extracted from walking the Auto tree.
-	// The effective name includes any suffix from WithName (e.g., "py-test:3.9").
+	// The effective name includes any suffix from WithNameSuffix (e.g., "py-test:3.9").
 	taskInstances []taskInstance
 
 	// taskIndex maps effective task names to taskInstance for fast lookup.
@@ -195,7 +195,7 @@ type taskCollector struct {
 	candidates          []string         // Current allowed directories.
 	activeExcludes      []excludePattern // All excludes in current scope.
 	activeSkips         []string         // All skipped tasks in current scope.
-	activeNameSuffix    string           // Current name suffix from WithName.
+	activeNameSuffix    string           // Current name suffix from WithNameSuffix.
 	activeContextValues []contextValue   // Context values in current scope.
 	activeFlags         []flagOverride   // All flag overrides in current scope.
 	inManualSection     bool             // True when walking Config.Manual tasks.

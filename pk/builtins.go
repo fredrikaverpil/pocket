@@ -242,7 +242,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 }
 
 // buildJSONTree recursively builds a JSON representation of the composition tree.
-// The nameSuffix parameter tracks accumulated name suffixes from WithName() wrappers.
+// The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
 // This must match the suffix accumulation logic in plan.go's taskCollector.walk().
 func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathInfo) map[string]interface{} {
 	if r == nil {
@@ -319,7 +319,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 }
 
 // printTree recursively prints the composition tree structure.
-// The nameSuffix parameter tracks accumulated name suffixes from WithName() wrappers.
+// The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
 // This must match the suffix accumulation logic in plan.go's taskCollector.walk().
 func printTree(
 	ctx context.Context,

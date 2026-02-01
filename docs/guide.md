@@ -343,7 +343,7 @@ var Config = &pk.Config{
         // Format, lint, typecheck, and test with Python 3.9 (with coverage)
         pk.WithOptions(
             python.Tasks(),
-            pk.WithName("3.9"),
+            pk.WithNameSuffix("3.9"),
             pk.WithFlag(python.Format, "python", "3.9"),
             pk.WithFlag(python.Lint, "python", "3.9"),
             pk.WithFlag(python.Typecheck, "python", "3.9"),
@@ -354,10 +354,10 @@ var Config = &pk.Config{
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                pk.WithOptions(python.Test, pk.WithName("3.10"), pk.WithFlag(python.Test, "python", "3.10")),
-                pk.WithOptions(python.Test, pk.WithName("3.11"), pk.WithFlag(python.Test, "python", "3.11")),
-                pk.WithOptions(python.Test, pk.WithName("3.12"), pk.WithFlag(python.Test, "python", "3.12")),
-                pk.WithOptions(python.Test, pk.WithName("3.13"), pk.WithFlag(python.Test, "python", "3.13")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlag(python.Test, "python", "3.11")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlag(python.Test, "python", "3.12")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlag(python.Test, "python", "3.13")),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -367,7 +367,7 @@ var Config = &pk.Config{
 
 **Configuring Python tasks:**
 
-Use `pk.WithName()` to add a suffix to task names (e.g., `py-test:3.9`) and
+Use `pk.WithNameSuffix()` to add a suffix to task names (e.g., `py-test:3.9`) and
 `pk.WithFlag()` to set the Python version and enable coverage:
 
 **Available tasks:**
@@ -381,7 +381,7 @@ Use `pk.WithName()` to add a suffix to task names (e.g., `py-test:3.9`) and
 | `python.Test`      | Run pytest                               |
 | `python.Detect()`  | DetectFunc for pyproject.toml            |
 
-When `pk.WithName("3.9")` is used, tasks are automatically named with a suffix
+When `pk.WithNameSuffix("3.9")` is used, tasks are automatically named with a suffix
 (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix generation.
 
 > [!NOTE]
@@ -736,7 +736,7 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithIncludePath(patterns...)` | Only run in matching directories       |
 | `pk.WithExcludePath(patterns...)` | Skip matching directories              |
 | `pk.WithDetect(fn)`               | Auto-detect directories                |
-| `pk.WithName(suffix)`             | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithNameSuffix(suffix)`             | Add suffix to task names (e.g., `:v2`) |
 | `pk.WithFlag(task, name, value)`  | Override a task's flag                 |
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |
@@ -746,7 +746,7 @@ Use `pk.WithFlag()` to set task flags explicitly:
 ```go
 pk.WithOptions(
     python.Tasks(),
-    pk.WithName("3.9"),                          // Add :3.9 suffix to task names
+    pk.WithNameSuffix("3.9"),                          // Add :3.9 suffix to task names
     pk.WithFlag(python.Format, "python", "3.9"), // Set Python version for format
     pk.WithFlag(python.Lint, "python", "3.9"),   // Set Python version for lint
     pk.WithFlag(python.Test, "python", "3.9"),   // Set Python version for test

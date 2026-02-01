@@ -120,17 +120,18 @@ func WithContextValue(key, value any) PathOption {
 	}
 }
 
-// WithName adds a suffix to task names within this scope.
+// WithNameSuffix creates a named variant of tasks within this scope.
 // The suffix is appended with a colon separator (e.g., "py-test" becomes "py-test:3.9").
-// This affects CLI invocation, help output, and matrix generation.
+//
+// Use this to create distinct task instances from the same task definition.
+// Each variant is deduplicated separately, so "py-test:3.9" and "py-test:3.10"
+// both run even though they share the same underlying task.
 //
 // Example:
 //
-//	pk.WithOptions(
-//	    pk.Parallel(taskA, taskB),
-//	    pk.WithName("variant-1"),
-//	)
-func WithName(suffix string) PathOption {
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, "python", "3.9"))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10"))
+func WithNameSuffix(suffix string) PathOption {
 	return func(pf *pathFilter) {
 		pf.nameSuffix = suffix
 	}

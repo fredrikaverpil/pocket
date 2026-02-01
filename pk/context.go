@@ -161,7 +161,7 @@ func envConfigFromContext(ctx context.Context) envConfig {
 }
 
 // withNameSuffix returns a new context with the given name suffix.
-// Name suffixes are accumulated (e.g., nested WithName calls combine).
+// Name suffixes are accumulated (e.g., nested WithNameSuffix calls combine).
 func withNameSuffix(ctx context.Context, suffix string) context.Context {
 	existing := nameSuffixFromContext(ctx)
 	if existing != "" {

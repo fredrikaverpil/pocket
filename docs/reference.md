@@ -87,13 +87,31 @@ type Runnable interface {
 }
 ```
 
+### Tasks and Task Instances
+
+A **task** is a reusable definition (like `python.Test`). During planning, the
+composition tree is walked and every task becomes a **task instance** with its
+resolved configuration (paths, flags, context values).
+
+Use `WithOptions` to configure instances. Use `WithNameSuffix` to create
+distinct **variants** of the same task:
+
+```go
+// Same task definition, two distinct variants
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, "python", "3.9"))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10"))
+```
+
+Each variant has an **effective name** (base name + suffix). Variants are
+deduplicated separately, so `py-test:3.9` and `py-test:3.10` both run.
+
 ### Combinators
 
 | Function      | Description                                                            |
 | :------------ | :--------------------------------------------------------------------- |
 | `Serial`      | Execute runnables sequentially; stops on first error                   |
 | `Parallel`    | Execute runnables concurrently; buffers output to prevent interleaving |
-| `WithOptions` | Apply path filtering and execution options to a runnable               |
+| `WithOptions` | Wrap a runnable with configuration to create task instances            |
 
 ```go
 pk.Serial(Format, Lint, Test)
@@ -111,16 +129,16 @@ Options passed to `WithOptions` to control where and how tasks execute.
 
 These options work with any task:
 
-| Option            | Description                                                |
-| :---------------- | :--------------------------------------------------------- |
-| `WithIncludePath` | Run only in directories matching the regex patterns        |
-| `WithExcludePath` | Skip directories matching the regex patterns               |
-| `WithDetect`      | Dynamically discover paths using a detection function      |
-| `WithName`        | Add suffix to task names (e.g., `py-test` → `py-test:3.9`) |
-| `WithForceRun`    | Bypass task deduplication for the wrapped runnable         |
-| `WithFlag`        | Set a default flag value for a task in scope               |
-| `WithSkipTask`    | Skip specified tasks within this scope                     |
-| `WithExcludeTask` | Exclude a task from directories matching patterns          |
+| Option            | Description                                              |
+| :---------------- | :------------------------------------------------------- |
+| `WithIncludePath` | Run only in directories matching the regex patterns      |
+| `WithExcludePath` | Skip directories matching the regex patterns             |
+| `WithDetect`      | Dynamically discover paths using a detection function    |
+| `WithNameSuffix`  | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
+| `WithForceRun`    | Bypass task deduplication for the wrapped runnable       |
+| `WithFlag`        | Set a default flag value for a task in scope             |
+| `WithSkipTask`    | Skip specified tasks within this scope                   |
+| `WithExcludeTask` | Exclude a task from directories matching patterns        |
 
 ```go
 pk.WithOptions(
@@ -133,12 +151,13 @@ pk.WithOptions(
 
 ### Task-Specific Options
 
-Task configuration is done explicitly via `pk.WithFlag()` and `pk.WithName()`:
+Task configuration is done explicitly via `pk.WithFlag()` and
+`pk.WithNameSuffix()`:
 
 ```go
 pk.WithOptions(
     python.Tasks(),
-    pk.WithName("3.9"),                          // Add ":3.9" suffix to task names
+    pk.WithNameSuffix("3.9"),                          // Add ":3.9" suffix to task names
     pk.WithFlag(python.Format, "python", "3.9"), // Set Python version
     pk.WithFlag(python.Lint, "python", "3.9"),
     pk.WithFlag(python.Test, "python", "3.9"),
@@ -237,10 +256,10 @@ The deduplication key depends on task type:
 | Regular   | `effectiveName@path` | Most tasks - run once per path |
 | Global    | `baseName@.`         | Install tasks - run once total |
 
-**Effective name** = base name + optional suffix from `WithName`:
+**Effective name** = base name + optional suffix from `WithNameSuffix`:
 
 - Base name: `py-test` (defined in `NewTask`)
-- Effective name: `py-test:3.9` (with `pk.WithName("3.9")`)
+- Effective name: `py-test:3.9` (with `pk.WithNameSuffix("3.9")`)
 
 This enables multi-version testing where `py-test:3.9` and `py-test:3.10` run
 separately, while `install:uv` (a global task) runs only once regardless of
@@ -549,8 +568,8 @@ for _, info := range plan.Tasks() {
 }
 ```
 
-Task names in `TaskInfo` include any suffix from `WithName`. For example, a task
-named `py-test` wrapped with `pk.WithName("3.9")` will have
+Task names in `TaskInfo` include any suffix from `WithNameSuffix`. For example,
+a task named `py-test` wrapped with `pk.WithNameSuffix("3.9")` will have
 `Name: "py-test:3.9"`.
 
 ---

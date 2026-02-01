@@ -308,7 +308,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 }
 
 // TestTask_Run_NameSuffixDeduplication tests that tasks with same base name
-// but different suffixes (via WithName) are NOT deduplicated.
+// but different suffixes (via WithNameSuffix) are NOT deduplicated.
 // This is critical for multi-version testing (e.g., py-test:3.9, py-test:3.10).
 func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	var runCount atomic.Int32

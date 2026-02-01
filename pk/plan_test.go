@@ -555,8 +555,8 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 
 		cfg := &Config{
 			Auto: Serial(
-				WithOptions(task, WithName("3.9")),
-				WithOptions(task, WithName("3.10")),
+				WithOptions(task, WithNameSuffix("3.9")),
+				WithOptions(task, WithNameSuffix("3.10")),
 			),
 		}
 		_, err := newPlan(cfg, "/tmp", allDirs)
@@ -579,8 +579,8 @@ func TestPlan_ContextValues(t *testing.T) {
 
 		cfg := &Config{
 			Auto: Serial(
-				WithOptions(task, WithName("3.9"), WithContextValue(versionKey{}, "3.9")),
-				WithOptions(task, WithName("3.10"), WithContextValue(versionKey{}, "3.10")),
+				WithOptions(task, WithNameSuffix("3.9"), WithContextValue(versionKey{}, "3.9")),
+				WithOptions(task, WithNameSuffix("3.10"), WithContextValue(versionKey{}, "3.10")),
 			),
 		}
 
