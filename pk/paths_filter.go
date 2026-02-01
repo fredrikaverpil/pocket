@@ -109,11 +109,11 @@ func WithDetect(fn DetectFunc) PathOption {
 	}
 }
 
-// WithContextValue adds a key-value pair to the context for tasks in this scope.
+// WithContextValue passes structured configuration to tasks via context.
+// Tasks retrieve the value using ctx.Value(key).
 //
-// This is a low-level helper primarily for task package authors to pass runtime
-// configuration to their tasks. End users should typically use pk.WithFlag
-// instead of calling this directly.
+// Use this when configuration is too complex for simple flags (structs, maps, slices).
+// For simple string/bool values, prefer pk.WithFlag instead.
 func WithContextValue(key, value any) PathOption {
 	return func(pf *pathFilter) {
 		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})

@@ -149,18 +149,24 @@ pk.WithOptions(
 
 ### Creating Custom Options
 
-Use `WithFlag` and `WithContextValue` when building task packages:
-
-| Function           | Description                                      |
-| :----------------- | :----------------------------------------------- |
-| `WithFlag`         | Set a task flag value (preferred for CLI flags)  |
-| `WithContextValue` | Add key-value pair to context (for task authors) |
+| Function           | Description                                                 |
+| :----------------- | :---------------------------------------------------------- |
+| `WithFlag`         | Set a task flag value (preferred for simple values)         |
+| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
 
 ```go
-func EnableFeature() pk.PathOption {
-    return pk.WithFlag(MyTask, "feature", true)
-}
+// WithFlag for simple values
+pk.WithFlag(MyTask, "verbose", true)
+
+// WithContextValue for complex configuration
+pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
+    DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
+    TaskOverrides:    map[string]github.TaskOverride{...},
+})
 ```
+
+Tasks retrieve context values using `ctx.Value(Key{})`. Use `WithContextValue`
+when configuration is too complex for simple string/bool flags.
 
 ---
 
