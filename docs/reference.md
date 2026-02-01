@@ -87,7 +87,7 @@ type Runnable interface {
 }
 ```
 
-### Tasks and Task Instances
+### Tasks and task behavior
 
 A **task** is a reusable definition (like `python.Test`). During planning, the
 composition tree is walked and every task becomes a **task instance** with its
@@ -105,6 +105,41 @@ pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, 
 Each variant has an **effective name** (base name + suffix). Variants are
 deduplicated separately, so `py-test:3.9` and `py-test:3.10` both run.
 
+### Default Execution Path
+
+Tasks run at the repository root (`.`) by default. Use `WithIncludePath` or
+`WithDetect` to run tasks in specific directories.
+
+### Deduplication
+
+Tasks are deduplicated during execution to prevent running the same work twice.
+The deduplication key is `effectiveName@path`:
+
+| Component       | Description                                          |
+| :-------------- | :--------------------------------------------------- |
+| `effectiveName` | Base name + optional suffix (e.g., `py-test:3.9`)    |
+| `path`          | Execution directory relative to git root (e.g., `.`) |
+
+This means:
+
+- Same task at the same path runs only once
+- Same task at different paths runs once per path
+- Different variants (via `WithNameSuffix`) run separately
+
+**Global tasks** deduplicate by `baseName@.` only, ignoring the execution path.
+Use `.Global()` for tool installation tasks that should run once regardless of
+how many paths trigger them:
+
+```go
+var InstallUV = pk.NewTask("install:uv", "install uv", nil, body).Hidden().Global()
+```
+
+**Force execution** with `WithForceRun()` to bypass deduplication entirely:
+
+```go
+pk.WithOptions(CleanupTask, pk.WithForceRun())
+```
+
 ### Combinators
 
 | Function      | Description                                                            |
@@ -116,7 +151,7 @@ deduplicated separately, so `py-test:3.9` and `py-test:3.10` both run.
 ```go
 pk.Serial(Format, Lint, Test)
 pk.Parallel(Lint, Test, Build)
-pk.WithOptions(task, pk.WithIncludePath("services"))
+pk.WithOptions(Test, pk.WithIncludePath("services"))
 ```
 
 ---
@@ -129,66 +164,25 @@ Options passed to `WithOptions` to control where and how tasks execute.
 
 These options work with any task:
 
-| Option            | Description                                              |
-| :---------------- | :------------------------------------------------------- |
-| `WithIncludePath` | Run only in directories matching the regex patterns      |
-| `WithExcludePath` | Skip directories matching the regex patterns             |
-| `WithDetect`      | Dynamically discover paths using a detection function    |
-| `WithNameSuffix`  | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
-| `WithForceRun`    | Bypass task deduplication for the wrapped runnable       |
-| `WithFlag`        | Set a default flag value for a task in scope             |
-| `WithSkipTask`    | Skip specified tasks within this scope                   |
-| `WithExcludeTask` | Exclude a task from directories matching patterns        |
-
-Tasks run at the repository root (`.`) by default. Use `WithIncludePath` or
-`WithDetect` to run tasks in specific directories.
+| Option             | Description                                                 |
+| :----------------- | :---------------------------------------------------------- |
+| `WithIncludePath`  | Run only in directories matching the regex patterns         |
+| `WithExcludePath`  | Skip directories matching the regex patterns                |
+| `WithDetect`       | Dynamically discover paths using a detection function       |
+| `WithNameSuffix`   | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
+| `WithForceRun`     | Bypass task deduplication for the wrapped runnable          |
+| `WithFlag`         | Set a default flag value for a task in scope                |
+| `WithSkipTask`     | Skip specified tasks within this scope                      |
+| `WithExcludeTask`  | Exclude a task from directories matching patterns           |
+| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
 
 ```go
 pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithIncludePath("services/.*"),
-    pk.WithExcludePath("vendor"),
     pk.WithFlag(Test, "race", true),
 )
 ```
-
-### Task-Specific Options
-
-Task configuration is done explicitly via `pk.WithFlag()` and
-`pk.WithNameSuffix()`:
-
-```go
-pk.WithOptions(
-    python.Tasks(),
-    pk.WithNameSuffix("3.9"),                          // Add ":3.9" suffix to task names
-    pk.WithFlag(python.Format, "python", "3.9"), // Set Python version
-    pk.WithFlag(python.Lint, "python", "3.9"),
-    pk.WithFlag(python.Test, "python", "3.9"),
-    pk.WithFlag(python.Test, "coverage", true),  // Enable coverage flag
-    pk.WithDetect(python.Detect()),
-)
-```
-
-### Creating Custom Options
-
-| Function           | Description                                                 |
-| :----------------- | :---------------------------------------------------------- |
-| `WithFlag`         | Set a task flag value (preferred for simple values)         |
-| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
-
-```go
-// WithFlag for simple values
-pk.WithFlag(MyTask, "verbose", true)
-
-// WithContextValue for complex configuration
-pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
-    DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
-    TaskOverrides:    map[string]github.TaskOverride{...},
-})
-```
-
-Tasks retrieve context values using `ctx.Value(Key{})`. Use `WithContextValue`
-when configuration is too complex for simple string/bool flags.
 
 ---
 
@@ -205,7 +199,10 @@ type DetectFunc func(dirs []string, gitRoot string) []string
 | `DetectByFile` | Find directories containing any of the specified files |
 
 ```go
-pk.WithDetect(pk.DetectByFile("go.mod", "package.json"))
+pk.WithOptions(
+    pk.Parallel(Lint, Test),
+    pk.WithDetect(pk.DetectByFile("go.mod", "package.json")),
+)
 ```
 
 ---
@@ -248,25 +245,6 @@ var Deploy = pk.NewTask("deploy", "...", nil, body).Manual()
 var Matrix = pk.NewTask("matrix", "...", nil, body).HideHeader()
 var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
 ```
-
-### Task Identity and Deduplication
-
-Tasks are deduplicated during execution to prevent running the same work twice.
-The deduplication key depends on task type:
-
-| Task Type | Deduplication Key    | Use Case                       |
-| :-------- | :------------------- | :----------------------------- |
-| Regular   | `effectiveName@path` | Most tasks - run once per path |
-| Global    | `baseName@.`         | Install tasks - run once total |
-
-**Effective name** = base name + optional suffix from `WithNameSuffix`:
-
-- Base name: `py-test` (defined in `NewTask`)
-- Effective name: `py-test:3.9` (with `pk.WithNameSuffix("3.9")`)
-
-This enables multi-version testing where `py-test:3.9` and `py-test:3.10` run
-separately, while `install:uv` (a global task) runs only once regardless of
-which Python version triggered it.
 
 ---
 
