@@ -15,8 +15,8 @@ import (
 	"golang.org/x/term"
 )
 
-// WaitDelay is the time to wait after sending SIGINT before sending SIGKILL.
-const WaitDelay = 5 * time.Second
+// waitDelay is the time to wait after sending SIGINT before sending SIGKILL.
+const waitDelay = 5 * time.Second
 
 // Do creates a Runnable that executes a dynamic function.
 // Use this when command arguments need to be computed at runtime.
@@ -98,7 +98,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	cmd.Env = env
 	cmd.Env = append(cmd.Env, colorEnvVars...)
 	cmd.Stdin = nil // Prevent subprocess from reading stdin (avoids CI hangs)
-	cmd.WaitDelay = WaitDelay
+	cmd.WaitDelay = waitDelay
 	setGracefulShutdown(cmd)
 
 	out := OutputFromContext(ctx)
