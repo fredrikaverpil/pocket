@@ -334,37 +334,6 @@ Installs a Go package to `.pocket/tools/go/<pkg>/<version>/bin/` and symlinks to
 pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8")
 ```
 
-### Cargo (Rust) Tools
-
-```go
-func InstallCargo(name string, opts ...CargoOption) Runnable
-```
-
-Installs a Rust crate to `.pocket/tools/cargo/<name>/<version>/` and symlinks to
-`.pocket/bin/`. Uses **Symlink pattern**.
-
-| Option             | Description                                  |
-| :----------------- | :------------------------------------------- |
-| `WithCargoVersion` | Specify version for crates.io installs       |
-| `WithCargoGit`     | Specify git repository URL                   |
-| `WithCargoGitTag`  | Specify git tag/branch/commit for git builds |
-
-```go
-// From crates.io
-pk.InstallCargo("ripgrep", pk.WithCargoVersion("14.1.0"))
-
-// From git repository
-pk.InstallCargo("ts_query_ls",
-    pk.WithCargoGit("https://github.com/ribru17/ts_query_ls"),
-)
-
-// From git with specific tag
-pk.InstallCargo("tool",
-    pk.WithCargoGit("https://github.com/org/tool"),
-    pk.WithCargoGitTag("v1.0.0"),
-)
-```
-
 ### Runtime-Dependent Tools
 
 For Python/Node tools, see `tools/prettier/` and `tools/mdformat/` for examples
