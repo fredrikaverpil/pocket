@@ -17,6 +17,7 @@ Technical reference for the `github.com/fredrikaverpil/pocket/pk` package.
 - [Output](#output)
 - [Path Helpers](#path-helpers)
 - [Plan Introspection](#plan-introspection)
+- [Errors](#errors)
 - [CLI](#cli)
 
 ---
@@ -210,14 +211,19 @@ var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context
 
 ### Task Methods
 
-| Method       | Description                                            |
-| :----------- | :----------------------------------------------------- |
-| `Hidden`     | Exclude from CLI help output                           |
-| `Manual`     | Only run when explicitly invoked by name               |
-| `HideHeader` | Suppress the `:: taskname` header (for machine output) |
-| `Global`     | Deduplicate by name only (ignore path context)         |
-| `Name`       | Returns the task name                                  |
-| `Usage`      | Returns the task usage description                     |
+| Method           | Description                                            |
+| :--------------- | :----------------------------------------------------- |
+| `Hidden`         | Exclude from CLI help output                           |
+| `IsHidden`       | Returns whether the task is hidden                     |
+| `Manual`         | Only run when explicitly invoked by name               |
+| `IsManual`       | Returns whether the task is manual-only                |
+| `HideHeader`     | Suppress the `:: taskname` header (for machine output) |
+| `IsHeaderHidden` | Returns whether the task header is hidden              |
+| `Global`         | Deduplicate by name only (ignore path context)         |
+| `IsGlobal`       | Returns whether the task deduplicates globally         |
+| `Name`           | Returns the task name                                  |
+| `Usage`          | Returns the task usage description                     |
+| `Flags`          | Returns the task's `*flag.FlagSet`                     |
 
 ```go
 var Internal = pk.NewTask("internal", "...", nil, body).Hidden()
@@ -251,10 +257,11 @@ which Python version triggered it.
 
 ### Running Code
 
-| Function | Description                                          |
-| :------- | :--------------------------------------------------- |
-| `Do`     | Wrap a `func(context.Context) error` as a `Runnable` |
-| `Exec`   | Execute external command with proper output handling |
+| Function       | Description                                          |
+| :------------- | :--------------------------------------------------- |
+| `Do`           | Wrap a `func(context.Context) error` as a `Runnable` |
+| `Exec`         | Execute external command with proper output handling |
+| `RegisterPATH` | Register a directory to be added to PATH for Exec    |
 
 ```go
 pk.Do(func(ctx context.Context) error {
@@ -269,6 +276,14 @@ pk.Do(func(ctx context.Context) error {
 - Detects: `warn`, `deprecat`, `notice`, `caution`, `error` (case-insensitive)
 - Adds `.pocket/bin` to PATH
 - Sends SIGINT for graceful shutdown (Unix)
+
+`RegisterPATH` adds directories to PATH for all subsequent `Exec` calls. Use
+this for tools that can't be symlinked (e.g., neovim on Windows needs its
+runtime files):
+
+```go
+pk.RegisterPATH("/path/to/nvim/bin")
+```
 
 ### Output Functions
 
@@ -319,6 +334,37 @@ Installs a Go package to `.pocket/tools/go/<pkg>/<version>/bin/` and symlinks to
 pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8")
 ```
 
+### Cargo (Rust) Tools
+
+```go
+func InstallCargo(name string, opts ...CargoOption) Runnable
+```
+
+Installs a Rust crate to `.pocket/tools/cargo/<name>/<version>/` and symlinks to
+`.pocket/bin/`. Uses **Symlink pattern**.
+
+| Option             | Description                                  |
+| :----------------- | :------------------------------------------- |
+| `WithCargoVersion` | Specify version for crates.io installs       |
+| `WithCargoGit`     | Specify git repository URL                   |
+| `WithCargoGitTag`  | Specify git tag/branch/commit for git builds |
+
+```go
+// From crates.io
+pk.InstallCargo("ripgrep", pk.WithCargoVersion("14.1.0"))
+
+// From git repository
+pk.InstallCargo("ts_query_ls",
+    pk.WithCargoGit("https://github.com/ribru17/ts_query_ls"),
+)
+
+// From git with specific tag
+pk.InstallCargo("tool",
+    pk.WithCargoGit("https://github.com/org/tool"),
+    pk.WithCargoGitTag("v1.0.0"),
+)
+```
+
 ### Runtime-Dependent Tools
 
 For Python/Node tools, see `tools/prettier/` and `tools/mdformat/` for examples
@@ -343,13 +389,14 @@ mdformat.Exec(ctx, "--wrap", "80", ".")
 func Download(url string, opts ...DownloadOpt) Runnable
 ```
 
-| Option             | Description                                        |
-| :----------------- | :------------------------------------------------- |
-| `WithDestDir`      | Destination directory for extraction               |
-| `WithFormat`       | Archive format: `"tar.gz"`, `"tar"`, `"zip"`, `""` |
-| `WithExtract`      | Add extraction options                             |
-| `WithSymlink`      | Create symlink in `.pocket/bin/`                   |
-| `WithSkipIfExists` | Skip download if file exists                       |
+| Option             | Description                                              |
+| :----------------- | :------------------------------------------------------- |
+| `WithDestDir`      | Destination directory for extraction                     |
+| `WithFormat`       | Archive format: `"tar.gz"`, `"tar"`, `"zip"`, `"gz"`, `` |
+| `WithExtract`      | Add extraction options                                   |
+| `WithSymlink`      | Create symlink in `.pocket/bin/`                         |
+| `WithSkipIfExists` | Skip download if file exists                             |
+| `WithOutputName`   | Output filename for `"gz"` format (required for gz)      |
 
 ```go
 pk.Download(
@@ -364,11 +411,17 @@ pk.Download(
 
 ### Extract
 
-| Function       | Description             |
-| :------------- | :---------------------- |
-| `ExtractTarGz` | Extract .tar.gz archive |
-| `ExtractTar`   | Extract .tar archive    |
-| `ExtractZip`   | Extract .zip archive    |
+| Function       | Description                                |
+| :------------- | :----------------------------------------- |
+| `ExtractTarGz` | Extract .tar.gz archive                    |
+| `ExtractTar`   | Extract .tar archive                       |
+| `ExtractZip`   | Extract .zip archive                       |
+| `ExtractGz`    | Extract a single gzipped file (not tar.gz) |
+
+```go
+// ExtractGz extracts a single gzipped file to destDir with the given name
+func ExtractGz(src, destDir, destName string) error
+```
 
 | Option            | Description                        |
 | :---------------- | :--------------------------------- |
@@ -378,10 +431,20 @@ pk.Download(
 
 ### Symlink
 
-| Function        | Description                                      |
-| :-------------- | :----------------------------------------------- |
-| `CreateSymlink` | Create symlink in `.pocket/bin/` to given binary |
-| `CopyFile`      | Copy a file from src to dst                      |
+| Function                      | Description                                          |
+| :---------------------------- | :--------------------------------------------------- |
+| `CreateSymlink`               | Create symlink in `.pocket/bin/` to given binary     |
+| `CreateSymlinkAs`             | Create symlink with custom name in `.pocket/bin/`    |
+| `CreateSymlinkWithCompanions` | Create symlink and copy companion files (e.g., DLLs) |
+| `CopyFile`                    | Copy a file from src to dst                          |
+
+```go
+// CreateSymlinkAs creates a symlink with a custom name
+linkPath, err := pk.CreateSymlinkAs("/path/to/binary", "custom-name")
+
+// CreateSymlinkWithCompanions copies companion files (useful on Windows)
+linkPath, err := pk.CreateSymlinkWithCompanions("/path/to/binary", "*.dll")
+```
 
 ---
 
@@ -438,6 +501,24 @@ const X8664, AARCH64, X64 = "x86_64", "aarch64", "x64"
 | `WithPlan`    | Set Plan in context           |
 | `WithVerbose` | Set verbose mode in context   |
 | `WithOutput`  | Set Output in context         |
+
+### Environment Variables
+
+| Function     | Description                                      |
+| :----------- | :----------------------------------------------- |
+| `WithEnv`    | Set an environment variable for `Exec` calls     |
+| `WithoutEnv` | Filter out environment variables matching prefix |
+
+```go
+// Set an environment variable
+ctx = pk.WithEnv(ctx, "MY_VAR=value")
+
+// Remove environment variables matching prefix
+ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
+
+// Use with Exec
+pk.Exec(ctx, "mycmd", "arg1") // runs with modified environment
+```
 
 ---
 
@@ -507,6 +588,22 @@ for _, info := range plan.Tasks() {
 Task names in `TaskInfo` include any suffix from `WithName`. For example, a task
 named `py-test` wrapped with `pk.WithName("3.9")` will have
 `Name: "py-test:3.9"`.
+
+---
+
+## Errors
+
+Sentinel errors for error handling:
+
+| Error                   | Description                                         |
+| :---------------------- | :-------------------------------------------------- |
+| `ErrGitDiffUncommitted` | Returned when `-g` flag detects uncommitted changes |
+
+```go
+if errors.Is(err, pk.ErrGitDiffUncommitted) {
+    // Handle uncommitted changes
+}
+```
 
 ---
 

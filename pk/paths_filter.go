@@ -109,7 +109,6 @@ func WithDetect(fn DetectFunc) PathOption {
 	}
 }
 
-
 // WithContextValue adds a key-value pair to the context for tasks in this scope.
 //
 // This is a low-level helper primarily for task package authors to pass runtime
@@ -212,9 +211,9 @@ type pathFilter struct {
 	flags         []flagOverride
 	contextValues []contextValue // Key-value pairs to add to context.
 	nameSuffix    string         // Suffix to append to task names (e.g., ":3.9").
-	detectFunc    DetectFunc // Optional detection function for dynamic path discovery.
-	resolvedPaths []string   // Cached resolved paths from plan building.
-	forceRun      bool       // Disable task deduplication for the wrapped Runnable.
+	detectFunc    DetectFunc     // Optional detection function for dynamic path discovery.
+	resolvedPaths []string       // Cached resolved paths from plan building.
+	forceRun      bool           // Disable task deduplication for the wrapped Runnable.
 }
 
 type contextValue struct {
