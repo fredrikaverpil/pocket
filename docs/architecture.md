@@ -254,8 +254,9 @@ type Output struct {
     Stderr io.Writer
 }
 
-ctx = WithOutput(ctx, StdOutput())
-out := OutputFromContext(ctx)  // Returns StdOutput() if unset
+// Internal implementation (not exported)
+ctx = context.WithValue(ctx, outputKey{}, StdOutput())
+out := outputFromContext(ctx)  // Returns StdOutput() if unset
 ```
 
 ### Buffered Parallel Output

@@ -997,12 +997,11 @@ func (p *Plan) ShimConfig() *ShimConfig  // Resolved shim configuration
 
 **Context accessors:**
 
-| Function                 | Description                                 |
-| :----------------------- | :------------------------------------------ |
-| `PlanFromContext(ctx)`   | Get the Plan from context (nil if not set)  |
-| `PathFromContext(ctx)`   | Current execution path relative to git root |
-| `Verbose(ctx)`           | Whether `-v` flag was provided              |
-| `OutputFromContext(ctx)` | Get Output struct for writing               |
+| Function               | Description                                 |
+| :--------------------- | :------------------------------------------ |
+| `PlanFromContext(ctx)` | Get the Plan from context (nil if not set)  |
+| `PathFromContext(ctx)` | Current execution path relative to git root |
+| `Verbose(ctx)`         | Whether `-v` flag was provided              |
 
 **Path helpers:**
 

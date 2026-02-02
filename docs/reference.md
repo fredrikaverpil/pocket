@@ -462,47 +462,37 @@ const X8664, AARCH64, X64 = "x86_64", "aarch64", "x64"
 
 ## Context
 
-Context functions are available from both `pk` and `pk/ctx`:
+Context functions are available from both `pk` and `pk/pcontext`:
 
 ```go
-import "github.com/fredrikaverpil/pocket/pk"     // pk.PathFromContext()
-import "github.com/fredrikaverpil/pocket/pk/ctx" // ctx.PathFromContext()
+import "github.com/fredrikaverpil/pocket/pk"          // pk.PathFromContext()
+import "github.com/fredrikaverpil/pocket/pk/pcontext" // pcontext.PathFromContext()
 ```
 
-The `pk/ctx` package is a leaf package with no dependencies, useful for minimal
+The `pk/pcontext` package is a leaf package with no dependencies, useful for minimal
 imports.
 
 ### Accessors
 
-| Function            | Description                                 |
-| :------------------ | :------------------------------------------ |
-| `PathFromContext`   | Current execution path relative to git root |
-| `PlanFromContext`   | The `*Plan` from context (nil if not set)   |
-| `Verbose`           | Whether `-v` flag was provided              |
-| `OutputFromContext` | The `Output` struct for writing             |
-
-### Setters (Advanced)
-
-| Function      | Description                   |
-| :------------ | :---------------------------- |
-| `WithPath`    | Set execution path in context |
-| `WithPlan`    | Set Plan in context           |
-| `WithVerbose` | Set verbose mode in context   |
-| `WithOutput`  | Set Output in context         |
+| Function          | Package        | Description                                 |
+| :---------------- | :------------- | :------------------------------------------ |
+| `PathFromContext` | `pk/pcontext`  | Current execution path relative to git root |
+| `PlanFromContext` | `pk`           | The `*Plan` from context (nil if not set)   |
+| `Verbose`         | `pk/pcontext`  | Whether `-v` flag was provided              |
 
 ### Environment Variables
 
-| Function     | Description                                      |
-| :----------- | :----------------------------------------------- |
-| `WithEnv`    | Set an environment variable for `Exec` calls     |
-| `WithoutEnv` | Filter out environment variables matching prefix |
+| Function     | Package       | Description                                      |
+| :----------- | :------------ | :----------------------------------------------- |
+| `WithEnv`    | `pk/pcontext` | Set an environment variable for `Exec` calls     |
+| `WithoutEnv` | `pk/pcontext` | Filter out environment variables matching prefix |
 
 ```go
 // Set an environment variable
-ctx = pk.WithEnv(ctx, "MY_VAR=value")
+ctx = pcontext.WithEnv(ctx, "MY_VAR=value")
 
 // Remove environment variables matching prefix
-ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
+ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
 
 // Use with Exec
 pk.Exec(ctx, "mycmd", "arg1") // runs with modified environment
