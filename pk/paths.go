@@ -67,6 +67,34 @@ func FromGitRoot(paths ...string) string {
 	return filepath.Join(parts...)
 }
 
+// FromPocketDir constructs an absolute path within the .pocket directory.
+//
+//	FromPocketDir()           → "/path/to/repo/.pocket"
+//	FromPocketDir("bin")      → "/path/to/repo/.pocket/bin"
+//	FromPocketDir("tools")    → "/path/to/repo/.pocket/tools"
+func FromPocketDir(elem ...string) string {
+	parts := append([]string{findGitRoot(), ".pocket"}, elem...)
+	return filepath.Join(parts...)
+}
+
+// FromToolsDir constructs an absolute path within .pocket/tools.
+//
+//	FromToolsDir()                    → "/path/to/repo/.pocket/tools"
+//	FromToolsDir("go", "pkg", "v1.0") → "/path/to/repo/.pocket/tools/go/pkg/v1.0"
+func FromToolsDir(elem ...string) string {
+	parts := append([]string{"tools"}, elem...)
+	return FromPocketDir(parts...)
+}
+
+// FromBinDir constructs an absolute path within .pocket/bin.
+//
+//	FromBinDir()             → "/path/to/repo/.pocket/bin"
+//	FromBinDir("golangci-lint") → "/path/to/repo/.pocket/bin/golangci-lint"
+func FromBinDir(elem ...string) string {
+	parts := append([]string{"bin"}, elem...)
+	return FromPocketDir(parts...)
+}
+
 // walkDirectories walks the filesystem starting from gitRoot and returns
 // all directories found (relative to gitRoot, using forward slashes).
 // Skips directories in skipDirs, and hidden directories unless includeHidden is true.
