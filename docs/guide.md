@@ -264,33 +264,35 @@ install would run once per path. With `.Global()`, it runs once total.
 ### Custom Tools
 
 For non-Go tools, use the Download API to fetch binaries from GitHub releases or
-other sources.
+other sources. Import `"github.com/fredrikaverpil/pocket/pk/download"`.
 
 ```go
+import "github.com/fredrikaverpil/pocket/pk/download"
+
 var installStyLua = pk.NewTask("install:stylua", "install StyLua formatter", nil,
-    pk.Download(
+    download.Download(
         fmt.Sprintf(
             "https://github.com/JohnnyMorganz/StyLua/releases/download/v%s/stylua-%s-%s.zip",
             "2.0.2",
             pk.HostOS(),
             pk.ArchToX8664(pk.HostArch()),
         ),
-        pk.WithDestDir(pk.FromToolsDir("stylua", "2.0.2")),
-        pk.WithFormat("zip"),
-        pk.WithExtract(pk.WithExtractFile(pk.BinaryName("stylua"))),
-        pk.WithSymlink(),
-        pk.WithSkipIfExists(pk.FromToolsDir("stylua", "2.0.2", pk.BinaryName("stylua"))),
+        download.WithDestDir(pk.FromToolsDir("stylua", "2.0.2")),
+        download.WithFormat("zip"),
+        download.WithExtract(download.WithExtractFile(pk.BinaryName("stylua"))),
+        download.WithSymlink(),
+        download.WithSkipIfExists(pk.FromToolsDir("stylua", "2.0.2", pk.BinaryName("stylua"))),
     ),
 ).Hidden().Global()
 ```
 
 ### Download API
 
-`pk.Download` creates a `Runnable` that fetches a URL and optionally extracts
-it.
+`download.Download` creates a `Runnable` that fetches a URL and optionally
+extracts it.
 
 ```go
-func Download(url string, opts ...DownloadOpt) Runnable
+func Download(url string, opts ...Opt) pk.Runnable
 ```
 
 **Download Options:**

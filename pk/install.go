@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // FromPocketDir constructs an absolute path within the .pocket directory.
@@ -59,7 +61,7 @@ type goInstaller struct {
 func (g *goInstaller) run(ctx context.Context) error {
 	// Extract binary name from package path.
 	binaryName := goBinaryName(g.pkg)
-	if runtime.GOOS == Windows {
+	if runtime.GOOS == platform.Windows {
 		binaryName += ".exe"
 	}
 

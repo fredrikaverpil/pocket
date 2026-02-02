@@ -1,4 +1,6 @@
-package pk
+// Package download provides utilities for downloading and extracting files.
+// It depends on the pk package for Runnable, Printf, and CreateSymlink.
+package download
 
 import (
 	"context"
@@ -7,10 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/fredrikaverpil/pocket/pk"
 )
 
-// DownloadOpt configures download and extraction behavior.
-type DownloadOpt func(*downloadConfig)
+// Opt configures download and extraction behavior.
+type Opt func(*downloadConfig)
 
 type downloadConfig struct {
 	destDir      string
@@ -21,7 +25,7 @@ type downloadConfig struct {
 	outputName   string // for "gz" format: the output filename
 }
 
-func newDownloadConfig(opts []DownloadOpt) *downloadConfig {
+func newDownloadConfig(opts []Opt) *downloadConfig {
 	cfg := &downloadConfig{}
 	for _, opt := range opts {
 		opt(cfg)
@@ -30,63 +34,63 @@ func newDownloadConfig(opts []DownloadOpt) *downloadConfig {
 }
 
 // WithDestDir sets the destination directory for extraction.
-func WithDestDir(dir string) DownloadOpt {
+func WithDestDir(dir string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.destDir = dir
 	}
 }
 
 // WithFormat sets the archive format.
-// Supported formats: "tar.gz", "tar", "zip", or "" for raw copy.
-func WithFormat(format string) DownloadOpt {
+// Supported formats: "tar.gz", "tar", "zip", "gz", or "" for raw copy.
+func WithFormat(format string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.format = format
 	}
 }
 
 // WithExtract adds extraction options.
-func WithExtract(opt ExtractOpt) DownloadOpt {
+func WithExtract(opt ExtractOpt) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.extractOpts = append(cfg.extractOpts, opt)
 	}
 }
 
 // WithSymlink creates a symlink in .pocket/bin/ after extraction.
-func WithSymlink() DownloadOpt {
+func WithSymlink() Opt {
 	return func(cfg *downloadConfig) {
 		cfg.symlink = true
 	}
 }
 
 // WithSkipIfExists skips the download if the specified file exists.
-func WithSkipIfExists(path string) DownloadOpt {
+func WithSkipIfExists(path string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.skipIfExists = path
 	}
 }
 
 // WithOutputName sets the output filename for "gz" format extraction.
-func WithOutputName(name string) DownloadOpt {
+func WithOutputName(name string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.outputName = name
 	}
 }
 
 // Download creates a Runnable that fetches a URL and optionally extracts it.
-func Download(url string, opts ...DownloadOpt) Runnable {
-	return Do(func(ctx context.Context) error {
+func Download(url string, opts ...Opt) pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
 		return download(ctx, url, opts...)
 	})
 }
 
-func download(ctx context.Context, url string, opts ...DownloadOpt) error {
+func download(ctx context.Context, url string, opts ...Opt) error {
 	cfg := newDownloadConfig(opts)
 
 	// Check if we can skip.
 	if cfg.skipIfExists != "" {
 		if _, err := os.Stat(cfg.skipIfExists); err == nil {
 			if cfg.symlink {
-				if _, err := CreateSymlink(cfg.skipIfExists); err != nil {
+				if _, err := pk.CreateSymlink(cfg.skipIfExists); err != nil {
 					return err
 				}
 			}
@@ -101,7 +105,7 @@ func download(ctx context.Context, url string, opts ...DownloadOpt) error {
 		}
 	}
 
-	Printf(ctx, "  Downloading %s\n", url)
+	pk.Printf(ctx, "  Downloading %s\n", url)
 
 	// Download to temp file.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -140,7 +144,7 @@ func download(ctx context.Context, url string, opts ...DownloadOpt) error {
 
 	// Create symlink if requested.
 	if cfg.symlink && binaryPath != "" {
-		if _, err := CreateSymlink(binaryPath); err != nil {
+		if _, err := pk.CreateSymlink(binaryPath); err != nil {
 			return err
 		}
 	}
@@ -184,7 +188,7 @@ func processFile(path string, cfg *downloadConfig) (string, error) {
 	default:
 		// Raw copy.
 		dst := filepath.Join(destDir, filepath.Base(path))
-		if err := CopyFile(path, dst); err != nil {
+		if err := pk.CopyFile(path, dst); err != nil {
 			return "", fmt.Errorf("copy file: %w", err)
 		}
 		firstFile = dst

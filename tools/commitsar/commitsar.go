@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for commitsar.
@@ -23,19 +25,19 @@ var Install = pk.NewTask("install:commitsar", "install commitsar", nil,
 
 func installCommitsar() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")
-	binaryName := pk.BinaryName(Name)
+	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/aevea/commitsar/releases/download/v%s/commitsar_%s_%s_%s.tar.gz",
-		Version, Version, pk.HostOS(), pk.HostArch(),
+		Version, Version, platform.HostOS(), platform.HostArch(),
 	)
 
-	return pk.Download(url,
-		pk.WithDestDir(binDir),
-		pk.WithFormat("tar.gz"),
-		pk.WithExtract(pk.WithExtractFile(binaryName)),
-		pk.WithSymlink(),
-		pk.WithSkipIfExists(binaryPath),
+	return download.Download(url,
+		download.WithDestDir(binDir),
+		download.WithFormat("tar.gz"),
+		download.WithExtract(download.WithExtractFile(binaryName)),
+		download.WithSymlink(),
+		download.WithSkipIfExists(binaryPath),
 	)
 }

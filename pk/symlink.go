@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // CreateSymlink creates a symlink in .pocket/bin/ pointing to the given binary.
@@ -39,7 +41,7 @@ func CreateSymlinkAs(binaryPath, name string) (string, error) {
 	}
 
 	// On Windows, copy the file instead of creating a symlink.
-	if runtime.GOOS == Windows {
+	if runtime.GOOS == platform.Windows {
 		if err := CopyFile(binaryPath, linkPath); err != nil {
 			return "", fmt.Errorf("copy binary: %w", err)
 		}
@@ -70,7 +72,7 @@ func CreateSymlinkWithCompanions(binaryPath string, companions ...string) (strin
 	}
 
 	// On Windows, copy companion files (DLLs, etc.) to the bin directory.
-	if runtime.GOOS == Windows && len(companions) > 0 {
+	if runtime.GOOS == platform.Windows && len(companions) > 0 {
 		srcDir := filepath.Dir(binaryPath)
 		binDir := FromBinDir()
 

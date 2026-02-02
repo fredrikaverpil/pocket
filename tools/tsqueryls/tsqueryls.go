@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for ts_query_ls.
@@ -23,53 +25,53 @@ var Install = pk.NewTask("install:ts_query_ls", "install ts_query_ls", nil,
 
 func installTSQueryLs() pk.Runnable {
 	binDir := pk.FromToolsDir("tsqueryls", Version, "bin")
-	binaryName := pk.BinaryName(Name)
+	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url, format := buildDownloadURL()
 
-	return pk.Download(url,
-		pk.WithDestDir(binDir),
-		pk.WithFormat(format),
-		pk.WithExtract(pk.WithExtractFile(binaryName)),
-		pk.WithSymlink(),
-		pk.WithSkipIfExists(binaryPath),
+	return download.Download(url,
+		download.WithDestDir(binDir),
+		download.WithFormat(format),
+		download.WithExtract(download.WithExtractFile(binaryName)),
+		download.WithSymlink(),
+		download.WithSkipIfExists(binaryPath),
 	)
 }
 
 func buildDownloadURL() (url, format string) {
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 
 	// Build platform suffix matching ts_query_ls naming convention.
-	var platform string
+	var plat string
 	switch {
-	case hostOS == pk.Darwin && hostArch == pk.ARM64:
-		platform = "aarch64-apple-darwin"
-	case hostOS == pk.Darwin && hostArch == pk.AMD64:
-		platform = "x86_64-apple-darwin"
-	case hostOS == pk.Linux && hostArch == pk.ARM64:
-		platform = "aarch64-unknown-linux-gnu"
-	case hostOS == pk.Linux && hostArch == pk.AMD64:
-		platform = "x86_64-unknown-linux-gnu"
-	case hostOS == pk.Windows && hostArch == pk.AMD64:
-		platform = "x86_64-pc-windows-msvc"
+	case hostOS == platform.Darwin && hostArch == platform.ARM64:
+		plat = "aarch64-apple-darwin"
+	case hostOS == platform.Darwin && hostArch == platform.AMD64:
+		plat = "x86_64-apple-darwin"
+	case hostOS == platform.Linux && hostArch == platform.ARM64:
+		plat = "aarch64-unknown-linux-gnu"
+	case hostOS == platform.Linux && hostArch == platform.AMD64:
+		plat = "x86_64-unknown-linux-gnu"
+	case hostOS == platform.Windows && hostArch == platform.AMD64:
+		plat = "x86_64-pc-windows-msvc"
 	default:
 		// Fallback - will likely fail but gives a useful error.
-		platform = fmt.Sprintf("%s-%s", hostArch, hostOS)
+		plat = fmt.Sprintf("%s-%s", hostArch, hostOS)
 	}
 
 	// Windows uses zip, others use tar.gz.
 	ext := "tar.gz"
 	format = "tar.gz"
-	if hostOS == pk.Windows {
+	if hostOS == platform.Windows {
 		ext = "zip"
 		format = "zip"
 	}
 
 	url = fmt.Sprintf(
 		"https://github.com/ribru17/ts_query_ls/releases/download/%s/ts_query_ls-%s.%s",
-		Version, platform, ext,
+		Version, plat, ext,
 	)
 
 	return url, format

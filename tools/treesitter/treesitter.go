@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for tree-sitter.
@@ -22,24 +24,24 @@ var Install = pk.NewTask("install:tree-sitter", "install tree-sitter CLI", nil,
 
 func installTreeSitter() pk.Runnable {
 	binDir := pk.FromToolsDir("treesitter", Version, "bin")
-	binaryName := pk.BinaryName(Name)
+	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 
 	// tree-sitter uses macos instead of darwin
 	tsOS := hostOS
-	if hostOS == pk.Darwin {
+	if hostOS == platform.Darwin {
 		tsOS = "macos"
 	}
 
 	// tree-sitter uses x64 instead of amd64/x86_64
 	tsArch := hostArch
 	switch hostArch {
-	case pk.AMD64:
+	case platform.AMD64:
 		tsArch = "x64"
-	case pk.ARM64:
+	case platform.ARM64:
 		tsArch = "arm64"
 	}
 
@@ -50,11 +52,11 @@ func installTreeSitter() pk.Runnable {
 		Version, assetName,
 	)
 
-	return pk.Download(url,
-		pk.WithDestDir(binDir),
-		pk.WithFormat("gz"),
-		pk.WithOutputName(binaryName),
-		pk.WithSymlink(),
-		pk.WithSkipIfExists(binaryPath),
+	return download.Download(url,
+		download.WithDestDir(binDir),
+		download.WithFormat("gz"),
+		download.WithOutputName(binaryName),
+		download.WithSymlink(),
+		download.WithSkipIfExists(binaryPath),
 	)
 }

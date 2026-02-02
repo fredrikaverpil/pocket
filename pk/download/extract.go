@@ -1,4 +1,4 @@
-package pk
+package download
 
 import (
 	"archive/tar"

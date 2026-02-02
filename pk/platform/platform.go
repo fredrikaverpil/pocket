@@ -1,4 +1,6 @@
-package pk
+// Package platform provides platform detection and utilities for cross-platform tasks.
+// It is a leaf package with no dependencies on other pk packages.
+package platform
 
 import (
 	"runtime"

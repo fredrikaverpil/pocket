@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fredrikaverpil/pocket/pk/platform"
 	"golang.org/x/term"
 )
 
@@ -182,7 +183,7 @@ func prependBinToPath(environ []string) []string {
 // applyEnvConfig applies environment variable overrides from the config.
 // It filters out variables matching filter prefixes, then applies set overrides.
 func applyEnvConfig(environ []string, cfg envConfig) []string {
-	if len(cfg.filter) == 0 && len(cfg.set) == 0 {
+	if len(cfg.Filter) == 0 && len(cfg.Set) == 0 {
 		return environ
 	}
 
@@ -192,7 +193,7 @@ func applyEnvConfig(environ []string, cfg envConfig) []string {
 
 		// Skip if key matches any filter prefix
 		filtered := false
-		for _, prefix := range cfg.filter {
+		for _, prefix := range cfg.Filter {
 			if strings.HasPrefix(key, prefix) {
 				filtered = true
 				break
@@ -203,7 +204,7 @@ func applyEnvConfig(environ []string, cfg envConfig) []string {
 		}
 
 		// Skip if key will be replaced by set
-		if _, willReplace := cfg.set[key]; willReplace {
+		if _, willReplace := cfg.Set[key]; willReplace {
 			continue
 		}
 
@@ -211,7 +212,7 @@ func applyEnvConfig(environ []string, cfg envConfig) []string {
 	}
 
 	// Append set overrides
-	for key, value := range cfg.set {
+	for key, value := range cfg.Set {
 		result = append(result, key+"="+value)
 	}
 
@@ -247,7 +248,7 @@ func lookPathInEnv(name string, env []string) string {
 			return path
 		}
 		// On Windows, binaries have .exe extension.
-		if runtime.GOOS == Windows {
+		if runtime.GOOS == platform.Windows {
 			exePath := path + ".exe"
 			if fi, err := os.Stat(exePath); err == nil && !fi.IsDir() {
 				return exePath

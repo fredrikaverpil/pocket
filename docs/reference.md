@@ -351,10 +351,12 @@ mdformat.Exec(ctx, "--wrap", "80", ".")
 
 ## Download and Extract
 
+Import: `"github.com/fredrikaverpil/pocket/pk/download"`
+
 ### Download
 
 ```go
-func Download(url string, opts ...DownloadOpt) Runnable
+func Download(url string, opts ...Opt) pk.Runnable
 ```
 
 | Option             | Description                                              |
@@ -367,13 +369,15 @@ func Download(url string, opts ...DownloadOpt) Runnable
 | `WithOutputName`   | Output filename for `"gz"` format (required for gz)      |
 
 ```go
-pk.Download(
+import "github.com/fredrikaverpil/pocket/pk/download"
+
+download.Download(
     "https://example.com/tool-v1.0.0-linux-amd64.tar.gz",
-    pk.WithDestDir(pk.FromToolsDir("tool", "v1.0.0")),
-    pk.WithFormat("tar.gz"),
-    pk.WithExtract(pk.WithExtractFile("tool")),
-    pk.WithSymlink(),
-    pk.WithSkipIfExists(pk.FromToolsDir("tool", "v1.0.0", "tool")),
+    download.WithDestDir(pk.FromToolsDir("tool", "v1.0.0")),
+    download.WithFormat("tar.gz"),
+    download.WithExtract(download.WithExtractFile("tool")),
+    download.WithSymlink(),
+    download.WithSkipIfExists(pk.FromToolsDir("tool", "v1.0.0", "tool")),
 )
 ```
 
@@ -418,6 +422,12 @@ linkPath, err := pk.CreateSymlinkWithCompanions("/path/to/binary", "*.dll")
 
 ## Platform Helpers
 
+Import: `"github.com/fredrikaverpil/pocket/pk/platform"`
+
+```go
+import "github.com/fredrikaverpil/pocket/pk/platform"
+```
+
 ### Runtime Detection
 
 | Function               | Description                                  |
@@ -451,6 +461,15 @@ const X8664, AARCH64, X64 = "x86_64", "aarch64", "x64"
 ---
 
 ## Context
+
+Context functions are available from both `pk` and `pk/ctx`:
+
+```go
+import "github.com/fredrikaverpil/pocket/pk"     // pk.PathFromContext()
+import "github.com/fredrikaverpil/pocket/pk/ctx" // ctx.PathFromContext()
+```
+
+The `pk/ctx` package is a leaf package with no dependencies, useful for minimal imports.
 
 ### Accessors
 

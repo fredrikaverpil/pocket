@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
@@ -64,10 +65,10 @@ func installParser(ctx context.Context, name, dir string) error {
 
 // parserExt returns the platform-specific shared library extension.
 func parserExt() string {
-	switch pk.HostOS() {
-	case pk.Darwin:
+	switch platform.HostOS() {
+	case platform.Darwin:
 		return ".dylib"
-	case pk.Windows:
+	case platform.Windows:
 		return ".dll"
 	default:
 		return ".so"
