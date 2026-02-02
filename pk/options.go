@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // PathOption configures path filtering and execution behavior for a Runnable.
@@ -224,12 +226,12 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Apply name suffix to context.
 	if pf.nameSuffix != "" {
-		ctx = withNameSuffix(ctx, pf.nameSuffix)
+		ctx = pcontext.WithNameSuffix(ctx, pf.nameSuffix)
 	}
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		pathCtx := WithPath(ctx, path)
+		pathCtx := pcontext.WithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err
 		}

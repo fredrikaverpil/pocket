@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // RunMain is the main CLI entry point that handles argument parsing and dispatch.
@@ -54,9 +55,9 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Set up base context with verbose and output
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx = WithVerbose(ctx, verbose)
-	ctx = withGitDiffEnabled(ctx, gitDiff)
-	ctx = WithOutput(ctx, StdOutput())
+	ctx = pcontext.WithVerbose(ctx, verbose)
+	ctx = pcontext.WithGitDiffEnabled(ctx, gitDiff)
+	ctx = context.WithValue(ctx, outputKey{}, StdOutput())
 
 	// Handle version flag
 	if showVersion {
@@ -69,7 +70,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("building plan: %w", err)
 	}
-	ctx = WithPlan(ctx, plan)
+	ctx = context.WithValue(ctx, planKey{}, plan)
 
 	// Handle help flag
 	if showHelp {
@@ -185,7 +186,7 @@ func printTaskHelp(ctx context.Context, task *Task) {
 
 	Println(ctx)
 	Println(ctx, "Flags:")
-	task.Flags().SetOutput(OutputFromContext(ctx).Stdout)
+	task.Flags().SetOutput(outputFromContext(ctx).Stdout)
 	task.Flags().PrintDefaults()
 }
 
@@ -231,7 +232,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	baseName := inst.task.Name()
 	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
 		suffix := inst.name[len(baseName)+1:]
-		ctx = withNameSuffix(ctx, suffix)
+		ctx = pcontext.WithNameSuffix(ctx, suffix)
 	}
 
 	// Determine execution paths.
@@ -249,7 +250,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Execute task for each path.
 	for _, path := range paths {
-		pathCtx := WithPath(ctx, path)
+		pathCtx := pcontext.WithPath(ctx, path)
 		if err := inst.task.run(pathCtx); err != nil {
 			return fmt.Errorf("task %s in %s: %w", inst.name, path, err)
 		}
@@ -271,7 +272,7 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	// Auto exec mode causes manual tasks to be skipped.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
-	ctx = withAutoExec(ctx)
+	ctx = pcontext.WithAutoExec(ctx)
 	if err := c.Auto.run(ctx); err != nil {
 		return tracker, err
 	}

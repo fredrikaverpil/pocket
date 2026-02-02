@@ -8,6 +8,10 @@ import (
 	"os"
 )
 
+// outputKey is the context key for output writers.
+// Used for stdout/stderr redirection during task execution.
+type outputKey struct{}
+
 // Output holds stdout and stderr writers for task output.
 type Output struct {
 	Stdout io.Writer
@@ -58,20 +62,29 @@ func (b *bufferedOutput) Flush() {
 	}
 }
 
+// outputFromContext returns the Output from the context.
+// Returns StdOutput() if no output is set.
+func outputFromContext(ctx context.Context) *Output {
+	if out, ok := ctx.Value(outputKey{}).(*Output); ok {
+		return out
+	}
+	return StdOutput()
+}
+
 // Printf formats and prints to the output in the context.
 func Printf(ctx context.Context, format string, a ...any) {
-	out := OutputFromContext(ctx)
+	out := outputFromContext(ctx)
 	fmt.Fprintf(out.Stdout, format, a...)
 }
 
 // Println prints to the output in the context.
 func Println(ctx context.Context, a ...any) {
-	out := OutputFromContext(ctx)
+	out := outputFromContext(ctx)
 	fmt.Fprintln(out.Stdout, a...)
 }
 
 // Errorf formats and prints to the error output in the context.
 func Errorf(ctx context.Context, format string, a ...any) {
-	out := OutputFromContext(ctx)
+	out := outputFromContext(ctx)
 	fmt.Fprintf(out.Stderr, format, a...)
 }

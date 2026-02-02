@@ -31,6 +31,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
@@ -186,7 +187,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = pcontext.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -194,7 +195,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		venvPath = VenvPath(projectDir, pythonVersion)
 	}
 
-	if pk.Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
@@ -203,9 +204,9 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		args = append(args, "--all-groups")
 	}
 
-	ctx = pk.WithPath(ctx, projectDir)
-	ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pcontext.WithPath(ctx, projectDir)
+	ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pcontext.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
 	return pk.Exec(ctx, Name, args...)
 }
@@ -220,7 +221,7 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = pcontext.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -228,16 +229,16 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		venvPath = VenvPath(projectDir, pythonVersion)
 	}
 
-	if pk.Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
 	uvArgs := []string{"run", "--python", pythonVersion, cmdName}
 	uvArgs = append(uvArgs, args...)
 
-	ctx = pk.WithPath(ctx, projectDir)
-	ctx = pk.WithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pcontext.WithPath(ctx, projectDir)
+	ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pcontext.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
 	return pk.Exec(ctx, Name, uvArgs...)
 }

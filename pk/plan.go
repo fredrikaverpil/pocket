@@ -1,10 +1,23 @@
 package pk
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"sort"
 )
+
+// planKey is the context key for the execution plan.
+type planKey struct{}
+
+// PlanFromContext returns the Plan from the context.
+// Returns nil if no plan is set.
+func PlanFromContext(ctx context.Context) *Plan {
+	if p, ok := ctx.Value(planKey{}).(*Plan); ok {
+		return p
+	}
+	return nil
+}
 
 // Plan represents the execution plan created from a Config.
 // It preserves the composition tree structure while extracting metadata.

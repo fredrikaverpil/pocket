@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"slices"
+
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // Task represents a named, executable unit of work.
@@ -60,13 +62,13 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Skip manual tasks during auto execution.
-	if t.manual && isAutoExec(ctx) {
+	if t.manual && pcontext.IsAutoExec(ctx) {
 		return nil
 	}
 
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
 	effectiveName := t.name
-	if suffix := nameSuffixFromContext(ctx); suffix != "" {
+	if suffix := pcontext.NameSuffixFromContext(ctx); suffix != "" {
 		effectiveName = t.name + ":" + suffix
 	}
 
@@ -92,7 +94,7 @@ func (t *Task) run(ctx context.Context) error {
 	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
+			id := taskID{Name: effectiveName, Path: pcontext.PathFromContext(ctx)}
 			if t.global {
 				id = taskID{Name: t.name, Path: "."} // Global tasks deduplicate by base name only.
 			}
@@ -106,7 +108,7 @@ func (t *Task) run(ctx context.Context) error {
 	// This handles task-specific excludes (WithExcludeTask).
 	if plan := PlanFromContext(ctx); plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
-			path := PathFromContext(ctx)
+			path := pcontext.PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
 				return nil // Task is excluded from this path.
 			}
@@ -115,7 +117,7 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Print task header before execution (unless header is hidden).
 	if !t.hideHeader {
-		path := PathFromContext(ctx)
+		path := pcontext.PathFromContext(ctx)
 		if path != "" && path != "." {
 			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
 		} else {

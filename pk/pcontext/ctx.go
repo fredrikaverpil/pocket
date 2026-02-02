@@ -3,7 +3,7 @@
 //
 // This package is a leaf package with no dependencies on other pk packages,
 // allowing it to be imported by both pk/ and internal/core/ without cycles.
-package ctx
+package pcontext
 
 import (
 	"context"
@@ -19,19 +19,10 @@ type ContextKey int
 const (
 	// PathKey is the context key for the current execution path.
 	PathKey ContextKey = iota
-	// PlanKey is the context key for the execution plan.
-	// Used by pk package for WithPlan/PlanFromContext (not exported here to avoid cycles).
-	PlanKey
-	// TrackerKey is the context key for the execution tracker.
-	// Used internally by pk package.
-	TrackerKey
 	// ForceRunKey is the context key for forcing task execution.
 	ForceRunKey
 	// VerboseKey is the context key for verbose mode.
 	VerboseKey
-	// OutputKey is the context key for output writers.
-	// Used by pk package for WithOutput/OutputFromContext (not exported here to avoid cycles).
-	OutputKey
 	// GitDiffKey is the context key for git diff enabled flag.
 	GitDiffKey
 	// EnvKey is the context key for environment variable overrides.

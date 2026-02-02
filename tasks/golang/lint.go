@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
@@ -23,7 +24,7 @@ var Lint = pk.NewTask("go-lint", "run golangci-lint", lintFlags,
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		args := []string{"run"}
-		if pk.Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			args = append(args, "-v")
 		}
 		if *lintConfig != "" {

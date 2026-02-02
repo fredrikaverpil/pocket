@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -41,13 +42,13 @@ func runTypecheck(ctx context.Context, pythonVersion string) error {
 	args := []string{
 		"--exclude", `\.pocket/`,
 	}
-	if pk.Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		args = append(args, "-v")
 	}
 	if pythonVersion != "" {
 		args = append(args, "--python-version", pythonVersion)
 	}
-	args = append(args, pk.PathFromContext(ctx))
+	args = append(args, pcontext.PathFromContext(ctx))
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "mypy", args...)
 }

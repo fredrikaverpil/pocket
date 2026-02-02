@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 func TestWithForceRun(t *testing.T) {
@@ -58,7 +60,7 @@ func TestPathFilter_MultiplePaths(t *testing.T) {
 	var paths []string
 
 	task := NewTask("multi-path-task", "test task", nil, Do(func(ctx context.Context) error {
-		paths = append(paths, PathFromContext(ctx))
+		paths = append(paths, pcontext.PathFromContext(ctx))
 		return nil
 	}))
 

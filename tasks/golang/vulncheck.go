@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/govulncheck"
 )
 
@@ -15,7 +16,7 @@ var Vulncheck = pk.NewTask("go-vulncheck", "run govulncheck", nil,
 func vulncheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		args := []string{}
-		if pk.Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			args = append(args, "-show", "verbose")
 		}
 		args = append(args, "./...")

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
@@ -75,7 +76,7 @@ func (g *goInstaller) run(ctx context.Context) error {
 		if _, err := CreateSymlink(toolBinPath); err != nil {
 			return err
 		}
-		if Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			Printf(ctx, "  [install] %s@%s already installed\n", binaryName, g.version)
 		}
 		return nil
@@ -90,9 +91,9 @@ func (g *goInstaller) run(ctx context.Context) error {
 	pkgWithVersion := g.pkg + "@" + g.version
 	cmd := exec.CommandContext(ctx, "go", "install", pkgWithVersion)
 	cmd.Env = append(os.Environ(), "GOBIN="+toolDir)
-	out := OutputFromContext(ctx)
+	out := outputFromContext(ctx)
 
-	if Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		Printf(ctx, "  [install] go install %s\n", pkgWithVersion)
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
@@ -110,7 +111,7 @@ func (g *goInstaller) run(ctx context.Context) error {
 		return err
 	}
 
-	if Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		Printf(ctx, "  [install] linked %s\n", toolBinPath)
 	}
 

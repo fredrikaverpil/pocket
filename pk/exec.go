@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"golang.org/x/term"
 )
@@ -69,12 +70,12 @@ func isTerminal(f *os.File) bool {
 
 // Exec executes a command with .pocket/bin prepended to PATH.
 // This ensures tools installed via InstallGo() are found first.
-// The command runs in the directory specified by PathFromContext(ctx).
+// The command runs in the directory specified by pcontext.PathFromContext(ctx).
 //
 // Environment variables can be customized using WithEnv and WithoutEnv:
 //
-//	ctx = pk.WithEnv(ctx, "MY_VAR=value")
-//	ctx = pk.WithoutEnv(ctx, "UNWANTED_PREFIX")
+//	ctx = pcontext.WithEnv(ctx, "MY_VAR=value")
+//	ctx = pcontext.WithoutEnv(ctx, "UNWANTED_PREFIX")
 //	pk.Exec(ctx, "mycmd", "arg1")
 //
 // If verbose mode is enabled, command output is streamed to context output.
@@ -84,9 +85,9 @@ func isTerminal(f *os.File) bool {
 func Exec(ctx context.Context, name string, args ...string) error {
 	colorEnvOnce.Do(initColorEnv)
 
-	path := PathFromContext(ctx)
+	path := pcontext.PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
-	env := applyEnvConfig(os.Environ(), envConfigFromContext(ctx))
+	env := applyEnvConfig(os.Environ(), pcontext.EnvConfigFromContext(ctx))
 	env = prependBinToPath(env)
 
 	// Look up the command in our modified PATH, not the current process's PATH.
@@ -102,9 +103,9 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	cmd.WaitDelay = waitDelay
 	setGracefulShutdown(cmd)
 
-	out := OutputFromContext(ctx)
+	out := outputFromContext(ctx)
 
-	if Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
 		return cmd.Run()
@@ -182,7 +183,7 @@ func prependBinToPath(environ []string) []string {
 
 // applyEnvConfig applies environment variable overrides from the config.
 // It filters out variables matching filter prefixes, then applies set overrides.
-func applyEnvConfig(environ []string, cfg envConfig) []string {
+func applyEnvConfig(environ []string, cfg pcontext.EnvConfig) []string {
 	if len(cfg.Filter) == 0 && len(cfg.Set) == 0 {
 		return environ
 	}

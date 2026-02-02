@@ -13,6 +13,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // ErrGitDiffUncommitted is returned when git diff detects uncommitted changes.
@@ -65,7 +66,7 @@ var shimsTask = NewTask("shims", "regenerate shims in all directories", nil, Do(
 		return fmt.Errorf("generating shims: %w", err)
 	}
 
-	if Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		for _, s := range shims {
 			Printf(ctx, "  generated: %s\n", s)
 		}
@@ -127,7 +128,7 @@ var planTask = NewTask(
 // Hidden because it's controlled via the -g flag, not direct invocation.
 var gitDiffTask = NewTask("git-diff", "check for uncommitted changes", nil, Do(func(ctx context.Context) error {
 	// Only run if -g flag was passed
-	if !gitDiffEnabledFromContext(ctx) {
+	if !pcontext.GitDiffEnabledFromContext(ctx) {
 		return nil
 	}
 
@@ -159,13 +160,13 @@ var selfUpdateTask = NewTask(
 		if *selfUpdateForce {
 			// Bypass proxy cache to guarantee absolute latest
 			cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
-			if Verbose(ctx) {
+			if pcontext.Verbose(ctx) {
 				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-		} else if Verbose(ctx) {
+		} else if pcontext.Verbose(ctx) {
 			Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
 		}
-		out := OutputFromContext(ctx)
+		out := outputFromContext(ctx)
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
 		if err := cmd.Run(); err != nil {
@@ -173,7 +174,7 @@ var selfUpdateTask = NewTask(
 		}
 
 		// 2. go mod tidy
-		if Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			Printf(ctx, "  running: go mod tidy\n")
 		}
 		cmd = exec.CommandContext(ctx, "go", "mod", "tidy")
@@ -185,7 +186,7 @@ var selfUpdateTask = NewTask(
 		}
 
 		// 3. Regenerate main.go
-		if Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			Printf(ctx, "  regenerating main.go\n")
 		}
 		if err := scaffold.RegenerateMain(pocketDir); err != nil {
@@ -216,7 +217,7 @@ var purgeTask = NewTask(
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
-			if Verbose(ctx) {
+			if pcontext.Verbose(ctx) {
 				Printf(ctx, "  removed: %s\n", dir)
 			}
 		}
@@ -236,7 +237,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags
 	}
 
-	encoder := json.NewEncoder(OutputFromContext(ctx).Stdout)
+	encoder := json.NewEncoder(outputFromContext(ctx).Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(output)
 }

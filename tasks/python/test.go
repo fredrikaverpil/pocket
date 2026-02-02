@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -44,7 +45,7 @@ func runTest(ctx context.Context, pythonVersion string, skipCoverage bool) error
 
 	if skipCoverage {
 		args := []string{}
-		if pk.Verbose(ctx) {
+		if pcontext.Verbose(ctx) {
 			args = append(args, "-vv")
 		}
 		return uv.Run(ctx, opts, "pytest", args...)
@@ -52,7 +53,7 @@ func runTest(ctx context.Context, pythonVersion string, skipCoverage bool) error
 
 	// Run with coverage.
 	args := []string{"run", "--parallel-mode", "-m", "pytest"}
-	if pk.Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		args = append(args, "-vv")
 	}
 	if err := uv.Run(ctx, opts, "coverage", args...); err != nil {

@@ -3,7 +3,13 @@ package pk
 import (
 	"context"
 	"sync"
+
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
+
+// trackerKey is the context key for the execution tracker.
+// Used internally for task deduplication.
+type trackerKey struct{}
 
 // taskID uniquely identifies a task execution for deduplication.
 // Used directly as a map key (Go structs with comparable fields are valid map keys).
@@ -68,26 +74,26 @@ func (t *executionTracker) executed() []executedTaskPath {
 
 // withExecutionTracker returns a new context with the given tracker set.
 func withExecutionTracker(ctx context.Context, t *executionTracker) context.Context {
-	return context.WithValue(ctx, trackerKey, t)
+	return context.WithValue(ctx, trackerKey{}, t)
 }
 
 // executionTrackerFromContext returns the execution tracker from the context.
 // Returns nil if no tracker is set.
 func executionTrackerFromContext(ctx context.Context) *executionTracker {
-	if t, ok := ctx.Value(trackerKey).(*executionTracker); ok {
+	if t, ok := ctx.Value(trackerKey{}).(*executionTracker); ok {
 		return t
 	}
 	return nil
 }
 
 // withForceRun returns a new context with forceRun set to true.
-func withForceRun(ctx context.Context) context.Context {
-	return context.WithValue(ctx, forceRunKey, true)
+func withForceRun(c context.Context) context.Context {
+	return context.WithValue(c, pcontext.ForceRunKey, true)
 }
 
 // forceRunFromContext returns whether forceRun is set in the context.
-func forceRunFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(forceRunKey).(bool); ok {
+func forceRunFromContext(c context.Context) bool {
+	if v, ok := c.Value(pcontext.ForceRunKey).(bool); ok {
 		return v
 	}
 	return false

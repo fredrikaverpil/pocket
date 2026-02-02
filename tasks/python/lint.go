@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -43,7 +44,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
 		"check",
 		"--exclude", ".pocket",
 	}
-	if pk.Verbose(ctx) {
+	if pcontext.Verbose(ctx) {
 		args = append(args, "--verbose")
 	}
 	if !skipFix {
@@ -52,7 +53,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
 	if pythonVersion != "" {
 		args = append(args, "--target-version", pythonVersionToRuff(pythonVersion))
 	}
-	args = append(args, pk.PathFromContext(ctx))
+	args = append(args, pcontext.PathFromContext(ctx))
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }

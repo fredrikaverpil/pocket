@@ -369,8 +369,8 @@ var Config = &pk.Config{
 
 **Configuring Python tasks:**
 
-Use `pk.WithNameSuffix()` to add a suffix to task names (e.g., `py-test:3.9`) and
-`pk.WithFlag()` to set the Python version and enable coverage:
+Use `pk.WithNameSuffix()` to add a suffix to task names (e.g., `py-test:3.9`)
+and `pk.WithFlag()` to set the Python version and enable coverage:
 
 **Available tasks:**
 
@@ -383,8 +383,9 @@ Use `pk.WithNameSuffix()` to add a suffix to task names (e.g., `py-test:3.9`) an
 | `python.Test`      | Run pytest                               |
 | `python.Detect()`  | DetectFunc for pyproject.toml            |
 
-When `pk.WithNameSuffix("3.9")` is used, tasks are automatically named with a suffix
-(e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix generation.
+When `pk.WithNameSuffix("3.9")` is used, tasks are automatically named with a
+suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix
+generation.
 
 > [!NOTE]
 >
@@ -738,7 +739,7 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithIncludePath(patterns...)` | Only run in matching directories       |
 | `pk.WithExcludePath(patterns...)` | Skip matching directories              |
 | `pk.WithDetect(fn)`               | Auto-detect directories                |
-| `pk.WithNameSuffix(suffix)`             | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithNameSuffix(suffix)`       | Add suffix to task names (e.g., `:v2`) |
 | `pk.WithFlag(task, name, value)`  | Override a task's flag                 |
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |

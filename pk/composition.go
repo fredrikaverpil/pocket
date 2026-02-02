@@ -64,7 +64,7 @@ func (p *parallel) run(ctx context.Context) error {
 
 	// Multiple items: use errgroup and buffered output.
 	// Deduplication is handled by Task.run() - no pre-filtering needed.
-	parentOut := OutputFromContext(ctx)
+	parentOut := outputFromContext(ctx)
 	buffers := make([]*bufferedOutput, len(p.runnables))
 	for i := range p.runnables {
 		buffers[i] = newBufferedOutput(parentOut)
@@ -74,7 +74,7 @@ func (p *parallel) run(ctx context.Context) error {
 	g, gCtx := errgroup.WithContext(ctx)
 	for i, r := range p.runnables {
 		g.Go(func() error {
-			childCtx := WithOutput(gCtx, buffers[i].Output())
+			childCtx := context.WithValue(gCtx, outputKey{}, buffers[i].Output())
 			err := r.run(childCtx)
 
 			// Flush immediately on completion (first-to-complete flushes first).

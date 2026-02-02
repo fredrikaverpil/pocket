@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 	"github.com/fredrikaverpil/pocket/tools/tsqueryls"
 )
@@ -40,7 +41,7 @@ func queryFormatCmd() pk.Runnable {
 
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
-			if pk.Verbose(ctx) {
+			if pcontext.Verbose(ctx) {
 				pk.Printf(ctx, "  no tree-sitter query directories found\n")
 			}
 			return nil
@@ -69,7 +70,7 @@ func queryLintCmd() pk.Runnable {
 
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
-			if pk.Verbose(ctx) {
+			if pcontext.Verbose(ctx) {
 				pk.Printf(ctx, "  no tree-sitter query directories found\n")
 			}
 			return nil
@@ -94,7 +95,7 @@ func queryLintCmd() pk.Runnable {
 // findQueryDirs finds directories containing tree-sitter query files (.scm).
 // Looks in common locations: queries/, lua/*/queries/, etc.
 func findQueryDirs(ctx context.Context) []string {
-	root := pk.FromGitRoot(pk.PathFromContext(ctx))
+	root := pk.FromGitRoot(pcontext.PathFromContext(ctx))
 	seen := make(map[string]bool)
 	var dirs []string
 

@@ -41,7 +41,7 @@ func TestExecutionTracker_Concurrent(t *testing.T) {
 	var firstCount int
 	var mu sync.Mutex
 
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			if !tracker.markDone(taskID{Name: "concurrent-task", Path: "same/path"}) {
@@ -90,5 +90,69 @@ func TestForceRunContext(t *testing.T) {
 	ctx = withForceRun(ctx)
 	if !forceRunFromContext(ctx) {
 		t.Error("expected forceRun to be true after withForceRun")
+	}
+}
+
+func TestExecutionTracker_Executed(t *testing.T) {
+	tracker := newExecutionTracker()
+	tracker.markDone(taskID{Name: "task1", Path: "."})
+	tracker.markDone(taskID{Name: "task2", Path: "foo"})
+	tracker.markDone(taskID{Name: "task1", Path: "bar"}) // same task, different path
+
+	executed := tracker.executed()
+	if len(executed) != 3 {
+		t.Fatalf("expected 3 executions, got %d", len(executed))
+	}
+
+	// Check that all expected executions are present
+	expected := map[string]bool{
+		"task1:.":   true,
+		"task2:foo": true,
+		"task1:bar": true,
+	}
+
+	for _, exec := range executed {
+		key := exec.TaskName + ":" + exec.Path
+		if !expected[key] {
+			t.Errorf("unexpected execution: %s", key)
+		}
+		delete(expected, key)
+	}
+
+	if len(expected) > 0 {
+		t.Errorf("missing executions: %v", expected)
+	}
+}
+
+// TestExecutionTracker_ExecutedWithSuffixes tests that executed() correctly
+// parses task names that contain colons (e.g., "py-test:3.9").
+func TestExecutionTracker_ExecutedWithSuffixes(t *testing.T) {
+	tracker := newExecutionTracker()
+	tracker.markDone(taskID{Name: "py-test:3.9", Path: "."})
+	tracker.markDone(taskID{Name: "py-test:3.10", Path: "."})
+	tracker.markDone(taskID{Name: "py-test:3.9", Path: "services"}) // same suffix, different path
+
+	executed := tracker.executed()
+	if len(executed) != 3 {
+		t.Fatalf("expected 3 executions, got %d", len(executed))
+	}
+
+	// Check that all expected executions are present with correct parsing
+	expected := map[string]bool{
+		"py-test:3.9@.":        true,
+		"py-test:3.10@.":       true,
+		"py-test:3.9@services": true,
+	}
+
+	for _, exec := range executed {
+		key := exec.TaskName + "@" + exec.Path
+		if !expected[key] {
+			t.Errorf("unexpected execution: %s (TaskName=%q, Path=%q)", key, exec.TaskName, exec.Path)
+		}
+		delete(expected, key)
+	}
+
+	if len(expected) > 0 {
+		t.Errorf("missing executions: %v", expected)
 	}
 }

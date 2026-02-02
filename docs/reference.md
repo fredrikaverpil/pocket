@@ -469,7 +469,8 @@ import "github.com/fredrikaverpil/pocket/pk"     // pk.PathFromContext()
 import "github.com/fredrikaverpil/pocket/pk/ctx" // ctx.PathFromContext()
 ```
 
-The `pk/ctx` package is a leaf package with no dependencies, useful for minimal imports.
+The `pk/ctx` package is a leaf package with no dependencies, useful for minimal
+imports.
 
 ### Accessors
 
