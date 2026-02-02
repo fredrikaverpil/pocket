@@ -131,7 +131,7 @@ func createSymlink(binaryPath, version string) pk.Runnable {
 		// On Unix, create version-specific symlink to avoid collisions
 		// when installing multiple versions in parallel.
 		symlinkName := platform.BinaryName(fmt.Sprintf("%s-%s", Name, version))
-		_, err := pk.CreateSymlinkAs(binaryPath, symlinkName)
+		_, err := download.CreateSymlinkAs(binaryPath, symlinkName)
 		return err
 	})
 }

@@ -1,4 +1,4 @@
-// Package ctx provides context management for Pocket task execution.
+// Package pcontext provides context management for Pocket task execution.
 // It contains context keys and accessors for passing values through the task graph.
 //
 // This package is a leaf package with no dependencies on other pk packages,

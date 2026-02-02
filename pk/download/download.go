@@ -90,7 +90,7 @@ func download(ctx context.Context, url string, opts ...Opt) error {
 	if cfg.skipIfExists != "" {
 		if _, err := os.Stat(cfg.skipIfExists); err == nil {
 			if cfg.symlink {
-				if _, err := pk.CreateSymlink(cfg.skipIfExists); err != nil {
+				if _, err := CreateSymlink(cfg.skipIfExists); err != nil {
 					return err
 				}
 			}
@@ -144,7 +144,7 @@ func download(ctx context.Context, url string, opts ...Opt) error {
 
 	// Create symlink if requested.
 	if cfg.symlink && binaryPath != "" {
-		if _, err := pk.CreateSymlink(binaryPath); err != nil {
+		if _, err := CreateSymlink(binaryPath); err != nil {
 			return err
 		}
 	}
@@ -188,7 +188,7 @@ func processFile(path string, cfg *downloadConfig) (string, error) {
 	default:
 		// Raw copy.
 		dst := filepath.Join(destDir, filepath.Base(path))
-		if err := pk.CopyFile(path, dst); err != nil {
+		if err := CopyFile(path, dst); err != nil {
 			return "", fmt.Errorf("copy file: %w", err)
 		}
 		firstFile = dst

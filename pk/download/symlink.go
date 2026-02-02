@@ -1,4 +1,4 @@
-package pk
+package download
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
@@ -21,7 +22,7 @@ func CreateSymlink(binaryPath string) (string, error) {
 // On Windows, it copies the file instead since symlinks require admin privileges.
 // Returns the path to the symlink (or copy on Windows).
 func CreateSymlinkAs(binaryPath, name string) (string, error) {
-	binDir := FromBinDir()
+	binDir := pk.FromBinDir()
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return "", fmt.Errorf("create bin dir: %w", err)
 	}
@@ -74,7 +75,7 @@ func CreateSymlinkWithCompanions(binaryPath string, companions ...string) (strin
 	// On Windows, copy companion files (DLLs, etc.) to the bin directory.
 	if runtime.GOOS == platform.Windows && len(companions) > 0 {
 		srcDir := filepath.Dir(binaryPath)
-		binDir := FromBinDir()
+		binDir := pk.FromBinDir()
 
 		for _, pattern := range companions {
 			matches, err := filepath.Glob(filepath.Join(srcDir, pattern))
@@ -113,7 +114,7 @@ func CopyFile(src, dst string) error {
 // ensureToolsGoMod creates .pocket/tools/go.mod if it doesn't exist.
 // This prevents go mod tidy from scanning downloaded tools.
 func ensureToolsGoMod() error {
-	toolsDir := FromToolsDir()
+	toolsDir := pk.FromToolsDir()
 	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
 		return fmt.Errorf("create tools dir: %w", err)
 	}
@@ -124,7 +125,7 @@ func ensureToolsGoMod() error {
 	}
 
 	// Read Go version from .pocket/go.mod.
-	goVersion, err := goVersionFromDir(FromPocketDir())
+	goVersion, err := goVersionFromDir(pk.FromPocketDir())
 	if err != nil {
 		// Fallback to a reasonable default if we can't read go.mod.
 		goVersion = "1.23"

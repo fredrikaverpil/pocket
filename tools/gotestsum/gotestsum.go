@@ -1,7 +1,10 @@
 // Package gotestsum provides gotestsum CLI tool integration.
 package gotestsum
 
-import "github.com/fredrikaverpil/pocket/pk"
+import (
+	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/tools/golang"
+)
 
 // Name is the binary name for gotestsum.
 const Name = "gotestsum"
@@ -12,5 +15,5 @@ const Version = "v1.13.0"
 
 // Install ensures gotestsum CLI is available.
 var Install = pk.NewTask("install:gotestsum", "install gotestsum CLI", nil,
-	pk.InstallGo("gotest.tools/gotestsum", Version),
+	golang.Install("gotest.tools/gotestsum", Version),
 ).Hidden().Global()

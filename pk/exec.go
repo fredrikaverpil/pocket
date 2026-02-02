@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -69,7 +70,6 @@ func isTerminal(f *os.File) bool {
 }
 
 // Exec executes a command with .pocket/bin prepended to PATH.
-// This ensures tools installed via InstallGo() are found first.
 // The command runs in the directory specified by pcontext.PathFromContext(ctx).
 //
 // Environment variables can be customized using WithEnv and WithoutEnv:
@@ -148,10 +148,8 @@ func RegisterPATH(dir string) {
 	extraPATHDirsMu.Lock()
 	defer extraPATHDirsMu.Unlock()
 	// Avoid duplicates.
-	for _, d := range extraPATHDirs {
-		if d == dir {
-			return
-		}
+	if slices.Contains(extraPATHDirs, dir) {
+		return
 	}
 	extraPATHDirs = append(extraPATHDirs, dir)
 }

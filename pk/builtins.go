@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -154,34 +153,33 @@ var selfUpdateTask = NewTask(
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
+		// Set working directory to .pocket for all commands
+		ctx = pcontext.WithPath(ctx, pocketDir)
+
 		// 1. go get latest
-		cmd := exec.CommandContext(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest")
-		cmd.Dir = pocketDir
 		if *selfUpdateForce {
 			// Bypass proxy cache to guarantee absolute latest
-			cmd.Env = append(cmd.Environ(), "GOPROXY=direct")
 			if pcontext.Verbose(ctx) {
 				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-		} else if pcontext.Verbose(ctx) {
-			Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
-		}
-		out := outputFromContext(ctx)
-		cmd.Stdout = out.Stdout
-		cmd.Stderr = out.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("updating pocket dependency: %w", err)
+			ctx := pcontext.WithEnv(ctx, "GOPROXY=direct")
+			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+				return fmt.Errorf("updating pocket dependency: %w", err)
+			}
+		} else {
+			if pcontext.Verbose(ctx) {
+				Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+			}
+			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+				return fmt.Errorf("updating pocket dependency: %w", err)
+			}
 		}
 
 		// 2. go mod tidy
 		if pcontext.Verbose(ctx) {
 			Printf(ctx, "  running: go mod tidy\n")
 		}
-		cmd = exec.CommandContext(ctx, "go", "mod", "tidy")
-		cmd.Dir = pocketDir
-		cmd.Stdout = out.Stdout
-		cmd.Stderr = out.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := Exec(ctx, "go", "mod", "tidy"); err != nil {
 			return fmt.Errorf("tidying pocket module: %w", err)
 		}
 
@@ -262,7 +260,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 			paths = info.resolvedPaths
 		}
 
-		return map[string]interface{}{
+		return map[string]any{
 			"type":   "task",
 			"name":   effectiveName,
 			"hidden": v.IsHidden(),
@@ -271,25 +269,25 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 		}
 
 	case *serial:
-		children := make([]map[string]interface{}, 0, len(v.runnables))
+		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
 			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"type":     "serial",
 			"children": children,
 		}
 
 	case *parallel:
-		children := make([]map[string]interface{}, 0, len(v.runnables))
+		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
 			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"type":     "parallel",
 			"children": children,
 		}
@@ -305,7 +303,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 			}
 		}
 
-		node := map[string]interface{}{
+		node := map[string]any{
 			"type":    "pathFilter",
 			"include": v.includePaths,
 			"exclude": v.excludePaths,
@@ -314,7 +312,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 		return node
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"type": "unknown",
 	}
 }
