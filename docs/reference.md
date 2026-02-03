@@ -469,16 +469,16 @@ import "github.com/fredrikaverpil/pocket/pk"          // pk.PathFromContext()
 import "github.com/fredrikaverpil/pocket/pk/pcontext" // pcontext.PathFromContext()
 ```
 
-The `pk/pcontext` package is a leaf package with no dependencies, useful for minimal
-imports.
+The `pk/pcontext` package is a leaf package with no dependencies, useful for
+minimal imports.
 
 ### Accessors
 
-| Function          | Package        | Description                                 |
-| :---------------- | :------------- | :------------------------------------------ |
-| `PathFromContext` | `pk/pcontext`  | Current execution path relative to git root |
-| `PlanFromContext` | `pk`           | The `*Plan` from context (nil if not set)   |
-| `Verbose`         | `pk/pcontext`  | Whether `-v` flag was provided              |
+| Function          | Package       | Description                                 |
+| :---------------- | :------------ | :------------------------------------------ |
+| `PathFromContext` | `pk/pcontext` | Current execution path relative to git root |
+| `PlanFromContext` | `pk`          | The `*Plan` from context (nil if not set)   |
+| `Verbose`         | `pk/pcontext` | Whether `-v` flag was provided              |
 
 ### Environment Variables
 
