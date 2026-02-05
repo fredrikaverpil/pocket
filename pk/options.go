@@ -251,8 +251,8 @@ func toTaskName(v any) string {
 	switch t := v.(type) {
 	case string:
 		return t
-	case interface{ Name() string }:
-		return t.Name()
+	case *Task:
+		return t.Name
 	default:
 		return ""
 	}

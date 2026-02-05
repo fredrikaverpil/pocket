@@ -13,10 +13,10 @@ const Name = "govulncheck"
 const Version = "v1.1.4"
 
 // Install ensures govulncheck is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:govulncheck",
 	Usage:  "install govulncheck",
 	Body:   golang.Install("golang.org/x/vuln/cmd/govulncheck", Version),
 	Hidden: true,
 	Global: true,
-})
+}

@@ -48,13 +48,13 @@ func Version() string {
 }
 
 // Install ensures prettier is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:prettier",
 	Usage:  "install prettier",
 	Body:   pk.Serial(bun.Install, installPrettier()),
 	Hidden: true,
 	Global: true,
-})
+}
 
 func installPrettier() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

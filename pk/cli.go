@@ -90,17 +90,19 @@ func run(cfg *Config) (*executionTracker, error) {
 			return nil, fmt.Errorf("unknown task %q\nRun 'pok -h' to see available tasks", taskName)
 		}
 
-		// Parse task flags (handles -h/--help via flag.ErrHelp)
-		if err := instance.task.Flags().Parse(taskArgs); err != nil {
-			if errors.Is(err, flag.ErrHelp) {
-				printTaskHelp(ctx, instance.task)
-				return nil, nil
+		// Parse task flags (handles -h/--help via flag.ErrHelp).
+		if instance.task.flagSet != nil {
+			if err := instance.task.flagSet.Parse(taskArgs); err != nil {
+				if errors.Is(err, flag.ErrHelp) {
+					printTaskHelp(ctx, instance.task)
+					return nil, nil
+				}
+				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
-			return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 		}
 
-		// Check if this is a builtin task
-		if isBuiltinName(instance.task.Name()) {
+		// Check if this is a builtin task.
+		if isBuiltinName(instance.task.Name) {
 			// Builtins run directly without path context
 			return nil, instance.task.run(ctx)
 		}
@@ -115,13 +117,17 @@ func run(cfg *Config) (*executionTracker, error) {
 // findTask looks up a task by name, checking builtins first then user tasks.
 // Returns the full taskInstance to preserve the effective name with any suffix.
 func findTask(plan *Plan, name string) *taskInstance {
-	// Check builtins first
+	// Check builtins first.
 	for _, t := range builtins {
-		if t.Name() == name {
-			return &taskInstance{task: t, name: t.Name()}
+		if t.Name == name {
+			// Build flagSet lazily for builtins not yet processed by NewPlan.
+			if t.flagSet == nil {
+				_ = t.buildFlagSet()
+			}
+			return &taskInstance{task: t, name: t.Name}
 		}
 	}
-	// Check user tasks - returns instance with effective name preserved
+	// Check user tasks - returns instance with effective name preserved.
 	return findTaskByName(plan, name)
 }
 
@@ -169,13 +175,19 @@ func findTaskByName(p *Plan, name string) *taskInstance {
 
 // printTaskHelp prints help for a specific task.
 func printTaskHelp(ctx context.Context, task *Task) {
-	Printf(ctx, "%s - %s\n", task.Name(), task.Usage())
+	Printf(ctx, "%s - %s\n", task.Name, task.Usage)
 	Println(ctx)
-	Printf(ctx, "Usage: pok %s [flags]\n", task.Name())
+	Printf(ctx, "Usage: pok %s [flags]\n", task.Name)
 
 	// Check if the FlagSet has any flags defined.
+	if task.flagSet == nil {
+		Println(ctx)
+		Println(ctx, "This task accepts no flags.")
+		return
+	}
+
 	hasFlags := false
-	task.Flags().VisitAll(func(*flag.Flag) { hasFlags = true })
+	task.flagSet.VisitAll(func(*flag.Flag) { hasFlags = true })
 
 	if !hasFlags {
 		Println(ctx)
@@ -185,8 +197,8 @@ func printTaskHelp(ctx context.Context, task *Task) {
 
 	Println(ctx)
 	Println(ctx, "Flags:")
-	task.Flags().SetOutput(outputFromContext(ctx).Stdout)
-	task.Flags().PrintDefaults()
+	task.flagSet.SetOutput(outputFromContext(ctx).Stdout)
+	task.flagSet.PrintDefaults()
 }
 
 // ExecuteTask runs a single task by name with proper path context.
@@ -228,7 +240,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Extract and apply name suffix from instance name (e.g., "py-lint:3.9" -> "3.9").
 	// This ensures flag overrides are found when task.run() looks up by effective name.
-	baseName := inst.task.Name()
+	baseName := inst.task.Name
 	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
 		suffix := inst.name[len(baseName)+1:]
 		ctx = contextWithNameSuffix(ctx, suffix)
@@ -300,7 +312,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	if plan != nil && len(plan.taskInstances) > 0 {
 		taskScope := os.Getenv("TASK_SCOPE")
 		for _, instance := range plan.taskInstances {
-			if instance.task.IsHidden() || !plan.taskRunsInPath(instance.name, taskScope) {
+			if instance.task.Hidden || !plan.taskRunsInPath(instance.name, taskScope) {
 				continue
 			}
 			if instance.isManual {
@@ -318,8 +330,8 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	}
 	// Add visible builtin names
 	for _, t := range builtins {
-		if !t.IsHidden() {
-			allNames = append(allNames, t.Name())
+		if !t.Hidden {
+			allNames = append(allNames, t.Name)
 		}
 	}
 	for _, instance := range regularTasks {
@@ -351,8 +363,8 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	Println(ctx)
 	Println(ctx, "Builtin tasks:")
 	for _, t := range builtins {
-		if !t.IsHidden() {
-			Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name(), t.Usage())
+		if !t.Hidden {
+			Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name, t.Usage)
 		}
 	}
 }
@@ -370,8 +382,8 @@ func printTaskSection(ctx context.Context, header string, instances []taskInstan
 
 	Println(ctx, header)
 	for _, instance := range instances {
-		if instance.task.Usage() != "" {
-			Printf(ctx, "  %-*s  %s\n", width, instance.name, instance.task.Usage())
+		if instance.task.Usage != "" {
+			Printf(ctx, "  %-*s  %s\n", width, instance.name, instance.task.Usage)
 		} else {
 			Printf(ctx, "  %s\n", instance.name)
 		}

@@ -7,7 +7,7 @@ import (
 )
 
 // Fix runs go fix to update code for newer Go versions.
-var Fix = pk.NewTask(pk.TaskConfig{
+var Fix = &pk.Task{
 	Name:  "go-fix",
 	Usage: "update code for newer Go versions",
 	Body: pk.Do(func(ctx context.Context) error {
@@ -18,4 +18,4 @@ var Fix = pk.NewTask(pk.TaskConfig{
 		args = append(args, "./...")
 		return pk.Exec(ctx, "go", args...)
 	}),
-})
+}

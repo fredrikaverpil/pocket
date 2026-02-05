@@ -17,13 +17,13 @@ const Name = "tree-sitter"
 const Version = "0.26.3"
 
 // Install ensures tree-sitter CLI is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:tree-sitter",
 	Usage:  "install tree-sitter CLI",
 	Body:   installTreeSitter(),
 	Hidden: true,
 	Global: true,
-})
+}
 
 func installTreeSitter() pk.Runnable {
 	binDir := pk.FromToolsDir("treesitter", Version, "bin")

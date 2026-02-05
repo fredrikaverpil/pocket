@@ -279,15 +279,32 @@ func (pc *taskCollector) walk(r Runnable) error {
 	// Type switch on the concrete Runnable types.
 	switch v := r.(type) {
 	case *Task:
+		// Validate task during plan building.
+		if v.Name == "" {
+			return fmt.Errorf("task has empty Name")
+		}
+		if v.Do == nil && v.Body == nil {
+			return fmt.Errorf("task %q: must set either Do or Body", v.Name)
+		}
+		if v.Do != nil && v.Body != nil {
+			return fmt.Errorf("task %q: Do and Body are mutually exclusive", v.Name)
+		}
+		// Build internal flagSet if not already built.
+		if v.flagSet == nil {
+			if err := v.buildFlagSet(); err != nil {
+				return err
+			}
+		}
+
 		// Check if task is skipped in current scope.
-		if slices.Contains(pc.activeSkips, v.name) {
+		if slices.Contains(pc.activeSkips, v.Name) {
 			return nil
 		}
 
 		// Build effective name with suffix (e.g., "py-test:3.9").
-		effectiveName := v.name
+		effectiveName := v.Name
 		if pc.activeNameSuffix != "" {
-			effectiveName = v.name + ":" + pc.activeNameSuffix
+			effectiveName = v.Name + ":" + pc.activeNameSuffix
 		}
 
 		// Determine final paths for this task.
@@ -321,7 +338,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// Apply task-specific excludes (WithExcludeTask).
 			// If this removes all paths for this task, that's intentional - the task just won't run.
 			for _, ex := range pc.activeExcludes {
-				if len(ex.tasks) > 0 && slices.Contains(ex.tasks, v.name) {
+				if len(ex.tasks) > 0 && slices.Contains(ex.tasks, v.Name) {
 					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
 				}
 			}
@@ -340,7 +357,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// Pre-merge flags for this task from all active scopes.
 			var mergedFlags map[string]any
 			for _, f := range pc.activeFlags {
-				if f.taskName == v.name {
+				if f.taskName == v.Name {
 					if mergedFlags == nil {
 						mergedFlags = make(map[string]any)
 					}
@@ -514,9 +531,9 @@ func (p *Plan) Tasks() []TaskInfo {
 	for _, instance := range p.taskInstances {
 		info := TaskInfo{
 			Name:   instance.name, // Use effective name (may include suffix).
-			Usage:  instance.task.usage,
+			Usage:  instance.task.Usage,
 			Flags:  instance.flags, // Pre-merged flag overrides from pk.WithFlag().
-			Hidden: instance.task.hidden,
+			Hidden: instance.task.Hidden,
 			Manual: instance.isManual, // Set by Config.Manual during planning.
 		}
 

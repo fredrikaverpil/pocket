@@ -18,13 +18,13 @@ const Name = "commitsar"
 const Version = "1.0.2"
 
 // Install ensures commitsar is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:commitsar",
 	Usage:  "install commitsar",
 	Body:   installCommitsar(),
 	Hidden: true,
 	Global: true,
-})
+}
 
 func installCommitsar() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")

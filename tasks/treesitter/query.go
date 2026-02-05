@@ -2,7 +2,6 @@ package treesitter
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,33 +11,30 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/tsqueryls"
 )
 
-var (
-	queryFormatFlags   = flag.NewFlagSet("query-format", flag.ContinueOnError)
-	queryFormatParsers = queryFormatFlags.String("parsers", "", "comma-separated parser names to compile")
-	queryLintFlags     = flag.NewFlagSet("query-lint", flag.ContinueOnError)
-	queryLintParsers   = queryLintFlags.String("parsers", "", "comma-separated parser names to compile")
-	queryLintFix       = queryLintFlags.Bool("fix", false, "auto-fix lint issues")
-)
-
 // QueryFormat formats tree-sitter query files using ts_query_ls.
-var QueryFormat = pk.NewTask(pk.TaskConfig{
+var QueryFormat = &pk.Task{
 	Name:  "query-format",
 	Usage: "format tree-sitter query files",
-	Flags: queryFormatFlags,
-	Body:  pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"parsers": {Default: "", Usage: "comma-separated parser names to compile"},
+	},
+	Body: pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
+}
 
 // QueryLint lints tree-sitter query files using ts_query_ls.
-var QueryLint = pk.NewTask(pk.TaskConfig{
+var QueryLint = &pk.Task{
 	Name:  "query-lint",
 	Usage: "lint tree-sitter query files",
-	Flags: queryLintFlags,
-	Body:  pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"fix":     {Default: false, Usage: "auto-fix lint issues"},
+		"parsers": {Default: "", Usage: "comma-separated parser names to compile"},
+	},
+	Body: pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
+}
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parsers := parseParsers(*queryFormatParsers)
+		parsers := parseParsers(pk.GetFlag[string](ctx, "parsers"))
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
@@ -67,7 +63,7 @@ func queryFormatCmd() pk.Runnable {
 
 func queryLintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parsers := parseParsers(*queryLintParsers)
+		parsers := parseParsers(pk.GetFlag[string](ctx, "parsers"))
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
@@ -84,7 +80,7 @@ func queryLintCmd() pk.Runnable {
 		configArgs := tsQueryLsConfigArgs(parserDir)
 		for _, dir := range dirs {
 			args := []string{"check"}
-			if *queryLintFix {
+			if pk.GetFlag[bool](ctx, "fix") {
 				args = append(args, "--fix")
 			}
 			args = append(args, configArgs...)

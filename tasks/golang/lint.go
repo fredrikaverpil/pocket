@@ -2,26 +2,22 @@ package golang
 
 import (
 	"context"
-	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
-var (
-	lintFlags  = flag.NewFlagSet("go-lint", flag.ContinueOnError)
-	lintFix    = lintFlags.Bool("fix", true, "apply fixes")
-	lintConfig = lintFlags.String("config", "", "path to golangci-lint config file")
-)
-
 // Lint runs golangci-lint on Go code.
 // Automatically installs golangci-lint if not present.
-var Lint = pk.NewTask(pk.TaskConfig{
+var Lint = &pk.Task{
 	Name:  "go-lint",
 	Usage: "run golangci-lint",
-	Flags: lintFlags,
-	Body:  pk.Serial(golangcilint.Install, lintCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"config": {Default: "", Usage: "path to golangci-lint config file"},
+		"fix":    {Default: true, Usage: "apply fixes"},
+	},
+	Body: pk.Serial(golangcilint.Install, lintCmd()),
+}
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
@@ -29,10 +25,10 @@ func lintCmd() pk.Runnable {
 		if pk.Verbose(ctx) {
 			args = append(args, "-v")
 		}
-		if *lintConfig != "" {
-			args = append(args, "-c", *lintConfig)
+		if config := pk.GetFlag[string](ctx, "config"); config != "" {
+			args = append(args, "-c", config)
 		}
-		if *lintFix {
+		if pk.GetFlag[bool](ctx, "fix") {
 			args = append(args, "--fix")
 		}
 		args = append(args, "./...")

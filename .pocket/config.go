@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/github"
@@ -40,20 +39,16 @@ var Config = &pk.Config{
 	},
 }
 
-// Hello flags.
-var (
-	helloFlags = flag.NewFlagSet("hello", flag.ContinueOnError)
-	helloName  = helloFlags.String("name", "Pocket v2", "name to greet")
-)
-
 // Hello is a demo task that prints a greeting.
 // Demonstrates task with CLI flags.
-var Hello = pk.NewTask(pk.TaskConfig{
+var Hello = &pk.Task{
 	Name:  "hello",
 	Usage: "print a greeting message",
-	Flags: helloFlags,
-	Body: pk.Do(func(ctx context.Context) error {
-		pk.Printf(ctx, "Hello, %s!\n", *helloName)
+	Flags: map[string]pk.FlagDef{
+		"name": {Default: "Pocket v2", Usage: "name to greet"},
+	},
+	Do: func(ctx context.Context) error {
+		pk.Printf(ctx, "Hello, %s!\n", pk.GetFlag[string](ctx, "name"))
 		return nil
-	}),
-})
+	},
+}

@@ -2,30 +2,26 @@ package python
 
 import (
 	"context"
-	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-var (
-	typecheckFlags = flag.NewFlagSet("py-typecheck", flag.ContinueOnError)
-	typecheckPyVer = typecheckFlags.String("python", "", "Python version to type-check against (e.g., 3.9)")
-)
-
 // Typecheck type-checks Python files using mypy.
 // Requires mypy as a project dependency in pyproject.toml.
 // Python version can be set via the -python flag.
-var Typecheck = pk.NewTask(pk.TaskConfig{
+var Typecheck = &pk.Task{
 	Name:  "py-typecheck",
 	Usage: "type-check Python files",
-	Flags: typecheckFlags,
-	Body:  pk.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"python": {Default: "", Usage: "Python version to type-check against (e.g., 3.9)"},
+	},
+	Body: pk.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
+}
 
 func typecheckSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, *typecheckPyVer)
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -35,7 +31,7 @@ func typecheckSyncCmd() pk.Runnable {
 
 func typecheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, *typecheckPyVer)
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
 		return runTypecheck(ctx, version)
 	})
 }

@@ -2,28 +2,24 @@ package lua
 
 import (
 	"context"
-	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
-var (
-	formatFlags  = flag.NewFlagSet("lua-format", flag.ContinueOnError)
-	formatConfig = formatFlags.String("config", "", "path to stylua config file")
-)
-
 // Format formats Lua files using stylua.
-var Format = pk.NewTask(pk.TaskConfig{
+var Format = &pk.Task{
 	Name:  "lua-format",
 	Usage: "format Lua files",
-	Flags: formatFlags,
-	Body:  pk.Serial(stylua.Install, formatCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"config": {Default: "", Usage: "path to stylua config file"},
+	},
+	Body: pk.Serial(stylua.Install, formatCmd()),
+}
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		configPath := *formatConfig
+		configPath := pk.GetFlag[string](ctx, "config")
 		if configPath == "" {
 			configPath = stylua.EnsureDefaultConfig()
 		}

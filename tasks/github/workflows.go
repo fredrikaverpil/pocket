@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"embed"
-	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -17,24 +16,6 @@ import (
 
 //go:embed workflows/*.tmpl
 var workflowTemplates embed.FS
-
-// Workflow flags.
-var (
-	workflowFlags = flag.NewFlagSet("github-workflows", flag.ContinueOnError)
-
-	skipPocket  = workflowFlags.Bool("skip-pocket", false, "exclude pocket workflow")
-	skipPR      = workflowFlags.Bool("skip-pr", false, "exclude PR workflow")
-	skipRelease = workflowFlags.Bool("skip-release", false, "exclude release-please workflow")
-	skipStale   = workflowFlags.Bool("skip-stale", false, "exclude stale workflow")
-
-	includePocketMatrix = workflowFlags.Bool(
-		"include-pocket-matrix",
-		false,
-		"include pocket-matrix workflow (excluded by default)",
-	)
-
-	platforms = workflowFlags.String("platforms", "", "platforms for pocket.yml (comma-separated)")
-)
 
 // PocketConfig holds configuration for the pocket workflow template.
 type PocketConfig struct {
@@ -66,12 +47,19 @@ func DefaultStaleConfig() StaleConfig {
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
 // By default, all workflows are copied. Use flags to select specific ones.
-var Workflows = pk.NewTask(pk.TaskConfig{
+var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
-	Flags: workflowFlags,
-	Body:  pk.Do(runWorkflows),
-})
+	Flags: map[string]pk.FlagDef{
+		"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow (excluded by default)"},
+		"platforms":             {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
+		"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
+		"skip-pr":               {Default: false, Usage: "exclude PR workflow"},
+		"skip-release":          {Default: false, Usage: "exclude release-please workflow"},
+		"skip-stale":            {Default: false, Usage: "exclude stale workflow"},
+	},
+	Do: runWorkflows,
+}
 
 func runWorkflows(ctx context.Context) error {
 	verbose := pk.Verbose(ctx)
@@ -95,16 +83,16 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	pocketConfig := DefaultPocketConfig()
-	if *platforms != "" {
-		pocketConfig.Platforms = *platforms
+	if p := pk.GetFlag[string](ctx, "platforms"); p != "" {
+		pocketConfig.Platforms = p
 	}
 	staleConfig := DefaultStaleConfig()
 
 	workflowDefs := []workflowDef{
-		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !*skipPocket},
-		{"pr.yml.tmpl", "pr.yml", nil, !*skipPR},
-		{"release.yml.tmpl", "release.yml", nil, !*skipRelease},
-		{"stale.yml.tmpl", "stale.yml", staleConfig, !*skipStale},
+		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !pk.GetFlag[bool](ctx, "skip-pocket")},
+		{"pr.yml.tmpl", "pr.yml", nil, !pk.GetFlag[bool](ctx, "skip-pr")},
+		{"release.yml.tmpl", "release.yml", nil, !pk.GetFlag[bool](ctx, "skip-release")},
+		{"stale.yml.tmpl", "stale.yml", staleConfig, !pk.GetFlag[bool](ctx, "skip-stale")},
 	}
 
 	// Also manage pocket-matrix.yml (generated separately via static generation)
@@ -166,7 +154,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Generate static pocket-matrix workflow if requested
-	if *includePocketMatrix {
+	if pk.GetFlag[bool](ctx, "include-pocket-matrix") {
 		if err := generateStaticMatrixWorkflow(ctx, workflowDir, verbose); err != nil {
 			return fmt.Errorf("generate pocket-matrix workflow: %w", err)
 		}

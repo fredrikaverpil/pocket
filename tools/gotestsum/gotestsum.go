@@ -14,10 +14,10 @@ const Name = "gotestsum"
 const Version = "v1.13.0"
 
 // Install ensures gotestsum CLI is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:gotestsum",
 	Usage:  "install gotestsum CLI",
 	Body:   golang.Install("gotest.tools/gotestsum", Version),
 	Hidden: true,
 	Global: true,
-})
+}

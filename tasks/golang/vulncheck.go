@@ -8,11 +8,11 @@ import (
 )
 
 // Vulncheck runs govulncheck for vulnerability scanning.
-var Vulncheck = pk.NewTask(pk.TaskConfig{
+var Vulncheck = &pk.Task{
 	Name:  "go-vulncheck",
 	Usage: "run govulncheck",
 	Body:  pk.Serial(govulncheck.Install, vulncheckCmd()),
-})
+}
 
 func vulncheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

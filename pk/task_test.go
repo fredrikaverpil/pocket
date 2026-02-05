@@ -2,7 +2,6 @@ package pk
 
 import (
 	"context"
-	"flag"
 	"sync/atomic"
 	"testing"
 )
@@ -10,10 +9,10 @@ import (
 func TestTask_Run_Deduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "dedup-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "dedup-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -57,10 +56,10 @@ func TestTask_Run_Deduplication(t *testing.T) {
 func TestTask_Run_ForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "force-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "force-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -96,10 +95,10 @@ func TestTask_Run_ForceRun(t *testing.T) {
 func TestTask_Run_NoTracker(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "no-tracker-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "no-tracker-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	// Context without tracker - should always run (no deduplication).
 	ctx := context.Background()
@@ -120,14 +119,14 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 	var runCount1, runCount2 atomic.Int32
 
 	// Two different task instances with the same name.
-	task1 := NewTask(TaskConfig{Name: "same-name", Usage: "test task 1", Body: Do(func(_ context.Context) error {
+	task1 := &Task{Name: "same-name", Usage: "test task 1", Do: func(_ context.Context) error {
 		runCount1.Add(1)
 		return nil
-	})})
-	task2 := NewTask(TaskConfig{Name: "same-name", Usage: "test task 2", Body: Do(func(_ context.Context) error {
+	}}
+	task2 := &Task{Name: "same-name", Usage: "test task 2", Do: func(_ context.Context) error {
 		runCount2.Add(1)
 		return nil
-	})})
+	}}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -151,61 +150,58 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 	}
 }
 
-func TestTask_Accessors(t *testing.T) {
-	task := NewTask(TaskConfig{Name: "my-task", Usage: "my usage", Body: Do(func(_ context.Context) error {
+func TestTask_Fields(t *testing.T) {
+	task := &Task{Name: "my-task", Usage: "my usage", Do: func(_ context.Context) error {
 		return nil
-	})})
+	}}
 
-	if got := task.Name(); got != "my-task" {
-		t.Errorf("expected Name()=%q, got %q", "my-task", got)
+	if task.Name != "my-task" {
+		t.Errorf("expected Name=%q, got %q", "my-task", task.Name)
 	}
-	if got := task.Usage(); got != "my usage" {
-		t.Errorf("expected Usage()=%q, got %q", "my usage", got)
+	if task.Usage != "my usage" {
+		t.Errorf("expected Usage=%q, got %q", "my usage", task.Usage)
 	}
-	// Flags() always returns a non-nil FlagSet (for uniform flag.ErrHelp handling).
-	// For tasks created without flags, verify the FlagSet exists but is empty.
-	if got := task.Flags(); got == nil {
-		t.Errorf("expected Flags() to return non-nil FlagSet, got nil")
-	} else {
-		var flagCount int
-		got.VisitAll(func(*flag.Flag) { flagCount++ })
-		if flagCount != 0 {
-			t.Errorf("expected empty FlagSet for task without flags, got %d flags", flagCount)
-		}
-	}
-	if got := task.IsHidden(); got {
-		t.Errorf("expected IsHidden()=false, got %v", got)
+	if task.Hidden {
+		t.Errorf("expected Hidden=false, got %v", task.Hidden)
 	}
 }
 
 func TestTask_Hidden(t *testing.T) {
-	task := NewTask(TaskConfig{Name: "visible-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "visible-task", Usage: "test task", Do: func(_ context.Context) error {
 		return nil
-	})})
+	}}
 
 	// Should not be hidden.
-	if task.IsHidden() {
+	if task.Hidden {
 		t.Error("task should not be hidden")
 	}
 
-	hiddenTask := NewTask(TaskConfig{Name: "hidden-task", Usage: "test task", Hidden: true, Body: Do(func(_ context.Context) error {
+	hiddenTask := &Task{Name: "hidden-task", Usage: "test task", Hidden: true, Do: func(_ context.Context) error {
 		return nil
-	})})
+	}}
 
 	// Should be hidden.
-	if !hiddenTask.IsHidden() {
+	if !hiddenTask.Hidden {
 		t.Error("hidden task should be hidden")
 	}
 }
 
 func TestTask_Run_FlagOverrides(t *testing.T) {
-	var flagValue string
-	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fs.StringVar(&flagValue, "myflag", "default", "usage")
+	task := &Task{
+		Name:  "flag-task",
+		Usage: "test task",
+		Flags: map[string]FlagDef{
+			"myflag": {Default: "default", Usage: "usage"},
+		},
+		Do: func(_ context.Context) error {
+			return nil
+		},
+	}
 
-	task := NewTask(TaskConfig{Name: "flag-task", Usage: "test task", Flags: fs, Body: Do(func(_ context.Context) error {
-		return nil
-	})})
+	// Build flagSet.
+	if err := task.buildFlagSet(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Helper to create a Plan with pre-computed flags for the task.
 	planWithFlags := func(flags map[string]any) *Plan {
@@ -222,22 +218,29 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 
 	t.Run("DefaultValue", func(t *testing.T) {
 		// Reset flag to default before test.
-		if err := fs.Set("myflag", "default"); err != nil {
+		if err := task.flagSet.Set("myflag", "default"); err != nil {
 			t.Fatal(err)
+		}
+
+		// Capture the flag value via GetFlag from inside the task.
+		var captured string
+		task.Do = func(ctx context.Context) error {
+			captured = GetFlag[string](ctx, "myflag")
+			return nil
 		}
 
 		ctx := context.Background()
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if flagValue != "default" {
-			t.Errorf("expected default value, got %q", flagValue)
+		if captured != "default" {
+			t.Errorf("expected default value, got %q", captured)
 		}
 	})
 
 	t.Run("WithOverride", func(t *testing.T) {
 		// Reset flag to default before test.
-		if err := fs.Set("myflag", "default"); err != nil {
+		if err := task.flagSet.Set("myflag", "default"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -246,33 +249,45 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 		plan := planWithFlags(map[string]any{"myflag": "overridden"})
 		ctx = context.WithValue(ctx, planKey{}, plan)
 
+		// Capture the flag value via GetFlag from inside the task.
+		var captured string
+		task.Do = func(ctx context.Context) error {
+			captured = GetFlag[string](ctx, "myflag")
+			return nil
+		}
+
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if flagValue != "overridden" {
-			t.Errorf("expected overridden value, got %q", flagValue)
+		if captured != "overridden" {
+			t.Errorf("expected overridden value, got %q", captured)
 		}
 	})
 
 	t.Run("PreMergedOverrides", func(t *testing.T) {
 		// Reset flag to default before test.
-		if err := fs.Set("myflag", "default"); err != nil {
+		if err := task.flagSet.Set("myflag", "default"); err != nil {
 			t.Fatal(err)
 		}
 
 		ctx := context.Background()
-		// In the new model, flags are pre-merged during planning.
-		// The final value ("inner") is what gets stored in the Plan.
 		plan := planWithFlags(map[string]any{"myflag": "inner"})
 		ctx = context.WithValue(ctx, planKey{}, plan)
+
+		var captured string
+		task.Do = func(ctx context.Context) error {
+			captured = GetFlag[string](ctx, "myflag")
+			return nil
+		}
 
 		if err := task.run(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if flagValue != "inner" {
-			t.Errorf("expected pre-merged override value, got %q", flagValue)
+		if captured != "inner" {
+			t.Errorf("expected pre-merged override value, got %q", captured)
 		}
 	})
+
 }
 
 // TestTask_Run_NameSuffixDeduplication tests that tasks with same base name
@@ -281,10 +296,10 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "py-test", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "py-test", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -333,10 +348,10 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	var runCount atomic.Int32
 
 	// Global task - should deduplicate by base name only.
-	task := NewTask(TaskConfig{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -375,10 +390,10 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "test", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -424,14 +439,14 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 // is used correctly for task identification.
 func TestTask_Run_EffectiveName(t *testing.T) {
 	t.Run("NoSuffix", func(t *testing.T) {
-		task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
+		task := &Task{Name: "test", Usage: "test task", Do: func(_ context.Context) error {
 			return nil
-		})})
+		}}
 		ctx := context.Background()
 		// Effective name should be base name when no suffix.
-		effectiveName := task.name
+		effectiveName := task.Name
 		if suffix := nameSuffixFromContext(ctx); suffix != "" {
-			effectiveName = task.name + ":" + suffix
+			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "test" {
 			t.Errorf("expected effectiveName=%q, got %q", "test", effectiveName)
@@ -439,13 +454,13 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 
 	t.Run("WithSuffix", func(t *testing.T) {
-		task := NewTask(TaskConfig{Name: "py-test", Usage: "test task", Body: Do(func(_ context.Context) error {
+		task := &Task{Name: "py-test", Usage: "test task", Do: func(_ context.Context) error {
 			return nil
-		})})
+		}}
 		ctx := contextWithNameSuffix(context.Background(), "3.9")
-		effectiveName := task.name
+		effectiveName := task.Name
 		if suffix := nameSuffixFromContext(ctx); suffix != "" {
-			effectiveName = task.name + ":" + suffix
+			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "py-test:3.9" {
 			t.Errorf("expected effectiveName=%q, got %q", "py-test:3.9", effectiveName)
@@ -453,17 +468,127 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 
 	t.Run("NestedSuffix", func(t *testing.T) {
-		task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
+		task := &Task{Name: "test", Usage: "test task", Do: func(_ context.Context) error {
 			return nil
-		})})
+		}}
 		ctx := contextWithNameSuffix(context.Background(), "a")
 		ctx = contextWithNameSuffix(ctx, "b")
-		effectiveName := task.name
+		effectiveName := task.Name
 		if suffix := nameSuffixFromContext(ctx); suffix != "" {
-			effectiveName = task.name + ":" + suffix
+			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "test:a:b" {
 			t.Errorf("expected effectiveName=%q, got %q", "test:a:b", effectiveName)
+		}
+	})
+}
+
+func TestGetFlag(t *testing.T) {
+	t.Run("FromContext", func(t *testing.T) {
+		ctx := withTaskFlags(context.Background(), map[string]any{
+			"name": "hello",
+			"fix":  true,
+			"count": 42,
+		})
+
+		if got := GetFlag[string](ctx, "name"); got != "hello" {
+			t.Errorf("expected 'hello', got %q", got)
+		}
+		if got := GetFlag[bool](ctx, "fix"); !got {
+			t.Errorf("expected true, got %v", got)
+		}
+		if got := GetFlag[int](ctx, "count"); got != 42 {
+			t.Errorf("expected 42, got %d", got)
+		}
+	})
+
+	t.Run("MissingFlag", func(t *testing.T) {
+		ctx := withTaskFlags(context.Background(), map[string]any{})
+
+		if got := GetFlag[string](ctx, "missing"); got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+		if got := GetFlag[bool](ctx, "missing"); got {
+			t.Errorf("expected false, got %v", got)
+		}
+	})
+
+	t.Run("NoFlagsInContext", func(t *testing.T) {
+		ctx := context.Background()
+
+		if got := GetFlag[string](ctx, "name"); got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+	})
+
+	t.Run("TypeMismatch", func(t *testing.T) {
+		ctx := withTaskFlags(context.Background(), map[string]any{
+			"name": 42, // int, not string
+		})
+
+		if got := GetFlag[string](ctx, "name"); got != "" {
+			t.Errorf("expected zero value for type mismatch, got %q", got)
+		}
+	})
+}
+
+func TestBuildFlagSet(t *testing.T) {
+	t.Run("AllTypes", func(t *testing.T) {
+		task := &Task{
+			Name: "test",
+			Flags: map[string]FlagDef{
+				"name":    {Default: "hello", Usage: "a name"},
+				"verbose": {Default: false, Usage: "verbose mode"},
+				"count":   {Default: 42, Usage: "a count"},
+				"rate":    {Default: 1.5, Usage: "a rate"},
+			},
+			Do: func(_ context.Context) error { return nil },
+		}
+
+		if err := task.buildFlagSet(); err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify flags are registered.
+		if f := task.flagSet.Lookup("name"); f == nil {
+			t.Error("expected 'name' flag")
+		}
+		if f := task.flagSet.Lookup("verbose"); f == nil {
+			t.Error("expected 'verbose' flag")
+		}
+		if f := task.flagSet.Lookup("count"); f == nil {
+			t.Error("expected 'count' flag")
+		}
+		if f := task.flagSet.Lookup("rate"); f == nil {
+			t.Error("expected 'rate' flag")
+		}
+	})
+
+	t.Run("UnsupportedType", func(t *testing.T) {
+		task := &Task{
+			Name: "test",
+			Flags: map[string]FlagDef{
+				"bad": {Default: []string{"a", "b"}, Usage: "unsupported"},
+			},
+			Do: func(_ context.Context) error { return nil },
+		}
+
+		if err := task.buildFlagSet(); err == nil {
+			t.Error("expected error for unsupported type")
+		}
+	})
+
+	t.Run("EmptyFlags", func(t *testing.T) {
+		task := &Task{
+			Name: "test",
+			Do:   func(_ context.Context) error { return nil },
+		}
+
+		if err := task.buildFlagSet(); err != nil {
+			t.Fatal(err)
+		}
+		if task.flagSet == nil {
+			t.Error("expected non-nil flagSet even with no flags")
 		}
 	})
 }

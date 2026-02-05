@@ -45,13 +45,13 @@ const Version = "0.7.13"
 const DefaultPythonVersion = "3.14.2"
 
 // Install ensures uv is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
 	Name:   "install:uv",
 	Usage:  "install uv",
 	Body:   installUV(),
 	Hidden: true,
 	Global: true,
-})
+}
 
 func installUV() pk.Runnable {
 	binDir := pk.FromToolsDir("uv", Version, "bin")

@@ -2,30 +2,26 @@ package python
 
 import (
 	"context"
-	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-var (
-	formatFlags = flag.NewFlagSet("py-format", flag.ContinueOnError)
-	formatPyVer = formatFlags.String("python", "", "Python version (for target-version inference)")
-)
-
 // Format formats Python files using ruff format.
 // Requires ruff as a project dependency in pyproject.toml.
 // Python version can be set via the -python flag.
-var Format = pk.NewTask(pk.TaskConfig{
+var Format = &pk.Task{
 	Name:  "py-format",
 	Usage: "format Python files",
-	Flags: formatFlags,
-	Body:  pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
-})
+	Flags: map[string]pk.FlagDef{
+		"python": {Default: "", Usage: "Python version (for target-version inference)"},
+	},
+	Body: pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
+}
 
 func formatSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, *formatPyVer)
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -35,7 +31,7 @@ func formatSyncCmd() pk.Runnable {
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, *formatPyVer)
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
 		return runFormat(ctx, version)
 	})
 }

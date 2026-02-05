@@ -6,104 +6,149 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sort"
 )
 
 // Task represents a named, executable unit of work.
-// Create tasks with [NewTask].
-type Task struct {
-	name       string
-	usage      string
-	flags      *flag.FlagSet
-	fn         func(context.Context) error
-	hidden     bool
-	hideHeader bool // Task runs without printing header.
-	global     bool // Task deduplicates globally (ignores path).
-}
-
-// TaskConfig configures a [Task] created by [NewTask].
 //
-// Name and Body are required. All other fields are optional and use
-// zero-value defaults (no flags, visible, local deduplication, header shown).
-type TaskConfig struct {
+// Create tasks as struct literals:
+//
+//	var Hello = &pk.Task{
+//	    Name:  "hello",
+//	    Usage: "greet",
+//	    Do: func(ctx context.Context) error {
+//	        fmt.Println("Hello!")
+//	        return nil
+//	    },
+//	}
+//
+// For composed tasks:
+//
+//	var Lint = &pk.Task{
+//	    Name:  "lint",
+//	    Usage: "run linters",
+//	    Body:  pk.Serial(Install, lintCmd()),
+//	}
+type Task struct {
 	// Name is the task's unique identifier (required).
 	Name string
 	// Usage is a short description shown in help output.
 	Usage string
-	// Body is the task's executable logic (required). Use [Do] to wrap a function.
+	// Do is the task's executable function. Mutually exclusive with Body.
+	Do func(context.Context) error
+	// Body is the task's composed logic. Mutually exclusive with Do.
 	Body Runnable
-	// Flags defines CLI flags for the task. If nil, an empty FlagSet is created.
-	Flags *flag.FlagSet
+	// Flags defines declarative CLI flags for the task.
+	// Access flag values at runtime with [GetFlag].
+	Flags map[string]FlagDef
 	// Hidden makes the task invisible in CLI listings. Hidden tasks can still
 	// be executed directly.
 	Hidden bool
-	// Global makes the task deduplicate by name only, ignoring path.
-	// Use this for install tasks that should only run once regardless of path.
-	Global bool
 	// HideHeader suppresses the ":: taskname" header before execution.
 	// Useful for tasks that output machine-readable data (e.g., JSON).
 	HideHeader bool
+	// Global makes the task deduplicate by name only, ignoring path.
+	// Use this for install tasks that should only run once regardless of path.
+	Global bool
+
+	// flagSet is the internal FlagSet built from Flags by the engine.
+	flagSet *flag.FlagSet
 }
 
-// NewTask creates a new [Task] from the given [TaskConfig].
-//
-// Example with function body:
-//
-//	var Hello = pk.NewTask(pk.TaskConfig{
-//	    Name:  "hello",
-//	    Usage: "greet",
-//	    Body: pk.Do(func(ctx context.Context) error {
-//	        fmt.Println("Hello!")
-//	        return nil
-//	    }),
-//	})
-//
-// Example with composition:
-//
-//	var Lint = pk.NewTask(pk.TaskConfig{
-//	    Name:  "lint",
-//	    Usage: "run linters",
-//	    Body:  pk.Serial(Install, lintCmd()),
-//	})
-//
-// Example install task (hidden, global deduplication):
-//
-//	var Install = pk.NewTask(pk.TaskConfig{
-//	    Name:   "install:tool",
-//	    Usage:  "install tool",
-//	    Body:   installBody,
-//	    Hidden: true,
-//	    Global: true,
-//	})
-func NewTask(cfg TaskConfig) *Task {
-	flags := cfg.Flags
+// FlagDef defines a declarative CLI flag.
+// Supported Default types: string, bool, int, float64.
+type FlagDef struct {
+	// Default is the flag's default value.
+	Default any
+	// Usage is the help text for the flag.
+	Usage string
+}
+
+// taskFlagsKey is the context key for resolved task flag values.
+type taskFlagsKey struct{}
+
+// withTaskFlags stores resolved flag values in context.
+func withTaskFlags(ctx context.Context, flags map[string]any) context.Context {
+	return context.WithValue(ctx, taskFlagsKey{}, flags)
+}
+
+// taskFlagsFromContext retrieves resolved flag values from context.
+func taskFlagsFromContext(ctx context.Context) map[string]any {
+	if flags, ok := ctx.Value(taskFlagsKey{}).(map[string]any); ok {
+		return flags
+	}
+	return nil
+}
+
+// GetFlag retrieves a flag value from context by name.
+// Returns T's zero value if the flag is not found.
+func GetFlag[T any](ctx context.Context, name string) T {
+	flags := taskFlagsFromContext(ctx)
 	if flags == nil {
-		flags = flag.NewFlagSet(cfg.Name, flag.ContinueOnError)
+		var zero T
+		return zero
 	}
-	// Suppress default flag.Usage output; we use printTaskHelp for custom help.
-	flags.SetOutput(io.Discard)
-	return &Task{
-		name:       cfg.Name,
-		usage:      cfg.Usage,
-		flags:      flags,
-		hidden:     cfg.Hidden,
-		hideHeader: cfg.HideHeader,
-		global:     cfg.Global,
-		fn: func(ctx context.Context) error {
-			return cfg.Body.run(ctx)
-		},
+	v, ok := flags[name]
+	if !ok {
+		var zero T
+		return zero
 	}
+	typed, ok := v.(T)
+	if !ok {
+		var zero T
+		return zero
+	}
+	return typed
+}
+
+// buildFlagSet constructs the internal *flag.FlagSet from the Flags map.
+// Flags are registered in sorted order for deterministic -h output.
+func (t *Task) buildFlagSet() error {
+	fs := flag.NewFlagSet(t.Name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	if len(t.Flags) == 0 {
+		t.flagSet = fs
+		return nil
+	}
+
+	// Sort flag names for deterministic output.
+	names := make([]string, 0, len(t.Flags))
+	for name := range t.Flags {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		def := t.Flags[name]
+		switch v := def.Default.(type) {
+		case string:
+			fs.String(name, v, def.Usage)
+		case bool:
+			fs.Bool(name, v, def.Usage)
+		case int:
+			fs.Int(name, v, def.Usage)
+		case float64:
+			fs.Float64(name, v, def.Usage)
+		default:
+			return fmt.Errorf("task %q: flag %q has unsupported default type %T", t.Name, name, def.Default)
+		}
+	}
+
+	t.flagSet = fs
+	return nil
 }
 
 // run implements the Runnable interface.
 func (t *Task) run(ctx context.Context) error {
-	if t.fn == nil {
-		return fmt.Errorf("task %q has no implementation", t.name)
+	if t.Do == nil && t.Body == nil {
+		return fmt.Errorf("task %q has no implementation", t.Name)
 	}
 
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
-	effectiveName := t.name
+	effectiveName := t.Name
 	if suffix := nameSuffixFromContext(ctx); suffix != "" {
-		effectiveName = t.name + ":" + suffix
+		effectiveName = t.Name + ":" + suffix
 	}
 
 	// Apply pre-computed flag overrides from Plan and check manual status.
@@ -114,15 +159,31 @@ func (t *Task) run(ctx context.Context) error {
 			if instance.isManual && isAutoExec(ctx) {
 				return nil
 			}
-			if t.flags != nil && instance.flags != nil {
+			if t.flagSet != nil && instance.flags != nil {
 				for name, value := range instance.flags {
-					if f := t.flags.Lookup(name); f != nil {
+					if f := t.flagSet.Lookup(name); f != nil {
 						if err := f.Value.Set(fmt.Sprint(value)); err != nil {
-							return fmt.Errorf("task %q: setting flag %q to %v: %w", effectiveName, name, value, err)
+							return fmt.Errorf(
+								"task %q: setting flag %q to %v: %w",
+								effectiveName, name, value, err,
+							)
 						}
 					}
 				}
 			}
+		}
+	}
+
+	// Collect resolved flag values into context for GetFlag access.
+	if t.flagSet != nil {
+		resolved := make(map[string]any)
+		t.flagSet.VisitAll(func(f *flag.Flag) {
+			if getter, ok := f.Value.(flag.Getter); ok {
+				resolved[f.Name] = getter.Get()
+			}
+		})
+		if len(resolved) > 0 {
+			ctx = withTaskFlags(ctx, resolved)
 		}
 	}
 
@@ -133,8 +194,8 @@ func (t *Task) run(ctx context.Context) error {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
 			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
-			if t.global {
-				id = taskID{Name: t.name, Path: "."} // Global tasks deduplicate by base name only.
+			if t.Global {
+				id = taskID{Name: t.Name, Path: "."} // Global tasks deduplicate by base name only.
 			}
 			if alreadyDone := tracker.markDone(id); alreadyDone {
 				return nil // Silent skip.
@@ -154,7 +215,7 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Print task header before execution (unless header is hidden).
-	if !t.hideHeader {
+	if !t.HideHeader {
 		path := PathFromContext(ctx)
 		if path != "" && path != "." {
 			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
@@ -163,35 +224,8 @@ func (t *Task) run(ctx context.Context) error {
 		}
 	}
 
-	return t.fn(ctx)
-}
-
-// Name returns the task's name (useful for plan generation and debugging).
-func (t *Task) Name() string {
-	return t.name
-}
-
-// Usage returns the task's usage description.
-func (t *Task) Usage() string {
-	return t.usage
-}
-
-// Flags returns the task's FlagSet, or nil if no flags are defined.
-func (t *Task) Flags() *flag.FlagSet {
-	return t.flags
-}
-
-// IsHidden returns whether the task is hidden from CLI listings.
-func (t *Task) IsHidden() bool {
-	return t.hidden
-}
-
-// IsHeaderHidden returns whether the task runs without printing header.
-func (t *Task) IsHeaderHidden() bool {
-	return t.hideHeader
-}
-
-// IsGlobal returns whether the task deduplicates globally.
-func (t *Task) IsGlobal() bool {
-	return t.global
+	if t.Do != nil {
+		return t.Do(ctx)
+	}
+	return t.Body.run(ctx)
 }

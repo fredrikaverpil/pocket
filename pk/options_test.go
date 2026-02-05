@@ -11,10 +11,10 @@ import (
 func TestWithForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "path-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "path-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -57,10 +57,10 @@ func TestWithForceRun(t *testing.T) {
 func TestPathFilter_MultiplePaths(t *testing.T) {
 	var paths []string
 
-	task := NewTask(TaskConfig{Name: "multi-path-task", Usage: "test task", Body: Do(func(ctx context.Context) error {
+	task := &Task{Name: "multi-path-task", Usage: "test task", Do: func(ctx context.Context) error {
 		paths = append(paths, PathFromContext(ctx))
 		return nil
-	})})
+	}}
 
 	// Context WITHOUT tracker - task runs for each path (no dedup).
 	ctx := context.Background()
@@ -89,10 +89,10 @@ func TestPathFilter_MultiplePaths(t *testing.T) {
 func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "multi-path-dedup-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "multi-path-dedup-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	// Context WITH tracker - dedup by (task, path) means each path runs once.
 	ctx := context.Background()
@@ -123,10 +123,10 @@ func TestPathFilter_MultiplePathsWithDedup(t *testing.T) {
 func TestPathFilter_DeduplicationByTaskAndPath(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask(TaskConfig{Name: "path-dedup-task", Usage: "test task", Body: Do(func(_ context.Context) error {
+	task := &Task{Name: "path-dedup-task", Usage: "test task", Do: func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})})
+	}}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()

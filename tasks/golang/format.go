@@ -8,11 +8,11 @@ import (
 )
 
 // Format formats Go code using golangci-lint fmt.
-var Format = pk.NewTask(pk.TaskConfig{
+var Format = &pk.Task{
 	Name:  "go-format",
 	Usage: "format Go code",
 	Body:  pk.Serial(golangcilint.Install, formatCmd()),
-})
+}
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

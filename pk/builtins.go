@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +29,7 @@ var builtins = []*Task{
 // isBuiltinName checks if a name is reserved by a builtin.
 func isBuiltinName(name string) bool {
 	for _, t := range builtins {
-		if t.Name() == name {
+		if t.Name == name {
 			return true
 		}
 	}
@@ -38,11 +37,11 @@ func isBuiltinName(name string) bool {
 }
 
 // shimsTask regenerates shims in all directories.
-var shimsTask = NewTask(TaskConfig{
+var shimsTask = &Task{
 	Name:       "shims",
 	Usage:      "regenerate shims in all directories",
 	HideHeader: true,
-	Body: Do(func(ctx context.Context) error {
+	Do: func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
@@ -75,28 +74,24 @@ var shimsTask = NewTask(TaskConfig{
 		}
 
 		return nil
-	}),
-})
-
-// plan flags.
-var (
-	planFlags = flag.NewFlagSet("plan", flag.ContinueOnError)
-	planJSON  = planFlags.Bool("json", false, "output as JSON")
-)
+	},
+}
 
 // planTask displays the execution plan.
-var planTask = NewTask(TaskConfig{
+var planTask = &Task{
 	Name:       "plan",
 	Usage:      "show execution plan without running tasks",
-	Flags:      planFlags,
 	HideHeader: true,
-	Body: Do(func(ctx context.Context) error {
+	Flags: map[string]FlagDef{
+		"json": {Default: false, Usage: "output as JSON"},
+	},
+	Do: func(ctx context.Context) error {
 		p := PlanFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
 		}
 
-		if *planJSON {
+		if GetFlag[bool](ctx, "json") {
 			return printPlanJSON(ctx, p.tree, p)
 		}
 
@@ -125,17 +120,17 @@ var planTask = NewTask(TaskConfig{
 		Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 
 		return nil
-	}),
-})
+	},
+}
 
 // gitDiffTask checks for uncommitted changes.
 // Hidden because it's controlled via the -g flag, not direct invocation.
-var gitDiffTask = NewTask(TaskConfig{
+var gitDiffTask = &Task{
 	Name:       "git-diff",
 	Usage:      "check for uncommitted changes",
 	Hidden:     true,
 	HideHeader: true,
-	Body: Do(func(ctx context.Context) error {
+	Do: func(ctx context.Context) error {
 		// Only run if -g flag was passed.
 		if !gitDiffEnabledFromContext(ctx) {
 			return nil
@@ -146,30 +141,26 @@ var gitDiffTask = NewTask(TaskConfig{
 			return ErrGitDiffUncommitted
 		}
 		return nil
-	}),
-})
-
-// self-update flags.
-var (
-	selfUpdateFlags = flag.NewFlagSet("self-update", flag.ContinueOnError)
-	selfUpdateForce = selfUpdateFlags.Bool("force", false, "bypass Go proxy cache (slower, but guarantees latest)")
-)
+	},
+}
 
 // selfUpdateTask updates Pocket and regenerates scaffolded files.
-var selfUpdateTask = NewTask(TaskConfig{
+var selfUpdateTask = &Task{
 	Name:  "self-update",
 	Usage: "update Pocket and regenerate scaffolded files",
-	Flags: selfUpdateFlags,
-	Body: Do(func(ctx context.Context) error {
+	Flags: map[string]FlagDef{
+		"force": {Default: false, Usage: "bypass Go proxy cache (slower, but guarantees latest)"},
+	},
+	Do: func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		// Set working directory to .pocket for all commands
+		// Set working directory to .pocket for all commands.
 		ctx = ContextWithPath(ctx, pocketDir)
 
-		// 1. go get latest
-		if *selfUpdateForce {
-			// Bypass proxy cache to guarantee absolute latest
+		// 1. go get latest.
+		if GetFlag[bool](ctx, "force") {
+			// Bypass proxy cache to guarantee absolute latest.
 			if Verbose(ctx) {
 				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
@@ -186,7 +177,7 @@ var selfUpdateTask = NewTask(TaskConfig{
 			}
 		}
 
-		// 2. go mod tidy
+		// 2. go mod tidy.
 		if Verbose(ctx) {
 			Printf(ctx, "  running: go mod tidy\n")
 		}
@@ -194,7 +185,7 @@ var selfUpdateTask = NewTask(TaskConfig{
 			return fmt.Errorf("tidying pocket module: %w", err)
 		}
 
-		// 3. Regenerate main.go
+		// 3. Regenerate main.go.
 		if Verbose(ctx) {
 			Printf(ctx, "  regenerating main.go\n")
 		}
@@ -204,14 +195,14 @@ var selfUpdateTask = NewTask(TaskConfig{
 
 		// 4. Regenerate shims.
 		return shimsTask.run(ctx)
-	}),
-})
+	},
+}
 
 // purgeTask removes .pocket/tools, .pocket/bin, and .pocket/venvs directories.
-var purgeTask = NewTask(TaskConfig{
+var purgeTask = &Task{
 	Name:  "purge",
 	Usage: "remove .pocket/tools, .pocket/bin, and .pocket/venvs",
-	Body: Do(func(ctx context.Context) error {
+	Do: func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
@@ -231,8 +222,8 @@ var purgeTask = NewTask(TaskConfig{
 		}
 
 		return nil
-	}),
-})
+	},
+}
 
 // --- Plan Helpers ---
 
@@ -242,7 +233,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
 		"tree":              buildJSONTree(tree, "", p),
-		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags
+		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags.
 	}
 
 	encoder := json.NewEncoder(outputFromContext(ctx).Stdout)
@@ -253,16 +244,16 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 // buildJSONTree recursively builds a JSON representation of the composition tree.
 // The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
 // This must match the suffix accumulation logic in plan.go's taskCollector.walk().
-func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]interface{} {
+func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
 	if r == nil {
 		return nil
 	}
 
 	switch v := r.(type) {
 	case *Task:
-		effectiveName := v.Name()
+		effectiveName := v.Name
 		if nameSuffix != "" {
-			effectiveName = v.Name() + ":" + nameSuffix
+			effectiveName = v.Name + ":" + nameSuffix
 		}
 
 		paths := []string{"."}
@@ -278,7 +269,7 @@ func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]interface{
 		return map[string]any{
 			"type":   "task",
 			"name":   effectiveName,
-			"hidden": v.IsHidden(),
+			"hidden": v.Hidden,
 			"manual": manual,
 			"paths":  paths,
 		}
@@ -308,7 +299,7 @@ func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]interface{
 		}
 
 	case *pathFilter:
-		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b")
+		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b").
 		childSuffix := nameSuffix
 		if v.nameSuffix != "" {
 			if nameSuffix != "" {
@@ -355,13 +346,13 @@ func printTree(
 	switch v := r.(type) {
 	case *Task:
 		var markers []string
-		if v.IsHidden() {
+		if v.Hidden {
 			markers = append(markers, "hidden")
 		}
 
-		effectiveName := v.Name()
+		effectiveName := v.Name
 		if nameSuffix != "" {
-			effectiveName = v.Name() + ":" + nameSuffix
+			effectiveName = v.Name + ":" + nameSuffix
 		}
 
 		if instance := p.taskInstanceByName(effectiveName); instance != nil && instance.isManual {
@@ -415,7 +406,7 @@ func printTree(
 		}
 
 	case *pathFilter:
-		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b")
+		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b").
 		childSuffix := nameSuffix
 		if v.nameSuffix != "" {
 			if nameSuffix != "" {
@@ -425,7 +416,7 @@ func printTree(
 			}
 		}
 
-		// Only show "With paths" wrapper if there are actual path options
+		// Only show "With paths" wrapper if there are actual path options.
 		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
 			v.detectFunc != nil
 		if hasPathOptions {
@@ -444,7 +435,7 @@ func printTree(
 			}
 			printTree(ctx, v.inner, childPrefix, true, childSuffix, p)
 		} else {
-			// No path options - pass through to inner without wrapper
+			// No path options - pass through to inner without wrapper.
 			printTree(ctx, v.inner, prefix, isLast, childSuffix, p)
 		}
 	}
