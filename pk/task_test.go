@@ -486,8 +486,8 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 func TestGetFlag(t *testing.T) {
 	t.Run("FromContext", func(t *testing.T) {
 		ctx := withTaskFlags(context.Background(), map[string]any{
-			"name": "hello",
-			"fix":  true,
+			"name":  "hello",
+			"fix":   true,
 			"count": 42,
 		})
 
@@ -502,34 +502,50 @@ func TestGetFlag(t *testing.T) {
 		}
 	})
 
-	t.Run("MissingFlag", func(t *testing.T) {
+	t.Run("MissingFlagPanics", func(t *testing.T) {
 		ctx := withTaskFlags(context.Background(), map[string]any{})
 
-		if got := GetFlag[string](ctx, "missing"); got != "" {
-			t.Errorf("expected empty string, got %q", got)
-		}
-		if got := GetFlag[bool](ctx, "missing"); got {
-			t.Errorf("expected false, got %v", got)
-		}
+		assertFlagPanic(t, func() {
+			GetFlag[string](ctx, "missing")
+		}, `flag "missing": not found`)
 	})
 
-	t.Run("NoFlagsInContext", func(t *testing.T) {
+	t.Run("NoFlagsInContextPanics", func(t *testing.T) {
 		ctx := context.Background()
 
-		if got := GetFlag[string](ctx, "name"); got != "" {
-			t.Errorf("expected empty string, got %q", got)
-		}
+		assertFlagPanic(t, func() {
+			GetFlag[string](ctx, "name")
+		}, `flag "name": no flags in context`)
 	})
 
-	t.Run("TypeMismatch", func(t *testing.T) {
+	t.Run("TypeMismatchPanics", func(t *testing.T) {
 		ctx := withTaskFlags(context.Background(), map[string]any{
 			"name": 42, // int, not string
 		})
 
-		if got := GetFlag[string](ctx, "name"); got != "" {
-			t.Errorf("expected zero value for type mismatch, got %q", got)
-		}
+		assertFlagPanic(t, func() {
+			GetFlag[string](ctx, "name")
+		}, `flag "name": expected string, got int`)
 	})
+}
+
+// assertFlagPanic asserts that fn panics with a flagError containing wantMsg.
+func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic, got none")
+		}
+		fe, ok := r.(flagError)
+		if !ok {
+			t.Fatalf("expected flagError panic, got %T: %v", r, r)
+		}
+		if got := fe.err.Error(); got != wantMsg {
+			t.Errorf("expected error %q, got %q", wantMsg, got)
+		}
+	}()
+	fn()
 }
 
 func TestBuildFlagSet(t *testing.T) {
@@ -591,4 +607,30 @@ func TestBuildFlagSet(t *testing.T) {
 			t.Error("expected non-nil flagSet even with no flags")
 		}
 	})
+}
+
+func TestGetFlag_RecoveredByTaskRun(t *testing.T) {
+	task := &Task{
+		Name: "bad-flag",
+		Flags: map[string]FlagDef{
+			"real": {Default: "value", Usage: "a real flag"},
+		},
+		Do: func(ctx context.Context) error {
+			_ = GetFlag[string](ctx, "typo") // This will panic.
+			return nil
+		},
+	}
+
+	if err := task.buildFlagSet(); err != nil {
+		t.Fatal(err)
+	}
+
+	// task.run() should recover the panic and return an error.
+	err := task.run(context.Background())
+	if err == nil {
+		t.Fatal("expected error from recovered GetFlag panic, got nil")
+	}
+	if got := err.Error(); got != `task "bad-flag": flag "typo": not found` {
+		t.Errorf("unexpected error message: %q", got)
+	}
 }

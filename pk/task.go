@@ -80,23 +80,28 @@ func taskFlagsFromContext(ctx context.Context) map[string]any {
 	return nil
 }
 
+// flagError is a sentinel type for GetFlag panics.
+// task.run() recovers this specific type and converts it to a returned error.
+type flagError struct {
+	err error
+}
+
 // GetFlag retrieves a flag value from context by name.
-// Returns T's zero value if the flag is not found.
+// Panics with a flagError if the flag is not found or has a type mismatch.
+// The panic is recovered by task.run() and surfaced as a returned error.
 func GetFlag[T any](ctx context.Context, name string) T {
+	var zero T
 	flags := taskFlagsFromContext(ctx)
 	if flags == nil {
-		var zero T
-		return zero
+		panic(flagError{fmt.Errorf("flag %q: no flags in context", name)})
 	}
 	v, ok := flags[name]
 	if !ok {
-		var zero T
-		return zero
+		panic(flagError{fmt.Errorf("flag %q: not found", name)})
 	}
 	typed, ok := v.(T)
 	if !ok {
-		var zero T
-		return zero
+		panic(flagError{fmt.Errorf("flag %q: expected %T, got %T", name, zero, v)})
 	}
 	return typed
 }
@@ -224,6 +229,20 @@ func (t *Task) run(ctx context.Context) error {
 		}
 	}
 
+	return t.execute(ctx)
+}
+
+// execute runs the task body, recovering flagError panics from GetFlag.
+func (t *Task) execute(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if fe, ok := r.(flagError); ok {
+				err = fmt.Errorf("task %q: %w", t.Name, fe.err)
+			} else {
+				panic(r) // Re-panic for unrelated panics.
+			}
+		}
+	}()
 	if t.Do != nil {
 		return t.Do(ctx)
 	}
