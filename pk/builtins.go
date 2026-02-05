@@ -126,7 +126,7 @@ var planTask = NewTask(
 // Hidden because it's controlled via the -g flag, not direct invocation.
 var gitDiffTask = NewTask("git-diff", "check for uncommitted changes", nil, Do(func(ctx context.Context) error {
 	// Only run if -g flag was passed
-	if !GitDiffEnabledFromContext(ctx) {
+	if !gitDiffEnabledFromContext(ctx) {
 		return nil
 	}
 

@@ -53,31 +53,31 @@ func Verbose(ctx context.Context) bool {
 	return false
 }
 
-// GitDiffEnabledFromContext returns whether git diff is enabled in the context.
-func GitDiffEnabledFromContext(ctx context.Context) bool {
+// gitDiffEnabledFromContext returns whether git diff is enabled in the context.
+func gitDiffEnabledFromContext(ctx context.Context) bool {
 	if v, ok := ctx.Value(gitDiffKey).(bool); ok {
 		return v
 	}
 	return false
 }
 
-// IsAutoExec returns whether auto execution mode is active.
-func IsAutoExec(ctx context.Context) bool {
+// isAutoExec returns whether auto execution mode is active.
+func isAutoExec(ctx context.Context) bool {
 	v, _ := ctx.Value(autoExecKey).(bool)
 	return v
 }
 
-// NameSuffixFromContext returns the name suffix from the context.
+// nameSuffixFromContext returns the name suffix from the context.
 // Returns empty string if no suffix is set.
-func NameSuffixFromContext(ctx context.Context) string {
+func nameSuffixFromContext(ctx context.Context) string {
 	if s, ok := ctx.Value(nameSuffixKey).(string); ok {
 		return s
 	}
 	return ""
 }
 
-// ForceRunFromContext returns whether forceRun is set in the context.
-func ForceRunFromContext(ctx context.Context) bool {
+// forceRunFromContext returns whether forceRun is set in the context.
+func forceRunFromContext(ctx context.Context) bool {
 	if v, ok := ctx.Value(forceRunKey).(bool); ok {
 		return v
 	}
@@ -97,35 +97,30 @@ func ContextWithPath(ctx context.Context, path string) context.Context {
 	return context.WithValue(ctx, pathKey, path)
 }
 
-// ContextWithVerbose returns a new context with verbose mode set.
-func ContextWithVerbose(ctx context.Context, verbose bool) context.Context {
+// contextWithVerbose returns a new context with verbose mode set.
+func contextWithVerbose(ctx context.Context, verbose bool) context.Context {
 	return context.WithValue(ctx, verboseKey, verbose)
 }
 
-// ContextWithGitDiffEnabled returns a new context with git diff enabled flag set.
-func ContextWithGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
+// contextWithGitDiffEnabled returns a new context with git diff enabled flag set.
+func contextWithGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
 	return context.WithValue(ctx, gitDiffKey, enabled)
 }
 
-// ContextWithAutoExec returns a new context with auto execution mode enabled.
+// contextWithAutoExec returns a new context with auto execution mode enabled.
 // When auto exec is active, manual tasks are skipped.
-func ContextWithAutoExec(ctx context.Context) context.Context {
+func contextWithAutoExec(ctx context.Context) context.Context {
 	return context.WithValue(ctx, autoExecKey, true)
 }
 
-// ContextWithNameSuffix returns a new context with the given name suffix.
+// contextWithNameSuffix returns a new context with the given name suffix.
 // Name suffixes are accumulated (e.g., nested calls combine).
-func ContextWithNameSuffix(ctx context.Context, suffix string) context.Context {
-	existing := NameSuffixFromContext(ctx)
+func contextWithNameSuffix(ctx context.Context, suffix string) context.Context {
+	existing := nameSuffixFromContext(ctx)
 	if existing != "" {
 		suffix = existing + ":" + suffix
 	}
 	return context.WithValue(ctx, nameSuffixKey, suffix)
-}
-
-// ContextWithForceRun returns a new context with forceRun set to true.
-func ContextWithForceRun(ctx context.Context) context.Context {
-	return context.WithValue(ctx, forceRunKey, true)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

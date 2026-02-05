@@ -297,7 +297,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should also execute (different effective name).
-	ctx310 := ContextWithNameSuffix(ctx, "3.10")
+	ctx310 := contextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.11" - should execute.
-	ctx311 := ContextWithNameSuffix(ctx, "3.11")
+	ctx311 := contextWithNameSuffix(ctx, "3.11")
 	if err := task.run(ctx311); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should be skipped (global uses base name only).
-	ctx310 := ContextWithNameSuffix(ctx, "3.10")
+	ctx310 := contextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// test:3.9 at root - should execute.
-	ctx39 := ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.10 at services - should execute (different suffix).
-	ctx310Services := ContextWithPath(ContextWithNameSuffix(ctx, "3.10"), "services")
+	ctx310Services := ContextWithPath(contextWithNameSuffix(ctx, "3.10"), "services")
 	if err := task.run(ctx310Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		ctx := context.Background()
 		// Effective name should be base name when no suffix.
 		effectiveName := task.name
-		if suffix := NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "test" {
@@ -448,9 +448,9 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
 			return nil
 		}))
-		ctx := ContextWithNameSuffix(context.Background(), "3.9")
+		ctx := contextWithNameSuffix(context.Background(), "3.9")
 		effectiveName := task.name
-		if suffix := NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "py-test:3.9" {
@@ -462,10 +462,10 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
 			return nil
 		}))
-		ctx := ContextWithNameSuffix(context.Background(), "a")
-		ctx = ContextWithNameSuffix(ctx, "b")
+		ctx := contextWithNameSuffix(context.Background(), "a")
+		ctx = contextWithNameSuffix(ctx, "b")
 		effectiveName := task.name
-		if suffix := NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "test:a:b" {

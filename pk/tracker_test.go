@@ -82,13 +82,13 @@ func TestForceRunContext(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false.
-	if ForceRunFromContext(ctx) {
+	if forceRunFromContext(ctx) {
 		t.Error("expected forceRun to be false by default")
 	}
 
 	// Set forceRun and check.
 	ctx = withForceRun(ctx)
-	if !ForceRunFromContext(ctx) {
+	if !forceRunFromContext(ctx) {
 		t.Error("expected forceRun to be true after withForceRun")
 	}
 }

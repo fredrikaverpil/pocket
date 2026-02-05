@@ -12,7 +12,7 @@ import "github.com/fredrikaverpil/pocket/pk"
 //	    github.Tasks(),
 //	    pk.WithFlag(github.Workflows, "skip-pocket", true),
 //	    pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-//	    pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{...}),
+//	    pk.WithValue(github.MatrixConfigKey{}, github.MatrixConfig{...}),
 //	)
 func Tasks() pk.Runnable {
 	return Workflows

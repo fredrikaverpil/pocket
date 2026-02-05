@@ -160,7 +160,7 @@ These options work with any task:
 | `WithFlag`         | Set a default flag value for a task in scope                |
 | `WithSkipTask`     | Skip specified tasks within this scope                      |
 | `WithExcludeTask`  | Exclude a task from directories matching patterns           |
-| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
+| `WithValue`        | Pass structured config (structs, maps) to tasks via context |
 
 ```go
 pk.WithOptions(

@@ -535,8 +535,8 @@ func TestPlan_ContextValues(t *testing.T) {
 
 		cfg := &Config{
 			Auto: Serial(
-				WithOptions(task, WithNameSuffix("3.9"), WithContextValue(versionKey{}, "3.9")),
-				WithOptions(task, WithNameSuffix("3.10"), WithContextValue(versionKey{}, "3.10")),
+				WithOptions(task, WithNameSuffix("3.9"), WithValue(versionKey{}, "3.9")),
+				WithOptions(task, WithNameSuffix("3.10"), WithValue(versionKey{}, "3.10")),
 			),
 		}
 
@@ -577,8 +577,8 @@ func TestPlan_ContextValues(t *testing.T) {
 
 		cfg := &Config{
 			Auto: WithOptions(
-				WithOptions(task, WithContextValue(otherKey{}, "inner")),
-				WithContextValue(versionKey{}, "outer"),
+				WithOptions(task, WithValue(otherKey{}, "inner")),
+				WithValue(versionKey{}, "outer"),
 			),
 		}
 

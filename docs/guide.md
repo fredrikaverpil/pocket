@@ -1064,7 +1064,7 @@ var Config = &pk.Config{
             github.Tasks(),
             pk.WithFlag(github.Workflows, "skip-pocket", true),
             pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-            pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
+            pk.WithValue(github.MatrixConfigKey{}, github.MatrixConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on Linux
@@ -1083,7 +1083,7 @@ This configuration:
    `pocket.yml` workflow
 3. `pk.WithFlag(github.Workflows, "include-pocket-matrix", true)` enables the
    `pocket-matrix.yml` workflow
-4. `pk.WithContextValue(github.MatrixConfigKey{}, cfg)` configures platforms and
+4. `pk.WithValue(github.MatrixConfigKey{}, cfg)` configures platforms and
    task overrides for job generation
 
 Running `./pok github-workflows` generates jobs like:
@@ -1129,7 +1129,7 @@ Use `pk.WithFlag()` to configure the `github.Workflows` task:
 
 ### MatrixConfig Options
 
-For complex configuration like `TaskOverrides`, use `pk.WithContextValue` to
+For complex configuration like `TaskOverrides`, use `pk.WithValue` to
 pass a `MatrixConfig` for workflow generation:
 
 ```go

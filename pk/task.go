@@ -60,7 +60,7 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
 	effectiveName := t.name
-	if suffix := NameSuffixFromContext(ctx); suffix != "" {
+	if suffix := nameSuffixFromContext(ctx); suffix != "" {
 		effectiveName = t.name + ":" + suffix
 	}
 
@@ -69,7 +69,7 @@ func (t *Task) run(ctx context.Context) error {
 	if plan := PlanFromContext(ctx); plan != nil {
 		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
 			// Skip manual tasks during auto execution.
-			if instance.isManual && IsAutoExec(ctx) {
+			if instance.isManual && isAutoExec(ctx) {
 				return nil
 			}
 			if t.flags != nil && instance.flags != nil {
@@ -87,7 +87,7 @@ func (t *Task) run(ctx context.Context) error {
 	// Check deduplication unless forceRun is set in context.
 	// Deduplication uses taskID (effective name + path), or base name + "." for global tasks.
 	// Global tasks use base name only (ignoring suffix) to ensure install tasks run once.
-	if !ForceRunFromContext(ctx) {
+	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
 			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}

@@ -54,8 +54,8 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Set up base context with verbose and output
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx = ContextWithVerbose(ctx, verbose)
-	ctx = ContextWithGitDiffEnabled(ctx, gitDiff)
+	ctx = contextWithVerbose(ctx, verbose)
+	ctx = contextWithGitDiffEnabled(ctx, gitDiff)
 	ctx = context.WithValue(ctx, outputKey{}, StdOutput())
 
 	// Handle version flag
@@ -231,7 +231,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	baseName := inst.task.Name()
 	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
 		suffix := inst.name[len(baseName)+1:]
-		ctx = ContextWithNameSuffix(ctx, suffix)
+		ctx = contextWithNameSuffix(ctx, suffix)
 	}
 
 	// Determine execution paths.
@@ -271,7 +271,7 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	// Auto exec mode causes manual tasks to be skipped.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
-	ctx = ContextWithAutoExec(ctx)
+	ctx = contextWithAutoExec(ctx)
 	if err := c.Auto.run(ctx); err != nil {
 		return tracker, err
 	}
