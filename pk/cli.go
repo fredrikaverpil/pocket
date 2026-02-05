@@ -12,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // RunMain is the main CLI entry point that handles argument parsing and dispatch.
@@ -55,8 +54,8 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Set up base context with verbose and output
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx = pcontext.WithVerbose(ctx, verbose)
-	ctx = pcontext.WithGitDiffEnabled(ctx, gitDiff)
+	ctx = ContextWithVerbose(ctx, verbose)
+	ctx = ContextWithGitDiffEnabled(ctx, gitDiff)
 	ctx = context.WithValue(ctx, outputKey{}, StdOutput())
 
 	// Handle version flag
@@ -232,7 +231,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	baseName := inst.task.Name()
 	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
 		suffix := inst.name[len(baseName)+1:]
-		ctx = pcontext.WithNameSuffix(ctx, suffix)
+		ctx = ContextWithNameSuffix(ctx, suffix)
 	}
 
 	// Determine execution paths.
@@ -250,7 +249,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Execute task for each path.
 	for _, path := range paths {
-		pathCtx := pcontext.WithPath(ctx, path)
+		pathCtx := ContextWithPath(ctx, path)
 		if err := inst.task.run(pathCtx); err != nil {
 			return fmt.Errorf("task %s in %s: %w", inst.name, path, err)
 		}
@@ -272,7 +271,7 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	// Auto exec mode causes manual tasks to be skipped.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
-	ctx = pcontext.WithAutoExec(ctx)
+	ctx = ContextWithAutoExec(ctx)
 	if err := c.Auto.run(ctx); err != nil {
 		return tracker, err
 	}

@@ -9,7 +9,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
-	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for stylua.
@@ -43,18 +42,18 @@ var Install = pk.NewTask("install:stylua", "install stylua", nil,
 
 func installStylua() pk.Runnable {
 	binDir := pk.FromToolsDir("stylua", Version, "bin")
-	binaryName := platform.BinaryName("stylua")
+	binaryName := pk.BinaryName("stylua")
 	binaryPath := filepath.Join(binDir, binaryName)
 
-	hostOS := platform.HostOS()
-	hostArch := platform.HostArch()
+	hostOS := pk.HostOS()
+	hostArch := pk.HostArch()
 
 	// StyLua uses different naming: darwin->macos, amd64->x86_64, arm64->aarch64
 	osName := hostOS
-	if hostOS == platform.Darwin {
+	if hostOS == pk.Darwin {
 		osName = "macos"
 	}
-	archName := platform.ArchToX8664(hostArch)
+	archName := pk.ArchToX8664(hostArch)
 
 	url := fmt.Sprintf(
 		"https://github.com/JohnnyMorganz/StyLua/releases/download/v%s/stylua-%s-%s.zip",

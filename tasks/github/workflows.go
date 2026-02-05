@@ -13,7 +13,6 @@ import (
 	"text/template"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 //go:embed workflows/*.tmpl
@@ -75,7 +74,7 @@ var Workflows = pk.NewTask(
 )
 
 func runWorkflows(ctx context.Context) error {
-	verbose := pcontext.Verbose(ctx)
+	verbose := pk.Verbose(ctx)
 
 	// Ensure .github/workflows directory exists
 	workflowDir := pk.FromGitRoot(".github", "workflows")

@@ -5,7 +5,6 @@ import (
 	"flag"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
@@ -26,10 +25,10 @@ func formatCmd() pk.Runnable {
 			configPath = stylua.EnsureDefaultConfig()
 		}
 
-		absDir := pk.FromGitRoot(pcontext.PathFromContext(ctx))
+		absDir := pk.FromGitRoot(pk.PathFromContext(ctx))
 
 		args := []string{}
-		if pcontext.Verbose(ctx) {
+		if pk.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
 		args = append(args, "-f", configPath)

@@ -21,8 +21,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
-	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Install creates a Runnable that installs a Go package using `go install`.
@@ -43,7 +41,7 @@ func Install(pkg, version string) pk.Runnable {
 func install(ctx context.Context, pkg, version string) error {
 	// Extract binary name from package path.
 	binaryName := binaryName(pkg)
-	if runtime.GOOS == platform.Windows {
+	if runtime.GOOS == pk.Windows {
 		binaryName += ".exe"
 	}
 
@@ -57,7 +55,7 @@ func install(ctx context.Context, pkg, version string) error {
 		if _, err := download.CreateSymlink(toolBinPath); err != nil {
 			return err
 		}
-		if pcontext.Verbose(ctx) {
+		if pk.Verbose(ctx) {
 			pk.Printf(ctx, "  [install] %s@%s already installed\n", binaryName, version)
 		}
 		return nil
@@ -73,7 +71,7 @@ func install(ctx context.Context, pkg, version string) error {
 	cmd := exec.CommandContext(ctx, "go", "install", pkgWithVersion)
 	cmd.Env = append(os.Environ(), "GOBIN="+toolDir)
 
-	if pcontext.Verbose(ctx) {
+	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "  [install] go install %s\n", pkgWithVersion)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("go install %s: %w", pkgWithVersion, err)
@@ -89,7 +87,7 @@ func install(ctx context.Context, pkg, version string) error {
 		return err
 	}
 
-	if pcontext.Verbose(ctx) {
+	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "  [install] linked %s\n", toolBinPath)
 	}
 

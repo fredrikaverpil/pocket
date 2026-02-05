@@ -5,8 +5,6 @@ import (
 	"slices"
 	"sync/atomic"
 	"testing"
-
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 func TestShimDirectories_OnlyIncludePaths(t *testing.T) {
@@ -161,7 +159,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 
 	task := NewTask("scoped-task", "test task", nil, Do(func(ctx context.Context) error {
 		runCount.Add(1)
-		executedPaths = append(executedPaths, pcontext.PathFromContext(ctx))
+		executedPaths = append(executedPaths, PathFromContext(ctx))
 		return nil
 	}))
 

@@ -31,8 +31,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
-	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for uv.
@@ -53,19 +51,19 @@ var Install = pk.NewTask("install:uv", "install uv", nil,
 
 func installUV() pk.Runnable {
 	binDir := pk.FromToolsDir("uv", Version, "bin")
-	binaryName := platform.BinaryName("uv")
+	binaryName := pk.BinaryName("uv")
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/astral-sh/uv/releases/download/%s/uv-%s.%s",
 		Version,
 		platformArch(),
-		platform.DefaultArchiveFormat(),
+		pk.DefaultArchiveFormat(),
 	)
 
 	return download.Download(url,
 		download.WithDestDir(binDir),
-		download.WithFormat(platform.DefaultArchiveFormat()),
+		download.WithFormat(pk.DefaultArchiveFormat()),
 		download.WithExtract(download.WithExtractFile(binaryName)),
 		download.WithSymlink(),
 		download.WithSkipIfExists(binaryPath),
@@ -74,17 +72,17 @@ func installUV() pk.Runnable {
 
 func platformArch() string {
 	switch runtime.GOOS {
-	case platform.Darwin:
-		if runtime.GOARCH == platform.ARM64 {
+	case pk.Darwin:
+		if runtime.GOARCH == pk.ARM64 {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case platform.Linux:
-		if runtime.GOARCH == platform.ARM64 {
+	case pk.Linux:
+		if runtime.GOARCH == pk.ARM64 {
 			return "aarch64-unknown-linux-gnu"
 		}
 		return "x86_64-unknown-linux-gnu"
-	case platform.Windows:
+	case pk.Windows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return fmt.Sprintf("%s-%s", runtime.GOARCH, runtime.GOOS)
@@ -113,7 +111,7 @@ func PipInstallRequirements(ctx context.Context, venvPath, requirementsPath stri
 
 // venvPython returns the path to the Python executable in a venv.
 func venvPython(venvPath string) string {
-	if runtime.GOOS == platform.Windows {
+	if runtime.GOOS == pk.Windows {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
@@ -121,7 +119,7 @@ func venvPython(venvPath string) string {
 
 // BinaryPath returns the cross-platform path to a binary in a Python venv.
 func BinaryPath(venvDir, name string) string {
-	if runtime.GOOS == platform.Windows {
+	if runtime.GOOS == pk.Windows {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)
@@ -187,7 +185,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pcontext.PathFromContext(ctx)
+		projectDir = pk.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -195,7 +193,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		venvPath = VenvPath(projectDir, pythonVersion)
 	}
 
-	if pcontext.Verbose(ctx) {
+	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
@@ -204,9 +202,9 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		args = append(args, "--all-groups")
 	}
 
-	ctx = pcontext.WithPath(ctx, projectDir)
-	ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pcontext.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pk.ContextWithPath(ctx, projectDir)
+	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
 	return pk.Exec(ctx, Name, args...)
 }
@@ -221,7 +219,7 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pcontext.PathFromContext(ctx)
+		projectDir = pk.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -229,16 +227,16 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		venvPath = VenvPath(projectDir, pythonVersion)
 	}
 
-	if pcontext.Verbose(ctx) {
+	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
 	uvArgs := []string{"run", "--python", pythonVersion, cmdName}
 	uvArgs = append(uvArgs, args...)
 
-	ctx = pcontext.WithPath(ctx, projectDir)
-	ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pcontext.WithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = pk.ContextWithPath(ctx, projectDir)
+	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
 	return pk.Exec(ctx, Name, uvArgs...)
 }

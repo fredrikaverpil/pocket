@@ -7,7 +7,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
-	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for ts_query_ls.
@@ -25,7 +24,7 @@ var Install = pk.NewTask("install:ts_query_ls", "install ts_query_ls", nil,
 
 func installTSQueryLs() pk.Runnable {
 	binDir := pk.FromToolsDir("tsqueryls", Version, "bin")
-	binaryName := platform.BinaryName(Name)
+	binaryName := pk.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url, format := buildDownloadURL()
@@ -40,21 +39,21 @@ func installTSQueryLs() pk.Runnable {
 }
 
 func buildDownloadURL() (url, format string) {
-	hostOS := platform.HostOS()
-	hostArch := platform.HostArch()
+	hostOS := pk.HostOS()
+	hostArch := pk.HostArch()
 
 	// Build platform suffix matching ts_query_ls naming convention.
 	var plat string
 	switch {
-	case hostOS == platform.Darwin && hostArch == platform.ARM64:
+	case hostOS == pk.Darwin && hostArch == pk.ARM64:
 		plat = "aarch64-apple-darwin"
-	case hostOS == platform.Darwin && hostArch == platform.AMD64:
+	case hostOS == pk.Darwin && hostArch == pk.AMD64:
 		plat = "x86_64-apple-darwin"
-	case hostOS == platform.Linux && hostArch == platform.ARM64:
+	case hostOS == pk.Linux && hostArch == pk.ARM64:
 		plat = "aarch64-unknown-linux-gnu"
-	case hostOS == platform.Linux && hostArch == platform.AMD64:
+	case hostOS == pk.Linux && hostArch == pk.AMD64:
 		plat = "x86_64-unknown-linux-gnu"
-	case hostOS == platform.Windows && hostArch == platform.AMD64:
+	case hostOS == pk.Windows && hostArch == pk.AMD64:
 		plat = "x86_64-pc-windows-msvc"
 	default:
 		// Fallback - will likely fail but gives a useful error.
@@ -64,7 +63,7 @@ func buildDownloadURL() (url, format string) {
 	// Windows uses zip, others use tar.gz.
 	ext := "tar.gz"
 	format = "tar.gz"
-	if hostOS == platform.Windows {
+	if hostOS == pk.Windows {
 		ext = "zip"
 		format = "zip"
 	}

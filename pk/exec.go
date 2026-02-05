@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
-	"github.com/fredrikaverpil/pocket/pk/platform"
 	"golang.org/x/term"
 )
 
@@ -70,12 +68,12 @@ func isTerminal(f *os.File) bool {
 }
 
 // Exec executes a command with .pocket/bin prepended to PATH.
-// The command runs in the directory specified by pcontext.PathFromContext(ctx).
+// The command runs in the directory specified by PathFromContext(ctx).
 //
-// Environment variables can be customized using WithEnv and WithoutEnv:
+// Environment variables can be customized using ContextWithEnv and ContextWithoutEnv:
 //
-//	ctx = pcontext.WithEnv(ctx, "MY_VAR=value")
-//	ctx = pcontext.WithoutEnv(ctx, "UNWANTED_PREFIX")
+//	ctx = pk.ContextWithEnv(ctx, "MY_VAR=value")
+//	ctx = pk.ContextWithoutEnv(ctx, "UNWANTED_PREFIX")
 //	pk.Exec(ctx, "mycmd", "arg1")
 //
 // If verbose mode is enabled, command output is streamed to context output.
@@ -85,9 +83,9 @@ func isTerminal(f *os.File) bool {
 func Exec(ctx context.Context, name string, args ...string) error {
 	colorEnvOnce.Do(initColorEnv)
 
-	path := pcontext.PathFromContext(ctx)
+	path := PathFromContext(ctx)
 	targetDir := FromGitRoot(path)
-	env := applyEnvConfig(os.Environ(), pcontext.EnvConfigFromContext(ctx))
+	env := applyEnvConfig(os.Environ(), EnvConfigFromContext(ctx))
 	env = prependBinToPath(env)
 
 	// Look up the command in our modified PATH, not the current process's PATH.
@@ -105,7 +103,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 
 	out := outputFromContext(ctx)
 
-	if pcontext.Verbose(ctx) {
+	if Verbose(ctx) {
 		cmd.Stdout = out.Stdout
 		cmd.Stderr = out.Stderr
 		return cmd.Run()
@@ -181,7 +179,7 @@ func prependBinToPath(environ []string) []string {
 
 // applyEnvConfig applies environment variable overrides from the config.
 // It filters out variables matching filter prefixes, then applies set overrides.
-func applyEnvConfig(environ []string, cfg pcontext.EnvConfig) []string {
+func applyEnvConfig(environ []string, cfg EnvConfig) []string {
 	if len(cfg.Filter) == 0 && len(cfg.Set) == 0 {
 		return environ
 	}
@@ -247,7 +245,7 @@ func lookPathInEnv(name string, env []string) string {
 			return path
 		}
 		// On Windows, binaries have .exe extension.
-		if runtime.GOOS == platform.Windows {
+		if runtime.GOOS == Windows {
 			exePath := path + ".exe"
 			if fi, err := os.Stat(exePath); err == nil && !fi.IsDir() {
 				return exePath

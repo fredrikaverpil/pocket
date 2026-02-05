@@ -3,8 +3,6 @@ package pk
 import (
 	"context"
 	"sync"
-
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // trackerKey is the context key for the execution tracker.
@@ -88,15 +86,7 @@ func executionTrackerFromContext(ctx context.Context) *executionTracker {
 
 // withForceRun returns a new context with forceRun set to true.
 func withForceRun(c context.Context) context.Context {
-	return context.WithValue(c, pcontext.ForceRunKey, true)
-}
-
-// forceRunFromContext returns whether forceRun is set in the context.
-func forceRunFromContext(c context.Context) bool {
-	if v, ok := c.Value(pcontext.ForceRunKey).(bool); ok {
-		return v
-	}
-	return false
+	return context.WithValue(c, forceRunKey, true)
 }
 
 // markWarning records that a warning was detected during execution.
