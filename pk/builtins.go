@@ -12,7 +12,6 @@ import (
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // ErrGitDiffUncommitted is returned when git diff detects uncommitted changes.
@@ -65,7 +64,7 @@ var shimsTask = NewTask("shims", "regenerate shims in all directories", nil, Do(
 		return fmt.Errorf("generating shims: %w", err)
 	}
 
-	if pcontext.Verbose(ctx) {
+	if Verbose(ctx) {
 		for _, s := range shims {
 			Printf(ctx, "  generated: %s\n", s)
 		}
@@ -114,7 +113,7 @@ var planTask = NewTask(
 
 		// Show composition tree
 		Printf(ctx, "Composition Tree:\n")
-		printTree(ctx, p.tree, "", true, "", p.pathMappings)
+		printTree(ctx, p.tree, "", true, "", p)
 
 		Println(ctx)
 		Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
@@ -127,7 +126,7 @@ var planTask = NewTask(
 // Hidden because it's controlled via the -g flag, not direct invocation.
 var gitDiffTask = NewTask("git-diff", "check for uncommitted changes", nil, Do(func(ctx context.Context) error {
 	// Only run if -g flag was passed
-	if !pcontext.GitDiffEnabledFromContext(ctx) {
+	if !GitDiffEnabledFromContext(ctx) {
 		return nil
 	}
 
@@ -154,20 +153,20 @@ var selfUpdateTask = NewTask(
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		// Set working directory to .pocket for all commands
-		ctx = pcontext.WithPath(ctx, pocketDir)
+		ctx = ContextWithPath(ctx, pocketDir)
 
 		// 1. go get latest
 		if *selfUpdateForce {
 			// Bypass proxy cache to guarantee absolute latest
-			if pcontext.Verbose(ctx) {
+			if Verbose(ctx) {
 				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-			ctx := pcontext.WithEnv(ctx, "GOPROXY=direct")
+			ctx := ContextWithEnv(ctx, "GOPROXY=direct")
 			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
 		} else {
-			if pcontext.Verbose(ctx) {
+			if Verbose(ctx) {
 				Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
 			}
 			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
@@ -176,7 +175,7 @@ var selfUpdateTask = NewTask(
 		}
 
 		// 2. go mod tidy
-		if pcontext.Verbose(ctx) {
+		if Verbose(ctx) {
 			Printf(ctx, "  running: go mod tidy\n")
 		}
 		if err := Exec(ctx, "go", "mod", "tidy"); err != nil {
@@ -184,7 +183,7 @@ var selfUpdateTask = NewTask(
 		}
 
 		// 3. Regenerate main.go
-		if pcontext.Verbose(ctx) {
+		if Verbose(ctx) {
 			Printf(ctx, "  regenerating main.go\n")
 		}
 		if err := scaffold.RegenerateMain(pocketDir); err != nil {
@@ -215,7 +214,7 @@ var purgeTask = NewTask(
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
-			if pcontext.Verbose(ctx) {
+			if Verbose(ctx) {
 				Printf(ctx, "  removed: %s\n", dir)
 			}
 		}
@@ -231,7 +230,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 	output := map[string]any{
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
-		"tree":              buildJSONTree(tree, "", p.pathMappings),
+		"tree":              buildJSONTree(tree, "", p),
 		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags
 	}
 
@@ -243,7 +242,7 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 // buildJSONTree recursively builds a JSON representation of the composition tree.
 // The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
 // This must match the suffix accumulation logic in plan.go's taskCollector.walk().
-func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathInfo) map[string]interface{} {
+func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]interface{} {
 	if r == nil {
 		return nil
 	}
@@ -256,22 +255,27 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 		}
 
 		paths := []string{"."}
-		if info, ok := pathMappings[effectiveName]; ok {
+		if info, ok := p.pathMappings[effectiveName]; ok {
 			paths = info.resolvedPaths
+		}
+
+		manual := false
+		if instance := p.taskInstanceByName(effectiveName); instance != nil {
+			manual = instance.isManual
 		}
 
 		return map[string]any{
 			"type":   "task",
 			"name":   effectiveName,
 			"hidden": v.IsHidden(),
-			"manual": v.IsManual(),
+			"manual": manual,
 			"paths":  paths,
 		}
 
 	case *serial:
 		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
+			if childJSON := buildJSONTree(child, nameSuffix, p); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
@@ -283,7 +287,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 	case *parallel:
 		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, nameSuffix, pathMappings); childJSON != nil {
+			if childJSON := buildJSONTree(child, nameSuffix, p); childJSON != nil {
 				children = append(children, childJSON)
 			}
 		}
@@ -307,7 +311,7 @@ func buildJSONTree(r Runnable, nameSuffix string, pathMappings map[string]pathIn
 			"type":    "pathFilter",
 			"include": v.includePaths,
 			"exclude": v.excludePaths,
-			"inner":   buildJSONTree(v.inner, childSuffix, pathMappings),
+			"inner":   buildJSONTree(v.inner, childSuffix, p),
 		}
 		return node
 	}
@@ -326,7 +330,7 @@ func printTree(
 	prefix string,
 	isLast bool,
 	nameSuffix string,
-	pathMappings map[string]pathInfo,
+	p *Plan,
 ) {
 	if r == nil {
 		return
@@ -343,21 +347,23 @@ func printTree(
 		if v.IsHidden() {
 			markers = append(markers, "hidden")
 		}
-		if v.IsManual() {
-			markers = append(markers, "manual")
-		}
-		marker := ""
-		if len(markers) > 0 {
-			marker = " [" + strings.Join(markers, ", ") + "]"
-		}
 
 		effectiveName := v.Name()
 		if nameSuffix != "" {
 			effectiveName = v.Name() + ":" + nameSuffix
 		}
 
+		if instance := p.taskInstanceByName(effectiveName); instance != nil && instance.isManual {
+			markers = append(markers, "manual")
+		}
+
+		marker := ""
+		if len(markers) > 0 {
+			marker = " [" + strings.Join(markers, ", ") + "]"
+		}
+
 		paths := "[root]"
-		if info, ok := pathMappings[effectiveName]; ok {
+		if info, ok := p.pathMappings[effectiveName]; ok {
 			if len(info.resolvedPaths) > 0 {
 				paths = formatPaths(info.resolvedPaths)
 			} else {
@@ -382,7 +388,7 @@ func printTree(
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, pathMappings)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, p)
 		}
 
 	case *parallel:
@@ -394,7 +400,7 @@ func printTree(
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, pathMappings)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, p)
 		}
 
 	case *pathFilter:
@@ -425,10 +431,10 @@ func printTree(
 			if len(v.excludePaths) > 0 {
 				Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
 			}
-			printTree(ctx, v.inner, childPrefix, true, childSuffix, pathMappings)
+			printTree(ctx, v.inner, childPrefix, true, childSuffix, p)
 		} else {
 			// No path options - pass through to inner without wrapper
-			printTree(ctx, v.inner, prefix, isLast, childSuffix, pathMappings)
+			printTree(ctx, v.inner, prefix, isLast, childSuffix, p)
 		}
 	}
 }

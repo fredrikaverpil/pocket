@@ -99,8 +99,6 @@ var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context
 | :--------------- | :----------------------------------------------------- |
 | `Hidden`         | Exclude from CLI help output                           |
 | `IsHidden`       | Returns whether the task is hidden                     |
-| `Manual`         | Only run when explicitly invoked by name               |
-| `IsManual`       | Returns whether the task is manual-only                |
 | `HideHeader`     | Suppress the `:: taskname` header (for machine output) |
 | `IsHeaderHidden` | Returns whether the task header is hidden              |
 | `Global`         | Deduplicate by name only (ignore path context)         |
@@ -111,7 +109,6 @@ var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context
 
 ```go
 var Internal = pk.NewTask("internal", "...", nil, body).Hidden()
-var Deploy = pk.NewTask("deploy", "...", nil, body).Manual()
 var Matrix = pk.NewTask("matrix", "...", nil, body).HideHeader()
 var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
 ```
@@ -412,90 +409,90 @@ func ExtractGz(src, destDir, destName string) error
 
 ```go
 // CreateSymlinkAs creates a symlink with a custom name
-linkPath, err := pk.CreateSymlinkAs("/path/to/binary", "custom-name")
+linkPath, err := download.CreateSymlinkAs("/path/to/binary", "custom-name")
 
 // CreateSymlinkWithCompanions copies companion files (useful on Windows)
-linkPath, err := pk.CreateSymlinkWithCompanions("/path/to/binary", "*.dll")
+linkPath, err := download.CreateSymlinkWithCompanions("/path/to/binary", "*.dll")
 ```
 
 ---
 
 ## Platform Helpers
 
-Import: `"github.com/fredrikaverpil/pocket/pk/platform"`
-
-```go
-import "github.com/fredrikaverpil/pocket/pk/platform"
-```
+Platform detection and helpers are available directly from the `pk` package.
 
 ### Runtime Detection
 
-| Function               | Description                                  |
-| :--------------------- | :------------------------------------------- |
-| `HostOS`               | Current OS: `darwin`, `linux`, `windows`     |
-| `HostArch`             | Current architecture: `amd64`, `arm64`       |
-| `BinaryName`           | Append `.exe` on Windows                     |
-| `DefaultArchiveFormat` | Returns `zip` on Windows, `tar.gz` otherwise |
+| Function                  | Description                                  |
+| :------------------------ | :------------------------------------------- |
+| `pk.HostOS`               | Current OS: `darwin`, `linux`, `windows`     |
+| `pk.HostArch`             | Current architecture: `amd64`, `arm64`       |
+| `pk.BinaryName`           | Append `.exe` on Windows                     |
+| `pk.DefaultArchiveFormat` | Returns `zip` on Windows, `tar.gz` otherwise |
 
 ### Architecture Conversion
 
-| Function      | Conversion                              |
-| :------------ | :-------------------------------------- |
-| `ArchToX8664` | `amd64` → `x86_64`, `arm64` → `aarch64` |
-| `ArchToX64`   | `amd64` → `x64`                         |
-| `OSToTitle`   | `darwin` → `Darwin`                     |
+| Function         | Conversion                              |
+| :--------------- | :-------------------------------------- |
+| `pk.ArchToX8664` | `amd64` → `x86_64`, `arm64` → `aarch64` |
+| `pk.ArchToX64`   | `amd64` → `x64`                         |
+| `pk.OSToTitle`   | `darwin` → `Darwin`                     |
 
 ### Constants
 
 ```go
-// OS
-const Darwin, Linux, Windows = "darwin", "linux", "windows"
+// OS constants - access via pk.Darwin, pk.Linux, pk.Windows
+pk.Darwin  // "darwin"
+pk.Linux   // "linux"
+pk.Windows // "windows"
 
-// Architecture (Go-style)
-const AMD64, ARM64 = "amd64", "arm64"
+// Architecture constants - access via pk.AMD64, pk.ARM64
+pk.AMD64 // "amd64"
+pk.ARM64 // "arm64"
 
-// Architecture (alternative naming)
-const X8664, AARCH64, X64 = "x86_64", "aarch64", "x64"
+// Alternative naming - access via pk.X8664, pk.AARCH64, pk.X64
+pk.X8664   // "x86_64"
+pk.AARCH64 // "aarch64"
+pk.X64     // "x64"
 ```
 
 ---
 
 ## Context
 
-Context functions are available from both `pk` and `pk/pcontext`:
+Context accessors and modifiers are available from the `pk` package.
 
-```go
-import "github.com/fredrikaverpil/pocket/pk"          // pk.PathFromContext()
-import "github.com/fredrikaverpil/pocket/pk/pcontext" // pcontext.PathFromContext()
-```
+### Accessors (Getters)
 
-The `pk/pcontext` package is a leaf package with no dependencies, useful for
-minimal imports.
+| Function             | Description                                 |
+| :------------------- | :------------------------------------------ |
+| `pk.PathFromContext` | Current execution path relative to git root |
+| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)   |
+| `pk.Verbose`         | Whether `-v` flag was provided              |
 
-### Accessors
+### Modifiers (Setters)
 
-| Function          | Package       | Description                                 |
-| :---------------- | :------------ | :------------------------------------------ |
-| `PathFromContext` | `pk/pcontext` | Current execution path relative to git root |
-| `PlanFromContext` | `pk`          | The `*Plan` from context (nil if not set)   |
-| `Verbose`         | `pk/pcontext` | Whether `-v` flag was provided              |
+Context modifiers use the `ContextWith*` naming convention to distinguish them
+from `PathOption` functions (which use `With*`).
 
-### Environment Variables
-
-| Function     | Package       | Description                                      |
-| :----------- | :------------ | :----------------------------------------------- |
-| `WithEnv`    | `pk/pcontext` | Set an environment variable for `Exec` calls     |
-| `WithoutEnv` | `pk/pcontext` | Filter out environment variables matching prefix |
+| Function               | Description                                      |
+| :--------------------- | :----------------------------------------------- |
+| `pk.ContextWithEnv`    | Set an environment variable for `Exec` calls     |
+| `pk.ContextWithoutEnv` | Filter out environment variables matching prefix |
+| `pk.ContextWithPath`   | Set the execution path for `Exec` calls          |
 
 ```go
 // Set an environment variable
-ctx = pcontext.WithEnv(ctx, "MY_VAR=value")
+ctx = pk.ContextWithEnv(ctx, "MY_VAR=value")
 
 // Remove environment variables matching prefix
-ctx = pcontext.WithoutEnv(ctx, "VIRTUAL_ENV")
+ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+
+// Change execution directory
+ctx = pk.ContextWithPath(ctx, "services/api")
 
 // Use with Exec
-pk.Exec(ctx, "mycmd", "arg1") // runs with modified environment
+pk.Exec(ctx, "mycmd", "arg1") // runs with modified environment/path
 ```
 
 ---

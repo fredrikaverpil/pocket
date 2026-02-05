@@ -80,29 +80,7 @@ func TestPlan_Tasks(t *testing.T) {
 	})
 
 	t.Run("ManualTask", func(t *testing.T) {
-		task := newTask("deploy", "deploy to prod").Manual()
-
-		cfg := &Config{
-			Manual: []Runnable{task},
-		}
-
-		plan, err := newPlan(cfg, "/tmp", allDirs)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tasks := plan.Tasks()
-		if len(tasks) != 1 {
-			t.Fatalf("expected 1 task, got %d", len(tasks))
-		}
-		if !tasks[0].Manual {
-			t.Error("expected manual=true")
-		}
-	})
-
-	t.Run("ManualTaskWithoutManualMethod", func(t *testing.T) {
-		// Task in Config.Manual should be marked manual even without .Manual()
-		task := newTask("setup", "one-time setup")
+		task := newTask("deploy", "deploy to prod")
 
 		cfg := &Config{
 			Manual: []Runnable{task},
@@ -119,28 +97,6 @@ func TestPlan_Tasks(t *testing.T) {
 		}
 		if !tasks[0].Manual {
 			t.Error("task in Config.Manual should be marked manual=true")
-		}
-	})
-
-	t.Run("ManualTaskInAutoTree", func(t *testing.T) {
-		// Task with .Manual() in Auto tree should also be marked manual
-		task := newTask("optional", "optional step").Manual()
-
-		cfg := &Config{
-			Auto: task,
-		}
-
-		plan, err := newPlan(cfg, "/tmp", allDirs)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tasks := plan.Tasks()
-		if len(tasks) != 1 {
-			t.Fatalf("expected 1 task, got %d", len(tasks))
-		}
-		if !tasks[0].Manual {
-			t.Error("task with .Manual() in Auto should be marked manual=true")
 		}
 	})
 

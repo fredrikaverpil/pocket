@@ -236,8 +236,8 @@ Additional completed:
       how we did this in pocket-v1, since I think that worked pretty well there.
       How can that fit into pocket v2? **Done:** Detection integrates with
       existing `WithExcludePath()`. Also added manual tasks via `Config.Manual`
-      field and `(*Task).Manual()` method for tasks that only run when
-      explicitly invoked (not on bare `./pok`).
+      field for tasks that only run when explicitly invoked (not on bare
+      `./pok`).
 
 ## Phase 8: Builtin WithOptions, WithOverrides...
 

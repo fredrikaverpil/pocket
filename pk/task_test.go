@@ -5,8 +5,6 @@ import (
 	"flag"
 	"sync/atomic"
 	"testing"
-
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 func TestTask_Run_Deduplication(t *testing.T) {
@@ -39,7 +37,7 @@ func TestTask_Run_Deduplication(t *testing.T) {
 	}
 
 	// Run with different path context should execute (different path).
-	ctxServices := pcontext.WithPath(ctx, "services")
+	ctxServices := ContextWithPath(ctx, "services")
 	if err := task.run(ctxServices); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -206,32 +204,6 @@ func TestTask_Hidden(t *testing.T) {
 	}
 }
 
-func TestTask_Manual(t *testing.T) {
-	task := NewTask("regular-task", "test task", nil, Do(func(_ context.Context) error {
-		return nil
-	}))
-
-	manualTask := task.Manual()
-
-	// Original should not be manual.
-	if task.IsManual() {
-		t.Error("original task should not be manual")
-	}
-
-	// Manual copy should be manual.
-	if !manualTask.IsManual() {
-		t.Error("manual task should be manual")
-	}
-
-	// Manual copy should preserve other fields.
-	if manualTask.Name() != task.Name() {
-		t.Error("manual task should have same name")
-	}
-	if manualTask.Usage() != task.Usage() {
-		t.Error("manual task should have same usage")
-	}
-}
-
 func TestTask_Run_FlagOverrides(t *testing.T) {
 	var flagValue string
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -325,7 +297,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := pcontext.WithNameSuffix(ctx, "3.9")
+	ctx39 := ContextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -334,7 +306,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should also execute (different effective name).
-	ctx310 := pcontext.WithNameSuffix(ctx, "3.10")
+	ctx310 := ContextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -351,7 +323,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.11" - should execute.
-	ctx311 := pcontext.WithNameSuffix(ctx, "3.11")
+	ctx311 := ContextWithNameSuffix(ctx, "3.11")
 	if err := task.run(ctx311); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -377,7 +349,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := pcontext.WithNameSuffix(ctx, "3.9")
+	ctx39 := ContextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -386,7 +358,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should be skipped (global uses base name only).
-	ctx310 := pcontext.WithNameSuffix(ctx, "3.10")
+	ctx310 := ContextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -395,7 +367,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with different path - should still be skipped (global ignores path too).
-	ctx39Services := pcontext.WithPath(ctx39, "services")
+	ctx39Services := ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -419,7 +391,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// test:3.9 at root - should execute.
-	ctx39 := pcontext.WithNameSuffix(ctx, "3.9")
+	ctx39 := ContextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -428,7 +400,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.9 at services - should execute (different path).
-	ctx39Services := pcontext.WithPath(ctx39, "services")
+	ctx39Services := ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -437,7 +409,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.10 at services - should execute (different suffix).
-	ctx310Services := pcontext.WithPath(pcontext.WithNameSuffix(ctx, "3.10"), "services")
+	ctx310Services := ContextWithPath(ContextWithNameSuffix(ctx, "3.10"), "services")
 	if err := task.run(ctx310Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -464,7 +436,7 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		ctx := context.Background()
 		// Effective name should be base name when no suffix.
 		effectiveName := task.name
-		if suffix := pcontext.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := NameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "test" {
@@ -476,9 +448,9 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
 			return nil
 		}))
-		ctx := pcontext.WithNameSuffix(context.Background(), "3.9")
+		ctx := ContextWithNameSuffix(context.Background(), "3.9")
 		effectiveName := task.name
-		if suffix := pcontext.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := NameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "py-test:3.9" {
@@ -490,10 +462,10 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
 			return nil
 		}))
-		ctx := pcontext.WithNameSuffix(context.Background(), "a")
-		ctx = pcontext.WithNameSuffix(ctx, "b")
+		ctx := ContextWithNameSuffix(context.Background(), "a")
+		ctx = ContextWithNameSuffix(ctx, "b")
 		effectiveName := task.name
-		if suffix := pcontext.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := NameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.name + ":" + suffix
 		}
 		if effectiveName != "test:a:b" {

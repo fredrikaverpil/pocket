@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-
-	"github.com/fredrikaverpil/pocket/pk/pcontext"
 )
 
 // Task represents a named, executable unit of work.
@@ -18,7 +16,6 @@ type Task struct {
 	flags      *flag.FlagSet
 	fn         func(context.Context) error
 	hidden     bool
-	manual     bool // Task only runs when explicitly invoked.
 	hideHeader bool // Task runs without printing header.
 	global     bool // Task deduplicates globally (ignores path).
 }
@@ -61,22 +58,21 @@ func (t *Task) run(ctx context.Context) error {
 		return fmt.Errorf("task %q has no implementation", t.name)
 	}
 
-	// Skip manual tasks during auto execution.
-	if t.manual && pcontext.IsAutoExec(ctx) {
-		return nil
-	}
-
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
 	effectiveName := t.name
-	if suffix := pcontext.NameSuffixFromContext(ctx); suffix != "" {
+	if suffix := NameSuffixFromContext(ctx); suffix != "" {
 		effectiveName = t.name + ":" + suffix
 	}
 
-	// Apply pre-computed flag overrides from Plan.
+	// Apply pre-computed flag overrides from Plan and check manual status.
 	// Flags are pre-merged during planning and stored on taskInstance.
-	if t.flags != nil {
-		if plan := PlanFromContext(ctx); plan != nil {
-			if instance := plan.taskInstanceByName(effectiveName); instance != nil && instance.flags != nil {
+	if plan := PlanFromContext(ctx); plan != nil {
+		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
+			// Skip manual tasks during auto execution.
+			if instance.isManual && IsAutoExec(ctx) {
+				return nil
+			}
+			if t.flags != nil && instance.flags != nil {
 				for name, value := range instance.flags {
 					if f := t.flags.Lookup(name); f != nil {
 						if err := f.Value.Set(fmt.Sprint(value)); err != nil {
@@ -91,10 +87,10 @@ func (t *Task) run(ctx context.Context) error {
 	// Check deduplication unless forceRun is set in context.
 	// Deduplication uses taskID (effective name + path), or base name + "." for global tasks.
 	// Global tasks use base name only (ignoring suffix) to ensure install tasks run once.
-	if !forceRunFromContext(ctx) {
+	if !ForceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			id := taskID{Name: effectiveName, Path: pcontext.PathFromContext(ctx)}
+			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
 			if t.global {
 				id = taskID{Name: t.name, Path: "."} // Global tasks deduplicate by base name only.
 			}
@@ -108,7 +104,7 @@ func (t *Task) run(ctx context.Context) error {
 	// This handles task-specific excludes (WithExcludeTask).
 	if plan := PlanFromContext(ctx); plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
-			path := pcontext.PathFromContext(ctx)
+			path := PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
 				return nil // Task is excluded from this path.
 			}
@@ -117,7 +113,7 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Print task header before execution (unless header is hidden).
 	if !t.hideHeader {
-		path := pcontext.PathFromContext(ctx)
+		path := PathFromContext(ctx)
 		if path != "" && path != "." {
 			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
 		} else {
@@ -152,7 +148,6 @@ func (t *Task) Hidden() *Task {
 		flags:      t.flags,
 		fn:         t.fn,
 		hidden:     true,
-		manual:     t.manual,
 		hideHeader: t.hideHeader,
 		global:     t.global,
 	}
@@ -161,27 +156,6 @@ func (t *Task) Hidden() *Task {
 // IsHidden returns whether the task is hidden from CLI listings.
 func (t *Task) IsHidden() bool {
 	return t.hidden
-}
-
-// Manual returns a new Task marked as manual.
-// Manual tasks only run when explicitly invoked (e.g., `./pok hello`),
-// not on bare `./pok` invocation.
-func (t *Task) Manual() *Task {
-	return &Task{
-		name:       t.name,
-		usage:      t.usage,
-		flags:      t.flags,
-		fn:         t.fn,
-		hidden:     t.hidden,
-		manual:     true,
-		hideHeader: t.hideHeader,
-		global:     t.global,
-	}
-}
-
-// IsManual returns whether the task is manual-only.
-func (t *Task) IsManual() bool {
-	return t.manual
 }
 
 // HideHeader returns a new Task that runs without printing the ":: taskname" header.
@@ -193,7 +167,6 @@ func (t *Task) HideHeader() *Task {
 		flags:      t.flags,
 		fn:         t.fn,
 		hidden:     t.hidden,
-		manual:     t.manual,
 		hideHeader: true,
 		global:     t.global,
 	}
@@ -214,7 +187,6 @@ func (t *Task) Global() *Task {
 		flags:      t.flags,
 		fn:         t.fn,
 		hidden:     t.hidden,
-		manual:     t.manual,
 		hideHeader: t.hideHeader,
 		global:     true,
 	}

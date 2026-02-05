@@ -27,7 +27,7 @@ type Config struct {
 	//
 	// Manual: []pk.Runnable{
 	//	    Deploy,
-	//	    Hello.Manual(),
+	//	    Hello,
 	//	}
 	Manual []Runnable
 

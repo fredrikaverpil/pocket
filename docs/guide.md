@@ -101,14 +101,8 @@ appear in `./pok -h`.
 ### Manual Tasks
 
 By default, tasks in `Config.Auto` run when you execute bare `./pok`. If you
-want a task to _only_ run when explicitly named (e.g., `./pok deploy`), use the
-`Manual()` method:
-
-```go
-var Deploy = pk.NewTask("deploy", "deploy the app", nil, body).Manual()
-```
-
-Or add it to `Config.Manual`:
+want a task to _only_ run when explicitly named (e.g., `./pok deploy`), add it
+to `Config.Manual`:
 
 ```go
 var Config = &pk.Config{
@@ -636,31 +630,30 @@ var Build = pk.NewTask("build", "build frontend", nil,
 
 ### Platform Helpers
 
-These functions help construct platform-specific download URLs:
+These functions help construct platform-specific download URLs. All are
+available directly from the `pk` package:
 
-| Function                 | Description                                      |
-| :----------------------- | :----------------------------------------------- |
-| `HostOS()`               | Current OS: `"darwin"`, `"linux"`, `"windows"`   |
-| `HostArch()`             | Current arch: `"amd64"`, `"arm64"`               |
-| `ArchToX8664(arch)`      | Convert `amd64`→`x86_64`, `arm64`→`aarch64`      |
-| `ArchToX64(arch)`        | Convert `amd64`→`x64`                            |
-| `BinaryName(name)`       | Append `.exe` on Windows                         |
-| `OSToTitle(os)`          | Convert `darwin`→`Darwin`                        |
-| `DefaultArchiveFormat()` | Returns `"zip"` on Windows, `"tar.gz"` otherwise |
+| Function                    | Description                                      |
+| :-------------------------- | :----------------------------------------------- |
+| `pk.HostOS()`               | Current OS: `"darwin"`, `"linux"`, `"windows"`   |
+| `pk.HostArch()`             | Current arch: `"amd64"`, `"arm64"`               |
+| `pk.ArchToX8664(arch)`      | Convert `amd64`→`x86_64`, `arm64`→`aarch64`      |
+| `pk.ArchToX64(arch)`        | Convert `amd64`→`x64`                            |
+| `pk.BinaryName(name)`       | Append `.exe` on Windows                         |
+| `pk.OSToTitle(os)`          | Convert `darwin`→`Darwin`                        |
+| `pk.DefaultArchiveFormat()` | Returns `"zip"` on Windows, `"tar.gz"` otherwise |
 
-**Platform constants:**
+**Platform constants** (access via `pk.Darwin`, `pk.Linux`, etc.):
 
 ```go
-const (
-    Darwin  = "darwin"
-    Linux   = "linux"
-    Windows = "windows"
-    AMD64   = "amd64"
-    ARM64   = "arm64"
-    X8664   = "x86_64"
-    AARCH64 = "aarch64"
-    X64     = "x64"
-)
+pk.Darwin  // "darwin"
+pk.Linux   // "linux"
+pk.Windows // "windows"
+pk.AMD64   // "amd64"
+pk.ARM64   // "arm64"
+pk.X8664   // "x86_64"
+pk.AARCH64 // "aarch64"
+pk.X64     // "x64"
 ```
 
 ---

@@ -31,7 +31,7 @@ var Config = &pk.Config{
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello.Manual(), // ./pok hello -name "World"
+		Hello, // ./pok hello -name "World"
 	},
 
 	// Plan configuration: shims, directories, and CI settings.

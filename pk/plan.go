@@ -189,7 +189,7 @@ type taskInstance struct {
 	name          string         // Effective name (may include suffix like "py-test:3.9")
 	contextValues []contextValue // Context values to apply when executing this task instance.
 	flags         map[string]any // Pre-merged flag overrides for this task.
-	isManual      bool           // Whether task is manual (from Config.Manual or Task.Manual()).
+	isManual      bool           // Whether task is manual (from Config.Manual).
 
 	// Execution context from path filter.
 	resolvedPaths []string // Directories where this task executes.
@@ -352,7 +352,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 				name:          effectiveName,
 				contextValues: ctxValues,
 				flags:         mergedFlags,
-				isManual:      pc.inManualSection || v.IsManual(),
+				isManual:      pc.inManualSection,
 				resolvedPaths: finalPaths,
 			})
 		}
@@ -517,7 +517,7 @@ func (p *Plan) Tasks() []TaskInfo {
 			Usage:  instance.task.usage,
 			Flags:  instance.flags, // Pre-merged flag overrides from pk.WithFlag().
 			Hidden: instance.task.hidden,
-			Manual: instance.isManual, // Use pre-computed value (from Config.Manual or Task.Manual()).
+			Manual: instance.isManual, // Set by Config.Manual during planning.
 		}
 
 		// Use resolved paths from the instance.
