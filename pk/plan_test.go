@@ -11,7 +11,7 @@ func TestPlan_Tasks(t *testing.T) {
 	allDirs := []string{".", "services", "services/api", "pkg"}
 
 	newTask := func(name, usage string) *Task {
-		return NewTask(name, usage, nil, Do(func(_ context.Context) error { return nil }))
+		return NewTask(TaskConfig{Name: name, Usage: usage, Body: Do(func(_ context.Context) error { return nil })})
 	}
 
 	t.Run("BasicTasks", func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestPlan_Tasks(t *testing.T) {
 	})
 
 	t.Run("HiddenTask", func(t *testing.T) {
-		task := newTask("internal", "internal task").Hidden()
+		task := NewTask(TaskConfig{Name: "internal", Usage: "internal task", Hidden: true, Body: Do(func(_ context.Context) error { return nil })})
 
 		cfg := &Config{
 			Auto: task,
@@ -149,7 +149,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 
 	// Helper to create a task
 	newTask := func(name string) *Task {
-		return NewTask(name, "usage", nil, Do(func(_ context.Context) error { return nil }))
+		return NewTask(TaskConfig{Name: name, Usage: "usage", Body: Do(func(_ context.Context) error { return nil })})
 	}
 
 	t.Run("WithOptionsDefaultsToRoot", func(t *testing.T) {
@@ -432,9 +432,9 @@ func TestNewPlan_BuiltinConflict(t *testing.T) {
 	// Each builtin name should cause an error
 	for _, b := range builtins {
 		t.Run(b.Name(), func(t *testing.T) {
-			task := NewTask(b.Name(), "conflicting task", nil, Do(func(_ context.Context) error {
+			task := NewTask(TaskConfig{Name: b.Name(), Usage: "conflicting task", Body: Do(func(_ context.Context) error {
 				return nil
-			}))
+			})})
 
 			cfg := &Config{Auto: task}
 			_, err := newPlan(cfg, "/tmp", allDirs)
@@ -456,9 +456,9 @@ func TestNewPlan_NoBuiltinConflict(t *testing.T) {
 
 	for _, name := range validNames {
 		t.Run(name, func(t *testing.T) {
-			task := NewTask(name, "valid task", nil, Do(func(_ context.Context) error {
+			task := NewTask(TaskConfig{Name: name, Usage: "valid task", Body: Do(func(_ context.Context) error {
 				return nil
-			}))
+			})})
 
 			cfg := &Config{Auto: task}
 			_, err := newPlan(cfg, "/tmp", allDirs)
@@ -473,12 +473,12 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 	allDirs := []string{"."}
 
 	t.Run("SameNameDifferentTasks", func(t *testing.T) {
-		task1 := NewTask("lint", "first lint", nil, Do(func(_ context.Context) error {
+		task1 := NewTask(TaskConfig{Name: "lint", Usage: "first lint", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
-		task2 := NewTask("lint", "second lint", nil, Do(func(_ context.Context) error {
+		})})
+		task2 := NewTask(TaskConfig{Name: "lint", Usage: "second lint", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 
 		cfg := &Config{Auto: Serial(task1, task2)}
 		_, err := newPlan(cfg, "/tmp", allDirs)
@@ -492,9 +492,9 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 
 	t.Run("SameTaskTwiceIsOK", func(t *testing.T) {
 		// Same task instance used twice is fine (it's deduplicated in collection)
-		task := NewTask("lint", "lint code", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "lint", Usage: "lint code", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 
 		cfg := &Config{Auto: Serial(task, task)}
 		_, err := newPlan(cfg, "/tmp", allDirs)
@@ -505,9 +505,9 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 
 	t.Run("DifferentSuffixesAreOK", func(t *testing.T) {
 		// Same base name with different suffixes is fine
-		task := NewTask("py-test", "test", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "py-test", Usage: "test", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 
 		cfg := &Config{
 			Auto: Serial(
@@ -529,9 +529,9 @@ func TestPlan_ContextValues(t *testing.T) {
 	type versionKey struct{}
 
 	t.Run("ContextValuesAreCapturedInTaskInstance", func(t *testing.T) {
-		task := NewTask("py-test", "test", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "py-test", Usage: "test", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 
 		cfg := &Config{
 			Auto: Serial(
@@ -571,9 +571,9 @@ func TestPlan_ContextValues(t *testing.T) {
 	t.Run("NestedContextValuesAccumulate", func(t *testing.T) {
 		type otherKey struct{}
 
-		task := NewTask("test", "test", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "test", Usage: "test", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 
 		cfg := &Config{
 			Auto: WithOptions(

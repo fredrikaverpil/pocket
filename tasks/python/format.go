@@ -16,9 +16,12 @@ var (
 // Format formats Python files using ruff format.
 // Requires ruff as a project dependency in pyproject.toml.
 // Python version can be set via the -python flag.
-var Format = pk.NewTask("py-format", "format Python files", formatFlags,
-	pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
-)
+var Format = pk.NewTask(pk.TaskConfig{
+	Name:  "py-format",
+	Usage: "format Python files",
+	Flags: formatFlags,
+	Body:  pk.Serial(uv.Install, formatSyncCmd(), formatCmd()),
+})
 
 func formatSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

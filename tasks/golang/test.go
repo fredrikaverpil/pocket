@@ -13,12 +13,16 @@ var (
 )
 
 // Test runs Go tests.
-var Test = pk.NewTask("go-test", "run go tests", testFlags, pk.Do(func(ctx context.Context) error {
-	args := []string{"test"}
-	if *testRace {
-		args = append(args, "-race")
-	}
-	args = append(args, "./...")
-
-	return pk.Exec(ctx, "go", args...)
-}))
+var Test = pk.NewTask(pk.TaskConfig{
+	Name:  "go-test",
+	Usage: "run go tests",
+	Flags: testFlags,
+	Body: pk.Do(func(ctx context.Context) error {
+		args := []string{"test"}
+		if *testRace {
+			args = append(args, "-race")
+		}
+		args = append(args, "./...")
+		return pk.Exec(ctx, "go", args...)
+	}),
+})

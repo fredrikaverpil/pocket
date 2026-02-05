@@ -15,9 +15,12 @@ var (
 )
 
 // Format formats Markdown files using prettier.
-var Format = pk.NewTask("md-format", "format Markdown files", formatFlags,
-	pk.Serial(prettier.Install, formatCmd()),
-)
+var Format = pk.NewTask(pk.TaskConfig{
+	Name:  "md-format",
+	Usage: "format Markdown files",
+	Flags: formatFlags,
+	Body:  pk.Serial(prettier.Install, formatCmd()),
+})
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

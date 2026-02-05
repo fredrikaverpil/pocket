@@ -38,40 +38,45 @@ func isBuiltinName(name string) bool {
 }
 
 // shimsTask regenerates shims in all directories.
-var shimsTask = NewTask("shims", "regenerate shims in all directories", nil, Do(func(ctx context.Context) error {
-	gitRoot := findGitRoot()
-	pocketDir := filepath.Join(gitRoot, ".pocket")
+var shimsTask = NewTask(TaskConfig{
+	Name:       "shims",
+	Usage:      "regenerate shims in all directories",
+	HideHeader: true,
+	Body: Do(func(ctx context.Context) error {
+		gitRoot := findGitRoot()
+		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-	p := PlanFromContext(ctx)
-	if p == nil {
-		return fmt.Errorf("plan not found in context")
-	}
-
-	// Use shim config from plan (defaults to POSIX only if not configured)
-	cfg := p.ShimConfig()
-	shims, err := shim.GenerateShims(
-		ctx,
-		gitRoot,
-		pocketDir,
-		p.moduleDirectories,
-		shim.Config{
-			Posix:      cfg.Posix,
-			Windows:    cfg.Windows,
-			PowerShell: cfg.PowerShell,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("generating shims: %w", err)
-	}
-
-	if Verbose(ctx) {
-		for _, s := range shims {
-			Printf(ctx, "  generated: %s\n", s)
+		p := PlanFromContext(ctx)
+		if p == nil {
+			return fmt.Errorf("plan not found in context")
 		}
-	}
 
-	return nil
-})).HideHeader()
+		// Use shim config from plan (defaults to POSIX only if not configured).
+		cfg := p.ShimConfig()
+		shims, err := shim.GenerateShims(
+			ctx,
+			gitRoot,
+			pocketDir,
+			p.moduleDirectories,
+			shim.Config{
+				Posix:      cfg.Posix,
+				Windows:    cfg.Windows,
+				PowerShell: cfg.PowerShell,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("generating shims: %w", err)
+		}
+
+		if Verbose(ctx) {
+			for _, s := range shims {
+				Printf(ctx, "  generated: %s\n", s)
+			}
+		}
+
+		return nil
+	}),
+})
 
 // plan flags.
 var (
@@ -80,11 +85,12 @@ var (
 )
 
 // planTask displays the execution plan.
-var planTask = NewTask(
-	"plan",
-	"show execution plan without running tasks",
-	planFlags,
-	Do(func(ctx context.Context) error {
+var planTask = NewTask(TaskConfig{
+	Name:       "plan",
+	Usage:      "show execution plan without running tasks",
+	Flags:      planFlags,
+	HideHeader: true,
+	Body: Do(func(ctx context.Context) error {
 		p := PlanFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
@@ -94,11 +100,11 @@ var planTask = NewTask(
 			return printPlanJSON(ctx, p.tree, p)
 		}
 
-		// Text output
+		// Text output.
 		Printf(ctx, "Execution Plan\n")
 		Printf(ctx, "==============\n\n")
 
-		// Show module directories where shims will be generated
+		// Show module directories where shims will be generated.
 		if len(p.moduleDirectories) > 0 {
 			Printf(ctx, "Shim Generation:\n")
 			for _, dir := range p.moduleDirectories {
@@ -111,7 +117,7 @@ var planTask = NewTask(
 			Println(ctx)
 		}
 
-		// Show composition tree
+		// Show composition tree.
 		Printf(ctx, "Composition Tree:\n")
 		printTree(ctx, p.tree, "", true, "", p)
 
@@ -120,22 +126,28 @@ var planTask = NewTask(
 
 		return nil
 	}),
-).HideHeader()
+})
 
 // gitDiffTask checks for uncommitted changes.
 // Hidden because it's controlled via the -g flag, not direct invocation.
-var gitDiffTask = NewTask("git-diff", "check for uncommitted changes", nil, Do(func(ctx context.Context) error {
-	// Only run if -g flag was passed
-	if !gitDiffEnabledFromContext(ctx) {
-		return nil
-	}
+var gitDiffTask = NewTask(TaskConfig{
+	Name:       "git-diff",
+	Usage:      "check for uncommitted changes",
+	Hidden:     true,
+	HideHeader: true,
+	Body: Do(func(ctx context.Context) error {
+		// Only run if -g flag was passed.
+		if !gitDiffEnabledFromContext(ctx) {
+			return nil
+		}
 
-	Printf(ctx, ":: git-diff\n")
-	if err := Exec(ctx, "git", "diff", "--exit-code"); err != nil {
-		return ErrGitDiffUncommitted
-	}
-	return nil
-})).Hidden().HideHeader()
+		Printf(ctx, ":: git-diff\n")
+		if err := Exec(ctx, "git", "diff", "--exit-code"); err != nil {
+			return ErrGitDiffUncommitted
+		}
+		return nil
+	}),
+})
 
 // self-update flags.
 var (
@@ -144,11 +156,11 @@ var (
 )
 
 // selfUpdateTask updates Pocket and regenerates scaffolded files.
-var selfUpdateTask = NewTask(
-	"self-update",
-	"update Pocket and regenerate scaffolded files",
-	selfUpdateFlags,
-	Do(func(ctx context.Context) error {
+var selfUpdateTask = NewTask(TaskConfig{
+	Name:  "self-update",
+	Usage: "update Pocket and regenerate scaffolded files",
+	Flags: selfUpdateFlags,
+	Body: Do(func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
@@ -190,17 +202,16 @@ var selfUpdateTask = NewTask(
 			return fmt.Errorf("regenerating main.go: %w", err)
 		}
 
-		// 4. Regenerate shims
+		// 4. Regenerate shims.
 		return shimsTask.run(ctx)
 	}),
-)
+})
 
 // purgeTask removes .pocket/tools, .pocket/bin, and .pocket/venvs directories.
-var purgeTask = NewTask(
-	"purge",
-	"remove .pocket/tools, .pocket/bin, and .pocket/venvs",
-	nil,
-	Do(func(ctx context.Context) error {
+var purgeTask = NewTask(TaskConfig{
+	Name:  "purge",
+	Usage: "remove .pocket/tools, .pocket/bin, and .pocket/venvs",
+	Body: Do(func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
@@ -221,7 +232,7 @@ var purgeTask = NewTask(
 
 		return nil
 	}),
-)
+})
 
 // --- Plan Helpers ---
 

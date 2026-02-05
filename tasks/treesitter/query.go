@@ -21,14 +21,20 @@ var (
 )
 
 // QueryFormat formats tree-sitter query files using ts_query_ls.
-var QueryFormat = pk.NewTask("query-format", "format tree-sitter query files", queryFormatFlags,
-	pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
-)
+var QueryFormat = pk.NewTask(pk.TaskConfig{
+	Name:  "query-format",
+	Usage: "format tree-sitter query files",
+	Flags: queryFormatFlags,
+	Body:  pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
+})
 
 // QueryLint lints tree-sitter query files using ts_query_ls.
-var QueryLint = pk.NewTask("query-lint", "lint tree-sitter query files", queryLintFlags,
-	pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
-)
+var QueryLint = pk.NewTask(pk.TaskConfig{
+	Name:  "query-lint",
+	Usage: "lint tree-sitter query files",
+	Flags: queryLintFlags,
+	Body:  pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
+})
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

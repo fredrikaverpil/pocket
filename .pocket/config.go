@@ -48,7 +48,12 @@ var (
 
 // Hello is a demo task that prints a greeting.
 // Demonstrates task with CLI flags.
-var Hello = pk.NewTask("hello", "print a greeting message", helloFlags, pk.Do(func(ctx context.Context) error {
-	pk.Printf(ctx, "Hello, %s!\n", *helloName)
-	return nil
-}))
+var Hello = pk.NewTask(pk.TaskConfig{
+	Name:  "hello",
+	Usage: "print a greeting message",
+	Flags: helloFlags,
+	Body: pk.Do(func(ctx context.Context) error {
+		pk.Printf(ctx, "Hello, %s!\n", *helloName)
+		return nil
+	}),
+})

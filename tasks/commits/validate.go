@@ -8,9 +8,11 @@ import (
 )
 
 // Validate validates commit messages against conventional commit standards.
-var Validate = pk.NewTask("commits-validate", "validate commits against conventional commits", nil,
-	pk.Serial(commitsar.Install, validateCmd()),
-)
+var Validate = pk.NewTask(pk.TaskConfig{
+	Name:  "commits-validate",
+	Usage: "validate commits against conventional commits",
+	Body:  pk.Serial(commitsar.Install, validateCmd()),
+})
 
 func validateCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

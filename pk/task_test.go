@@ -10,10 +10,10 @@ import (
 func TestTask_Run_Deduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("dedup-task", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "dedup-task", Usage: "test task", Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	}))
+	})})
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -57,10 +57,10 @@ func TestTask_Run_Deduplication(t *testing.T) {
 func TestTask_Run_ForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("force-task", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "force-task", Usage: "test task", Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	}))
+	})})
 
 	// Create context with tracker.
 	ctx := context.Background()
@@ -96,10 +96,10 @@ func TestTask_Run_ForceRun(t *testing.T) {
 func TestTask_Run_NoTracker(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("no-tracker-task", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "no-tracker-task", Usage: "test task", Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	}))
+	})})
 
 	// Context without tracker - should always run (no deduplication).
 	ctx := context.Background()
@@ -120,14 +120,14 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 	var runCount1, runCount2 atomic.Int32
 
 	// Two different task instances with the same name.
-	task1 := NewTask("same-name", "test task 1", nil, Do(func(_ context.Context) error {
+	task1 := NewTask(TaskConfig{Name: "same-name", Usage: "test task 1", Body: Do(func(_ context.Context) error {
 		runCount1.Add(1)
 		return nil
-	}))
-	task2 := NewTask("same-name", "test task 2", nil, Do(func(_ context.Context) error {
+	})})
+	task2 := NewTask(TaskConfig{Name: "same-name", Usage: "test task 2", Body: Do(func(_ context.Context) error {
 		runCount2.Add(1)
 		return nil
-	}))
+	})})
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -152,9 +152,9 @@ func TestTask_Run_SameNameSamePathDeduplicated(t *testing.T) {
 }
 
 func TestTask_Accessors(t *testing.T) {
-	task := NewTask("my-task", "my usage", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "my-task", Usage: "my usage", Body: Do(func(_ context.Context) error {
 		return nil
-	}))
+	})})
 
 	if got := task.Name(); got != "my-task" {
 		t.Errorf("expected Name()=%q, got %q", "my-task", got)
@@ -179,28 +179,22 @@ func TestTask_Accessors(t *testing.T) {
 }
 
 func TestTask_Hidden(t *testing.T) {
-	task := NewTask("visible-task", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "visible-task", Usage: "test task", Body: Do(func(_ context.Context) error {
 		return nil
-	}))
+	})})
 
-	hiddenTask := task.Hidden()
-
-	// Original should not be hidden.
+	// Should not be hidden.
 	if task.IsHidden() {
-		t.Error("original task should not be hidden")
+		t.Error("task should not be hidden")
 	}
 
-	// Hidden copy should be hidden.
+	hiddenTask := NewTask(TaskConfig{Name: "hidden-task", Usage: "test task", Hidden: true, Body: Do(func(_ context.Context) error {
+		return nil
+	})})
+
+	// Should be hidden.
 	if !hiddenTask.IsHidden() {
 		t.Error("hidden task should be hidden")
-	}
-
-	// Hidden copy should preserve other fields.
-	if hiddenTask.Name() != task.Name() {
-		t.Error("hidden task should have same name")
-	}
-	if hiddenTask.Usage() != task.Usage() {
-		t.Error("hidden task should have same usage")
 	}
 }
 
@@ -209,9 +203,9 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.StringVar(&flagValue, "myflag", "default", "usage")
 
-	task := NewTask("flag-task", "test task", fs, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "flag-task", Usage: "test task", Flags: fs, Body: Do(func(_ context.Context) error {
 		return nil
-	}))
+	})})
 
 	// Helper to create a Plan with pre-computed flags for the task.
 	planWithFlags := func(flags map[string]any) *Plan {
@@ -287,10 +281,10 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "py-test", Usage: "test task", Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	}))
+	})})
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -339,10 +333,10 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	var runCount atomic.Int32
 
 	// Global task - should deduplicate by base name only.
-	task := NewTask("install:uv", "install uv", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	})).Hidden().Global()
+	})})
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -381,10 +375,10 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	var runCount atomic.Int32
 
-	task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+	task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
 		runCount.Add(1)
 		return nil
-	}))
+	})})
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()
@@ -430,9 +424,9 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 // is used correctly for task identification.
 func TestTask_Run_EffectiveName(t *testing.T) {
 	t.Run("NoSuffix", func(t *testing.T) {
-		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 		ctx := context.Background()
 		// Effective name should be base name when no suffix.
 		effectiveName := task.name
@@ -445,9 +439,9 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 
 	t.Run("WithSuffix", func(t *testing.T) {
-		task := NewTask("py-test", "test task", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "py-test", Usage: "test task", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 		ctx := contextWithNameSuffix(context.Background(), "3.9")
 		effectiveName := task.name
 		if suffix := nameSuffixFromContext(ctx); suffix != "" {
@@ -459,9 +453,9 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 
 	t.Run("NestedSuffix", func(t *testing.T) {
-		task := NewTask("test", "test task", nil, Do(func(_ context.Context) error {
+		task := NewTask(TaskConfig{Name: "test", Usage: "test task", Body: Do(func(_ context.Context) error {
 			return nil
-		}))
+		})})
 		ctx := contextWithNameSuffix(context.Background(), "a")
 		ctx = contextWithNameSuffix(ctx, "b")
 		effectiveName := task.name

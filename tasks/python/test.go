@@ -18,9 +18,12 @@ var (
 // Requires pytest as a project dependency in pyproject.toml.
 // Python version can be set via the -python flag.
 // Coverage can be enabled via the -coverage flag.
-var Test = pk.NewTask("py-test", "run Python tests", testFlags,
-	pk.Serial(uv.Install, testSyncCmd(), testCmd()),
-)
+var Test = pk.NewTask(pk.TaskConfig{
+	Name:  "py-test",
+	Usage: "run Python tests",
+	Flags: testFlags,
+	Body:  pk.Serial(uv.Install, testSyncCmd(), testCmd()),
+})
 
 func testSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

@@ -36,9 +36,13 @@ func EnsureDefaultConfig() string {
 }
 
 // Install ensures stylua is available.
-var Install = pk.NewTask("install:stylua", "install stylua", nil,
-	installStylua(),
-).Hidden().Global()
+var Install = pk.NewTask(pk.TaskConfig{
+	Name:   "install:stylua",
+	Usage:  "install stylua",
+	Body:   installStylua(),
+	Hidden: true,
+	Global: true,
+})
 
 func installStylua() pk.Runnable {
 	binDir := pk.FromToolsDir("stylua", Version, "bin")

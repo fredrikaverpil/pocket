@@ -66,12 +66,12 @@ func DefaultStaleConfig() StaleConfig {
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
 // By default, all workflows are copied. Use flags to select specific ones.
-var Workflows = pk.NewTask(
-	"github-workflows",
-	"bootstrap GitHub workflow files",
-	workflowFlags,
-	pk.Do(runWorkflows),
-)
+var Workflows = pk.NewTask(pk.TaskConfig{
+	Name:  "github-workflows",
+	Usage: "bootstrap GitHub workflow files",
+	Flags: workflowFlags,
+	Body:  pk.Do(runWorkflows),
+})
 
 func runWorkflows(ctx context.Context) error {
 	verbose := pk.Verbose(ctx)

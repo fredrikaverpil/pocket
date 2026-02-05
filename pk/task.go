@@ -9,7 +9,7 @@ import (
 )
 
 // Task represents a named, executable unit of work.
-// Create tasks with NewTask.
+// Create tasks with [NewTask].
 type Task struct {
 	name       string
 	usage      string
@@ -20,34 +20,76 @@ type Task struct {
 	global     bool // Task deduplicates globally (ignores path).
 }
 
-// NewTask creates a new task with a Runnable body and optional CLI flags.
-// Use Do() to wrap a function as a Runnable.
+// TaskConfig configures a [Task] created by [NewTask].
 //
-// If flags is nil, an empty FlagSet is created. This ensures every task
-// has a FlagSet for uniform -h/--help handling via flag.ErrHelp.
+// Name and Body are required. All other fields are optional and use
+// zero-value defaults (no flags, visible, local deduplication, header shown).
+type TaskConfig struct {
+	// Name is the task's unique identifier (required).
+	Name string
+	// Usage is a short description shown in help output.
+	Usage string
+	// Body is the task's executable logic (required). Use [Do] to wrap a function.
+	Body Runnable
+	// Flags defines CLI flags for the task. If nil, an empty FlagSet is created.
+	Flags *flag.FlagSet
+	// Hidden makes the task invisible in CLI listings. Hidden tasks can still
+	// be executed directly.
+	Hidden bool
+	// Global makes the task deduplicate by name only, ignoring path.
+	// Use this for install tasks that should only run once regardless of path.
+	Global bool
+	// HideHeader suppresses the ":: taskname" header before execution.
+	// Useful for tasks that output machine-readable data (e.g., JSON).
+	HideHeader bool
+}
+
+// NewTask creates a new [Task] from the given [TaskConfig].
 //
 // Example with function body:
 //
-//	var Hello = pk.NewTask("hello", "greet", flags, pk.Do(func(ctx context.Context) error {
-//	    fmt.Println("Hello!")
-//	    return nil
-//	}))
+//	var Hello = pk.NewTask(pk.TaskConfig{
+//	    Name:  "hello",
+//	    Usage: "greet",
+//	    Body: pk.Do(func(ctx context.Context) error {
+//	        fmt.Println("Hello!")
+//	        return nil
+//	    }),
+//	})
 //
 // Example with composition:
 //
-//	var Lint = pk.NewTask("lint", "run linters", nil, pk.Serial(Install, lintCmd()))
-func NewTask(name, usage string, flags *flag.FlagSet, body Runnable) *Task {
+//	var Lint = pk.NewTask(pk.TaskConfig{
+//	    Name:  "lint",
+//	    Usage: "run linters",
+//	    Body:  pk.Serial(Install, lintCmd()),
+//	})
+//
+// Example install task (hidden, global deduplication):
+//
+//	var Install = pk.NewTask(pk.TaskConfig{
+//	    Name:   "install:tool",
+//	    Usage:  "install tool",
+//	    Body:   installBody,
+//	    Hidden: true,
+//	    Global: true,
+//	})
+func NewTask(cfg TaskConfig) *Task {
+	flags := cfg.Flags
 	if flags == nil {
-		flags = flag.NewFlagSet(name, flag.ContinueOnError)
+		flags = flag.NewFlagSet(cfg.Name, flag.ContinueOnError)
 	}
 	// Suppress default flag.Usage output; we use printTaskHelp for custom help.
 	flags.SetOutput(io.Discard)
 	return &Task{
-		name:  name,
-		usage: usage,
-		flags: flags,
+		name:       cfg.Name,
+		usage:      cfg.Usage,
+		flags:      flags,
+		hidden:     cfg.Hidden,
+		hideHeader: cfg.HideHeader,
+		global:     cfg.Global,
 		fn: func(ctx context.Context) error {
-			return body.run(ctx)
+			return cfg.Body.run(ctx)
 		},
 	}
 }
@@ -139,57 +181,14 @@ func (t *Task) Flags() *flag.FlagSet {
 	return t.flags
 }
 
-// Hidden returns a new Task that is hidden from CLI listings.
-// Hidden tasks can still be executed directly but won't appear in help.
-func (t *Task) Hidden() *Task {
-	return &Task{
-		name:       t.name,
-		usage:      t.usage,
-		flags:      t.flags,
-		fn:         t.fn,
-		hidden:     true,
-		hideHeader: t.hideHeader,
-		global:     t.global,
-	}
-}
-
 // IsHidden returns whether the task is hidden from CLI listings.
 func (t *Task) IsHidden() bool {
 	return t.hidden
 }
 
-// HideHeader returns a new Task that runs without printing the ":: taskname" header.
-// Useful for tasks that output machine-readable data (e.g., JSON).
-func (t *Task) HideHeader() *Task {
-	return &Task{
-		name:       t.name,
-		usage:      t.usage,
-		flags:      t.flags,
-		fn:         t.fn,
-		hidden:     t.hidden,
-		hideHeader: true,
-		global:     t.global,
-	}
-}
-
 // IsHeaderHidden returns whether the task runs without printing header.
 func (t *Task) IsHeaderHidden() bool {
 	return t.hideHeader
-}
-
-// Global returns a new Task that deduplicates globally (by name only, ignoring path).
-// Use this for install tasks and other operations that should only run once
-// regardless of how many paths the parent task runs in.
-func (t *Task) Global() *Task {
-	return &Task{
-		name:       t.name,
-		usage:      t.usage,
-		flags:      t.flags,
-		fn:         t.fn,
-		hidden:     t.hidden,
-		hideHeader: t.hideHeader,
-		global:     true,
-	}
 }
 
 // IsGlobal returns whether the task deduplicates globally.

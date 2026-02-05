@@ -14,9 +14,12 @@ var (
 )
 
 // Format formats Lua files using stylua.
-var Format = pk.NewTask("lua-format", "format Lua files", formatFlags,
-	pk.Serial(stylua.Install, formatCmd()),
-)
+var Format = pk.NewTask(pk.TaskConfig{
+	Name:  "lua-format",
+	Usage: "format Lua files",
+	Flags: formatFlags,
+	Body:  pk.Serial(stylua.Install, formatCmd()),
+})
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {

@@ -60,10 +60,14 @@ import (
     "github.com/fredrikaverpil/pocket/pk"
 )
 
-var Hello = pk.NewTask("hello", "say hello", nil, pk.Do(func(ctx context.Context) error {
-    fmt.Println("Hello from Pocket!")
-    return nil
-}))
+var Hello = pk.NewTask(pk.TaskConfig{
+    Name:  "hello",
+    Usage: "say hello",
+    Body: pk.Do(func(ctx context.Context) error {
+        fmt.Println("Hello from Pocket!")
+        return nil
+    }),
+})
 
 var Config = &pk.Config{
     Auto: pk.Serial(Hello),

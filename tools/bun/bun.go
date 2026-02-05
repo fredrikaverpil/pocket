@@ -20,9 +20,13 @@ const Name = "bun"
 const Version = "1.3.6"
 
 // Install ensures bun is available.
-var Install = pk.NewTask("install:bun", "install bun", nil,
-	installBun(),
-).Hidden().Global()
+var Install = pk.NewTask(pk.TaskConfig{
+	Name:   "install:bun",
+	Usage:  "install bun",
+	Body:   installBun(),
+	Hidden: true,
+	Global: true,
+})
 
 func installBun() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")

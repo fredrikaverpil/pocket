@@ -84,33 +84,44 @@ Tasks are the fundamental units of work.
 ### Creating Tasks
 
 ```go
-func NewTask(name, usage string, flags *flag.FlagSet, body Runnable) *Task
+type TaskConfig struct {
+    Name       string
+    Usage      string
+    Body       Runnable
+    Flags      *flag.FlagSet
+    Hidden     bool
+    Global     bool
+    HideHeader bool
+}
+
+func NewTask(cfg TaskConfig) *Task
 ```
 
 ```go
-var Lint = pk.NewTask("lint", "run linters", nil, pk.Do(func(ctx context.Context) error {
-    return pk.Exec(ctx, "golangci-lint", "run")
-}))
+var Lint = pk.NewTask(pk.TaskConfig{
+    Name:  "lint",
+    Usage: "run linters",
+    Body: pk.Do(func(ctx context.Context) error {
+        return pk.Exec(ctx, "golangci-lint", "run")
+    }),
+})
 ```
 
-### Task Methods
+### Task Query Methods
 
 | Method           | Description                                            |
 | :--------------- | :----------------------------------------------------- |
-| `Hidden`         | Exclude from CLI help output                           |
 | `IsHidden`       | Returns whether the task is hidden                     |
-| `HideHeader`     | Suppress the `:: taskname` header (for machine output) |
 | `IsHeaderHidden` | Returns whether the task header is hidden              |
-| `Global`         | Deduplicate by name only (ignore path context)         |
 | `IsGlobal`       | Returns whether the task deduplicates globally         |
 | `Name`           | Returns the task name                                  |
 | `Usage`          | Returns the task usage description                     |
 | `Flags`          | Returns the task's `*flag.FlagSet`                     |
 
 ```go
-var Internal = pk.NewTask("internal", "...", nil, body).Hidden()
-var Matrix = pk.NewTask("matrix", "...", nil, body).HideHeader()
-var Install = pk.NewTask("install:tool", "...", nil, body).Hidden().Global()
+var Internal = pk.NewTask(pk.TaskConfig{Name: "internal", Usage: "...", Body: body, Hidden: true})
+var Matrix = pk.NewTask(pk.TaskConfig{Name: "matrix", Usage: "...", Body: body, HideHeader: true})
+var Install = pk.NewTask(pk.TaskConfig{Name: "install:tool", Usage: "...", Body: body, Hidden: true, Global: true})
 ```
 
 ---
@@ -234,11 +245,17 @@ This means:
 - Different variants (via `WithNameSuffix`) run separately
 
 **Global tasks** deduplicate by `baseName@.` only, ignoring the execution path.
-Use `.Global()` for tool installation tasks that should run once regardless of
+Use `Global: true` for tool installation tasks that should run once regardless of
 how many paths trigger them:
 
 ```go
-var InstallUV = pk.NewTask("install:uv", "install uv", nil, body).Hidden().Global()
+var InstallUV = pk.NewTask(pk.TaskConfig{
+    Name:   "install:uv",
+    Usage:  "install uv",
+    Body:   body,
+    Hidden: true,
+    Global: true,
+})
 ```
 
 **Force execution** with `WithForceRun()` to bypass deduplication entirely:

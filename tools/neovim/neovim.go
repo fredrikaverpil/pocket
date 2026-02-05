@@ -77,9 +77,13 @@ func Install(version string) *pk.Task {
 	}
 
 	taskName := fmt.Sprintf("install:nvim-%s", sanitizeVersion(version))
-	return pk.NewTask(taskName, fmt.Sprintf("install neovim %s", version), nil,
-		installNeovim(version),
-	).Hidden().Global()
+	return pk.NewTask(pk.TaskConfig{
+		Name:   taskName,
+		Usage:  fmt.Sprintf("install neovim %s", version),
+		Body:   installNeovim(version),
+		Hidden: true,
+		Global: true,
+	})
 }
 
 func sanitizeVersion(version string) string {
