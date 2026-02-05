@@ -56,9 +56,9 @@ func DefaultMatrixConfig() MatrixConfig {
 }
 
 // MatrixConfigKey is the context key for MatrixConfig.
-// Use with pk.WithValue to configure static workflow generation:
+// Use with pk.WithContextValue to configure static workflow generation:
 //
-//	pk.WithValue(github.MatrixConfigKey{}, github.MatrixConfig{...})
+//	pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{...})
 type MatrixConfigKey struct{}
 
 // matrixConfigFromContext retrieves MatrixConfig from context.

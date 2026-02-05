@@ -109,12 +109,12 @@ func WithDetect(fn DetectFunc) PathOption {
 	}
 }
 
-// WithValue passes structured configuration to tasks via context.
+// WithContextValue passes structured configuration to tasks via context.
 // Tasks retrieve the value using ctx.Value(key).
 //
 // Use this when configuration is too complex for simple flags (structs, maps, slices).
 // For simple string/bool values, prefer pk.WithFlag instead.
-func WithValue(key, value any) PathOption {
+func WithContextValue(key, value any) PathOption {
 	return func(pf *pathFilter) {
 		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})
 	}

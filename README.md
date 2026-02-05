@@ -200,7 +200,7 @@ var Config = &pk.Config{
             github.Tasks(),
             pk.WithFlag(github.Workflows, "skip-pocket", true),
             pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-            pk.WithValue(github.MatrixConfigKey{}, github.MatrixConfig{
+            pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "lint": {Platforms: []string{"ubuntu-latest"}},
