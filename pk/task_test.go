@@ -217,11 +217,6 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	}
 
 	t.Run("DefaultValue", func(t *testing.T) {
-		// Reset flag to default before test.
-		if err := task.flagSet.Set("myflag", "default"); err != nil {
-			t.Fatal(err)
-		}
-
 		// Capture the flag value via GetFlag from inside the task.
 		var captured string
 		task.Do = func(ctx context.Context) error {
@@ -239,11 +234,6 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	})
 
 	t.Run("WithOverride", func(t *testing.T) {
-		// Reset flag to default before test.
-		if err := task.flagSet.Set("myflag", "default"); err != nil {
-			t.Fatal(err)
-		}
-
 		ctx := context.Background()
 		// Create Plan with pre-computed flag override.
 		plan := planWithFlags(map[string]any{"myflag": "overridden"})
@@ -265,11 +255,6 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	})
 
 	t.Run("PreMergedOverrides", func(t *testing.T) {
-		// Reset flag to default before test.
-		if err := task.flagSet.Set("myflag", "default"); err != nil {
-			t.Fatal(err)
-		}
-
 		ctx := context.Background()
 		plan := planWithFlags(map[string]any{"myflag": "inner"})
 		ctx = context.WithValue(ctx, planKey{}, plan)
@@ -612,6 +597,63 @@ func TestBuildFlagSet(t *testing.T) {
 			t.Error("expected non-nil flagSet even with no flags")
 		}
 	})
+}
+
+// TestTask_Parallel_WithNameSuffix_FlagRace tests that parallel execution of
+// the same task with different WithNameSuffix and WithFlag values doesn't race
+// on the shared flagSet. Run with `go test -race` to verify.
+func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
+	var (
+		captured39  string
+		captured310 string
+	)
+
+	task := &Task{
+		Name:  "multi-ver",
+		Usage: "test task",
+		Flags: map[string]FlagDef{
+			"version": {Default: "unset", Usage: "version"},
+		},
+		Do: func(ctx context.Context) error {
+			ver := GetFlag[string](ctx, "version")
+			suffix := nameSuffixFromContext(ctx)
+			switch suffix {
+			case "3.9":
+				captured39 = ver
+			case "3.10":
+				captured310 = ver
+			}
+			return nil
+		},
+	}
+
+	cfg := &Config{
+		Auto: Parallel(
+			WithOptions(task, WithNameSuffix("3.9"), WithFlag(task, "version", "3.9")),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlag(task, "version", "3.10")),
+		),
+	}
+
+	plan, err := newPlan(cfg, "/tmp", []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	ctx = withExecutionTracker(ctx, newExecutionTracker())
+	ctx = context.WithValue(ctx, planKey{}, plan)
+	ctx = context.WithValue(ctx, outputKey{}, StdOutput())
+
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if captured39 != "3.9" {
+		t.Errorf("expected multi-ver:3.9 to get version=3.9, got %q", captured39)
+	}
+	if captured310 != "3.10" {
+		t.Errorf("expected multi-ver:3.10 to get version=3.10, got %q", captured310)
+	}
 }
 
 func TestGetFlag_RecoveredByTaskRun(t *testing.T) {

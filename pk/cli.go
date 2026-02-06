@@ -99,6 +99,17 @@ func run(cfg *Config) (*executionTracker, error) {
 				}
 				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
+			// Extract only explicitly-set CLI flags (not defaults) for
+			// highest-priority override in task.run().
+			cliFlags := make(map[string]any)
+			instance.task.flagSet.Visit(func(f *flag.Flag) {
+				if getter, ok := f.Value.(flag.Getter); ok {
+					cliFlags[f.Name] = getter.Get()
+				}
+			})
+			if len(cliFlags) > 0 {
+				ctx = withCLIFlags(ctx, cliFlags)
+			}
 		}
 
 		// Check if this is a builtin task.

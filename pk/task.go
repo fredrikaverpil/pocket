@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"sort"
 )
@@ -75,6 +76,22 @@ func withTaskFlags(ctx context.Context, flags map[string]any) context.Context {
 // taskFlagsFromContext retrieves resolved flag values from context.
 func taskFlagsFromContext(ctx context.Context) map[string]any {
 	if flags, ok := ctx.Value(taskFlagsKey{}).(map[string]any); ok {
+		return flags
+	}
+	return nil
+}
+
+// cliFlagsKey is the context key for CLI-provided flag overrides.
+type cliFlagsKey struct{}
+
+// withCLIFlags stores CLI-provided flag values in context.
+func withCLIFlags(ctx context.Context, flags map[string]any) context.Context {
+	return context.WithValue(ctx, cliFlagsKey{}, flags)
+}
+
+// cliFlagsFromContext retrieves CLI-provided flag values from context.
+func cliFlagsFromContext(ctx context.Context) map[string]any {
+	if flags, ok := ctx.Value(cliFlagsKey{}).(map[string]any); ok {
 		return flags
 	}
 	return nil
@@ -156,40 +173,34 @@ func (t *Task) run(ctx context.Context) error {
 		effectiveName = t.Name + ":" + suffix
 	}
 
-	// Apply pre-computed flag overrides from Plan and check manual status.
-	// Flags are pre-merged during planning and stored on taskInstance.
+	// Check manual status via Plan.
 	if plan := PlanFromContext(ctx); plan != nil {
 		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
-			// Skip manual tasks during auto execution.
 			if instance.isManual && isAutoExec(ctx) {
 				return nil
-			}
-			if t.flagSet != nil && instance.flags != nil {
-				for name, value := range instance.flags {
-					if f := t.flagSet.Lookup(name); f != nil {
-						if err := f.Value.Set(fmt.Sprint(value)); err != nil {
-							return fmt.Errorf(
-								"task %q: setting flag %q to %v: %w",
-								effectiveName, name, value, err,
-							)
-						}
-					}
-				}
 			}
 		}
 	}
 
-	// Collect resolved flag values into context for GetFlag access.
-	if t.flagSet != nil {
-		resolved := make(map[string]any)
-		t.flagSet.VisitAll(func(f *flag.Flag) {
-			if getter, ok := f.Value.(flag.Getter); ok {
-				resolved[f.Name] = getter.Get()
-			}
-		})
-		if len(resolved) > 0 {
-			ctx = withTaskFlags(ctx, resolved)
+	// Build resolved flags from declared defaults + plan overrides + CLI overrides.
+	// This avoids mutating the shared flagSet, preventing races when the same
+	// task runs in parallel with different WithNameSuffix variants.
+	if len(t.Flags) > 0 {
+		resolved := make(map[string]any, len(t.Flags))
+		for name, def := range t.Flags {
+			resolved[name] = def.Default
 		}
+		// Apply plan-level overrides (from WithFlag).
+		if plan := PlanFromContext(ctx); plan != nil {
+			if instance := plan.taskInstanceByName(effectiveName); instance != nil {
+				maps.Copy(resolved, instance.flags)
+			}
+		}
+		// Apply CLI overrides (highest priority).
+		if cliFlags := cliFlagsFromContext(ctx); cliFlags != nil {
+			maps.Copy(resolved, cliFlags)
+		}
+		ctx = withTaskFlags(ctx, resolved)
 	}
 
 	// Check deduplication unless forceRun is set in context.
