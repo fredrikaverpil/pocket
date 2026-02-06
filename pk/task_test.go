@@ -287,7 +287,6 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 			t.Errorf("expected pre-merged override value, got %q", captured)
 		}
 	})
-
 }
 
 // TestTask_Run_NameSuffixDeduplication tests that tasks with same base name
@@ -348,10 +347,16 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	var runCount atomic.Int32
 
 	// Global task - should deduplicate by base name only.
-	task := &Task{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Do: func(_ context.Context) error {
-		runCount.Add(1)
-		return nil
-	}}
+	task := &Task{
+		Name:   "install:uv",
+		Usage:  "install uv",
+		Hidden: true,
+		Global: true,
+		Do: func(_ context.Context) error {
+			runCount.Add(1)
+			return nil
+		},
+	}
 
 	ctx := context.Background()
 	tracker := newExecutionTracker()

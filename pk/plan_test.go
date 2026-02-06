@@ -59,7 +59,12 @@ func TestPlan_Tasks(t *testing.T) {
 	})
 
 	t.Run("HiddenTask", func(t *testing.T) {
-		task := &Task{Name: "internal", Usage: "internal task", Hidden: true, Do: func(_ context.Context) error { return nil }}
+		task := &Task{
+			Name:   "internal",
+			Usage:  "internal task",
+			Hidden: true,
+			Do:     func(_ context.Context) error { return nil },
+		}
 
 		cfg := &Config{
 			Auto: task,

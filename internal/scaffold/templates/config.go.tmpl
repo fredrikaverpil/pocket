@@ -32,11 +32,11 @@ var Config = &pk.Config{
 }
 
 // Hello is an example task. Replace with your own tasks.
-var Hello = pk.NewTask(pk.TaskConfig{
+var Hello = &pk.Task{
 	Name:  "hello",
 	Usage: "print a greeting message",
-	Body: pk.Do(func(ctx context.Context) error {
+	Do: func(ctx context.Context) error {
 		pk.Println(ctx, "Hello from Pocket!")
 		return nil
-	}),
-})
+	},
+}

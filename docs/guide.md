@@ -59,17 +59,27 @@ defines what it does.
 
 ### Defining Tasks
 
-A task is created using `pk.NewTask` with a `pk.TaskConfig` struct.
+Tasks are created as struct literals:
 
 ```go
-var Hello = pk.NewTask(pk.TaskConfig{
+var Hello = &pk.Task{
     Name:  "hello",
     Usage: "print a greeting",
-    Body: pk.Do(func(ctx context.Context) error {
+    Do: func(ctx context.Context) error {
         fmt.Println("Hello!")
         return nil
-    }),
-})
+    },
+}
+```
+
+For composed tasks, use the `Body` field instead of `Do`:
+
+```go
+var Lint = &pk.Task{
+    Name:  "lint",
+    Usage: "run linters",
+    Body:  pk.Serial(Install, lintCmd()),
+}
 ```
 
 ### The Do Helper
@@ -90,12 +100,12 @@ If a task is only intended to be used as a dependency or called
 programmatically, hide it from CLI help output:
 
 ```go
-var InternalTask = pk.NewTask(pk.TaskConfig{
+var InternalTask = &pk.Task{
     Name:   "internal",
     Usage:  "...",
     Body:   body,
     Hidden: true,
-})
+}
 ```
 
 Hidden tasks still execute when part of a composition tree—they just don't
@@ -116,24 +126,22 @@ var Config = &pk.Config{
 
 ### Task Flags
 
-Pocket uses the standard library's `flag` package. Define flags for a task by
-passing a `FlagSet`:
+Flags are defined declaratively using `map[string]pk.FlagDef` and accessed at
+runtime with `pk.GetFlag[T]`:
 
 ```go
-var (
-    deployFlags = flag.NewFlagSet("deploy", flag.ContinueOnError)
-    env         = deployFlags.String("env", "staging", "target environment")
-)
-
-var Deploy = pk.NewTask(pk.TaskConfig{
+var Deploy = &pk.Task{
     Name:  "deploy",
     Usage: "deploy the app",
-    Flags: deployFlags,
-    Body: pk.Do(func(ctx context.Context) error {
-        fmt.Printf("Deploying to %s...\n", *env)
+    Flags: map[string]pk.FlagDef{
+        "env": {Default: "staging", Usage: "target environment"},
+    },
+    Do: func(ctx context.Context) error {
+        env := pk.GetFlag[string](ctx, "env")
+        fmt.Printf("Deploying to %s...\n", env)
         return nil
-    }),
-})
+    },
+}
 ```
 
 Run it with:
@@ -142,18 +150,24 @@ Run it with:
 ./pok deploy -env prod
 ```
 
+Supported default types: `string`, `bool`, `int`, `float64`.
+
+`GetFlag` catches typos and type mismatches immediately — if you call
+`pk.GetFlag[bool](ctx, "evn")` (typo), the task fails with a clear error:
+`task "deploy": flag "evn": not found`.
+
 ### Suppressing Headers
 
 By default, tasks print a `:: taskname` header before execution. For tasks that
 output machine-readable data (e.g., JSON), suppress the header:
 
 ```go
-var Matrix = pk.NewTask(pk.TaskConfig{
+var Matrix = &pk.Task{
     Name:       "gha-matrix",
     Usage:      "output CI matrix",
     Body:       body,
     HideHeader: true,
-})
+}
 ```
 
 ---
@@ -241,15 +255,15 @@ project controls tool versions, not Pocket.
 Use `pk.InstallGo` for Go-based tools:
 
 ```go
-var installLint = pk.NewTask(pk.TaskConfig{
+var installLint = &pk.Task{
     Name:   "install:golangci-lint",
     Usage:  "install linter",
     Body:   pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8"),
     Hidden: true,
     Global: true,
-})
+}
 
-var Lint = pk.NewTask(pk.TaskConfig{
+var Lint = &pk.Task{
     Name:  "lint",
     Usage: "run golangci-lint",
     Body: pk.Serial(
@@ -258,10 +272,10 @@ var Lint = pk.NewTask(pk.TaskConfig{
             return pk.Exec(ctx, "golangci-lint", "run")
         }),
     ),
-})
+}
 ```
 
-Install tasks use `Hidden: true` and `Global: true` in their `TaskConfig`:
+Install tasks use `Hidden: true` and `Global: true`:
 
 - **Hidden**: Excludes from CLI help (internal implementation detail)
 - **Global**: Deduplicates by name only, ignoring path context
@@ -277,7 +291,7 @@ other sources. Import `"github.com/fredrikaverpil/pocket/pk/download"`.
 ```go
 import "github.com/fredrikaverpil/pocket/pk/download"
 
-var installStyLua = pk.NewTask(pk.TaskConfig{
+var installStyLua = &pk.Task{
     Name:   "install:stylua",
     Usage:  "install StyLua formatter",
     Hidden: true,
@@ -295,7 +309,7 @@ var installStyLua = pk.NewTask(pk.TaskConfig{
         download.WithSymlink(),
         download.WithSkipIfExists(pk.FromToolsDir("stylua", "2.0.2", pk.BinaryName("stylua"))),
     ),
-})
+}
 ```
 
 ### Download API
@@ -422,7 +436,7 @@ For custom Python tasks, use the `tools/uv` package directly:
 ```go
 import "github.com/fredrikaverpil/pocket/tools/uv"
 
-var Docs = pk.NewTask(pk.TaskConfig{
+var Docs = &pk.Task{
     Name:  "docs",
     Usage: "build documentation",
     Body: pk.Serial(
@@ -441,7 +455,7 @@ var Docs = pk.NewTask(pk.TaskConfig{
             }, "mkdocs", "build")
         }),
     ),
-})
+}
 ```
 
 **Key types and functions:**
@@ -478,13 +492,13 @@ See `tools/mdformat/` for a complete example:
 package mdformat
 
 // Install ensures mdformat is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
     Name:   "install:mdformat",
     Usage:  "install mdformat",
     Body:   pk.Serial(uv.Install, installMdformat()),
     Hidden: true,
     Global: true,
-})
+}
 
 func installMdformat() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
@@ -523,13 +537,13 @@ Tasks use the tool via its `Exec()` function:
 
 ```go
 // tasks/markdown/format.go
-var Format = pk.NewTask(pk.TaskConfig{
+var Format = &pk.Task{
     Name:  "md-format",
     Usage: "format Markdown files",
     Body: pk.Serial(mdformat.Install, pk.Do(func(ctx context.Context) error {
         return mdformat.Exec(ctx, "--wrap", "80", ".")
     })),
-})
+}
 ```
 
 **When to use which pattern:**
@@ -565,13 +579,13 @@ var packageJSON []byte
 var lockfile []byte
 
 // Install ensures prettier is available.
-var Install = pk.NewTask(pk.TaskConfig{
+var Install = &pk.Task{
     Name:   "install:prettier",
     Usage:  "install prettier",
     Body:   pk.Serial(bun.Install, installPrettier()),
     Hidden: true,
     Global: true,
-})
+}
 
 func installPrettier() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
@@ -605,13 +619,13 @@ Tasks use the tool via its `Exec()` function:
 
 ```go
 // tasks/markdown/format.go
-var Format = pk.NewTask(pk.TaskConfig{
+var Format = &pk.Task{
     Name:  "md-format",
     Usage: "format Markdown files",
     Body: pk.Serial(prettier.Install, pk.Do(func(ctx context.Context) error {
         return prettier.Exec(ctx, "--write", "**/*.md")
     })),
-})
+}
 ```
 
 **Key functions:**
@@ -632,7 +646,7 @@ environment:
 ```go
 import "github.com/fredrikaverpil/pocket/tools/bun"
 
-var Build = pk.NewTask(pk.TaskConfig{
+var Build = &pk.Task{
     Name:  "build",
     Usage: "build frontend",
     Body: pk.Serial(
@@ -649,7 +663,7 @@ var Build = pk.NewTask(pk.TaskConfig{
             return bun.Run(ctx, projectDir, "build")
         }),
     ),
-})
+}
 ```
 
 **When to use which pattern:**
@@ -1004,7 +1018,7 @@ pk.Do(func(ctx context.Context) error {
 
     // Use plan for introspection
     for _, task := range plan.Tasks() {
-        fmt.Printf("Task: %s\n", task.Name())
+        fmt.Printf("Task: %s\n", task.Name)
     }
     return nil
 })

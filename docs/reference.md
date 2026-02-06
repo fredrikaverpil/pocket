@@ -83,45 +83,70 @@ Tasks are the fundamental units of work.
 
 ### Creating Tasks
 
+Tasks are created as struct literals with exported fields:
+
 ```go
-type TaskConfig struct {
-    Name       string
-    Usage      string
-    Body       Runnable
-    Flags      *flag.FlagSet
-    Hidden     bool
-    Global     bool
-    HideHeader bool
+type Task struct {
+    Name       string                         // Required: unique identifier
+    Usage      string                         // Short description for help output
+    Do         func(context.Context) error    // Inline function (mutually exclusive with Body)
+    Body       Runnable                       // Composed logic (mutually exclusive with Do)
+    Flags      map[string]FlagDef             // Declarative CLI flags
+    Hidden     bool                           // Hide from CLI listings
+    HideHeader bool                           // Suppress ":: taskname" header
+    Global     bool                           // Deduplicate by name only, ignoring path
 }
 
-func NewTask(cfg TaskConfig) *Task
+type FlagDef struct {
+    Default any     // Default value (string, bool, int, or float64)
+    Usage   string  // Help text
+}
 ```
 
 ```go
-var Lint = pk.NewTask(pk.TaskConfig{
+var Lint = &pk.Task{
     Name:  "lint",
     Usage: "run linters",
-    Body: pk.Do(func(ctx context.Context) error {
+    Do: func(ctx context.Context) error {
         return pk.Exec(ctx, "golangci-lint", "run")
-    }),
-})
+    },
+}
 ```
 
-### Task Query Methods
+### Task Flags
 
-| Method           | Description                                            |
-| :--------------- | :----------------------------------------------------- |
-| `IsHidden`       | Returns whether the task is hidden                     |
-| `IsHeaderHidden` | Returns whether the task header is hidden              |
-| `IsGlobal`       | Returns whether the task deduplicates globally         |
-| `Name`           | Returns the task name                                  |
-| `Usage`          | Returns the task usage description                     |
-| `Flags`          | Returns the task's `*flag.FlagSet`                     |
+Flags are declared on the task and accessed via `GetFlag[T]`:
 
 ```go
-var Internal = pk.NewTask(pk.TaskConfig{Name: "internal", Usage: "...", Body: body, Hidden: true})
-var Matrix = pk.NewTask(pk.TaskConfig{Name: "matrix", Usage: "...", Body: body, HideHeader: true})
-var Install = pk.NewTask(pk.TaskConfig{Name: "install:tool", Usage: "...", Body: body, Hidden: true, Global: true})
+func GetFlag[T any](ctx context.Context, name string) T
+```
+
+`GetFlag` returns the resolved flag value. If the flag name is not found or the
+type doesn't match, the task fails with a clear error (e.g.,
+`task "lint": flag "fxi": not found`).
+
+```go
+var Deploy = &pk.Task{
+    Name:  "deploy",
+    Usage: "deploy the app",
+    Flags: map[string]pk.FlagDef{
+        "env":     {Default: "staging", Usage: "target environment"},
+        "dry-run": {Default: false, Usage: "preview without deploying"},
+    },
+    Do: func(ctx context.Context) error {
+        env := pk.GetFlag[string](ctx, "env")
+        dryRun := pk.GetFlag[bool](ctx, "dry-run")
+        // ...
+    },
+}
+```
+
+### Task Examples
+
+```go
+var Internal = &pk.Task{Name: "internal", Usage: "...", Body: body, Hidden: true}
+var Matrix = &pk.Task{Name: "matrix", Usage: "...", Body: body, HideHeader: true}
+var Install = &pk.Task{Name: "install:tool", Usage: "...", Body: body, Hidden: true, Global: true}
 ```
 
 ---
@@ -171,7 +196,7 @@ These options work with any task:
 | `WithFlag`         | Set a default flag value for a task in scope                |
 | `WithSkipTask`     | Skip specified tasks within this scope                      |
 | `WithExcludeTask`  | Exclude a task from directories matching patterns           |
-| `WithContextValue`        | Pass structured config (structs, maps) to tasks via context |
+| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
 
 ```go
 pk.WithOptions(
@@ -245,17 +270,17 @@ This means:
 - Different variants (via `WithNameSuffix`) run separately
 
 **Global tasks** deduplicate by `baseName@.` only, ignoring the execution path.
-Use `Global: true` for tool installation tasks that should run once regardless of
-how many paths trigger them:
+Use `Global: true` for tool installation tasks that should run once regardless
+of how many paths trigger them:
 
 ```go
-var InstallUV = pk.NewTask(pk.TaskConfig{
+var InstallUV = &pk.Task{
     Name:   "install:uv",
     Usage:  "install uv",
     Body:   body,
     Hidden: true,
     Global: true,
-})
+}
 ```
 
 **Force execution** with `WithForceRun()` to bypass deduplication entirely:
@@ -481,11 +506,12 @@ Context accessors and modifiers are available from the `pk` package.
 
 ### Accessors (Getters)
 
-| Function             | Description                                 |
-| :------------------- | :------------------------------------------ |
-| `pk.PathFromContext` | Current execution path relative to git root |
-| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)   |
-| `pk.Verbose`         | Whether `-v` flag was provided              |
+| Function             | Description                                          |
+| :------------------- | :--------------------------------------------------- |
+| `pk.GetFlag[T]`      | Retrieve a task flag value (errors on typo/mismatch) |
+| `pk.PathFromContext` | Current execution path relative to git root          |
+| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)            |
+| `pk.Verbose`         | Whether `-v` flag was provided                       |
 
 ### Modifiers (Setters)
 
