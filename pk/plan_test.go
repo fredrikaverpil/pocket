@@ -527,6 +527,37 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 	})
 }
 
+func TestNewPlan_InvalidRegexPattern(t *testing.T) {
+	allDirs := []string{".", "services", "pkg"}
+	task := &Task{Name: "test", Usage: "test", Do: func(_ context.Context) error { return nil }}
+
+	t.Run("InvalidInclude", func(t *testing.T) {
+		cfg := &Config{
+			Auto: WithOptions(task, WithIncludePath("[invalid(regex")),
+		}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err == nil {
+			t.Fatal("expected error for invalid regex pattern")
+		}
+		if !strings.Contains(err.Error(), "invalid pattern") {
+			t.Errorf("expected 'invalid pattern' error, got: %v", err)
+		}
+	})
+
+	t.Run("InvalidExclude", func(t *testing.T) {
+		cfg := &Config{
+			Auto: WithOptions(task, WithIncludePath("services"), WithExcludePath("[bad")),
+		}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err == nil {
+			t.Fatal("expected error for invalid regex pattern")
+		}
+		if !strings.Contains(err.Error(), "invalid pattern") {
+			t.Errorf("expected 'invalid pattern' error, got: %v", err)
+		}
+	})
+}
+
 func TestPlan_ContextValues(t *testing.T) {
 	allDirs := []string{"."}
 
