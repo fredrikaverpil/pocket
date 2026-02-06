@@ -40,7 +40,6 @@ jobs:
           key: {{`${{ runner.os }}`}}-pocket-{{ .ID }}-{{`${{ hashFiles('**/go.sum') }}`}}
           restore-keys: |
             {{`${{ runner.os }}`}}-pocket-{{ .ID }}-
-            {{`${{ runner.os }}`}}-pocket-
       - name: Run {{ .Task }}
         shell: {{ .Shell }}
         run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}{{ if .FlagsArgs }} {{ .FlagsArgs }}{{ end }}

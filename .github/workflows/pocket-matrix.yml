@@ -39,7 +39,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-fix-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-fix-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run go-fix
         shell: bash
         run: ./pok -v -g go-fix
@@ -77,7 +76,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-format-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-format-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run go-format
         shell: bash
         run: ./pok -v -g go-format
@@ -115,7 +113,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-lint-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-lint-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run go-lint
         shell: bash
         run: ./pok -v -g go-lint
@@ -153,7 +150,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-test-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-test-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: bash
         run: ./pok -v -g go-test
@@ -191,7 +187,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-test-macos-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-test-macos-
-            ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: bash
         run: ./pok -v -g go-test
@@ -229,7 +224,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-test-windows-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-test-windows-
-            ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: pwsh
         run: .\pok.ps1 -v -g go-test
@@ -267,7 +261,6 @@ jobs:
           key: ${{ runner.os }}-pocket-go-vulncheck-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-go-vulncheck-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run go-vulncheck
         shell: bash
         run: ./pok -v -g go-vulncheck
@@ -305,7 +298,6 @@ jobs:
           key: ${{ runner.os }}-pocket-md-format-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-md-format-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run md-format
         shell: bash
         run: ./pok -v -g md-format
@@ -343,7 +335,6 @@ jobs:
           key: ${{ runner.os }}-pocket-github-workflows-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pocket-github-workflows-ubuntu-
-            ${{ runner.os }}-pocket-
       - name: Run github-workflows
         shell: bash
         run: ./pok -v -g github-workflows -include-pocket-matrix -skip-pocket
