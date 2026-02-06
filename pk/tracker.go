@@ -84,11 +84,6 @@ func executionTrackerFromContext(ctx context.Context) *executionTracker {
 	return nil
 }
 
-// withForceRun returns a new context with forceRun set to true.
-func withForceRun(c context.Context) context.Context {
-	return context.WithValue(c, forceRunKey, true)
-}
-
 // markWarning records that a warning was detected during execution.
 func (t *executionTracker) markWarning() {
 	t.mu.Lock()

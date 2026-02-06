@@ -11,26 +11,13 @@ import (
 // Context Keys
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// contextKey is the type for context keys in this package.
-type contextKey int
-
-const (
-	// pathKey is the context key for the current execution path.
-	pathKey contextKey = iota
-	// forceRunKey is the context key for forcing task execution.
-	forceRunKey
-	// verboseKey is the context key for verbose mode.
-	verboseKey
-	// gitDiffKey is the context key for git diff enabled flag.
-	gitDiffKey
-	// envKey is the context key for environment variable overrides.
-	envKey
-	// nameSuffixKey is the context key for task name suffix.
-	nameSuffixKey
-	// autoExecKey is the context key for auto execution mode.
-	// When set, manual tasks are skipped.
-	autoExecKey
-)
+type pathKey struct{}       // Current execution path.
+type forceRunKey struct{}   // Forcing task execution.
+type verboseKey struct{}    // Verbose mode.
+type gitDiffKey struct{}    // Git diff enabled flag.
+type envKey struct{}        // Environment variable overrides.
+type nameSuffixKey struct{} // Task name suffix.
+type autoExecKey struct{}   // Auto execution mode (manual tasks are skipped).
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Context Accessors (Getters)
@@ -39,7 +26,7 @@ const (
 // PathFromContext returns the current execution path from the context.
 // Returns "." if no path is set (meaning git root).
 func PathFromContext(ctx context.Context) string {
-	if path, ok := ctx.Value(pathKey).(string); ok {
+	if path, ok := ctx.Value(pathKey{}).(string); ok {
 		return path
 	}
 	return "."
@@ -47,7 +34,7 @@ func PathFromContext(ctx context.Context) string {
 
 // Verbose returns whether verbose mode is enabled in the context.
 func Verbose(ctx context.Context) bool {
-	if v, ok := ctx.Value(verboseKey).(bool); ok {
+	if v, ok := ctx.Value(verboseKey{}).(bool); ok {
 		return v
 	}
 	return false
@@ -55,7 +42,7 @@ func Verbose(ctx context.Context) bool {
 
 // gitDiffEnabledFromContext returns whether git diff is enabled in the context.
 func gitDiffEnabledFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(gitDiffKey).(bool); ok {
+	if v, ok := ctx.Value(gitDiffKey{}).(bool); ok {
 		return v
 	}
 	return false
@@ -63,14 +50,14 @@ func gitDiffEnabledFromContext(ctx context.Context) bool {
 
 // isAutoExec returns whether auto execution mode is active.
 func isAutoExec(ctx context.Context) bool {
-	v, _ := ctx.Value(autoExecKey).(bool)
+	v, _ := ctx.Value(autoExecKey{}).(bool)
 	return v
 }
 
 // nameSuffixFromContext returns the name suffix from the context.
 // Returns empty string if no suffix is set.
 func nameSuffixFromContext(ctx context.Context) string {
-	if s, ok := ctx.Value(nameSuffixKey).(string); ok {
+	if s, ok := ctx.Value(nameSuffixKey{}).(string); ok {
 		return s
 	}
 	return ""
@@ -78,7 +65,7 @@ func nameSuffixFromContext(ctx context.Context) string {
 
 // forceRunFromContext returns whether forceRun is set in the context.
 func forceRunFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(forceRunKey).(bool); ok {
+	if v, ok := ctx.Value(forceRunKey{}).(bool); ok {
 		return v
 	}
 	return false
@@ -94,23 +81,28 @@ func forceRunFromContext(ctx context.Context) bool {
 //	ctx = pk.ContextWithPath(ctx, "services/api")
 //	pk.Exec(ctx, "go", "test", "./...") // runs in services/api/
 func ContextWithPath(ctx context.Context, path string) context.Context {
-	return context.WithValue(ctx, pathKey, path)
+	return context.WithValue(ctx, pathKey{}, path)
 }
 
 // contextWithVerbose returns a new context with verbose mode set.
 func contextWithVerbose(ctx context.Context, verbose bool) context.Context {
-	return context.WithValue(ctx, verboseKey, verbose)
+	return context.WithValue(ctx, verboseKey{}, verbose)
 }
 
 // contextWithGitDiffEnabled returns a new context with git diff enabled flag set.
 func contextWithGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
-	return context.WithValue(ctx, gitDiffKey, enabled)
+	return context.WithValue(ctx, gitDiffKey{}, enabled)
 }
 
 // contextWithAutoExec returns a new context with auto execution mode enabled.
 // When auto exec is active, manual tasks are skipped.
 func contextWithAutoExec(ctx context.Context) context.Context {
-	return context.WithValue(ctx, autoExecKey, true)
+	return context.WithValue(ctx, autoExecKey{}, true)
+}
+
+// withForceRun returns a new context with forceRun set to true.
+func withForceRun(ctx context.Context) context.Context {
+	return context.WithValue(ctx, forceRunKey{}, true)
 }
 
 // contextWithNameSuffix returns a new context with the given name suffix.
@@ -120,7 +112,7 @@ func contextWithNameSuffix(ctx context.Context, suffix string) context.Context {
 	if existing != "" {
 		suffix = existing + ":" + suffix
 	}
-	return context.WithValue(ctx, nameSuffixKey, suffix)
+	return context.WithValue(ctx, nameSuffixKey{}, suffix)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -149,7 +141,7 @@ func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 		cfg.Set = make(map[string]string)
 	}
 	cfg.Set[key] = value
-	return context.WithValue(ctx, envKey, cfg)
+	return context.WithValue(ctx, envKey{}, cfg)
 }
 
 // ContextWithoutEnv returns a new context that filters out environment variables
@@ -160,13 +152,13 @@ func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 func ContextWithoutEnv(ctx context.Context, prefix string) context.Context {
 	cfg := EnvConfigFromContext(ctx)
 	cfg.Filter = append(cfg.Filter, prefix)
-	return context.WithValue(ctx, envKey, cfg)
+	return context.WithValue(ctx, envKey{}, cfg)
 }
 
 // EnvConfigFromContext returns the environment config from the context.
 // Returns a copy to avoid mutating the original.
 func EnvConfigFromContext(ctx context.Context) EnvConfig {
-	cfg, ok := ctx.Value(envKey).(EnvConfig)
+	cfg, ok := ctx.Value(envKey{}).(EnvConfig)
 	if !ok {
 		return EnvConfig{}
 	}

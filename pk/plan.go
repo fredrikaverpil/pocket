@@ -450,7 +450,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeFlags = prevFlags
 
 	default:
-		// Unknown runnable type - skip it
+		panic(fmt.Sprintf("pk: unknown Runnable type %T in walk", r))
 	}
 
 	return nil
