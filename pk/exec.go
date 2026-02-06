@@ -121,7 +121,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	}
 
 	// Even on success, show output if it contains warnings/notices.
-	if output := buf.String(); containsNotice(output) {
+	if output := buf.String(); containsNotice(output, noticePatternsFromContext(ctx)) {
 		_, _ = out.Stderr.Write([]byte(output))
 		if tracker := executionTrackerFromContext(ctx); tracker != nil {
 			tracker.markWarning()
@@ -130,14 +130,34 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	return nil
 }
 
-// containsNotice returns true if the output contains warning-like patterns.
-func containsNotice(output string) bool {
+// DefaultNoticePatterns are the default substrings used to detect
+// warning-like output from commands.
+var DefaultNoticePatterns = []string{"warn", "deprecat", "notice", "caution", "error"}
+
+// noticePatternsKey is the context key for custom notice patterns.
+type noticePatternsKey struct{}
+
+// noticePatternsFromContext returns the notice patterns from context.
+// Returns DefaultNoticePatterns if not set.
+func noticePatternsFromContext(ctx context.Context) []string {
+	if patterns, ok := ctx.Value(noticePatternsKey{}).([]string); ok {
+		return patterns
+	}
+	return DefaultNoticePatterns
+}
+
+// containsNotice returns true if the output contains any of the given patterns.
+func containsNotice(output string, patterns []string) bool {
+	if len(patterns) == 0 {
+		return false
+	}
 	lower := strings.ToLower(output)
-	return strings.Contains(lower, "warn") ||
-		strings.Contains(lower, "deprecat") ||
-		strings.Contains(lower, "notice") ||
-		strings.Contains(lower, "caution") ||
-		strings.Contains(lower, "error")
+	for _, p := range patterns {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // RegisterPATH registers a directory to be added to PATH for all Exec calls.

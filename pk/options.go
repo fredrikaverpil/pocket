@@ -116,6 +116,15 @@ func WithContextValue(key, value any) PathOption {
 	}
 }
 
+// WithNoticePatterns sets the patterns used to detect warning-like output
+// from commands in the current scope. Uses replace semantics (not append).
+// Pass no patterns to disable notice detection entirely.
+func WithNoticePatterns(patterns ...string) PathOption {
+	return func(pf *pathFilter) {
+		pf.noticePatterns = patterns
+	}
+}
+
 // WithNameSuffix creates a named variant of tasks within this scope.
 // The suffix is appended with a colon separator (e.g., "py-test" becomes "py-test:3.9").
 //
@@ -175,16 +184,17 @@ func DetectByFile(filenames ...string) DetectFunc {
 // It determines which directories to execute in based on include/exclude patterns
 // and optional detection functions.
 type pathFilter struct {
-	inner         Runnable
-	includePaths  []string
-	excludePaths  []excludePattern
-	skippedTasks  []string
-	flags         []flagOverride
-	contextValues []contextValue // Key-value pairs to add to context.
-	nameSuffix    string         // Suffix to append to task names (e.g., ":3.9").
-	detectFunc    DetectFunc     // Optional detection function for dynamic path discovery.
-	resolvedPaths []string       // Cached resolved paths from plan building.
-	forceRun      bool           // Disable task deduplication for the wrapped Runnable.
+	inner          Runnable
+	includePaths   []string
+	excludePaths   []excludePattern
+	skippedTasks   []string
+	flags          []flagOverride
+	contextValues  []contextValue // Key-value pairs to add to context.
+	nameSuffix     string         // Suffix to append to task names (e.g., ":3.9").
+	detectFunc     DetectFunc     // Optional detection function for dynamic path discovery.
+	resolvedPaths  []string       // Cached resolved paths from plan building.
+	forceRun       bool           // Disable task deduplication for the wrapped Runnable.
+	noticePatterns []string       // Custom notice detection patterns (nil = use default).
 }
 
 type contextValue struct {
@@ -221,6 +231,11 @@ func (pf *pathFilter) run(ctx context.Context) error {
 	// Apply name suffix to context.
 	if pf.nameSuffix != "" {
 		ctx = contextWithNameSuffix(ctx, pf.nameSuffix)
+	}
+
+	// Apply notice patterns to context (nil means use default, empty slice disables).
+	if pf.noticePatterns != nil {
+		ctx = context.WithValue(ctx, noticePatternsKey{}, pf.noticePatterns)
 	}
 
 	// Execute inner Runnable for each resolved path.
