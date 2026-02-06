@@ -222,7 +222,7 @@ type taskKey struct {
 
 // filterPaths applies detection function or include patterns, then exclude patterns.
 // If detectFunc is set, it takes precedence over includePaths.
-func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
+func (pc *taskCollector) filterPaths(pf *pathFilter) ([]string, error) {
 	var results []string
 
 	// Start with current candidates, but apply all GLOBAL active excludes first.
@@ -231,7 +231,11 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 	candidates := pc.candidates
 	for _, ex := range pc.activeExcludes {
 		if len(ex.tasks) == 0 {
-			candidates = excludeByPatterns(candidates, []string{ex.pattern})
+			var err error
+			candidates, err = excludeByPatterns(candidates, []string{ex.pattern})
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -244,7 +248,11 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 	case len(pf.includePaths) > 0:
 		for _, dir := range candidates {
 			for _, pattern := range pf.includePaths {
-				if matchPattern(dir, pattern) {
+				matched, err := matchPattern(dir, pattern)
+				if err != nil {
+					return nil, err
+				}
+				if matched {
 					results = append(results, dir)
 					break
 				}
@@ -262,7 +270,7 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) []string {
 		}
 	}
 
-	return results
+	return results, nil
 }
 
 // walk recursively traverses the Runnable tree.
@@ -322,7 +330,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// Apply global excludes first.
 			for _, ex := range pc.activeExcludes {
 				if len(ex.tasks) == 0 {
-					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+					var err error
+					finalPaths, err = excludeByPatterns(finalPaths, []string{ex.pattern})
+					if err != nil {
+						return err
+					}
 				}
 			}
 
@@ -339,7 +351,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// If this removes all paths for this task, that's intentional - the task just won't run.
 			for _, ex := range pc.activeExcludes {
 				if len(ex.tasks) > 0 && slices.Contains(ex.tasks, v.Name) {
-					finalPaths = excludeByPatterns(finalPaths, []string{ex.pattern})
+					var err error
+					finalPaths, err = excludeByPatterns(finalPaths, []string{ex.pattern})
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -405,7 +421,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 
 	case *pathFilter:
 		// 1. Resolve paths for this filter based on current candidates.
-		v.resolvedPaths = pc.filterPaths(v)
+		resolved, err := pc.filterPaths(v)
+		if err != nil {
+			return err
+		}
+		v.resolvedPaths = resolved
 
 		// 2. Save state for nesting.
 		prevCandidates := pc.candidates
@@ -457,15 +477,19 @@ func (pc *taskCollector) walk(r Runnable) error {
 }
 
 // excludeByPatterns filters out directories matching any of the patterns.
-func excludeByPatterns(dirs, patterns []string) []string {
+func excludeByPatterns(dirs, patterns []string) ([]string, error) {
 	if len(patterns) == 0 {
-		return dirs
+		return dirs, nil
 	}
 	var result []string
 	for _, dir := range dirs {
 		excluded := false
 		for _, pattern := range patterns {
-			if matchPattern(dir, pattern) {
+			matched, err := matchPattern(dir, pattern)
+			if err != nil {
+				return nil, err
+			}
+			if matched {
 				excluded = true
 				break
 			}
@@ -474,7 +498,7 @@ func excludeByPatterns(dirs, patterns []string) []string {
 			result = append(result, dir)
 		}
 	}
-	return result
+	return result, nil
 }
 
 // deriveModuleDirectories returns directories where shims should be generated.

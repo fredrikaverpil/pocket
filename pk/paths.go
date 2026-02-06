@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -152,8 +153,19 @@ func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]s
 	return dirs, err
 }
 
+// regexCache caches compiled regexes by pattern string.
+// Patterns are write-once, read-many making sync.Map ideal.
+var regexCache sync.Map
+
 // matchPattern checks if a path matches a regex pattern.
-func matchPattern(path, pattern string) bool {
-	matched, _ := regexp.MatchString(pattern, path)
-	return matched
+func matchPattern(path, pattern string) (bool, error) {
+	cached, ok := regexCache.Load(pattern)
+	if !ok {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false, fmt.Errorf("invalid pattern %q: %w", pattern, err)
+		}
+		cached, _ = regexCache.LoadOrStore(pattern, re)
+	}
+	return cached.(*regexp.Regexp).MatchString(path), nil
 }
