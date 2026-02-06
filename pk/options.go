@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -45,9 +46,6 @@ func WithExcludePath(patterns ...string) PathOption {
 func WithExcludeTask(task any, patterns ...string) PathOption {
 	return func(pf *pathFilter) {
 		name := toTaskName(task)
-		if name == "" {
-			return
-		}
 		for _, p := range patterns {
 			pf.excludePaths = append(pf.excludePaths, excludePattern{
 				pattern: p,
@@ -69,13 +67,11 @@ func WithSkipTask(tasks ...any) PathOption {
 // The task can be specified by its string name or by the task object itself.
 func WithFlag(task any, flagName string, value any) PathOption {
 	return func(pf *pathFilter) {
-		if name := toTaskName(task); name != "" {
-			pf.flags = append(pf.flags, flagOverride{
-				taskName: name,
-				flagName: flagName,
-				value:    value,
-			})
-		}
+		pf.flags = append(pf.flags, flagOverride{
+			taskName: toTaskName(task),
+			flagName: flagName,
+			value:    value,
+		})
 	}
 }
 
@@ -240,9 +236,7 @@ func (pf *pathFilter) run(ctx context.Context) error {
 func toTaskNames(tasks []any) []string {
 	names := make([]string, 0, len(tasks))
 	for _, t := range tasks {
-		if name := toTaskName(t); name != "" {
-			names = append(names, name)
-		}
+		names = append(names, toTaskName(t))
 	}
 	return names
 }
@@ -254,6 +248,6 @@ func toTaskName(v any) string {
 	case *Task:
 		return t.Name
 	default:
-		return ""
+		panic(fmt.Sprintf("pk: unsupported task type %T (expected string or *pk.Task)", v))
 	}
 }
