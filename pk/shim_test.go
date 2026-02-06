@@ -163,7 +163,8 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		return nil
 	}}
 
-	// Create plan with task mapped to multiple paths
+	// Create plan with task mapped to multiple paths.
+	// taskIndex must point into taskInstances slice (same as newPlan does).
 	p := &Plan{
 		taskInstances: []taskInstance{{
 			task:          task,
@@ -177,6 +178,9 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 			},
 		},
 		// Note: git diff won't run because -g flag is not in context
+	}
+	p.taskIndex = map[string]*taskInstance{
+		"scoped-task": &p.taskInstances[0],
 	}
 
 	// Test 1: With TASK_SCOPE="pk", should only run in pk

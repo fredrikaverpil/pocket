@@ -165,12 +165,7 @@ func findTaskByName(p *Plan, name string) *taskInstance {
 	if p == nil {
 		return nil
 	}
-	for i := range p.taskInstances {
-		if p.taskInstances[i].name == name {
-			return &p.taskInstances[i]
-		}
-	}
-	return nil
+	return p.taskInstanceByName(name)
 }
 
 // printTaskHelp prints help for a specific task.
