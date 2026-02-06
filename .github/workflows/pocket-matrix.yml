@@ -36,8 +36,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-fix-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-fix-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run go-fix
         shell: bash
@@ -52,7 +53,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-fix-ubuntu-${{ hashFiles('**/go.sum') }}
 
   go-format-ubuntu:
     name: go-format (ubuntu-latest)
@@ -73,8 +74,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-format-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-format-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run go-format
         shell: bash
@@ -89,7 +91,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-format-ubuntu-${{ hashFiles('**/go.sum') }}
 
   go-lint-ubuntu:
     name: go-lint (ubuntu-latest)
@@ -110,8 +112,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-lint-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-lint-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run go-lint
         shell: bash
@@ -126,7 +129,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-lint-ubuntu-${{ hashFiles('**/go.sum') }}
 
   go-test-ubuntu:
     name: go-test (ubuntu-latest)
@@ -147,8 +150,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-test-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: bash
@@ -163,7 +167,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-ubuntu-${{ hashFiles('**/go.sum') }}
 
   go-test-macos:
     name: go-test (macos-latest)
@@ -184,8 +188,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-macos-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-test-macos-
             ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: bash
@@ -200,7 +205,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-macos-${{ hashFiles('**/go.sum') }}
 
   go-test-windows:
     name: go-test (windows-latest)
@@ -221,8 +226,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-windows-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-test-windows-
             ${{ runner.os }}-pocket-
       - name: Run go-test
         shell: pwsh
@@ -237,7 +243,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-test-windows-${{ hashFiles('**/go.sum') }}
 
   go-vulncheck-ubuntu:
     name: go-vulncheck (ubuntu-latest)
@@ -258,8 +264,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-vulncheck-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-go-vulncheck-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run go-vulncheck
         shell: bash
@@ -274,7 +281,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-go-vulncheck-ubuntu-${{ hashFiles('**/go.sum') }}
 
   md-format-ubuntu:
     name: md-format (ubuntu-latest)
@@ -295,8 +302,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-md-format-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-md-format-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run md-format
         shell: bash
@@ -311,7 +319,7 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-md-format-ubuntu-${{ hashFiles('**/go.sum') }}
 
   github-workflows-ubuntu:
     name: github-workflows (ubuntu-latest)
@@ -332,8 +340,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-github-workflows-ubuntu-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-pocket-github-workflows-ubuntu-
             ${{ runner.os }}-pocket-
       - name: Run github-workflows
         shell: bash
@@ -348,5 +357,5 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: ${{ runner.os }}-pocket-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-pocket-github-workflows-ubuntu-${{ hashFiles('**/go.sum') }}
 

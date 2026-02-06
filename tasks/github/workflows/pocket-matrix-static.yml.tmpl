@@ -37,8 +37,9 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: {{`${{ runner.os }}`}}-pocket-{{`${{ hashFiles('**/go.sum') }}`}}
+          key: {{`${{ runner.os }}`}}-pocket-{{ .ID }}-{{`${{ hashFiles('**/go.sum') }}`}}
           restore-keys: |
+            {{`${{ runner.os }}`}}-pocket-{{ .ID }}-
             {{`${{ runner.os }}`}}-pocket-
       - name: Run {{ .Task }}
         shell: {{ .Shell }}
@@ -53,5 +54,5 @@ jobs:
             .pocket/bin
             .pocket/tools
             .pocket/venvs
-          key: {{`${{ runner.os }}`}}-pocket-{{`${{ hashFiles('**/go.sum') }}`}}
+          key: {{`${{ runner.os }}`}}-pocket-{{ .ID }}-{{`${{ hashFiles('**/go.sum') }}`}}
 {{ end }}
