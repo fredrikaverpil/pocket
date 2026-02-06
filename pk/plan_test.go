@@ -431,6 +431,56 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 	})
 }
 
+func TestNewPlan_DetectBasedShimGeneration(t *testing.T) {
+	allDirs := []string{".", "services", "services/api", "services/web", "pkg"}
+
+	newTask := func(name string) *Task {
+		return &Task{Name: name, Usage: "usage", Do: func(_ context.Context) error { return nil }}
+	}
+
+	detectServices := func(dirs []string, _ string) []string {
+		var result []string
+		for _, d := range dirs {
+			if d == "services/api" || d == "services/web" {
+				result = append(result, d)
+			}
+		}
+		return result
+	}
+
+	task := newTask("go-lint")
+
+	cfg := &Config{
+		Auto: WithOptions(task, WithDetect(detectServices)),
+	}
+
+	plan, err := newPlan(cfg, "/tmp", allDirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// moduleDirectories should include detected paths.
+	dirs := plan.moduleDirectories
+	for _, expected := range []string{".", "services/api", "services/web"} {
+		if !slices.Contains(dirs, expected) {
+			t.Errorf("expected moduleDirectories to contain %q, got %v", expected, dirs)
+		}
+	}
+
+	// taskRunsInPath should return true for detected paths.
+	if !plan.taskRunsInPath("go-lint", "services/api") {
+		t.Error("expected go-lint visible from services/api")
+	}
+	if !plan.taskRunsInPath("go-lint", "services/web") {
+		t.Error("expected go-lint visible from services/web")
+	}
+
+	// taskRunsInPath should return false for non-detected paths.
+	if plan.taskRunsInPath("go-lint", "pkg") {
+		t.Error("expected go-lint NOT visible from pkg")
+	}
+}
+
 func TestNewPlan_BuiltinConflict(t *testing.T) {
 	allDirs := []string{"."}
 

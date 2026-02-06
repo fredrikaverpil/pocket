@@ -19,6 +19,7 @@ Shims are generated at:
 
 1. **Root** (`.`) - always, shows all tasks
 2. **Include paths** - each `WithIncludePath("dir")` gets a shim
+3. **Detected paths** - each path returned by `WithDetect(fn)` gets a shim
 
 Shims are NOT generated at every resolved subdirectory. For example, if
 `WithIncludePath("internal")` resolves to `internal/`, `internal/shim/`, and

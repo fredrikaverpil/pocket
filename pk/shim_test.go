@@ -72,6 +72,29 @@ func TestShimDirectories_Sorted(t *testing.T) {
 	}
 }
 
+func TestShimDirectories_DetectedPaths(t *testing.T) {
+	// When a detect-based scope is used, resolvedPaths are stored as includePaths
+	// in pathMappings. Verify deriveModuleDirectories picks them up.
+	pathMappings := map[string]pathInfo{
+		"go-lint": {
+			includePaths:  []string{"services/api", "services/web"},
+			resolvedPaths: []string{"services/api", "services/web"},
+		},
+	}
+
+	dirs := deriveModuleDirectories(pathMappings)
+
+	expected := []string{".", "services/api", "services/web"}
+	if len(dirs) != len(expected) {
+		t.Fatalf("expected %d directories, got %d: %v", len(expected), len(dirs), dirs)
+	}
+	for _, exp := range expected {
+		if !slices.Contains(dirs, exp) {
+			t.Errorf("expected %q in directories, got %v", exp, dirs)
+		}
+	}
+}
+
 func TestTaskRunsInPath_RootSeesAllTasks(t *testing.T) {
 	p := &Plan{
 		pathMappings: map[string]pathInfo{

@@ -392,9 +392,15 @@ func (pc *taskCollector) walk(r Runnable) error {
 
 		// Record path mapping using effective name.
 		// Used for visibility filtering, shim generation, and plan introspection.
+		// For detect-based scopes, use resolvedPaths as includePaths so that
+		// deriveModuleDirectories and taskRunsInPath work correctly.
 		var allIncludes []string
 		if pc.currentPath != nil {
-			allIncludes = pc.currentPath.includePaths
+			if pc.currentPath.detectFunc != nil && len(pc.currentPath.includePaths) == 0 {
+				allIncludes = pc.currentPath.resolvedPaths
+			} else {
+				allIncludes = pc.currentPath.includePaths
+			}
 		}
 		if len(allIncludes) == 0 {
 			allIncludes = []string{"."}
