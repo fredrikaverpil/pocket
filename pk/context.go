@@ -11,13 +11,15 @@ import (
 // Context Keys
 // ═══════════════════════════════════════════════════════════════════════════════
 
-type pathKey struct{}       // Current execution path.
-type forceRunKey struct{}   // Forcing task execution.
-type verboseKey struct{}    // Verbose mode.
-type gitDiffKey struct{}    // Git diff enabled flag.
-type envKey struct{}        // Environment variable overrides.
-type nameSuffixKey struct{} // Task name suffix.
-type autoExecKey struct{}   // Auto execution mode (manual tasks are skipped).
+type (
+	pathKey       struct{} // Current execution path.
+	forceRunKey   struct{} // Forcing task execution.
+	verboseKey    struct{} // Verbose mode.
+	gitDiffKey    struct{} // Git diff enabled flag.
+	envKey        struct{} // Environment variable overrides.
+	nameSuffixKey struct{} // Task name suffix.
+	autoExecKey   struct{} // Auto execution mode (manual tasks are skipped).
+)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Context Accessors (Getters)
