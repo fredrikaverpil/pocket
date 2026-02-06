@@ -153,19 +153,25 @@ func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]s
 	return dirs, err
 }
 
-// regexCache caches compiled regexes by pattern string.
-// Patterns are write-once, read-many making sync.Map ideal.
-var regexCache sync.Map
+var (
+	regexMu    sync.RWMutex
+	regexCache = make(map[string]*regexp.Regexp)
+)
 
 // matchPattern checks if a path matches a regex pattern.
 func matchPattern(path, pattern string) (bool, error) {
-	cached, ok := regexCache.Load(pattern)
+	regexMu.RLock()
+	re, ok := regexCache[pattern]
+	regexMu.RUnlock()
 	if !ok {
-		re, err := regexp.Compile(pattern)
+		var err error
+		re, err = regexp.Compile(pattern)
 		if err != nil {
 			return false, fmt.Errorf("invalid pattern %q: %w", pattern, err)
 		}
-		cached, _ = regexCache.LoadOrStore(pattern, re)
+		regexMu.Lock()
+		regexCache[pattern] = re
+		regexMu.Unlock()
 	}
-	return cached.(*regexp.Regexp).MatchString(path), nil
+	return re.MatchString(path), nil
 }
