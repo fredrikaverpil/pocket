@@ -274,21 +274,14 @@ var pyprojectTOML []byte
 //go:embed uv.lock
 var uvLock []byte
 
-var (
-    versionOnce sync.Once
-    version     string
-)
-
 // Version extracts the version from pyproject.toml.
+// renovate: datasource=pypi depName=zensical
 func Version() string {
-    versionOnce.Do(func() {
-        // renovate: datasource=pypi depName=zensical
-        re := regexp.MustCompile(`"zensical==([^"]+)"`)
-        if m := re.FindSubmatch(pyprojectTOML); len(m) > 1 {
-            version = string(m[1])
-        }
-    })
-    return version
+    re := regexp.MustCompile(`"zensical==([^"]+)"`)
+    if m := re.FindSubmatch(pyprojectTOML); len(m) > 1 {
+        return string(m[1])
+    }
+    return ""
 }
 
 var Install = &pk.Task{
@@ -302,10 +295,8 @@ var Install = &pk.Task{
 func installZensical() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         installDir := pk.FromToolsDir(Name, Version())
-        binary := uv.BinaryPath(
-            uv.VenvPath(installDir, ""),
-            Name,
-        )
+        venvPath := filepath.Join(installDir, "venv")
+        binary := uv.BinaryPath(venvPath, Name)
 
         if _, err := os.Stat(binary); err == nil {
             return nil
@@ -325,8 +316,22 @@ func installZensical() pk.Runnable {
             return err
         }
 
-        return uv.Sync(ctx, uv.SyncOptions{ProjectDir: installDir})
+        return uv.Sync(ctx, uv.SyncOptions{
+            PythonVersion: uv.DefaultPythonVersion,
+            VenvPath:      venvPath,
+            ProjectDir:    installDir,
+        })
     })
+}
+
+// InstallDir returns the installation directory for zensical.
+func InstallDir() string {
+    return pk.FromToolsDir(Name, Version())
+}
+
+// VenvPath returns the virtual environment path for zensical.
+func VenvPath() string {
+    return filepath.Join(InstallDir(), "venv")
 }
 ```
 

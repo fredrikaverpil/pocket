@@ -6,7 +6,7 @@
         should cover with tests.
   - [ ] Can we create complete test scenarios with composed Config.Auto setups?
   - [ ] Can we end-to-end test the bootstrapper (`pocket init`)?
-- [ ] Add [zensical](https://github.com/zensical/zensical) as tool into the
+- [x] Add [zensical](https://github.com/zensical/zensical) as tool into the
       "tools" package, with flags -serve and -build. For this tool, we want to
       maintain the version string in Pocket (with Renovate-ability to bump), and
       it would be ideal if we simply abstract away the whole Python setup and
