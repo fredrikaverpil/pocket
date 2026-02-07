@@ -29,7 +29,8 @@ provider. Your CI becomes portable.
 - **Automated Tool Management**: Define tool dependencies (like `golangci-lint`)
   directly in Go. Pocket handles downloading, versioning, and caching in
   `.pocket/`.
-- **CI/CD Integration**: Access the execution plan programmatically to generate
+- **Introspectable Execution Plans**: Preview exactly what will run with
+  `./pok plan` before executing, or access the plan programmatically to generate
   CI matrices, documentation, or custom tooling. Your tasks become the single
   source of truth.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
