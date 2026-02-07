@@ -227,9 +227,21 @@ platforms—no YAML editing required.
 
 ## Documentation
 
-- [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering, and
-  CI integration.
+### Using Pocket
+
+- [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering,
+  and CI integration.
 - [API Reference](./docs/reference.md) - Technical specification of the `pk`
   package.
-- [Architecture](./.claude/skills/pocket-engine/SKILL.md) - Internal design,
-  shim model, and execution internals.
+
+### Extending Pocket
+
+- [Adding Tools](./.claude/skills/adding-tools/SKILL.md) - How to add new tools
+  (binaries, linters, formatters) with cross-platform support and Renovate
+  integration. [Patterns](./.claude/skills/adding-tools/PATTERNS.md).
+- [Adding Tasks](./.claude/skills/adding-tasks/SKILL.md) - How to write tasks
+  that wrap tools with opinionated defaults, flags, and verbose handling.
+  [Patterns](./.claude/skills/adding-tasks/PATTERNS.md).
+- [Engine Architecture](./.claude/skills/pocket-engine/SKILL.md) - Internal
+  design, plan building, composition, and execution pipeline.
+  [Internals](./.claude/skills/pocket-engine/INTERNALS.md).
