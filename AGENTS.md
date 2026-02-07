@@ -15,10 +15,10 @@ filtered by directory paths.
 ./pok plan -json   # View execution plan as JSON
 ```
 
-To run tests for the `pk/` package directly (e.g. a single test):
+To run a specific test:
 
 ```bash
-go test ./pk/... -run TestName
+./pok go-test -run TestName
 ```
 
 ## Project Structure
