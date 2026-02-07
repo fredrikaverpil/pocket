@@ -29,7 +29,8 @@ cd .pocket && go run . plan -json
 
 ## Go Version
 
-Requires Go 1.25.5+ (uses `strings.SplitSeq` in shim generation).
+Requires Go (version defined in `.pocket/go.mod`). Pocket downloads Go
+automatically if not already installed.
 
 ## Development Status
 
