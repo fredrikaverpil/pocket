@@ -608,6 +608,318 @@ func TestNewPlan_InvalidRegexPattern(t *testing.T) {
 	})
 }
 
+// assertTaskNames verifies that plan.Tasks() produces the expected task names in order.
+func assertTaskNames(t *testing.T, got []TaskInfo, want []string) {
+	t.Helper()
+	gotNames := make([]string, len(got))
+	for i, ti := range got {
+		gotNames[i] = ti.Name
+	}
+	if !slices.Equal(gotNames, want) {
+		t.Errorf("task names mismatch\ngot:  %v\nwant: %v", gotNames, want)
+	}
+}
+
+// findTaskInfo returns the TaskInfo with the given name, or nil if not found.
+func findTaskInfo(tasks []TaskInfo, name string) *TaskInfo {
+	for i := range tasks {
+		if tasks[i].Name == name {
+			return &tasks[i]
+		}
+	}
+	return nil
+}
+
+func TestNewPlan_ComposedConfigs(t *testing.T) {
+	noop := func(_ context.Context) error { return nil }
+
+	t.Run("Creosote", func(t *testing.T) {
+		// Stub tasks matching the real creosote config structure.
+		uvInstall := &Task{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Do: noop}
+		pyFormat := &Task{
+			Name: "py-format", Usage: "format python files", Do: noop,
+			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+		}
+		pyLint := &Task{
+			Name: "py-lint", Usage: "lint python files", Do: noop,
+			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+		}
+		pyTypecheck := &Task{
+			Name: "py-typecheck", Usage: "type-check python files", Do: noop,
+			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+		}
+		pyTest := &Task{
+			Name: "py-test", Usage: "run python tests", Do: noop,
+			Flags: map[string]FlagDef{
+				"python":   {Default: "", Usage: "python version"},
+				"coverage": {Default: false, Usage: "enable coverage"},
+			},
+		}
+		creosoteTask := &Task{Name: "creosote", Usage: "run creosote self-check", Do: noop}
+		preCommitCheck := &Task{Name: "pre-commit-check", Usage: "check pre-commit rev format", Do: noop}
+		ghWorkflows := &Task{
+			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
+			Flags: map[string]FlagDef{
+				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
+				"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow"},
+			},
+		}
+
+		// Detect function that returns root (simulating pyproject.toml at root).
+		detectPyproject := func(_ []string, _ string) []string { return []string{"."} }
+
+		// Compose exactly like the creosote config.
+		cfg := &Config{
+			Auto: Serial(
+				// Python tasks with 3.9 suffix.
+				WithOptions(
+					Serial(uvInstall, pyFormat, pyLint, Parallel(pyTypecheck, pyTest)),
+					WithNameSuffix("3.9"),
+					WithFlag(pyFormat, "python", "3.9"),
+					WithFlag(pyLint, "python", "3.9"),
+					WithFlag(pyTypecheck, "python", "3.9"),
+					WithFlag(pyTest, "python", "3.9"),
+					WithFlag(pyTest, "coverage", true),
+					WithDetect(detectPyproject),
+				),
+
+				// Additional Python version tests.
+				WithOptions(
+					Parallel(
+						WithOptions(pyTest, WithNameSuffix("3.10"), WithFlag(pyTest, "python", "3.10")),
+						WithOptions(pyTest, WithNameSuffix("3.11"), WithFlag(pyTest, "python", "3.11")),
+						WithOptions(pyTest, WithNameSuffix("3.12"), WithFlag(pyTest, "python", "3.12")),
+						WithOptions(pyTest, WithNameSuffix("3.13"), WithFlag(pyTest, "python", "3.13")),
+					),
+					WithDetect(detectPyproject),
+				),
+
+				Parallel(
+					creosoteTask,
+					preCommitCheck,
+					WithOptions(
+						ghWorkflows,
+						WithFlag(ghWorkflows, "skip-pocket", true),
+						WithFlag(ghWorkflows, "include-pocket-matrix", true),
+					),
+				),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", []string{"."})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+
+		// Verify task names in order.
+		assertTaskNames(t, tasks, []string{
+			"install:uv:3.9",
+			"py-format:3.9", "py-lint:3.9", "py-typecheck:3.9", "py-test:3.9",
+			"py-test:3.10", "py-test:3.11", "py-test:3.12", "py-test:3.13",
+			"creosote", "pre-commit-check", "github-workflows",
+		})
+
+		// Verify flag propagation on py-format:3.9.
+		pyFormat39 := findTaskInfo(tasks, "py-format:3.9")
+		if pyFormat39 == nil {
+			t.Fatal("expected to find py-format:3.9")
+		}
+		if pyFormat39.Flags["python"] != "3.9" {
+			t.Errorf("py-format:3.9 python flag: got %v, want %q", pyFormat39.Flags["python"], "3.9")
+		}
+
+		// Verify coverage flag on py-test:3.9.
+		pyTest39 := findTaskInfo(tasks, "py-test:3.9")
+		if pyTest39 == nil {
+			t.Fatal("expected to find py-test:3.9")
+		}
+		if pyTest39.Flags["coverage"] != true {
+			t.Errorf("py-test:3.9 coverage flag: got %v, want true", pyTest39.Flags["coverage"])
+		}
+		if pyTest39.Flags["python"] != "3.9" {
+			t.Errorf("py-test:3.9 python flag: got %v, want %q", pyTest39.Flags["python"], "3.9")
+		}
+
+		// Verify flag on a different python version.
+		pyTest312 := findTaskInfo(tasks, "py-test:3.12")
+		if pyTest312 == nil {
+			t.Fatal("expected to find py-test:3.12")
+		}
+		if pyTest312.Flags["python"] != "3.12" {
+			t.Errorf("py-test:3.12 python flag: got %v, want %q", pyTest312.Flags["python"], "3.12")
+		}
+
+		// Verify hidden status on install:uv:3.9.
+		uvInstall39 := findTaskInfo(tasks, "install:uv:3.9")
+		if uvInstall39 == nil {
+			t.Fatal("expected to find install:uv:3.9")
+		}
+		if !uvInstall39.Hidden {
+			t.Error("install:uv:3.9 should be hidden")
+		}
+
+		// Verify github-workflows flags.
+		ghTask := findTaskInfo(tasks, "github-workflows")
+		if ghTask == nil {
+			t.Fatal("expected to find github-workflows")
+		}
+		if ghTask.Flags["skip-pocket"] != true {
+			t.Errorf("github-workflows skip-pocket flag: got %v, want true", ghTask.Flags["skip-pocket"])
+		}
+		if ghTask.Flags["include-pocket-matrix"] != true {
+			t.Errorf(
+				"github-workflows include-pocket-matrix flag: got %v, want true",
+				ghTask.Flags["include-pocket-matrix"],
+			)
+		}
+
+		// Verify paths: all tasks should run at root since detect returns ".".
+		for _, ti := range tasks {
+			if !slices.Contains(ti.Paths, ".") {
+				t.Errorf("%s: expected paths to contain '.', got %v", ti.Name, ti.Paths)
+			}
+		}
+	})
+
+	t.Run("NeotestGolang", func(t *testing.T) {
+		// Stub tasks matching the real neotest-golang config structure.
+		mdFormat := &Task{Name: "md-format", Usage: "format markdown", Do: noop}
+		luaFormat := &Task{Name: "lua-format", Usage: "format lua", Do: noop}
+		docsTask := &Task{Name: "docs", Usage: "generate docs", Do: noop}
+
+		goFix := &Task{Name: "go-fix", Usage: "update code for newer go", Do: noop}
+		goFormat := &Task{Name: "go-format", Usage: "format go code", Do: noop}
+		goLint := &Task{Name: "go-lint", Usage: "lint go code", Do: noop}
+		goTest := &Task{Name: "go-test", Usage: "run go tests", Do: noop}
+		goVulncheck := &Task{Name: "go-vulncheck", Usage: "run govulncheck", Do: noop}
+
+		queryFormat := &Task{
+			Name: "query-format", Usage: "format tree-sitter queries", Do: noop,
+			Flags: map[string]FlagDef{"parsers": {Default: "", Usage: "parser names"}},
+		}
+		queryLint := &Task{
+			Name: "query-lint", Usage: "lint tree-sitter queries", Do: noop,
+			Flags: map[string]FlagDef{
+				"parsers": {Default: "", Usage: "parser names"},
+				"fix":     {Default: false, Usage: "auto-fix"},
+			},
+		}
+
+		nvimTestStable := &Task{Name: "nvim-test:stable", Usage: "plenary tests (stable)", Do: noop}
+		nvimTestNightly := &Task{Name: "nvim-test:nightly", Usage: "plenary tests (nightly)", Do: noop}
+
+		ghWorkflows := &Task{
+			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
+			Flags: map[string]FlagDef{
+				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
+				"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow"},
+			},
+		}
+
+		// Simulate directory structure with go.mod in root and some subdirs.
+		allDirs := []string{
+			".", "lua", "queries", "tests", "tests/go", "tests/features",
+		}
+
+		// Detect function that finds go.mod in root only.
+		detectGoMod := func(_ []string, _ string) []string { return []string{"."} }
+
+		// Compose exactly like the neotest-golang config.
+		cfg := &Config{
+			Auto: Serial(
+				Parallel(mdFormat, luaFormat, docsTask),
+
+				WithOptions(
+					Serial(goFix, goFormat, goLint, Parallel(goTest, goVulncheck)),
+					WithDetect(detectGoMod),
+					WithExcludeTask(goTest, "tests/go", "tests/features"),
+					WithExcludeTask(goLint, "tests/go", "tests/features"),
+				),
+
+				Serial(
+					WithOptions(queryFormat, WithFlag(queryFormat, "parsers", "go")),
+					WithOptions(queryLint, WithFlag(queryLint, "parsers", "go")),
+				),
+
+				Parallel(nvimTestStable, nvimTestNightly),
+
+				WithOptions(
+					ghWorkflows,
+					WithFlag(ghWorkflows, "skip-pocket", true),
+					WithFlag(ghWorkflows, "include-pocket-matrix", true),
+				),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tasks := plan.Tasks()
+
+		// Verify task names in order.
+		assertTaskNames(t, tasks, []string{
+			"md-format", "lua-format", "docs",
+			"go-fix", "go-format", "go-lint", "go-test", "go-vulncheck",
+			"query-format", "query-lint",
+			"nvim-test:stable", "nvim-test:nightly",
+			"github-workflows",
+		})
+
+		// Verify flag propagation on query-format.
+		qf := findTaskInfo(tasks, "query-format")
+		if qf == nil {
+			t.Fatal("expected to find query-format")
+		}
+		if qf.Flags["parsers"] != "go" {
+			t.Errorf("query-format parsers flag: got %v, want %q", qf.Flags["parsers"], "go")
+		}
+
+		// Verify flag propagation on query-lint.
+		ql := findTaskInfo(tasks, "query-lint")
+		if ql == nil {
+			t.Fatal("expected to find query-lint")
+		}
+		if ql.Flags["parsers"] != "go" {
+			t.Errorf("query-lint parsers flag: got %v, want %q", ql.Flags["parsers"], "go")
+		}
+
+		// Verify path excludes for go-test: should NOT include tests/go or tests/features.
+		goTestInfo := plan.pathMappings["go-test"]
+		for _, excluded := range []string{"tests/go", "tests/features"} {
+			if slices.Contains(goTestInfo.resolvedPaths, excluded) {
+				t.Errorf("go-test should be excluded from %q, got paths %v", excluded, goTestInfo.resolvedPaths)
+			}
+		}
+
+		// Verify path excludes for go-lint: same exclusions.
+		goLintInfo := plan.pathMappings["go-lint"]
+		for _, excluded := range []string{"tests/go", "tests/features"} {
+			if slices.Contains(goLintInfo.resolvedPaths, excluded) {
+				t.Errorf("go-lint should be excluded from %q, got paths %v", excluded, goLintInfo.resolvedPaths)
+			}
+		}
+
+		// Verify go-fix still runs at detected path (no exclusions).
+		goFixInfo := plan.pathMappings["go-fix"]
+		if !slices.Contains(goFixInfo.resolvedPaths, ".") {
+			t.Errorf("go-fix should run at root, got paths %v", goFixInfo.resolvedPaths)
+		}
+
+		// Verify github-workflows flags.
+		ghTask := findTaskInfo(tasks, "github-workflows")
+		if ghTask == nil {
+			t.Fatal("expected to find github-workflows")
+		}
+		if ghTask.Flags["skip-pocket"] != true {
+			t.Errorf("github-workflows skip-pocket: got %v, want true", ghTask.Flags["skip-pocket"])
+		}
+	})
+}
+
 func TestPlan_ContextValues(t *testing.T) {
 	allDirs := []string{"."}
 
