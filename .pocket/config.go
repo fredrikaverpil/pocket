@@ -17,6 +17,7 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
+			pk.WithFlag(github.Workflows, "skip-gh-pages", true),
 			pk.WithFlag(github.Workflows, "skip-pocket", true),
 			pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
 			pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{

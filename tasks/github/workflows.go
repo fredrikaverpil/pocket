@@ -53,6 +53,7 @@ var Workflows = &pk.Task{
 	Flags: map[string]pk.FlagDef{
 		"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow (excluded by default)"},
 		"platforms":             {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
+		"skip-gh-pages":         {Default: false, Usage: "exclude GitHub Pages workflow"},
 		"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
 		"skip-pr":               {Default: false, Usage: "exclude PR workflow"},
 		"skip-release":          {Default: false, Usage: "exclude release-please workflow"},
@@ -89,6 +90,7 @@ func runWorkflows(ctx context.Context) error {
 	staleConfig := DefaultStaleConfig()
 
 	workflowDefs := []workflowDef{
+		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, !pk.GetFlag[bool](ctx, "skip-gh-pages")},
 		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !pk.GetFlag[bool](ctx, "skip-pocket")},
 		{"pr.yml.tmpl", "pr.yml", nil, !pk.GetFlag[bool](ctx, "skip-pr")},
 		{"release.yml.tmpl", "release.yml", nil, !pk.GetFlag[bool](ctx, "skip-release")},
