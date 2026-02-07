@@ -19,15 +19,20 @@ Tasks live under `tasks/<domain>/` and follow this layout:
 
 ```
 tasks/<domain>/
-├── tasks.go         # Package-level Tasks() factory + Detect() if applicable
-├── format.go        # One file per task action
-├── lint.go
-└── test.go
+├── tasks.go         # Package-level Tasks() factory that composes task variables + Detect() if applicable
+├── format.go        # Defines var Format = &pk.Task{...}
+├── lint.go          # Defines var Lint = &pk.Task{...}
+└── test.go          # Defines var Test = &pk.Task{...}
 ```
+
+The `Tasks()` factory function in `tasks.go` composes these task variables into an opinionated default that users can slot into their Pocket config.
 
 ## Task definition
 
+Each action file (e.g., `lint.go`, `format.go`) defines a task variable:
+
 ```go
+// lint.go
 var Lint = &pk.Task{
     Name:  "go-lint",
     Usage: "run golangci-lint",
@@ -38,8 +43,36 @@ var Lint = &pk.Task{
 }
 ```
 
+Then `tasks.go` composes these task variables in the `Tasks()` factory:
+
+```go
+// tasks.go
+func Tasks() pk.Runnable {
+    return pk.Serial(Install, Format, Lint, pk.Parallel(Typecheck, Test))
+}
+```
+
 Use `Do` for single inline functions, `Body` for composed runnables
 (`pk.Serial`/`pk.Parallel`). See [PATTERNS.md](PATTERNS.md) for details.
+
+## Composition: Serial vs Parallel
+
+When composing tasks in `Tasks()`, decide carefully between `pk.Serial()` and
+`pk.Parallel()`:
+
+- **Use `pk.Serial()` when tasks mutate files** (formatting, linting with fixes,
+  code generation). File mutations are not safe to parallelize.
+- **Use `pk.Parallel()` for independent read-only tasks** (type checking,
+  testing, linting without fixes).
+
+Example:
+```go
+// Safe to parallelize: these tasks don't mutate files
+return pk.Parallel(Typecheck, Test, Lint)
+
+// Must be serial: fmt mutates files, so it must complete before other tasks
+return pk.Serial(Format, pk.Parallel(Typecheck, Test, Lint))
+```
 
 ## Task naming
 
