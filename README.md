@@ -229,8 +229,8 @@ platforms—no YAML editing required.
 
 ### Using Pocket
 
-- [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering,
-  and CI integration.
+- [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering, and
+  CI integration.
 - [API Reference](./docs/reference.md) - Technical specification of the `pk`
   package.
 
