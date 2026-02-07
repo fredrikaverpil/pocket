@@ -1,0 +1,8 @@
+[project]
+name = "pocket-zensical"
+version = "0.1.0"
+description = "Zensical documentation tool for Pocket"
+requires-python = ">=3.11"
+dependencies = [
+    "zensical==0.0.21",
+]
