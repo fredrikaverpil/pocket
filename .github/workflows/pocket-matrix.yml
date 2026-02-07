@@ -41,6 +41,8 @@ jobs:
             ${{ runner.os }}-pocket-go-fix-ubuntu-
       - name: Run go-fix
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-fix
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -78,6 +80,8 @@ jobs:
             ${{ runner.os }}-pocket-go-format-ubuntu-
       - name: Run go-format
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-format
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -115,6 +119,8 @@ jobs:
             ${{ runner.os }}-pocket-go-lint-ubuntu-
       - name: Run go-lint
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-lint
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -152,6 +158,8 @@ jobs:
             ${{ runner.os }}-pocket-go-test-ubuntu-
       - name: Run go-test
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-test
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -189,6 +197,8 @@ jobs:
             ${{ runner.os }}-pocket-go-test-macos-
       - name: Run go-test
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-test
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -226,6 +236,8 @@ jobs:
             ${{ runner.os }}-pocket-go-test-windows-
       - name: Run go-test
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: .\pok.ps1 -v -g go-test
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -263,6 +275,8 @@ jobs:
             ${{ runner.os }}-pocket-go-vulncheck-ubuntu-
       - name: Run go-vulncheck
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g go-vulncheck
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -300,6 +314,8 @@ jobs:
             ${{ runner.os }}-pocket-md-format-ubuntu-
       - name: Run md-format
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g md-format
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -337,6 +353,8 @@ jobs:
             ${{ runner.os }}-pocket-github-workflows-ubuntu-
       - name: Run github-workflows
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: ./pok -v -g github-workflows -include-pocket-matrix -skip-pocket
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'

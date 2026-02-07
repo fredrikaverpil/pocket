@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
 )
@@ -113,6 +114,11 @@ func download(ctx context.Context, url string, opts ...Opt) error {
 		return fmt.Errorf("create request: %w", err)
 	}
 
+	// Authenticate GitHub requests to avoid rate limiting.
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" && isGitHubURL(url) {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("download: %w", err)
@@ -195,6 +201,11 @@ func processFile(path string, cfg *downloadConfig) (string, error) {
 	}
 
 	return firstFile, nil
+}
+
+// isGitHubURL reports whether the URL points to a GitHub host.
+func isGitHubURL(url string) bool {
+	return strings.Contains(url, "github.com/") || strings.Contains(url, "api.github.com/")
 }
 
 func findFirstExtractedFile(destDir string, opts []ExtractOpt) string {
