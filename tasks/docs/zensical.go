@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/tools/uv"
 	"github.com/fredrikaverpil/pocket/tools/zensical"
 )
 
@@ -25,7 +24,7 @@ func zensicalCmd() pk.Runnable {
 		serve := pk.GetFlag[bool](ctx, "serve")
 		build := pk.GetFlag[bool](ctx, "build")
 
-		// Default to build if neither flag is specified
+		// Default to build if neither flag is specified.
 		if !serve && !build {
 			build = true
 		}
@@ -37,16 +36,10 @@ func zensicalCmd() pk.Runnable {
 			args = []string{"build"}
 		}
 
-		// Pass verbose flag to zensical
 		if pk.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
 
-		// Run zensical via uv from its isolated venv
-		return uv.Run(ctx, uv.RunOptions{
-			PythonVersion: uv.DefaultPythonVersion,
-			VenvPath:      zensical.VenvPath(),
-			ProjectDir:    zensical.InstallDir(),
-		}, zensical.Name, args...)
+		return zensical.Exec(ctx, args...)
 	})
 }

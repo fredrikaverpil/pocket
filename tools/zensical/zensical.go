@@ -75,6 +75,13 @@ func installZensical() pk.Runnable {
 	})
 }
 
+// Exec runs zensical with the given arguments.
+// The working directory is determined by the context path.
+func Exec(ctx context.Context, args ...string) error {
+	binary := uv.BinaryPath(VenvPath(), Name)
+	return pk.Exec(ctx, binary, args...)
+}
+
 // InstallDir returns the installation directory for zensical.
 func InstallDir() string {
 	return pk.FromToolsDir(Name, Version())

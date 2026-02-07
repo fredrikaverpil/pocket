@@ -260,7 +260,6 @@ import (
     "os"
     "path/filepath"
     "regexp"
-    "sync"
 
     "github.com/fredrikaverpil/pocket/pk"
     "github.com/fredrikaverpil/pocket/tools/uv"
@@ -322,6 +321,13 @@ func installZensical() pk.Runnable {
             ProjectDir:    installDir,
         })
     })
+}
+
+// Exec runs zensical with the given arguments.
+// The working directory is determined by the context path.
+func Exec(ctx context.Context, args ...string) error {
+    binary := uv.BinaryPath(VenvPath(), Name)
+    return pk.Exec(ctx, binary, args...)
 }
 
 // InstallDir returns the installation directory for zensical.
