@@ -69,6 +69,57 @@ func TestWalkDirectories_SkipDirs(t *testing.T) {
 	}
 }
 
+func TestMatchPattern(t *testing.T) {
+	t.Run("SimpleMatch", func(t *testing.T) {
+		matched, err := matchPattern("services/api", "services")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !matched {
+			t.Error("expected match")
+		}
+	})
+
+	t.Run("RegexMatch", func(t *testing.T) {
+		matched, err := matchPattern("services/api-v2", `services/api-v\d+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !matched {
+			t.Error("expected match")
+		}
+	})
+
+	t.Run("NoMatch", func(t *testing.T) {
+		matched, err := matchPattern("lib/utils", "services")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if matched {
+			t.Error("expected no match")
+		}
+	})
+
+	t.Run("InvalidRegex", func(t *testing.T) {
+		_, err := matchPattern("anything", "[invalid")
+		if err == nil {
+			t.Error("expected error for invalid regex")
+		}
+	})
+
+	t.Run("CachedResult", func(t *testing.T) {
+		// Call twice with same pattern - second should use cache.
+		got1, err1 := matchPattern("a/b", "^a")
+		got2, err2 := matchPattern("a/b", "^a")
+		if err1 != nil || err2 != nil {
+			t.Fatal(err1, err2)
+		}
+		if got1 != got2 {
+			t.Error("expected same result from cache")
+		}
+	})
+}
+
 func TestWalkDirectories_HiddenDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 

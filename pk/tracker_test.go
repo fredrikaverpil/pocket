@@ -124,6 +124,39 @@ func TestExecutionTracker_Executed(t *testing.T) {
 	}
 }
 
+func TestExecutionTracker_MarkWarning(t *testing.T) {
+	tracker := newExecutionTracker()
+
+	// Default: no warnings.
+	if tracker.warnings() {
+		t.Error("expected no warnings initially")
+	}
+
+	tracker.markWarning()
+
+	if !tracker.warnings() {
+		t.Error("expected warnings after markWarning")
+	}
+}
+
+func TestExecutionTracker_MarkWarning_Concurrent(t *testing.T) {
+	tracker := newExecutionTracker()
+
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tracker.markWarning()
+		}()
+	}
+	wg.Wait()
+
+	if !tracker.warnings() {
+		t.Error("expected warnings after concurrent marking")
+	}
+}
+
 // TestExecutionTracker_ExecutedWithSuffixes tests that executed() correctly
 // parses task names that contain colons (e.g., "py-test:3.9").
 func TestExecutionTracker_ExecutedWithSuffixes(t *testing.T) {
