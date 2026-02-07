@@ -37,6 +37,11 @@ func docsCmd() pk.Runnable {
 			args = []string{"build"}
 		}
 
+		// Pass verbose flag to zensical
+		if pk.Verbose(ctx) {
+			args = append(args, "--verbose")
+		}
+
 		// Run zensical via uv from its isolated venv
 		return uv.Run(ctx, uv.RunOptions{
 			PythonVersion: uv.DefaultPythonVersion,
