@@ -9,7 +9,7 @@ import (
 )
 
 // Zensical generates or serves documentation using zensical.
-// Automatically installs zensical if not present.
+// Automatically installs zensical if not present. Builds documentation if no flags are passed.
 var Zensical = &pk.Task{
 	Name:  "docs",
 	Usage: "generate or serve documentation with zensical",
