@@ -313,6 +313,81 @@ Manual: []pk.Runnable{
 
 ---
 
+## Project-managed dependencies
+
+When a project controls its own tool versions via `pyproject.toml`/`uv.lock` or
+`package.json`/`bun.lock`, tasks use the runtime's Sync/Run functions directly.
+No tool package under `tools/` is needed.
+
+### Python (uv.Sync + uv.Run)
+
+When `ProjectDir` is left empty, `uv.Sync` and `uv.Run` default to
+`PathFromContext(ctx)` — the project's own directory containing
+`pyproject.toml`.
+
+```go
+var Docs = &pk.Task{
+    Name:  "docs",
+    Usage: "build documentation",
+    Body: pk.Serial(
+        uv.Install,
+        pk.Do(func(ctx context.Context) error {
+            // Sync dependencies from the project's pyproject.toml.
+            if err := uv.Sync(ctx, uv.SyncOptions{
+                AllGroups: true,
+            }); err != nil {
+                return err
+            }
+
+            // Run the tool from the synced environment.
+            return uv.Run(ctx, uv.RunOptions{}, "zensical", "build")
+        }),
+    ),
+}
+```
+
+The existing `tasks/python/` package follows this pattern — `py-lint`,
+`py-format`, `py-test`, `py-typecheck` all use `uv.Sync` + `uv.Run` against
+the project's own `pyproject.toml`.
+
+### Node (bun.InstallFromLockfile + bun.Run)
+
+For bun, pass the project directory explicitly:
+
+```go
+var Build = &pk.Task{
+    Name:  "build",
+    Usage: "build frontend",
+    Body: pk.Serial(
+        bun.Install,
+        pk.Do(func(ctx context.Context) error {
+            projectDir := pk.FromGitRoot(pk.PathFromContext(ctx))
+
+            if err := bun.InstallFromLockfile(ctx, projectDir); err != nil {
+                return err
+            }
+
+            return bun.Run(ctx, projectDir, "vite", "build")
+        }),
+    ),
+}
+```
+
+### Standalone vs project-managed
+
+| Aspect              | Standalone                     | Project-managed                    |
+|---------------------|--------------------------------|------------------------------------|
+| Version control     | Pocket (embedded in tool pkg)  | Project's lockfile                 |
+| Tool package needed | Yes (`tools/<name>/`)          | No — use `uv`/`bun` directly      |
+| Installation        | `tool.Install` task            | `uv.Sync` / `bun.InstallFromLockfile` |
+| Invocation          | `tool.Exec(ctx, ...)`         | `uv.Run(ctx, ...)` / `bun.Run(ctx, ...)` |
+
+Some tools (like zensical) can be used either way. Use **standalone** when
+Pocket should control the version. Use **project-managed** when the project
+needs to pin its own version.
+
+---
+
 ## Cross-platform path handling
 
 Use Pocket helpers instead of hardcoded paths:

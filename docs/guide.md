@@ -546,14 +546,57 @@ var Format = &pk.Task{
 }
 ```
 
+#### Project Python Tools
+
+For tools where the _project_ controls versions via its own
+`pyproject.toml`—useful for linters, test runners, documentation generators, or
+any tool that should match the project's Python environment:
+
+```go
+import "github.com/fredrikaverpil/pocket/tools/uv"
+
+var Docs = &pk.Task{
+    Name:  "docs",
+    Usage: "build documentation",
+    Body: pk.Serial(
+        uv.Install,
+        pk.Do(func(ctx context.Context) error {
+            // Sync dependencies from the project's pyproject.toml.
+            if err := uv.Sync(ctx, uv.SyncOptions{
+                AllGroups: true,
+            }); err != nil {
+                return err
+            }
+
+            // Run the tool from the synced environment.
+            return uv.Run(ctx, uv.RunOptions{}, "zensical", "build")
+        }),
+    ),
+}
+```
+
+When `ProjectDir` is left empty, both `uv.Sync` and `uv.Run` default to
+`PathFromContext(ctx)`—the directory containing the project's `pyproject.toml`.
+The venv is stored at `.pocket/venvs/<project-path>/venv-<version>/`, keeping it
+out of the project tree.
+
+No tool package under `tools/` is needed—the project's lockfile controls the
+version. Only `uv.Install` is required to ensure the `uv` binary is available.
+
 **When to use which pattern:**
 
 | Aspect          | Standalone (`.pocket/tools/`) | Project-managed (`.pocket/venvs/`) |
 | :-------------- | :---------------------------- | :--------------------------------- |
 | Version control | Pocket controls version       | Project's pyproject.toml           |
 | Use case        | Shared tools across projects  | Project-specific tooling           |
-| Example         | mdformat, prettier            | ruff, mypy, pytest                 |
+| Example         | mdformat, zensical            | ruff, mypy, pytest, zensical       |
 | Invocation      | `tool.Exec(ctx, ...)`         | `uv.Run(ctx, opts, "tool", ...)`   |
+
+> [!NOTE]
+>
+> Some tools (like zensical) can be used either way. Use **standalone** when
+> Pocket should control the version. Use **project-managed** when the project
+> needs to pin its own version in `pyproject.toml` and `uv.lock`.
 
 ### Node Tools
 
