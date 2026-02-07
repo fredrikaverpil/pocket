@@ -64,8 +64,12 @@ import (
 var Hello = &pk.Task{
     Name:  "hello",
     Usage: "say hello",
+    Flags: map[string]pk.FlagDef{
+        "name": {Type: pk.FlagString, Default: "World", Usage: "name to greet"},
+    },
     Do: func(ctx context.Context) error {
-        fmt.Println("Hello from Pocket!")
+        name := pk.GetFlag[string](ctx, "name")
+        fmt.Printf("Hello, %s, from Pocket!\n", name)
         return nil
     },
 }
@@ -85,15 +89,11 @@ var Config = &pk.Config{
 
 Pocket is built around two primitives: **tasks** and **tools**.
 
-**Tasks** are units of work—linting, testing, building, deploying. They're
+**Tasks** are units of work, like linting, testing, building, deploying. They're
 composed into execution trees using `Serial` and `Parallel`.
 
 **Tools** are the dependencies tasks need to run. Instead of assuming
 `golangci-lint` is installed, you declare it as a tool:
-
-```go
-pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8")
-```
 
 Pocket downloads, versions, and caches tools in `.pocket/tools/`, ensuring
 reproducible builds across machines and CI environments. Everyone gets the exact
@@ -101,8 +101,13 @@ same version.
 
 > [!TIP]
 >
-> You can use Pocket as a task runner, or fork it entirely to build your own CI
-> platform tailored to your organization's needs.
+> Pocket has both tools and tasks hosted in this repo. They are used throughout
+> my personal projects and are quite opinionated. Examples:
+>
+> - [creosote](https://github.com/fredrikaverpil/creosote/blob/main/.pocket/config.go)
+> - [neotest-golang](https://github.com/fredrikaverpil/neotest-golang/blob/main/.pocket/config.go)
+>
+> Feel free to use my tools/tasks or build your own!
 
 ## Composition
 
@@ -123,6 +128,11 @@ var Config = &pk.Config{
 - **Serial**: Tasks run one after another, stopping on first failure
 - **Parallel**: Tasks run concurrently with buffered output (no interleaving)
 
+> [!NOTE]
+>
+> The intent is you run all of your CI testing, linting etc on `./pok`. Special
+> tasks like `./pok deploy -prod` can be added into `pk.Config{Manual: ...}`.
+
 ### Options
 
 Wrap tasks with `WithOptions` to customize behavior:
@@ -140,10 +150,15 @@ pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
     pk.WithExcludePath("testdata"),      // skip test fixtures
-    pk.WithFlag(Test, "race", true),     // enable race detector for Test
+    pk.WithFlag(Test, "race", false),    // disable race detector for Test
     pk.WithFlag(Test, "timeout", "5m"),  // set test timeout
 )
 ```
+
+> [!NOTE]
+>
+> Note that flags have to be explicitly defined in the task. The flags are not
+> automatically appending anything to the tool's execution arguments.
 
 ### Task Deduplication
 
@@ -154,14 +169,14 @@ bypass deduplication when needed.
 
 ### Shim Scoping
 
-Pocket generates shims in each detected module directory and each path defined
-with `pk.WithIncludePath`. The root shim runs everything, while subfolder shims
-only run tasks scoped to that path:
+Pocket generates shims in each detected module directory (`pk.Detect`) and each
+path defined with `pk.WithIncludePath`. The root shim runs everything, while
+subfolder shims only run tasks scoped to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths
 cd services/api && ./pok    # only runs tasks scoped to services/api
-./pok lint                  # run a specific task
+./pok lint                  # run a specific task, scoped to services/api
 ```
 
 By default, only the POSIX `pok` shim is generated. For Windows support, enable
@@ -216,24 +231,14 @@ var Config = &pk.Config{
 }
 ```
 
-Running `./pok gha-matrix` outputs JSON for GitHub Actions' `fromJson()`:
-
-```json
-{"include":[{"task":"lint","os":"ubuntu-latest",...},{"task":"test","os":"ubuntu-latest",...}]}
-```
-
-Your task definitions become the single source of truth. Add a new task to
-`Auto`, and CI automatically runs it in parallel across all configured
-platforms—no YAML editing required.
-
 ## Documentation
 
 ### Using Pocket
 
 - [User Guide](./docs/guide.md) - Tasks, tools, composition, path filtering, and
   CI integration.
-- [API Reference](./docs/reference.md) - Technical specification of the `pk`
-  package.
+- [API Reference](./docs/reference.md) - Technical specification of the `pk` and
+  `pk/download` packages.
 
 ### Extending Pocket
 
@@ -246,3 +251,7 @@ platforms—no YAML editing required.
 - [Engine Architecture](./.claude/skills/pocket-engine/SKILL.md) - Internal
   design, plan building, composition, and execution pipeline.
   [Internals](./.claude/skills/pocket-engine/INTERNALS.md).
+
+```
+
+```
