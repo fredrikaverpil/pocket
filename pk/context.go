@@ -78,10 +78,11 @@ func forceRunFromContext(ctx context.Context) bool {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ContextWithPath returns a new context with the given execution path.
-// The path is relative to the git root and affects where Exec runs commands.
+// The path affects where Exec runs commands. Relative paths are resolved
+// from the git root; absolute paths are used as-is.
 //
 //	ctx = pk.ContextWithPath(ctx, "services/api")
-//	pk.Exec(ctx, "go", "test", "./...") // runs in services/api/
+//	ctx = pk.ContextWithPath(ctx, pk.FromPocketDir("tools", "mytool", "v1.0"))
 func ContextWithPath(ctx context.Context, path string) context.Context {
 	return context.WithValue(ctx, pathKey{}, path)
 }

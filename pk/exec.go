@@ -84,7 +84,10 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	colorEnvOnce.Do(initColorEnv)
 
 	path := PathFromContext(ctx)
-	targetDir := FromGitRoot(path)
+	targetDir := path
+	if !filepath.IsAbs(path) {
+		targetDir = FromGitRoot(path)
+	}
 	env := applyEnvConfig(os.Environ(), EnvConfigFromContext(ctx))
 	env = prependBinToPath(env)
 

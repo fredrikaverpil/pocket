@@ -156,8 +156,7 @@ var selfUpdateTask = &Task{
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		// Set working directory to .pocket for all commands.
-		// Use relative path since Exec resolves via FromGitRoot().
-		ctx = ContextWithPath(ctx, ".pocket")
+		ctx = ContextWithPath(ctx, pocketDir)
 
 		// 1. go get latest.
 		if GetFlag[bool](ctx, "force") {
