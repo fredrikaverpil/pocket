@@ -7,8 +7,8 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
-func TestDefaultMatrixConfig(t *testing.T) {
-	cfg := DefaultMatrixConfig()
+func TestDefaultPerJobConfig(t *testing.T) {
+	cfg := DefaultPerJobConfig()
 
 	expectedPlatforms := []string{"ubuntu-latest", "macos-latest", "windows-latest"}
 	if len(cfg.DefaultPlatforms) != len(expectedPlatforms) {
@@ -125,7 +125,7 @@ func TestGenerateStaticJobs_Default(t *testing.T) {
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := DefaultMatrixConfig()
+	cfg := DefaultPerJobConfig()
 	jobs := GenerateStaticJobs(tasks, cfg)
 
 	// 2 tasks × 3 platforms = 6 jobs
@@ -161,7 +161,7 @@ func TestGenerateStaticJobs_JobID(t *testing.T) {
 		{Name: "go-test", Usage: "test go code"},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest"},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -185,7 +185,7 @@ func TestGenerateStaticJobs_TaskOverrides(t *testing.T) {
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 		TaskOverrides: map[string]TaskOverride{
 			"lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on ubuntu
@@ -221,7 +221,7 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 		{Name: "go-lint", Usage: "lint go code"},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 		TaskOverrides: map[string]TaskOverride{
 			"py-test:.*": {Platforms: []string{"ubuntu-latest"}}, // regexp: match all py-test variants
@@ -258,7 +258,7 @@ func TestGenerateStaticJobs_ExcludeTasks(t *testing.T) {
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest"},
 		ExcludeTasks:     []string{"format"},
 	}
@@ -282,7 +282,7 @@ func TestGenerateStaticJobs_HiddenTasksExcluded(t *testing.T) {
 		{Name: "install:tool", Usage: "install tool", Hidden: true},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest"},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -302,7 +302,7 @@ func TestGenerateStaticJobs_ManualTasksExcluded(t *testing.T) {
 		{Name: "deploy", Usage: "deploy to prod", Manual: true},
 	}
 
-	cfg := MatrixConfig{
+	cfg := PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest"},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -322,7 +322,7 @@ func TestGenerateStaticJobs_GitDiff(t *testing.T) {
 	}
 
 	// Default: gitDiff enabled
-	cfg := DefaultMatrixConfig()
+	cfg := DefaultPerJobConfig()
 	cfg.DefaultPlatforms = []string{"ubuntu-latest"}
 	jobs := GenerateStaticJobs(tasks, cfg)
 
@@ -359,7 +359,7 @@ func TestGenerateStaticJobs_WindowsShell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := MatrixConfig{
+			cfg := PerJobConfig{
 				DefaultPlatforms: []string{"windows-latest"},
 				WindowsShell:     tt.windowsShell,
 				WindowsShim:      tt.windowsShim,
@@ -380,7 +380,7 @@ func TestGenerateStaticJobs_WindowsShell(t *testing.T) {
 }
 
 func TestGenerateStaticJobs_Empty(t *testing.T) {
-	cfg := DefaultMatrixConfig()
+	cfg := DefaultPerJobConfig()
 	jobs := GenerateStaticJobs(nil, cfg)
 
 	if len(jobs) != 0 {

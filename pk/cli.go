@@ -143,7 +143,7 @@ func findTask(plan *Plan, name string) *taskInstance {
 }
 
 // printFinalStatus prints success, warning, or error message with TTY-aware emojis.
-// All status messages go to stderr to avoid polluting command output (e.g., JSON from gha-matrix).
+// All status messages go to stderr to avoid polluting command output (e.g., JSON from HideHeader tasks).
 func printFinalStatus(tracker *executionTracker, err error) {
 	isTTY := isTerminal(os.Stdout)
 

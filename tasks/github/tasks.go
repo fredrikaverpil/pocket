@@ -3,16 +3,16 @@ package github
 import "github.com/fredrikaverpil/pocket/pk"
 
 // Tasks returns GitHub-related tasks.
-// Workflows generates GitHub Actions workflow files, including the static
-// pocket-matrix workflow when enabled with -include-pocket-matrix flag.
+// Workflows generates GitHub Actions workflow files, including the per-job
+// pocket-perjob workflow when enabled with -include-pocket-perjob flag.
 //
 // Use with pk.WithOptions to configure:
 //
 //	pk.WithOptions(
 //	    github.Tasks(),
 //	    pk.WithFlag(github.Workflows, "skip-pocket", true),
-//	    pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-//	    pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{...}),
+//	    pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+//	    pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{...}),
 //	)
 func Tasks() pk.Runnable {
 	return Workflows

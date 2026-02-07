@@ -46,8 +46,8 @@ defining your first task to building complex CI pipelines.
   - [Plan Structure](#plan-structure)
 - [GitHub Actions Integration](#github-actions-integration)
   - [Simple Workflow](#simple-workflow)
-  - [Matrix Workflow](#matrix-workflow)
-  - [MatrixConfig Options](#matrixconfig-options)
+  - [Per-Job Workflow](#per-job-workflow)
+  - [PerJobConfig Options](#perjobconfig-options)
 
 ---
 
@@ -162,9 +162,9 @@ By default, tasks print a `:: taskname` header before execution. For tasks that
 output machine-readable data (e.g., JSON), suppress the header:
 
 ```go
-var Matrix = &pk.Task{
-    Name:       "gha-matrix",
-    Usage:      "output CI matrix",
+var Export = &pk.Task{
+    Name:       "export",
+    Usage:      "output JSON data",
     Body:       body,
     HideHeader: true,
 }
@@ -410,8 +410,8 @@ and `pk.WithFlag()` to set the Python version and enable coverage:
 | `python.Detect()`  | DetectFunc for pyproject.toml            |
 
 When `pk.WithNameSuffix("3.9")` is used, tasks are automatically named with a
-suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions matrix
-generation.
+suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions per-job
+workflow generation.
 
 > [!NOTE]
 >
@@ -1059,7 +1059,7 @@ complete. This is useful in CI to ensure generated files are up to date.
 ## Plan Introspection
 
 Pocket builds an execution plan before running tasks. This plan is accessible at
-runtime for advanced use cases like CI matrix generation.
+runtime for advanced use cases like CI workflow generation.
 
 ### Accessing the Plan
 
@@ -1150,10 +1150,10 @@ jobs:
 
 **Cons:** All tasks run serially; no per-task platform customization.
 
-### Matrix Workflow
+### Per-Job Workflow
 
-For per-task parallelism and platform customization, enable the matrix workflow.
-This generates static job definitions at workflow creation time—each
+For per-task parallelism and platform customization, enable the per-job
+workflow. This generates static job definitions at workflow creation time—each
 task/platform combination becomes a separate job in the YAML file.
 
 ```go
@@ -1165,8 +1165,8 @@ var Config = &pk.Config{
         pk.WithOptions(
             github.Tasks(),
             pk.WithFlag(github.Workflows, "skip-pocket", true),
-            pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-            pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
+            pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+            pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on Linux
@@ -1183,9 +1183,9 @@ This configuration:
 1. `github.Tasks()` returns the `Workflows` task
 2. `pk.WithFlag(github.Workflows, "skip-pocket", true)` disables the simple
    `pocket.yml` workflow
-3. `pk.WithFlag(github.Workflows, "include-pocket-matrix", true)` enables the
-   `pocket-matrix.yml` workflow
-4. `pk.WithContextValue(github.MatrixConfigKey{}, cfg)` configures platforms and
+3. `pk.WithFlag(github.Workflows, "include-pocket-perjob", true)` enables the
+   `pocket-perjob.yml` workflow
+4. `pk.WithContextValue(github.PerJobConfigKey{}, cfg)` configures platforms and
    task overrides for job generation
 
 Running `./pok github-workflows` generates jobs like:
@@ -1227,15 +1227,15 @@ Use `pk.WithFlag()` to configure the `github.Workflows` task:
 | `skip-release`          | `bool` | Exclude `release.yml` workflow                        |
 | `skip-stale`            | `bool` | Exclude `stale.yml` workflow                          |
 | `platforms`             | `str`  | Override platforms for `pocket.yml` (comma-separated) |
-| `include-pocket-matrix` | `bool` | Enable `pocket-matrix.yml` workflow                   |
+| `include-pocket-perjob` | `bool` | Enable `pocket-perjob.yml` workflow                   |
 
-### MatrixConfig Options
+### PerJobConfig Options
 
 For complex configuration like `TaskOverrides`, use `pk.WithContextValue` to
-pass a `MatrixConfig` for workflow generation:
+pass a `PerJobConfig` for workflow generation:
 
 ```go
-type MatrixConfig struct {
+type PerJobConfig struct {
     // DefaultPlatforms for all tasks.
     // Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
     DefaultPlatforms []string
@@ -1244,7 +1244,7 @@ type MatrixConfig struct {
     // Keys are regular expressions matched against task names.
     TaskOverrides map[string]TaskOverride
 
-    // ExcludeTasks removes tasks from the matrix entirely.
+    // ExcludeTasks removes tasks from the workflow entirely.
     ExcludeTasks []string
 
     // WindowsShell: "powershell" (default) or "bash"
@@ -1254,7 +1254,7 @@ type MatrixConfig struct {
     WindowsShim string
 
     // DisableGitDiff prevents -g from being added in CI.
-    // Default (false): matrix outputs gitDiff: true for all tasks.
+    // Default (false): per-job workflow outputs gitDiff: true for all tasks.
     DisableGitDiff bool
 }
 
@@ -1267,13 +1267,13 @@ type TaskOverride struct {
 > [!NOTE]
 >
 > The `github-workflows` task also accepts flags directly (e.g.,
-> `./pok github-workflows -include-pocket-matrix`). Flag overrides via
+> `./pok github-workflows -include-pocket-perjob`). Flag overrides via
 > `pk.WithFlag` only apply when running through the composition tree (bare
 > `./pok`). When invoking tasks directly, pass flags explicitly.
 
 **Benefits comparison:**
 
-| Feature                          | Simple    | Matrix   |
+| Feature                          | Simple    | Per-Job  |
 | -------------------------------- | --------- | -------- |
 | Per-task visibility in GitHub UI | No        | Yes      |
 | Per-task platform configuration  | No        | Yes      |

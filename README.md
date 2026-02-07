@@ -203,12 +203,12 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 
 Tasks can access the full execution plan at runtime via
 `pk.PlanFromContext(ctx)`. This enables powerful workflows like **automatic CI
-matrix generation**—instead of manually syncing your CI configuration with your
-tasks, let Pocket generate it.
+workflow generation** instead of manually syncing your CI configuration with
+your tasks, let Pocket generate it.
 
 Here's an example using the
-[GitHub Actions matrix](./docs/guide.md#matrix-workflow) integration
-([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-matrix.yml)):
+[GitHub Actions per-job](./docs/guide.md#per-job-workflow) integration
+([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-perjob.yml)):
 
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"
@@ -219,8 +219,8 @@ var Config = &pk.Config{
         pk.WithOptions(
             github.Tasks(),
             pk.WithFlag(github.Workflows, "skip-pocket", true),
-            pk.WithFlag(github.Workflows, "include-pocket-matrix", true),
-            pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{
+            pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+            pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
                 DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
                 TaskOverrides: map[string]github.TaskOverride{
                     "lint": {Platforms: []string{"ubuntu-latest"}},

@@ -8,8 +8,8 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
-// MatrixConfig configures GitHub Actions matrix generation.
-type MatrixConfig struct {
+// PerJobConfig configures GitHub Actions per-job workflow generation.
+type PerJobConfig struct {
 	// DefaultPlatforms for all tasks. Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
 	DefaultPlatforms []string
 
@@ -33,7 +33,7 @@ type MatrixConfig struct {
 	WindowsShim string
 
 	// DisableGitDiff prevents -g from being added in CI.
-	// Default (false): matrix outputs gitDiff: true for all tasks.
+	// Default (false): per-job workflow outputs gitDiff: true for all tasks.
 	DisableGitDiff bool
 }
 
@@ -44,28 +44,28 @@ type TaskOverride struct {
 	Platforms []string
 }
 
-// DefaultMatrixConfig returns sensible defaults.
-func DefaultMatrixConfig() MatrixConfig {
-	return MatrixConfig{
+// DefaultPerJobConfig returns sensible defaults.
+func DefaultPerJobConfig() PerJobConfig {
+	return PerJobConfig{
 		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
 		WindowsShell:     "powershell",
 		WindowsShim:      "ps1",
 	}
 }
 
-// MatrixConfigKey is the context key for MatrixConfig.
-// Use with pk.WithContextValue to configure static workflow generation:
+// PerJobConfigKey is the context key for PerJobConfig.
+// Use with pk.WithContextValue to configure per-job workflow generation:
 //
-//	pk.WithContextValue(github.MatrixConfigKey{}, github.MatrixConfig{...})
-type MatrixConfigKey struct{}
+//	pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{...})
+type PerJobConfigKey struct{}
 
-// matrixConfigFromContext retrieves MatrixConfig from context.
-// Returns DefaultMatrixConfig() if not set.
-func matrixConfigFromContext(ctx context.Context) MatrixConfig {
-	if cfg, ok := ctx.Value(MatrixConfigKey{}).(MatrixConfig); ok {
+// perJobConfigFromContext retrieves PerJobConfig from context.
+// Returns DefaultPerJobConfig() if not set.
+func perJobConfigFromContext(ctx context.Context) PerJobConfig {
+	if cfg, ok := ctx.Value(PerJobConfigKey{}).(PerJobConfig); ok {
 		return cfg
 	}
-	return DefaultMatrixConfig()
+	return DefaultPerJobConfig()
 }
 
 // StaticJob represents a single job in the static workflow.
@@ -80,7 +80,7 @@ type StaticJob struct {
 }
 
 // GenerateStaticJobs creates static job definitions from tasks.
-func GenerateStaticJobs(tasks []pk.TaskInfo, cfg MatrixConfig) []StaticJob {
+func GenerateStaticJobs(tasks []pk.TaskInfo, cfg PerJobConfig) []StaticJob {
 	if cfg.DefaultPlatforms == nil {
 		cfg.DefaultPlatforms = []string{"ubuntu-latest", "macos-latest", "windows-latest"}
 	}

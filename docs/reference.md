@@ -145,7 +145,7 @@ var Deploy = &pk.Task{
 
 ```go
 var Internal = &pk.Task{Name: "internal", Usage: "...", Body: body, Hidden: true}
-var Matrix = &pk.Task{Name: "matrix", Usage: "...", Body: body, HideHeader: true}
+var Export = &pk.Task{Name: "export", Usage: "...", Body: body, HideHeader: true}
 var Install = &pk.Task{Name: "install:tool", Usage: "...", Body: body, Hidden: true, Global: true}
 ```
 

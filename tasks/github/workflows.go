@@ -51,7 +51,7 @@ var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
 	Flags: map[string]pk.FlagDef{
-		"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow (excluded by default)"},
+		"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow (excluded by default)"},
 		"platforms":             {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
 		"skip-gh-pages":         {Default: false, Usage: "exclude GitHub Pages workflow"},
 		"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
@@ -97,8 +97,8 @@ func runWorkflows(ctx context.Context) error {
 		{"stale.yml.tmpl", "stale.yml", staleConfig, !pk.GetFlag[bool](ctx, "skip-stale")},
 	}
 
-	// Also manage pocket-matrix.yml (generated separately via static generation)
-	allManagedFiles := []string{"pocket-matrix.yml"}
+	// Also manage pocket-perjob.yml (generated separately via per-job generation)
+	allManagedFiles := []string{"pocket-perjob.yml"}
 	for _, wf := range workflowDefs {
 		allManagedFiles = append(allManagedFiles, wf.outFile)
 	}
@@ -155,10 +155,10 @@ func runWorkflows(ctx context.Context) error {
 		copied++
 	}
 
-	// Generate static pocket-matrix workflow if requested
-	if pk.GetFlag[bool](ctx, "include-pocket-matrix") {
-		if err := generateStaticMatrixWorkflow(ctx, workflowDir, verbose); err != nil {
-			return fmt.Errorf("generate pocket-matrix workflow: %w", err)
+	// Generate per-job workflow if requested
+	if pk.GetFlag[bool](ctx, "include-pocket-perjob") {
+		if err := generatePerJobWorkflow(ctx, workflowDir, verbose); err != nil {
+			return fmt.Errorf("generate pocket-perjob workflow: %w", err)
 		}
 		copied++
 	}
@@ -170,39 +170,39 @@ func runWorkflows(ctx context.Context) error {
 	return nil
 }
 
-// staticMatrixData holds the data for the static matrix workflow template.
-type staticMatrixData struct {
+// perJobData holds the data for the per-job workflow template.
+type perJobData struct {
 	Jobs []StaticJob
 }
 
-func generateStaticMatrixWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
+func generatePerJobWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
 	plan := pk.PlanFromContext(ctx)
 	if plan == nil {
 		return fmt.Errorf("plan not available in context")
 	}
 
-	cfg := matrixConfigFromContext(ctx)
+	cfg := perJobConfigFromContext(ctx)
 	jobs := GenerateStaticJobs(plan.Tasks(), cfg)
 
 	// Read template
-	tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", "pocket-matrix-static.yml.tmpl"))
+	tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", "pocket-perjob.yml.tmpl"))
 	if err != nil {
 		return fmt.Errorf("read template: %w", err)
 	}
 
 	// Parse and execute template
-	tmpl, err := template.New("pocket-matrix-static.yml.tmpl").Parse(string(tmplContent))
+	tmpl, err := template.New("pocket-perjob.yml.tmpl").Parse(string(tmplContent))
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, staticMatrixData{Jobs: jobs}); err != nil {
+	if err := tmpl.Execute(&buf, perJobData{Jobs: jobs}); err != nil {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
 	// Write workflow file
-	destPath := filepath.Join(workflowDir, "pocket-matrix.yml")
+	destPath := filepath.Join(workflowDir, "pocket-perjob.yml")
 	if err := os.WriteFile(destPath, buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write workflow: %w", err)
 	}

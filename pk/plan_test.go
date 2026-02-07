@@ -661,7 +661,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
 			Flags: map[string]FlagDef{
 				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
-				"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow"},
+				"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow"},
 			},
 		}
 
@@ -700,7 +700,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 					WithOptions(
 						ghWorkflows,
 						WithFlag(ghWorkflows, "skip-pocket", true),
-						WithFlag(ghWorkflows, "include-pocket-matrix", true),
+						WithFlag(ghWorkflows, "include-pocket-perjob", true),
 					),
 				),
 			),
@@ -768,10 +768,10 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 		if ghTask.Flags["skip-pocket"] != true {
 			t.Errorf("github-workflows skip-pocket flag: got %v, want true", ghTask.Flags["skip-pocket"])
 		}
-		if ghTask.Flags["include-pocket-matrix"] != true {
+		if ghTask.Flags["include-pocket-perjob"] != true {
 			t.Errorf(
-				"github-workflows include-pocket-matrix flag: got %v, want true",
-				ghTask.Flags["include-pocket-matrix"],
+				"github-workflows include-pocket-perjob flag: got %v, want true",
+				ghTask.Flags["include-pocket-perjob"],
 			)
 		}
 
@@ -814,7 +814,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
 			Flags: map[string]FlagDef{
 				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
-				"include-pocket-matrix": {Default: false, Usage: "include pocket-matrix workflow"},
+				"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow"},
 			},
 		}
 
@@ -848,7 +848,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				WithOptions(
 					ghWorkflows,
 					WithFlag(ghWorkflows, "skip-pocket", true),
-					WithFlag(ghWorkflows, "include-pocket-matrix", true),
+					WithFlag(ghWorkflows, "include-pocket-perjob", true),
 				),
 			),
 		}
