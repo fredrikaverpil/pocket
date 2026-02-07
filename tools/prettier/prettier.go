@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/bun"
@@ -29,22 +28,15 @@ var packageJSON []byte
 //go:embed bun.lock
 var lockfile []byte
 
-var (
-	versionOnce sync.Once
-	version     string
-)
-
 // Version returns the prettier version from package.json.
 func Version() string {
-	versionOnce.Do(func() {
-		var pkg struct {
-			Dependencies map[string]string `json:"dependencies"`
-		}
-		if err := json.Unmarshal(packageJSON, &pkg); err == nil {
-			version = pkg.Dependencies[Name]
-		}
-	})
-	return version
+	var pkg struct {
+		Dependencies map[string]string `json:"dependencies"`
+	}
+	if err := json.Unmarshal(packageJSON, &pkg); err == nil {
+		return pkg.Dependencies[Name]
+	}
+	return ""
 }
 
 // Install ensures prettier is available.
