@@ -355,7 +355,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./pok -v -g github-workflows -include-pocket-matrix -skip-pocket
+        run: ./pok -v -g github-workflows
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v5

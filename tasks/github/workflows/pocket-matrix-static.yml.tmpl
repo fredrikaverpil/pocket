@@ -44,7 +44,7 @@ jobs:
         shell: {{ .Shell }}
         env:
           GITHUB_TOKEN: {{`${{ github.token }}`}}
-        run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}{{ if .FlagsArgs }} {{ .FlagsArgs }}{{ end }}
+        run: {{ .Shim }} -v{{ if .GitDiff }} -g{{ end }} {{ .Task }}
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: actions/cache/save@v5
