@@ -7,6 +7,8 @@ import (
 	_ "embed"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sync"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
@@ -15,15 +17,30 @@ import (
 // Name is the binary name for zensical.
 const Name = "zensical"
 
-// Version is the version of zensical to install.
-// renovate: datasource=pypi depName=zensical
-const Version = "0.0.21"
-
 //go:embed pyproject.toml
 var pyprojectToml []byte
 
 //go:embed uv.lock
 var uvLock []byte
+
+var (
+	versionOnce sync.Once
+	version     string
+)
+
+// Version returns the zensical version from pyproject.toml.
+// renovate: datasource=pypi depName=zensical
+func Version() string {
+	versionOnce.Do(func() {
+		// Parse version from dependencies array in pyproject.toml
+		// Looking for: "zensical==X.Y.Z"
+		re := regexp.MustCompile(`"zensical==([^"]+)"`)
+		if matches := re.FindSubmatch(pyprojectToml); len(matches) > 1 {
+			version = string(matches[1])
+		}
+	})
+	return version
+}
 
 // Install ensures zensical is available.
 var Install = &pk.Task{
@@ -36,7 +53,7 @@ var Install = &pk.Task{
 
 func installZensical() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		installDir := pk.FromToolsDir(Name, Version)
+		installDir := pk.FromToolsDir(Name, Version())
 		venvPath := filepath.Join(installDir, "venv")
 		binary := uv.BinaryPath(venvPath, Name)
 
@@ -68,7 +85,7 @@ func installZensical() pk.Runnable {
 
 // Exec runs zensical with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
-	installDir := pk.FromToolsDir(Name, Version)
+	installDir := pk.FromToolsDir(Name, Version())
 	venvPath := filepath.Join(installDir, "venv")
 
 	return uv.Run(ctx, uv.RunOptions{
