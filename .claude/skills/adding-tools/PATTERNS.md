@@ -302,10 +302,8 @@ var Install = &pk.Task{
 func installZensical() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         installDir := pk.FromToolsDir(Name, Version())
-        binary := uv.BinaryPath(
-            uv.VenvPath(installDir, ""),
-            Name,
-        )
+        venvPath := filepath.Join(installDir, "venv")
+        binary := uv.BinaryPath(venvPath, Name)
 
         if _, err := os.Stat(binary); err == nil {
             return nil
@@ -325,8 +323,22 @@ func installZensical() pk.Runnable {
             return err
         }
 
-        return uv.Sync(ctx, uv.SyncOptions{ProjectDir: installDir})
+        return uv.Sync(ctx, uv.SyncOptions{
+            PythonVersion: uv.DefaultPythonVersion,
+            VenvPath:      venvPath,
+            ProjectDir:    installDir,
+        })
     })
+}
+
+// InstallDir returns the installation directory for zensical.
+func InstallDir() string {
+    return pk.FromToolsDir(Name, Version())
+}
+
+// VenvPath returns the virtual environment path for zensical.
+func VenvPath() string {
+    return filepath.Join(InstallDir(), "venv")
 }
 ```
 
