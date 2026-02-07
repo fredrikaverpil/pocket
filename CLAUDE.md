@@ -4,6 +4,11 @@ Pocket is a composable task runner framework for Go, designed for monorepo
 workflows. Tasks are composed using `Serial`/`Parallel` combinators and can be
 filtered by directory paths.
 
+## Workflow
+
+Always run `./pok` after making changes (Go code, documentation, etc.) to ensure
+formatting and linting pass before committing. This mirrors what CI checks.
+
 ## Commands
 
 ```bash
