@@ -478,6 +478,17 @@ var Docs = &pk.Task{
 | `ProjectDir`    | Where pyproject.toml lives (default: `PathFromContext`) |
 | `AllGroups`     | Install all dependency groups                           |
 
+> [!IMPORTANT]
+>
+> uv bundles Python download metadata at build time. The uv version in
+> `tools/uv/uv.go` must be recent enough to know about the Python version
+> specified by `DefaultPythonVersion` (or any `PythonVersion` you pass). If
+> Renovate bumps one independently, `uv sync --python <version>` will fail on
+> fresh CI environments with _"No interpreter found for Python X.Y.Z in managed
+> installations or search path"_, while appearing to work locally from cached
+> Python. Run `uv python list --only-downloads | grep <version>` to verify
+> compatibility.
+
 #### Standalone Python Tools
 
 For tools managed entirely by Pocket (not from pyproject.toml), create a tool

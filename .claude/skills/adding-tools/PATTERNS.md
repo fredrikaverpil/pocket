@@ -497,6 +497,14 @@ Body: pk.Serial(bun.Install, installMyNodeTool()),
 The `Global: true` flag on ecosystem tool Install tasks ensures they are only
 installed once, even if multiple dependent tools reference them.
 
+### uv and Python version coupling
+
+uv bundles its Python download metadata at build time. The uv `Version` must be
+recent enough to know about `DefaultPythonVersion`. If Renovate bumps one
+independently, `uv sync --python <version>` will fail on fresh CI environments
+(while appearing to work locally from cached Python). Run
+`uv python list --only-downloads | grep <version>` to verify compatibility.
+
 ---
 
 ## Renovate datasource reference

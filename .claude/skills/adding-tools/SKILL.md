@@ -114,6 +114,23 @@ Body: pk.Serial(bun.Install, installMyTool()),
 These ecosystem tools provide helper functions for creating venvs, installing
 packages, and running commands. See [PATTERNS.md](PATTERNS.md) for details.
 
+### uv and Python version coupling
+
+uv bundles Python download metadata at build time. This means the uv version
+must be recent enough to know about `DefaultPythonVersion`. If
+`DefaultPythonVersion` is updated (e.g. by Renovate) to a Python release that
+postdates the bundled uv version, `uv sync --python <version>` will fail on
+fresh environments (like CI) with:
+
+```
+error: No interpreter found for Python X.Y.Z in managed installations or search path
+```
+
+It may appear to work locally if that Python version was previously downloaded
+by a newer uv. When updating either version, verify the other is compatible.
+Run `uv python list --only-downloads | grep <version>` to confirm the uv binary
+knows about the target Python version.
+
 ## Cross-platform support
 
 All tools must support Linux, macOS, and Windows. Key considerations:
