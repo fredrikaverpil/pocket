@@ -36,10 +36,6 @@ func zensicalCmd() pk.Runnable {
 			args = []string{"build"}
 		}
 
-		if pk.Verbose(ctx) {
-			args = append(args, "--verbose")
-		}
-
 		return zensical.Exec(ctx, args...)
 	})
 }
