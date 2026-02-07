@@ -44,3 +44,6 @@ automatically if not already installed.
 
 See `README.md` for usage documentation, user guide, and API reference links.
 See `PLAN.md` for implementation phases and roadmap.
+
+When updating skills in `.claude/skills/`, follow
+https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
