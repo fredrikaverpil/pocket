@@ -6,10 +6,8 @@ filtered by directory paths.
 
 ## Workflow
 
-Always run `./pok -g` after making changes (Go code, documentation, etc.) to
-ensure formatting and linting pass before committing. The `-g` flag shows any
-git diffs caused by formatting, so you can stage them. This mirrors what CI
-checks.
+Always run `./pok` before committing to ensure formatting and linting pass. This
+mirrors what CI checks.
 
 ## Commands
 
