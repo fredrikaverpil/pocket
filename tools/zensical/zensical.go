@@ -1,5 +1,4 @@
-// Package zensical provides zensical (Python documentation tool) integration.
-// zensical is installed via uv into a local directory with locked dependencies.
+// Package zensical provides the zensical tool for documentation generation.
 package zensical
 
 import (
@@ -42,7 +41,8 @@ func Version() string {
 	return version
 }
 
-// Install ensures zensical is available.
+// Install is a hidden, global task that installs zensical.
+// Global ensures it only runs once regardless of path context.
 var Install = &pk.Task{
 	Name:   "install:zensical",
 	Usage:  "install zensical",
@@ -83,26 +83,12 @@ func installZensical() pk.Runnable {
 	})
 }
 
-// Exec runs zensical with the given arguments.
-func Exec(ctx context.Context, args ...string) error {
-	installDir := pk.FromToolsDir(Name, Version())
-	venvPath := filepath.Join(installDir, "venv")
-
-	return uv.Run(ctx, uv.RunOptions{
-		PythonVersion: uv.DefaultPythonVersion,
-		VenvPath:      venvPath,
-		ProjectDir:    installDir,
-	}, Name, args...)
+// InstallDir returns the installation directory for zensical.
+func InstallDir() string {
+	return pk.FromToolsDir(Name, Version())
 }
 
-// Build runs zensical build command to generate documentation.
-func Build(ctx context.Context, args ...string) error {
-	buildArgs := append([]string{"build"}, args...)
-	return Exec(ctx, buildArgs...)
-}
-
-// Serve runs zensical serve command to serve documentation locally.
-func Serve(ctx context.Context, args ...string) error {
-	serveArgs := append([]string{"serve"}, args...)
-	return Exec(ctx, serveArgs...)
+// VenvPath returns the virtual environment path for zensical.
+func VenvPath() string {
+	return filepath.Join(InstallDir(), "venv")
 }
