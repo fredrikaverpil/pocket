@@ -8,19 +8,19 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/zensical"
 )
 
-// Docs generates or serves documentation using zensical.
+// Zensical generates or serves documentation using zensical.
 // Automatically installs zensical if not present.
-var Docs = &pk.Task{
+var Zensical = &pk.Task{
 	Name:  "docs",
 	Usage: "generate or serve documentation with zensical",
 	Flags: map[string]pk.FlagDef{
 		"serve": {Default: false, Usage: "serve documentation locally"},
 		"build": {Default: false, Usage: "build documentation"},
 	},
-	Body: pk.Serial(zensical.Install, docsCmd()),
+	Body: pk.Serial(zensical.Install, zensicalCmd()),
 }
 
-func docsCmd() pk.Runnable {
+func zensicalCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		serve := pk.GetFlag[bool](ctx, "serve")
 		build := pk.GetFlag[bool](ctx, "build")
