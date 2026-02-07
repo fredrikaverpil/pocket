@@ -4,21 +4,21 @@ Pocket is a composable task runner framework for Go, designed for monorepo
 workflows. Tasks are composed using `Serial`/`Parallel` combinators and can be
 filtered by directory paths.
 
-## Build and Test Commands
+## Commands
 
 ```bash
-# Run pocket (executes full task tree)
-cd .pocket && go run .
+./pok              # Run all auto tasks
+./pok -v           # Run with verbose output
+./pok -h           # Show help and available tasks
+./pok <task>       # Run a specific task
+./pok plan         # View execution plan
+./pok plan -json   # View execution plan as JSON
+```
 
-# Run tests
-go test ./pk/...
+To run tests for the `pk/` package directly (e.g. a single test):
 
-# Run a single test
-go test ./pk/... -run TestTask_Run_Deduplication
-
-# View plan (introspection)
-cd .pocket && go run . plan
-cd .pocket && go run . plan -json
+```bash
+go test ./pk/... -run TestName
 ```
 
 ## Project Structure
