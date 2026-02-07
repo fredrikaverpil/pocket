@@ -274,21 +274,14 @@ var pyprojectTOML []byte
 //go:embed uv.lock
 var uvLock []byte
 
-var (
-    versionOnce sync.Once
-    version     string
-)
-
 // Version extracts the version from pyproject.toml.
+// renovate: datasource=pypi depName=zensical
 func Version() string {
-    versionOnce.Do(func() {
-        // renovate: datasource=pypi depName=zensical
-        re := regexp.MustCompile(`"zensical==([^"]+)"`)
-        if m := re.FindSubmatch(pyprojectTOML); len(m) > 1 {
-            version = string(m[1])
-        }
-    })
-    return version
+    re := regexp.MustCompile(`"zensical==([^"]+)"`)
+    if m := re.FindSubmatch(pyprojectTOML); len(m) > 1 {
+        return string(m[1])
+    }
+    return ""
 }
 
 var Install = &pk.Task{

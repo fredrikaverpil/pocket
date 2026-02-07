@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sync"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
@@ -22,23 +21,16 @@ var pyprojectToml []byte
 //go:embed uv.lock
 var uvLock []byte
 
-var (
-	versionOnce sync.Once
-	version     string
-)
-
 // Version returns the zensical version from pyproject.toml.
 // renovate: datasource=pypi depName=zensical
 func Version() string {
-	versionOnce.Do(func() {
-		// Parse version from dependencies array in pyproject.toml
-		// Looking for: "zensical==X.Y.Z"
-		re := regexp.MustCompile(`"zensical==([^"]+)"`)
-		if matches := re.FindSubmatch(pyprojectToml); len(matches) > 1 {
-			version = string(matches[1])
-		}
-	})
-	return version
+	// Parse version from dependencies array in pyproject.toml
+	// Looking for: "zensical==X.Y.Z"
+	re := regexp.MustCompile(`"zensical==([^"]+)"`)
+	if matches := re.FindSubmatch(pyprojectToml); len(matches) > 1 {
+		return string(matches[1])
+	}
+	return ""
 }
 
 // Install is a hidden, global task that installs zensical.
