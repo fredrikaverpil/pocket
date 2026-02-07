@@ -231,5 +231,5 @@ platforms—no YAML editing required.
   CI integration.
 - [API Reference](./docs/reference.md) - Technical specification of the `pk`
   package.
-- [Architecture](./docs/architecture.md) - Internal design, shim model, and
-  execution internals.
+- [Architecture](./.claude/skills/pocket-engine/SKILL.md) - Internal design,
+  shim model, and execution internals.
