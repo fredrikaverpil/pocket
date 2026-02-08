@@ -8,6 +8,10 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
+// FlagPython is the flag name for specifying the Python version.
+// Shared across Format, Lint, Test, and Typecheck tasks.
+const FlagPython = "python"
+
 // pythonVersionToRuff converts a Python version (e.g., "3.9") to ruff's format (e.g., "py39").
 func pythonVersionToRuff(version string) string {
 	parts := strings.Split(version, ".")

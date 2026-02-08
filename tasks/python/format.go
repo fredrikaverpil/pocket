@@ -7,10 +7,6 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-// FlagPython is the flag name for specifying the Python version.
-// Shared across Lint, Format, Test, and Typecheck tasks.
-const FlagPython = "python"
-
 // Format formats Python files using ruff format.
 // Requires ruff as a project dependency in pyproject.toml.
 // Python version can be set via the -python flag.

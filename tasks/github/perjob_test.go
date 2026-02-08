@@ -250,7 +250,7 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 			}
 		} else if job.Task == "go-lint" {
 			if job.Platform != PlatformUbuntu {
-				t.Errorf("go-lint should only run on ubuntu-latest, got %q", job.Platform)
+				t.Errorf("go-lint should only run on %s, got %q", PlatformUbuntu, job.Platform)
 			}
 		}
 	}
