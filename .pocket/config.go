@@ -31,7 +31,7 @@ var Config = &pk.Config{
 
 	// Manual tasks - only run when explicitly invoked.
 	Manual: []pk.Runnable{
-		Hello, // ./pok hello -name "World"
+		golang.Pprof, // ./pok go-pprof -file cpu.prof
 	},
 
 	// Plan configuration: shims, directories, and CI settings.
@@ -40,16 +40,4 @@ var Config = &pk.Config{
 	},
 }
 
-// Hello is a demo task that prints a greeting.
-// Demonstrates task with CLI flags.
-var Hello = &pk.Task{
-	Name:  "hello",
-	Usage: "print a greeting message",
-	Flags: map[string]pk.FlagDef{
-		"name": {Default: "Pocket v2", Usage: "name to greet"},
-	},
-	Do: func(ctx context.Context) error {
-		pk.Printf(ctx, "Hello, %s!\n", pk.GetFlag[string](ctx, "name"))
-		return nil
-	},
-}
+
