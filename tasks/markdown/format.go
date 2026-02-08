@@ -7,26 +7,32 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/prettier"
 )
 
+// Flag names for the Format task.
+const (
+	FlagCheck  = "check"
+	FlagConfig = "config"
+)
+
 // Format formats Markdown files using prettier.
 var Format = &pk.Task{
 	Name:  "md-format",
 	Usage: "format Markdown files",
 	Flags: map[string]pk.FlagDef{
-		"check":  {Default: false, Usage: "check only, don't write"},
-		"config": {Default: "", Usage: "path to prettier config file"},
+		FlagCheck:  {Default: false, Usage: "check only, don't write"},
+		FlagConfig: {Default: "", Usage: "path to prettier config file"},
 	},
 	Body: pk.Serial(prettier.Install, formatCmd()),
 }
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		configPath := pk.GetFlag[string](ctx, "config")
+		configPath := pk.GetFlag[string](ctx, FlagConfig)
 		if configPath == "" {
 			configPath = prettier.EnsureDefaultConfig()
 		}
 
 		args := []string{}
-		if pk.GetFlag[bool](ctx, "check") {
+		if pk.GetFlag[bool](ctx, FlagCheck) {
 			args = append(args, "--check")
 		} else {
 			args = append(args, "--write")

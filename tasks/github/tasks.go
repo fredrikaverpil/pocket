@@ -10,8 +10,8 @@ import "github.com/fredrikaverpil/pocket/pk"
 //
 //	pk.WithOptions(
 //	    github.Tasks(),
-//	    pk.WithFlag(github.Workflows, "skip-pocket", true),
-//	    pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+//	    pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
+//	    pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
 //	    pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{...}),
 //	)
 func Tasks() pk.Runnable {

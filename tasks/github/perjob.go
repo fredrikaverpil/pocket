@@ -8,9 +8,21 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
+// Common GitHub Actions runner platforms.
+const (
+	PlatformUbuntu  = "ubuntu-latest"
+	PlatformMacOS   = "macos-latest"
+	PlatformWindows = "windows-latest"
+)
+
+// AllPlatforms returns the three standard GitHub Actions runner platforms.
+func AllPlatforms() []string {
+	return []string{PlatformUbuntu, PlatformMacOS, PlatformWindows}
+}
+
 // PerJobConfig configures GitHub Actions per-job workflow generation.
 type PerJobConfig struct {
-	// DefaultPlatforms for all tasks. Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
+	// DefaultPlatforms for all tasks. Default: AllPlatforms().
 	DefaultPlatforms []string
 
 	// TaskOverrides provides per-task platform configuration.
@@ -47,7 +59,7 @@ type TaskOverride struct {
 // DefaultPerJobConfig returns sensible defaults.
 func DefaultPerJobConfig() PerJobConfig {
 	return PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+		DefaultPlatforms: AllPlatforms(),
 		WindowsShell:     "powershell",
 		WindowsShim:      "ps1",
 	}
@@ -82,7 +94,7 @@ type StaticJob struct {
 // GenerateStaticJobs creates static job definitions from tasks.
 func GenerateStaticJobs(tasks []pk.TaskInfo, cfg PerJobConfig) []StaticJob {
 	if cfg.DefaultPlatforms == nil {
-		cfg.DefaultPlatforms = []string{"ubuntu-latest", "macos-latest", "windows-latest"}
+		cfg.DefaultPlatforms = AllPlatforms()
 	}
 	if cfg.WindowsShell == "" {
 		cfg.WindowsShell = "powershell"

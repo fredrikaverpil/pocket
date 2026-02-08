@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/fredrikaverpil/pocket/pk"
@@ -25,7 +26,7 @@ type PocketConfig struct {
 // DefaultPocketConfig returns the default pocket workflow configuration.
 func DefaultPocketConfig() PocketConfig {
 	return PocketConfig{
-		Platforms: "ubuntu-latest, macos-latest, windows-latest",
+		Platforms: strings.Join(AllPlatforms(), ", "),
 	}
 }
 
@@ -45,19 +46,30 @@ func DefaultStaleConfig() StaleConfig {
 	}
 }
 
+// Flag names for the Workflows task.
+const (
+	FlagIncludePocketPerjob = "include-pocket-perjob"
+	FlagPlatforms           = "platforms"
+	FlagSkipGhPages         = "skip-gh-pages"
+	FlagSkipPocket          = "skip-pocket"
+	FlagSkipPR              = "skip-pr"
+	FlagSkipRelease         = "skip-release"
+	FlagSkipStale           = "skip-stale"
+)
+
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
 // By default, all workflows are copied. Use flags to select specific ones.
 var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
 	Flags: map[string]pk.FlagDef{
-		"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow (excluded by default)"},
-		"platforms":             {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
-		"skip-gh-pages":         {Default: false, Usage: "exclude GitHub Pages workflow"},
-		"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
-		"skip-pr":               {Default: false, Usage: "exclude PR workflow"},
-		"skip-release":          {Default: false, Usage: "exclude release-please workflow"},
-		"skip-stale":            {Default: false, Usage: "exclude stale workflow"},
+		FlagIncludePocketPerjob: {Default: false, Usage: "include pocket-perjob workflow (excluded by default)"},
+		FlagPlatforms:           {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
+		FlagSkipGhPages:         {Default: false, Usage: "exclude GitHub Pages workflow"},
+		FlagSkipPocket:          {Default: false, Usage: "exclude pocket workflow"},
+		FlagSkipPR:              {Default: false, Usage: "exclude PR workflow"},
+		FlagSkipRelease:         {Default: false, Usage: "exclude release-please workflow"},
+		FlagSkipStale:           {Default: false, Usage: "exclude stale workflow"},
 	},
 	Do: runWorkflows,
 }
@@ -84,17 +96,17 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	pocketConfig := DefaultPocketConfig()
-	if p := pk.GetFlag[string](ctx, "platforms"); p != "" {
+	if p := pk.GetFlag[string](ctx, FlagPlatforms); p != "" {
 		pocketConfig.Platforms = p
 	}
 	staleConfig := DefaultStaleConfig()
 
 	workflowDefs := []workflowDef{
-		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, !pk.GetFlag[bool](ctx, "skip-gh-pages")},
-		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !pk.GetFlag[bool](ctx, "skip-pocket")},
-		{"pr.yml.tmpl", "pr.yml", nil, !pk.GetFlag[bool](ctx, "skip-pr")},
-		{"release.yml.tmpl", "release.yml", nil, !pk.GetFlag[bool](ctx, "skip-release")},
-		{"stale.yml.tmpl", "stale.yml", staleConfig, !pk.GetFlag[bool](ctx, "skip-stale")},
+		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, !pk.GetFlag[bool](ctx, FlagSkipGhPages)},
+		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !pk.GetFlag[bool](ctx, FlagSkipPocket)},
+		{"pr.yml.tmpl", "pr.yml", nil, !pk.GetFlag[bool](ctx, FlagSkipPR)},
+		{"release.yml.tmpl", "release.yml", nil, !pk.GetFlag[bool](ctx, FlagSkipRelease)},
+		{"stale.yml.tmpl", "stale.yml", staleConfig, !pk.GetFlag[bool](ctx, FlagSkipStale)},
 	}
 
 	// Also manage pocket-perjob.yml (generated separately via per-job generation)
@@ -156,7 +168,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Generate per-job workflow if requested
-	if pk.GetFlag[bool](ctx, "include-pocket-perjob") {
+	if pk.GetFlag[bool](ctx, FlagIncludePocketPerjob) {
 		if err := generatePerJobWorkflow(ctx, workflowDir, verbose); err != nil {
 			return fmt.Errorf("generate pocket-perjob workflow: %w", err)
 		}

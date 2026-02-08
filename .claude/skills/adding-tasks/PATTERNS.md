@@ -39,12 +39,17 @@ Flags let users and config authors customize task behavior.
 **Example: go-lint** (`tasks/golang/lint.go`)
 
 ```go
+const (
+    FlagLintConfig = "config"
+    FlagLintFix    = "fix"
+)
+
 var Lint = &pk.Task{
     Name:  "go-lint",
     Usage: "run golangci-lint",
     Flags: map[string]pk.FlagDef{
-        "config": {Default: "", Usage: "path to golangci-lint config file"},
-        "fix":    {Default: true, Usage: "apply fixes"},
+        FlagLintConfig: {Default: "", Usage: "path to golangci-lint config file"},
+        FlagLintFix:    {Default: true, Usage: "apply fixes"},
     },
     Body: pk.Serial(golangcilint.Install, lintCmd()),
 }
@@ -55,10 +60,10 @@ func lintCmd() pk.Runnable {
         if pk.Verbose(ctx) {
             args = append(args, "-v")
         }
-        if config := pk.GetFlag[string](ctx, "config"); config != "" {
+        if config := pk.GetFlag[string](ctx, FlagLintConfig); config != "" {
             args = append(args, "-c", config)
         }
-        if pk.GetFlag[bool](ctx, "fix") {
+        if pk.GetFlag[bool](ctx, FlagLintFix) {
             args = append(args, "--fix")
         }
         args = append(args, "./...")
@@ -68,8 +73,8 @@ func lintCmd() pk.Runnable {
 ```
 
 **Flag types:**
-- `pk.GetFlag[bool](ctx, "fix")` — boolean
-- `pk.GetFlag[string](ctx, "config")` — string
+- `pk.GetFlag[bool](ctx, FlagLintFix)` — boolean
+- `pk.GetFlag[string](ctx, FlagLintConfig)` — string
 
 ---
 
@@ -105,25 +110,30 @@ an `Exec()` function. Use that instead of `pk.Exec`.
 **Example: md-format** (`tasks/markdown/format.go`)
 
 ```go
+const (
+    FlagCheck  = "check"
+    FlagConfig = "config"
+)
+
 var Format = &pk.Task{
     Name:  "md-format",
     Usage: "format Markdown files",
     Flags: map[string]pk.FlagDef{
-        "check":  {Default: false, Usage: "check only, don't write"},
-        "config": {Default: "", Usage: "path to prettier config file"},
+        FlagCheck:  {Default: false, Usage: "check only, don't write"},
+        FlagConfig: {Default: "", Usage: "path to prettier config file"},
     },
     Body: pk.Serial(prettier.Install, formatCmd()),
 }
 
 func formatCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        configPath := pk.GetFlag[string](ctx, "config")
+        configPath := pk.GetFlag[string](ctx, FlagConfig)
         if configPath == "" {
             configPath = prettier.EnsureDefaultConfig()
         }
 
         args := []string{}
-        if pk.GetFlag[bool](ctx, "check") {
+        if pk.GetFlag[bool](ctx, FlagCheck) {
             args = append(args, "--check")
         } else {
             args = append(args, "--write")
@@ -154,19 +164,25 @@ it as a flag and pass it through to the underlying tool.
 **Example: py-lint** (`tasks/python/lint.go`)
 
 ```go
+// FlagPython is shared across Lint, Format, Test, and Typecheck tasks.
+const FlagPython = "python"
+
+// FlagLintSkipFix is specific to the Lint task.
+const FlagLintSkipFix = "skip-fix"
+
 var Lint = &pk.Task{
     Name:  "py-lint",
     Usage: "lint Python files",
     Flags: map[string]pk.FlagDef{
-        "python":   {Default: "", Usage: "Python version (for target-version inference)"},
-        "skip-fix": {Default: false, Usage: "don't auto-fix issues"},
+        FlagPython:      {Default: "", Usage: "Python version (for target-version inference)"},
+        FlagLintSkipFix: {Default: false, Usage: "don't auto-fix issues"},
     },
     Body: pk.Serial(uv.Install, lintSyncCmd(), lintCmd()),
 }
 
 func lintSyncCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
+        version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
         return uv.Sync(ctx, uv.SyncOptions{
             PythonVersion: version,
             AllGroups:     true,
@@ -176,8 +192,8 @@ func lintSyncCmd() pk.Runnable {
 
 func lintCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
-        return runLint(ctx, version, pk.GetFlag[bool](ctx, "skip-fix"))
+        version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+        return runLint(ctx, version, pk.GetFlag[bool](ctx, FlagLintSkipFix))
     })
 }
 
@@ -295,8 +311,8 @@ Auto: pk.Parallel(
     pk.WithOptions(
         python.Tasks(),
         pk.WithDetect(python.Detect()),
-        pk.WithFlag(python.Lint, "python", "3.12"),
-        pk.WithFlag(python.Test, "coverage", true),
+        pk.WithFlag(python.Lint, python.FlagPython, "3.12"),
+        pk.WithFlag(python.Test, python.FlagTestCoverage, true),
     ),
 ),
 ```

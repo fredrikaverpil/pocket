@@ -11,12 +11,18 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/tsqueryls"
 )
 
+// Flag names for the QueryFormat and QueryLint tasks.
+const (
+	FlagParsers = "parsers"
+	FlagFix     = "fix"
+)
+
 // QueryFormat formats tree-sitter query files using ts_query_ls.
 var QueryFormat = &pk.Task{
 	Name:  "query-format",
 	Usage: "format tree-sitter query files",
 	Flags: map[string]pk.FlagDef{
-		"parsers": {Default: "", Usage: "comma-separated parser names to compile"},
+		FlagParsers: {Default: "", Usage: "comma-separated parser names to compile"},
 	},
 	Body: pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryFormatCmd()),
 }
@@ -26,15 +32,15 @@ var QueryLint = &pk.Task{
 	Name:  "query-lint",
 	Usage: "lint tree-sitter query files",
 	Flags: map[string]pk.FlagDef{
-		"fix":     {Default: false, Usage: "auto-fix lint issues"},
-		"parsers": {Default: "", Usage: "comma-separated parser names to compile"},
+		FlagFix:     {Default: false, Usage: "auto-fix lint issues"},
+		FlagParsers: {Default: "", Usage: "comma-separated parser names to compile"},
 	},
 	Body: pk.Serial(treesitterCLI.Install, tsqueryls.Install, queryLintCmd()),
 }
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parsers := parseParsers(pk.GetFlag[string](ctx, "parsers"))
+		parsers := parseParsers(pk.GetFlag[string](ctx, FlagParsers))
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
@@ -63,7 +69,7 @@ func queryFormatCmd() pk.Runnable {
 
 func queryLintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		parsers := parseParsers(pk.GetFlag[string](ctx, "parsers"))
+		parsers := parseParsers(pk.GetFlag[string](ctx, FlagParsers))
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
 			return err
@@ -80,7 +86,7 @@ func queryLintCmd() pk.Runnable {
 		configArgs := tsQueryLsConfigArgs(parserDir)
 		for _, dir := range dirs {
 			args := []string{"check"}
-			if pk.GetFlag[bool](ctx, "fix") {
+			if pk.GetFlag[bool](ctx, FlagFix) {
 				args = append(args, "--fix")
 			}
 			args = append(args, configArgs...)

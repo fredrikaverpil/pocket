@@ -142,7 +142,7 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlag(Task, "name", "value")` sets task-specific flags
+- **Flag overrides**: `WithFlag(Task, pkg.FlagName, "value")` sets task-specific flags
 - [and more...](./REFERENCE.md)
 
 ```go
@@ -150,8 +150,8 @@ pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
     pk.WithExcludePath("testdata"),      // skip test fixtures
-    pk.WithFlag(Test, "race", false),    // disable race detector for Test
-    pk.WithFlag(Test, "timeout", "5m"),  // set test timeout
+    pk.WithFlag(Test, golang.FlagTestRace, false),      // disable race detector for Test
+    pk.WithFlag(Test, golang.FlagTestTimeout, "5m"),    // set test timeout
 )
 ```
 
@@ -218,12 +218,12 @@ var Config = &pk.Config{
         Lint, Test, Build,
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlag(github.Workflows, "skip-pocket", true),
-            pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+            pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
+            pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
             pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-                DefaultPlatforms: []string{"ubuntu-latest", "macos-latest"},
+                DefaultPlatforms: []string{github.PlatformUbuntu, github.PlatformMacOS},
                 TaskOverrides: map[string]github.TaskOverride{
-                    "lint": {Platforms: []string{"ubuntu-latest"}},
+                    Lint.Name: {Platforms: []string{github.PlatformUbuntu}},
                 },
             }),
         ),

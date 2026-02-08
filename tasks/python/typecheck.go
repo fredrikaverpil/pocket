@@ -14,14 +14,14 @@ var Typecheck = &pk.Task{
 	Name:  "py-typecheck",
 	Usage: "type-check Python files",
 	Flags: map[string]pk.FlagDef{
-		"python": {Default: "", Usage: "Python version to type-check against (e.g., 3.9)"},
+		FlagPython: {Default: "", Usage: "Python version to type-check against (e.g., 3.9)"},
 	},
 	Body: pk.Serial(uv.Install, typecheckSyncCmd(), typecheckCmd()),
 }
 
 func typecheckSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -31,7 +31,7 @@ func typecheckSyncCmd() pk.Runnable {
 
 func typecheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, "python"))
+		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
 		return runTypecheck(ctx, version)
 	})
 }

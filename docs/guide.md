@@ -372,20 +372,20 @@ var Config = &pk.Config{
         pk.WithOptions(
             python.Tasks(),
             pk.WithNameSuffix("3.9"),
-            pk.WithFlag(python.Format, "python", "3.9"),
-            pk.WithFlag(python.Lint, "python", "3.9"),
-            pk.WithFlag(python.Typecheck, "python", "3.9"),
-            pk.WithFlag(python.Test, "python", "3.9"),
-            pk.WithFlag(python.Test, "coverage", true),
+            pk.WithFlag(python.Format, python.FlagPython, "3.9"),
+            pk.WithFlag(python.Lint, python.FlagPython, "3.9"),
+            pk.WithFlag(python.Typecheck, python.FlagPython, "3.9"),
+            pk.WithFlag(python.Test, python.FlagPython, "3.9"),
+            pk.WithFlag(python.Test, python.FlagTestCoverage, true),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlag(python.Test, "python", "3.11")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlag(python.Test, "python", "3.12")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlag(python.Test, "python", "3.13")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlag(python.Test, python.FlagPython, "3.11")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlag(python.Test, python.FlagPython, "3.12")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlag(python.Test, python.FlagPython, "3.13")),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -845,10 +845,10 @@ Use `pk.WithFlag()` to set task flags explicitly:
 pk.WithOptions(
     python.Tasks(),
     pk.WithNameSuffix("3.9"),                          // Add :3.9 suffix to task names
-    pk.WithFlag(python.Format, "python", "3.9"), // Set Python version for format
-    pk.WithFlag(python.Lint, "python", "3.9"),   // Set Python version for lint
-    pk.WithFlag(python.Test, "python", "3.9"),   // Set Python version for test
-    pk.WithFlag(python.Test, "coverage", true),  // Enable coverage for test
+    pk.WithFlag(python.Format, python.FlagPython, "3.9"),        // Set Python version for format
+    pk.WithFlag(python.Lint, python.FlagPython, "3.9"),          // Set Python version for lint
+    pk.WithFlag(python.Test, python.FlagPython, "3.9"),          // Set Python version for test
+    pk.WithFlag(python.Test, python.FlagTestCoverage, true),     // Enable coverage for test
     pk.WithDetect(python.Detect()),              // Auto-detect Python projects
 )
 ```
@@ -926,7 +926,7 @@ pk.WithOptions(
     pk.WithExcludePath("vendor"),              // Global: no tasks run in vendor/
     pk.WithExcludeTask(golang.Test, "foo/.*"), // Only go-test skips foo/
     pk.WithSkipTask(golang.Lint),              // Remove linting entirely
-    pk.WithFlag(golang.Test, "race", true),    // Enable race detector
+    pk.WithFlag(golang.Test, golang.FlagTestRace, true),    // Enable race detector
 )
 ```
 
@@ -1164,12 +1164,12 @@ var Config = &pk.Config{
         golang.Tasks(),
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlag(github.Workflows, "skip-pocket", true),
-            pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+            pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
+            pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
             pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-                DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+                DefaultPlatforms: github.AllPlatforms(),
                 TaskOverrides: map[string]github.TaskOverride{
-                    "go-lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on Linux
+                    golang.Lint.Name: {Platforms: []string{github.PlatformUbuntu}}, // lint only on Linux
                 },
                 ExcludeTasks: []string{"github-workflows"},
             }),
@@ -1181,9 +1181,9 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlag(github.Workflows, "skip-pocket", true)` disables the simple
+2. `pk.WithFlag(github.Workflows, github.FlagSkipPocket, true)` disables the simple
    `pocket.yml` workflow
-3. `pk.WithFlag(github.Workflows, "include-pocket-perjob", true)` enables the
+3. `pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true)` enables the
    `pocket-perjob.yml` workflow
 4. `pk.WithContextValue(github.PerJobConfigKey{}, cfg)` configures platforms and
    task overrides for job generation
@@ -1237,7 +1237,7 @@ pass a `PerJobConfig` for workflow generation:
 ```go
 type PerJobConfig struct {
     // DefaultPlatforms for all tasks.
-    // Default: ["ubuntu-latest", "macos-latest", "windows-latest"]
+    // Default: AllPlatforms().
     DefaultPlatforms []string
 
     // TaskOverrides provides per-task platform configuration.

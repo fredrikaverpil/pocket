@@ -33,11 +33,18 @@ Each action file (e.g., `lint.go`, `format.go`) defines a task variable:
 
 ```go
 // lint.go
+
+// Flag names for the Lint task.
+const (
+    FlagLintConfig = "config"
+    FlagLintFix    = "fix"
+)
+
 var Lint = &pk.Task{
     Name:  "go-lint",
     Usage: "run golangci-lint",
     Flags: map[string]pk.FlagDef{
-        "fix": {Default: true, Usage: "apply fixes"},
+        FlagLintFix: {Default: true, Usage: "apply fixes"},
     },
     Body: pk.Serial(golangcilint.Install, lintCmd()),
 }
@@ -123,19 +130,26 @@ if pk.Verbose(ctx) {
 
 ## Flags
 
-Define only flags you need (YAGNI). Use `pk.GetFlag[T](ctx, "name")` with
-type-safe generics:
+Define only flags you need (YAGNI). Export constants for flag names so that
+renaming a flag causes compile errors across package boundaries:
 
 ```go
+const (
+    FlagLintConfig = "config"
+    FlagLintFix    = "fix"
+)
+
 Flags: map[string]pk.FlagDef{
-    "fix":    {Default: true, Usage: "apply fixes"},
-    "config": {Default: "", Usage: "path to config file"},
+    FlagLintFix:    {Default: true, Usage: "apply fixes"},
+    FlagLintConfig: {Default: "", Usage: "path to config file"},
 },
 ```
 
+Access flags with `pk.GetFlag[T](ctx, FlagLintFix)`.
+
 Users override flags via CLI: `./pok go-lint -fix=false`
 
-Config authors override defaults: `pk.WithFlag(golang.Lint, "fix", false)`
+Config authors override defaults: `pk.WithFlag(golang.Lint, golang.FlagLintFix, false)`
 
 ## Cross-platform
 

@@ -97,7 +97,7 @@ func WithForceRun() PathOption {
 //	pk.WithOptions(
 //	    golang.Tasks(),
 //	    pk.WithExcludePath("vendor"), // Excludes vendor/ from the Go task scope
-//	    pk.WithFlag(golang.Test, "race", true),
+//	    pk.WithFlag(golang.Test, golang.FlagTestRace, true),
 //	)
 func WithDetect(fn DetectFunc) PathOption {
 	return func(pf *pathFilter) {
@@ -134,8 +134,8 @@ func WithNoticePatterns(patterns ...string) PathOption {
 //
 // Example:
 //
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, "python", "3.9"))
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10"))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, python.FlagPython, "3.9"))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10"))
 func WithNameSuffix(suffix string) PathOption {
 	return func(pf *pathFilter) {
 		pf.nameSuffix = suffix

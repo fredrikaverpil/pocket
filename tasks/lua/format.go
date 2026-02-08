@@ -7,19 +7,22 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
+// FlagConfig is the flag name for the stylua config file path.
+const FlagConfig = "config"
+
 // Format formats Lua files using stylua.
 var Format = &pk.Task{
 	Name:  "lua-format",
 	Usage: "format Lua files",
 	Flags: map[string]pk.FlagDef{
-		"config": {Default: "", Usage: "path to stylua config file"},
+		FlagConfig: {Default: "", Usage: "path to stylua config file"},
 	},
 	Body: pk.Serial(stylua.Install, formatCmd()),
 }
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		configPath := pk.GetFlag[string](ctx, "config")
+		configPath := pk.GetFlag[string](ctx, FlagConfig)
 		if configPath == "" {
 			configPath = stylua.EnsureDefaultConfig()
 		}

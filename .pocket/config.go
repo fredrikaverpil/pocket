@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tasks/github"
 	"github.com/fredrikaverpil/pocket/tasks/golang"
@@ -17,13 +15,13 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			pk.WithFlag(github.Workflows, "skip-gh-pages", true),
-			pk.WithFlag(github.Workflows, "skip-pocket", true),
-			pk.WithFlag(github.Workflows, "include-pocket-perjob", true),
+			pk.WithFlag(github.Workflows, github.FlagSkipGhPages, true),
+			pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
+			pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
 			pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-				DefaultPlatforms: []string{"ubuntu-latest"},
+				DefaultPlatforms: []string{github.PlatformUbuntu},
 				TaskOverrides: map[string]github.TaskOverride{
-					"go-test": {Platforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"}},
+					golang.Test.Name: {Platforms: github.AllPlatforms()},
 				},
 			}),
 		),

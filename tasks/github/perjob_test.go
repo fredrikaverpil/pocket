@@ -10,7 +10,7 @@ import (
 func TestDefaultPerJobConfig(t *testing.T) {
 	cfg := DefaultPerJobConfig()
 
-	expectedPlatforms := []string{"ubuntu-latest", "macos-latest", "windows-latest"}
+	expectedPlatforms := AllPlatforms()
 	if len(cfg.DefaultPlatforms) != len(expectedPlatforms) {
 		t.Errorf("expected %d default platforms, got %d", len(expectedPlatforms), len(cfg.DefaultPlatforms))
 	}
@@ -29,9 +29,9 @@ func TestDefaultPerJobConfig(t *testing.T) {
 
 func TestGetTaskOverride(t *testing.T) {
 	overrides := map[string]TaskOverride{
-		"py-test:.*":  {Platforms: []string{"ubuntu-latest"}},
-		"go-.*":       {Platforms: []string{"macos-latest"}},
-		"exact-match": {Platforms: []string{"windows-latest"}},
+		"py-test:.*":  {Platforms: []string{PlatformUbuntu}},
+		"go-.*":       {Platforms: []string{PlatformMacOS}},
+		"exact-match": {Platforms: []string{PlatformWindows}},
 	}
 
 	tests := []struct {
@@ -39,13 +39,13 @@ func TestGetTaskOverride(t *testing.T) {
 		wantMatch     bool
 		wantPlatforms []string
 	}{
-		{"py-test:3.9", true, []string{"ubuntu-latest"}},
-		{"py-test:3.10", true, []string{"ubuntu-latest"}},
-		{"py-test:3.11", true, []string{"ubuntu-latest"}},
-		{"go-lint", true, []string{"macos-latest"}},
-		{"go-test", true, []string{"macos-latest"}},
-		{"go-format", true, []string{"macos-latest"}},
-		{"exact-match", true, []string{"windows-latest"}},
+		{"py-test:3.9", true, []string{PlatformUbuntu}},
+		{"py-test:3.10", true, []string{PlatformUbuntu}},
+		{"py-test:3.11", true, []string{PlatformUbuntu}},
+		{"go-lint", true, []string{PlatformMacOS}},
+		{"go-test", true, []string{PlatformMacOS}},
+		{"go-format", true, []string{PlatformMacOS}},
+		{"exact-match", true, []string{PlatformWindows}},
 		{"no-match", false, nil},
 		{"py-test", false, nil}, // doesn't match "py-test:.*" (requires colon)
 	}
@@ -73,13 +73,13 @@ func TestGetTaskOverride(t *testing.T) {
 
 func TestGetTaskOverride_InvalidRegexp(t *testing.T) {
 	overrides := map[string]TaskOverride{
-		"[invalid": {Platforms: []string{"macos-latest"}}, // invalid regexp
-		"valid":    {Platforms: []string{"ubuntu-latest"}},
+		"[invalid": {Platforms: []string{PlatformMacOS}},  // invalid regexp
+		"valid":    {Platforms: []string{PlatformUbuntu}},
 	}
 
 	// Should not panic, just skip invalid patterns
 	override := getTaskOverride("valid", overrides)
-	if len(override.Platforms) != 1 || override.Platforms[0] != "ubuntu-latest" {
+	if len(override.Platforms) != 1 || override.Platforms[0] != PlatformUbuntu {
 		t.Errorf("expected valid pattern to match, got %+v", override)
 	}
 
@@ -95,14 +95,14 @@ func TestShimForPlatform(t *testing.T) {
 		windowsShim  string
 		want         string
 	}{
-		{"ubuntu-latest", "powershell", "ps1", "./pok"},
-		{"macos-latest", "powershell", "ps1", "./pok"},
-		{"windows-latest", "powershell", "ps1", ".\\pok.ps1"},
-		{"windows-latest", "powershell", "cmd", ".\\pok.cmd"},
+		{PlatformUbuntu, "powershell", "ps1", "./pok"},
+		{PlatformMacOS, "powershell", "ps1", "./pok"},
+		{PlatformWindows, "powershell", "ps1", ".\\pok.ps1"},
+		{PlatformWindows, "powershell", "cmd", ".\\pok.cmd"},
 		{"windows-2022", "powershell", "ps1", ".\\pok.ps1"},
 		{"windows-2022", "powershell", "cmd", ".\\pok.cmd"},
-		{"windows-latest", "bash", "ps1", "./pok"}, // bash ignores windowsShim
-		{"windows-latest", "bash", "cmd", "./pok"}, // bash ignores windowsShim
+		{PlatformWindows, "bash", "ps1", "./pok"}, // bash ignores windowsShim
+		{PlatformWindows, "bash", "cmd", "./pok"}, // bash ignores windowsShim
 		{"ubuntu-22.04", "bash", "ps1", "./pok"},
 	}
 
@@ -162,7 +162,7 @@ func TestGenerateStaticJobs_JobID(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
+		DefaultPlatforms: []string{PlatformUbuntu},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
 
@@ -174,8 +174,8 @@ func TestGenerateStaticJobs_JobID(t *testing.T) {
 	if job.ID != "go-test-ubuntu" {
 		t.Errorf("expected ID 'go-test-ubuntu', got %q", job.ID)
 	}
-	if job.Name != "go-test (ubuntu-latest)" {
-		t.Errorf("expected Name 'go-test (ubuntu-latest)', got %q", job.Name)
+	if job.Name != "go-test ("+PlatformUbuntu+")" {
+		t.Errorf("expected Name 'go-test (%s)', got %q", PlatformUbuntu, job.Name)
 	}
 }
 
@@ -186,9 +186,9 @@ func TestGenerateStaticJobs_TaskOverrides(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+		DefaultPlatforms: AllPlatforms(),
 		TaskOverrides: map[string]TaskOverride{
-			"lint": {Platforms: []string{"ubuntu-latest"}}, // lint only on ubuntu
+			"lint": {Platforms: []string{PlatformUbuntu}}, // lint only on ubuntu
 		},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -203,7 +203,7 @@ func TestGenerateStaticJobs_TaskOverrides(t *testing.T) {
 	for _, job := range jobs {
 		if job.Task == "lint" {
 			lintCount++
-			if job.Platform != "ubuntu-latest" {
+			if job.Platform != PlatformUbuntu {
 				t.Errorf("lint should only run on ubuntu-latest, got %q", job.Platform)
 			}
 		}
@@ -222,10 +222,10 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest", "macos-latest", "windows-latest"},
+		DefaultPlatforms: AllPlatforms(),
 		TaskOverrides: map[string]TaskOverride{
-			"py-test:.*": {Platforms: []string{"ubuntu-latest"}}, // regexp: match all py-test variants
-			"go-lint":    {Platforms: []string{"ubuntu-latest"}},
+			"py-test:.*": {Platforms: []string{PlatformUbuntu}}, // regexp: match all py-test variants
+			"go-lint":    {Platforms: []string{PlatformUbuntu}},
 		},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -240,11 +240,11 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 	// Verify py-test tasks have platform override applied
 	for _, job := range jobs {
 		if strings.HasPrefix(job.Task, "py-test:") {
-			if job.Platform != "ubuntu-latest" {
-				t.Errorf("%s should only run on ubuntu-latest (matched by py-test:.*), got %q", job.Task, job.Platform)
+			if job.Platform != PlatformUbuntu {
+				t.Errorf("%s should only run on %s (matched by py-test:.*), got %q", job.Task, PlatformUbuntu, job.Platform)
 			}
 		} else if job.Task == "go-lint" {
-			if job.Platform != "ubuntu-latest" {
+			if job.Platform != PlatformUbuntu {
 				t.Errorf("go-lint should only run on ubuntu-latest, got %q", job.Platform)
 			}
 		}
@@ -259,7 +259,7 @@ func TestGenerateStaticJobs_ExcludeTasks(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
+		DefaultPlatforms: []string{PlatformUbuntu},
 		ExcludeTasks:     []string{"format"},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
@@ -283,7 +283,7 @@ func TestGenerateStaticJobs_HiddenTasksExcluded(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
+		DefaultPlatforms: []string{PlatformUbuntu},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
 
@@ -303,7 +303,7 @@ func TestGenerateStaticJobs_ManualTasksExcluded(t *testing.T) {
 	}
 
 	cfg := PerJobConfig{
-		DefaultPlatforms: []string{"ubuntu-latest"},
+		DefaultPlatforms: []string{PlatformUbuntu},
 	}
 	jobs := GenerateStaticJobs(tasks, cfg)
 
@@ -323,7 +323,7 @@ func TestGenerateStaticJobs_GitDiff(t *testing.T) {
 
 	// Default: gitDiff enabled
 	cfg := DefaultPerJobConfig()
-	cfg.DefaultPlatforms = []string{"ubuntu-latest"}
+	cfg.DefaultPlatforms = []string{PlatformUbuntu}
 	jobs := GenerateStaticJobs(tasks, cfg)
 
 	if !jobs[0].GitDiff {
@@ -360,7 +360,7 @@ func TestGenerateStaticJobs_WindowsShell(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := PerJobConfig{
-				DefaultPlatforms: []string{"windows-latest"},
+				DefaultPlatforms: []string{PlatformWindows},
 				WindowsShell:     tt.windowsShell,
 				WindowsShim:      tt.windowsShim,
 			}
@@ -394,13 +394,13 @@ func TestJobID(t *testing.T) {
 		platform string
 		want     string
 	}{
-		{"go-test", "ubuntu-latest", "go-test-ubuntu"},
-		{"go-test", "macos-latest", "go-test-macos"},
-		{"go-test", "windows-latest", "go-test-windows"},
-		{"py-test:3.9", "ubuntu-latest", "py-test-3-9-ubuntu"},
-		{"py-test:3.10", "macos-latest", "py-test-3-10-macos"},
+		{"go-test", PlatformUbuntu, "go-test-ubuntu"},
+		{"go-test", PlatformMacOS, "go-test-macos"},
+		{"go-test", PlatformWindows, "go-test-windows"},
+		{"py-test:3.9", PlatformUbuntu, "py-test-3-9-ubuntu"},
+		{"py-test:3.10", PlatformMacOS, "py-test-3-10-macos"},
 		{"lint", "ubuntu-22.04", "lint-ubuntu-22-04"},
-		{"test.unit", "ubuntu-latest", "test-unit-ubuntu"},
+		{"test.unit", PlatformUbuntu, "test-unit-ubuntu"},
 	}
 
 	for _, tt := range tests {
@@ -418,9 +418,9 @@ func TestPlatformShort(t *testing.T) {
 		platform string
 		want     string
 	}{
-		{"ubuntu-latest", "ubuntu"},
-		{"macos-latest", "macos"},
-		{"windows-latest", "windows"},
+		{PlatformUbuntu, "ubuntu"},
+		{PlatformMacOS, "macos"},
+		{PlatformWindows, "windows"},
 		{"ubuntu-22.04", "ubuntu-22-04"},
 		{"macos-13", "macos-13"},
 		{"windows-2022", "windows-2022"},

@@ -202,7 +202,7 @@ These options work with any task:
 pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithIncludePath("services/.*"),
-    pk.WithFlag(Test, "race", true),
+    pk.WithFlag(Test, golang.FlagTestRace, true),
 )
 ```
 
@@ -217,8 +217,8 @@ distinct **variants** of the same task:
 
 ```go
 // Same task definition, two distinct variants
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, "python", "3.9"))
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, "python", "3.10"))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, python.FlagPython, "3.9"))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10"))
 ```
 
 Each variant has an **effective name** (base name + suffix). Variants are
