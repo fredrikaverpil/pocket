@@ -14,7 +14,7 @@ const Name = "tree-sitter"
 
 // Version is the version of tree-sitter to install.
 // renovate: datasource=github-releases depName=tree-sitter/tree-sitter
-const Version = "0.26.3"
+const Version = "0.26.5"
 
 // Install ensures tree-sitter CLI is available.
 var Install = &pk.Task{
