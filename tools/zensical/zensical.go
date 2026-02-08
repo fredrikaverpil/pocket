@@ -47,10 +47,9 @@ func installZensical() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		installDir := pk.FromToolsDir(Name, Version())
 		venvPath := filepath.Join(installDir, "venv")
-		binary := uv.BinaryPath(venvPath, Name)
 
 		// Skip if already installed.
-		if _, err := os.Stat(binary); err == nil {
+		if uv.IsInstalled(venvPath, Name) {
 			return nil
 		}
 

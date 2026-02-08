@@ -463,6 +463,7 @@ var Docs = &pk.Task{
 | Type/Function                             | Description                                  |
 | :---------------------------------------- | :------------------------------------------- |
 | `uv.Install`                              | Task that ensures uv is available            |
+| `uv.IsInstalled(venvDir, name)`           | Check tool binary + Python interpreter exist |
 | `uv.SyncOptions`                          | Config for `uv sync` (version, venv, groups) |
 | `uv.RunOptions`                           | Config for `uv run` (version, venv)          |
 | `uv.Sync(ctx, opts)`                      | Install deps from pyproject.toml             |
@@ -514,10 +515,9 @@ var Install = &pk.Task{
 func installMdformat() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         venvDir := pk.FromToolsDir("mdformat", Version())
-        binary := uv.BinaryPath(venvDir, "mdformat")
 
         // Skip if already installed.
-        if _, err := os.Stat(binary); err == nil {
+        if uv.IsInstalled(venvDir, "mdformat") {
             return nil
         }
 
@@ -644,10 +644,9 @@ var Install = &pk.Task{
 func installPrettier() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         installDir := pk.FromToolsDir(Name, Version())
-        binary := bun.BinaryPath(installDir, Name)
 
         // Skip if already installed.
-        if _, err := os.Stat(binary); err == nil {
+        if bun.IsInstalled(installDir, Name) {
             return nil
         }
 
@@ -684,12 +683,13 @@ var Format = &pk.Task{
 
 **Key functions:**
 
-| Function                                 | Description                          |
-| :--------------------------------------- | :----------------------------------- |
-| `bun.Install`                            | Task that ensures bun is available   |
-| `bun.InstallFromLockfile(ctx, dir)`      | Install from package.json + bun.lock |
-| `bun.BinaryPath(installDir, name)`       | Path to binary in node_modules/.bin  |
-| `bun.Run(ctx, installDir, pkg, args...)` | Run a package via bun                |
+| Function                                 | Description                              |
+| :--------------------------------------- | :--------------------------------------- |
+| `bun.Install`                            | Task that ensures bun is available       |
+| `bun.IsInstalled(installDir, name)`      | Check tool binary exists in node_modules |
+| `bun.InstallFromLockfile(ctx, dir)`      | Install from package.json + bun.lock     |
+| `bun.BinaryPath(installDir, name)`       | Path to binary in node_modules/.bin      |
+| `bun.Run(ctx, installDir, pkg, args...)` | Run a package via bun                    |
 
 #### Project Node Tools
 

@@ -69,6 +69,13 @@ func platformArch() string {
 	}
 }
 
+// IsInstalled reports whether a Node tool is properly installed in the directory.
+// It checks that the tool binary exists in node_modules/.bin/.
+func IsInstalled(installDir, name string) bool {
+	_, err := os.Stat(BinaryPath(installDir, name))
+	return err == nil
+}
+
 // BinaryPath returns the path to a binary installed by bun in the given directory.
 func BinaryPath(installDir, binaryName string) string {
 	return filepath.Join(installDir, "node_modules", ".bin", pk.BinaryName(binaryName))

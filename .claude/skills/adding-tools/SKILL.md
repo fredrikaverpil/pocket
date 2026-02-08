@@ -170,17 +170,29 @@ var Lint = &pk.Task{
 
 ## Idempotency
 
-Always skip installation if the binary already exists:
+Always skip installation if the tool is already installed:
 
 ```go
-// For download-based tools:
+// For download-based tools (native binaries):
 download.WithSkipIfExists(binaryPath)
 
-// For custom install functions:
-if _, err := os.Stat(binary); err == nil {
+// For Python/uv tools (checks binary + venv Python interpreter):
+if uv.IsInstalled(venvDir, name) {
+    return nil
+}
+
+// For Node/bun tools (checks binary in node_modules/.bin/):
+if bun.IsInstalled(installDir, name) {
     return nil
 }
 ```
+
+**Important:** For Python/uv tools, do NOT use raw `os.Stat(binary)`. The
+binary in a venv is a script with a shebang pointing to the venv's Python
+interpreter. A stale cache can leave the script file intact while the Python
+interpreter is missing, causing `fork/exec: no such file or directory` at
+runtime. Use `uv.IsInstalled()` which verifies both the binary and the
+interpreter exist.
 
 ## Checklist
 

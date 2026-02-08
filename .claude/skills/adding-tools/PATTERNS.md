@@ -218,9 +218,8 @@ var Install = &pk.Task{
 func installMdformat() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         venvDir := pk.FromToolsDir("mdformat", Version())
-        binary := uv.BinaryPath(venvDir, "mdformat")
 
-        if _, err := os.Stat(binary); err == nil {
+        if uv.IsInstalled(venvDir, "mdformat") {
             return nil
         }
 
@@ -295,9 +294,8 @@ func installZensical() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         installDir := pk.FromToolsDir(Name, Version())
         venvPath := filepath.Join(installDir, "venv")
-        binary := uv.BinaryPath(venvPath, Name)
 
-        if _, err := os.Stat(binary); err == nil {
+        if uv.IsInstalled(venvPath, Name) {
             return nil
         }
 
@@ -361,6 +359,7 @@ Generate `uv.lock` by running `uv lock` in the tool directory.
 
 ```go
 uv.Install                                    // Task: ensures uv binary exists
+uv.IsInstalled(venvDir, name)                  // check binary + Python exist
 uv.CreateVenv(ctx, venvDir, pythonVersion)     // create venv
 uv.PipInstall(ctx, venvDir, pkg)               // pip install single package
 uv.PipInstallRequirements(ctx, venvDir, path)  // pip install -r
@@ -429,9 +428,8 @@ var Install = &pk.Task{
 func installPrettier() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         installDir := pk.FromToolsDir(Name, Version())
-        binary := bun.BinaryPath(installDir, Name)
 
-        if _, err := os.Stat(binary); err == nil {
+        if bun.IsInstalled(installDir, Name) {
             return nil
         }
 
@@ -469,6 +467,7 @@ automatically.
 
 ```go
 bun.Install                                 // Task: ensures bun binary exists
+bun.IsInstalled(installDir, name)           // check binary exists in node_modules
 bun.InstallFromLockfile(ctx, dir)           // bun install --frozen-lockfile
 bun.Run(ctx, installDir, pkgName, args...)  // run installed package
 bun.BinaryPath(installDir, binaryName)      // path to binary in node_modules

@@ -43,10 +43,9 @@ var Install = &pk.Task{
 func installMdformat() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		venvDir := pk.FromToolsDir("mdformat", Version())
-		binary := uv.BinaryPath(venvDir, "mdformat")
 
 		// Skip if already installed.
-		if _, err := os.Stat(binary); err == nil {
+		if uv.IsInstalled(venvDir, "mdformat") {
 			return nil
 		}
 

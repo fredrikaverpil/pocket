@@ -51,10 +51,9 @@ var Install = &pk.Task{
 func installPrettier() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		installDir := pk.FromToolsDir(Name, Version())
-		binary := bun.BinaryPath(installDir, Name)
 
 		// Skip if already installed.
-		if _, err := os.Stat(binary); err == nil {
+		if bun.IsInstalled(installDir, Name) {
 			return nil
 		}
 

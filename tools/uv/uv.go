@@ -26,6 +26,7 @@ package uv
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 
@@ -119,6 +120,20 @@ func venvPython(venvPath string) string {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
+}
+
+// IsInstalled reports whether a Python tool is properly installed in a venv.
+// It checks that both the tool binary and the venv's Python interpreter exist.
+// This guards against stale caches where script files remain but the Python
+// interpreter referenced by their shebang is missing.
+func IsInstalled(venvDir, name string) bool {
+	if _, err := os.Stat(BinaryPath(venvDir, name)); err != nil {
+		return false
+	}
+	if _, err := os.Stat(venvPython(venvDir)); err != nil {
+		return false
+	}
+	return true
 }
 
 // BinaryPath returns the cross-platform path to a binary in a Python venv.
