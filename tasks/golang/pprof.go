@@ -2,6 +2,8 @@ package golang
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 
 	"github.com/fredrikaverpil/pocket/pk"
 )
@@ -21,6 +23,11 @@ var Pprof = &pk.Task{
 		FlagPprofPort: {Default: "8080", Usage: "port for pprof HTTP server"},
 	},
 	Do: func(ctx context.Context) error {
+		if _, err := exec.LookPath("dot"); err != nil {
+			return fmt.Errorf(
+				"graphviz is required for pprof web UI\n  brew install graphviz\n  nix shell nixpkgs#graphviz",
+			)
+		}
 		file := pk.GetFlag[string](ctx, FlagPprofFile)
 		port := pk.GetFlag[string](ctx, FlagPprofPort)
 		return pk.Exec(ctx, "go", "tool", "pprof", "-http=:"+port, file)

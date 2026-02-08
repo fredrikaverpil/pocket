@@ -18,6 +18,7 @@ const (
 	FlagTestMemProfile   = "memprofile"
 	FlagTestBlockProfile = "blockprofile"
 	FlagTestMutexProfile = "mutexprofile"
+	FlagTestPkg          = "pkg"
 	FlagTestArgs         = "args"
 )
 
@@ -35,6 +36,7 @@ var Test = &pk.Task{
 		FlagTestMemProfile:   {Default: "", Usage: "write memory profile to file (e.g., mem.prof)"},
 		FlagTestBlockProfile: {Default: "", Usage: "write block profile to file (e.g., block.prof)"},
 		FlagTestMutexProfile: {Default: "", Usage: "write mutex profile to file (e.g., mutex.prof)"},
+		FlagTestPkg:          {Default: "./...", Usage: "package pattern to test (e.g., ./pk)"},
 		FlagTestArgs:         {Default: "", Usage: "additional arguments to pass to go test"},
 	},
 	Do: func(ctx context.Context) error {
@@ -67,7 +69,7 @@ var Test = &pk.Task{
 		if extraArgs := pk.GetFlag[string](ctx, FlagTestArgs); extraArgs != "" {
 			args = append(args, strings.Fields(extraArgs)...)
 		}
-		args = append(args, "./...")
+		args = append(args, pk.GetFlag[string](ctx, FlagTestPkg))
 		if err := pk.Exec(ctx, "go", args...); err != nil {
 			return err
 		}
