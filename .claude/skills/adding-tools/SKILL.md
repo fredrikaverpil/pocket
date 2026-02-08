@@ -18,9 +18,8 @@ installation, and execution.
 ```
 tools/<toolname>/
 ├── <toolname>.go        # Package with Name, Version, Install task
-├── requirements.txt     # (Python tools, pip-based)
-├── pyproject.toml       # (Python tools, uv sync-based)
-├── uv.lock              # (Python tools, uv sync-based)
+├── pyproject.toml       # (Python tools)
+├── uv.lock              # (Python tools)
 ├── package.json         # (Node tools)
 └── bun.lock             # (Node tools)
 ```
@@ -42,16 +41,17 @@ Use inline constants with Renovate comments for automatic updates:
 const Version = "1.2.3"
 ```
 
-For tools with lockfiles (Python/Node), compute a hash-based version:
+For tools with lockfiles (Python/Node), use the ecosystem's `ContentHash`:
 
 ```go
-//go:embed requirements.txt
-var requirements []byte
-
+// Python tools:
 func Version() string {
-    h := sha256.New()
-    h.Write(requirements)
-    return hex.EncodeToString(h.Sum(nil))[:12]
+    return uv.ContentHash(pyprojectTOML, uvLock, []byte(uv.DefaultPythonVersion))
+}
+
+// Node tools:
+func Version() string {
+    return bun.ContentHash(packageJSON, lockfile)
 }
 ```
 
@@ -89,15 +89,16 @@ Must handle platform/arch mapping (see cross-platform section in PATTERNS.md).
 
 ### Pattern 3: Python tool (via uv)
 
-For Python tools. Depends on `uv.Install`. Prefer `pyproject.toml`/`uv.lock`
-with `uv.Sync` (reproducible, locked). `requirements.txt` with
-`uv.PipInstallRequirements` exists in older tools but should not be used for new
-ones. Exposes an `Exec()` function instead of a symlink.
+For Python tools. Depends on `uv.Install`. Uses `pyproject.toml`/`uv.lock` with
+`uv.Sync` for reproducible, locked builds. Uses `uv.ContentHash` for directory
+naming and `uv.ExecTool` for execution (avoids shebang issues). Exposes an
+`Exec()` function instead of a symlink.
 
 ### Pattern 4: Node tool (via bun)
 
 For Node.js tools. Depends on `bun.Install`. Embeds `package.json` and
-`bun.lock` via `//go:embed`. Exposes an `Exec()` function instead of a symlink.
+`bun.lock` via `//go:embed`. Uses `bun.ContentHash` for directory naming.
+Exposes an `Exec()` function instead of a symlink.
 
 ## Ecosystem tools (uv, bun)
 
@@ -170,29 +171,30 @@ var Lint = &pk.Task{
 
 ## Idempotency
 
-Always skip installation if the tool is already installed:
+Always wrap installation logic so it skips if the tool already exists:
 
 ```go
 // For download-based tools (native binaries):
 download.WithSkipIfExists(binaryPath)
 
-// For Python/uv tools (checks binary + venv Python interpreter):
-if uv.IsInstalled(venvDir, name) {
-    return nil
-}
+// For Python/uv tools — use EnsureInstalled (checks binary + Python interpreter):
+uv.EnsureInstalled(venvDir, name, func(ctx context.Context) error {
+    // ... create venv, install packages ...
+})
 
-// For Node/bun tools (checks binary in node_modules/.bin/):
-if bun.IsInstalled(installDir, name) {
-    return nil
-}
+// For Node/bun tools — use EnsureInstalled (checks binary in node_modules/.bin/):
+bun.EnsureInstalled(installDir, name, func(ctx context.Context) error {
+    // ... write lockfiles, bun install ...
+})
 ```
 
-**Important:** For Python/uv tools, do NOT use raw `os.Stat(binary)`. The
-binary in a venv is a script with a shebang pointing to the venv's Python
-interpreter. A stale cache can leave the script file intact while the Python
-interpreter is missing, causing `fork/exec: no such file or directory` at
-runtime. Use `uv.IsInstalled()` which verifies both the binary and the
-interpreter exist.
+`EnsureInstalled` wraps your install function with the correct idempotency
+check. Use it instead of manual `os.Stat` or `IsInstalled` checks — it makes
+the correct pattern impossible to forget.
+
+For Python/uv tools, `EnsureInstalled` verifies both the tool binary and the
+venv's Python interpreter exist. This guards against stale CI caches where
+script files remain but the shebang interpreter is missing.
 
 ## Checklist
 

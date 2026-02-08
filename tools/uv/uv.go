@@ -25,6 +25,8 @@ package uv
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -109,11 +111,6 @@ func PipInstall(ctx context.Context, venvPath, pkg string) error {
 	return pk.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
 }
 
-// PipInstallRequirements installs packages from a requirements.txt file.
-func PipInstallRequirements(ctx context.Context, venvPath, requirementsPath string) error {
-	return pk.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), "-r", requirementsPath)
-}
-
 // venvPython returns the path to the Python executable in a venv.
 func venvPython(venvPath string) string {
 	if runtime.GOOS == pk.Windows {
@@ -136,12 +133,43 @@ func IsInstalled(venvDir, name string) bool {
 	return true
 }
 
+// EnsureInstalled returns a Runnable that skips installFn if the tool is already
+// properly installed (binary + Python interpreter both exist). Use this instead
+// of calling IsInstalled manually to ensure the check is never forgotten.
+func EnsureInstalled(venvDir, name string, installFn func(ctx context.Context) error) pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
+		if IsInstalled(venvDir, name) {
+			return nil
+		}
+		return installFn(ctx)
+	})
+}
+
 // BinaryPath returns the cross-platform path to a binary in a Python venv.
 func BinaryPath(venvDir, name string) string {
 	if runtime.GOOS == pk.Windows {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)
+}
+
+// ContentHash returns a short hash for use as a directory name.
+// Pass all embedded files + python version to get a content-addressable key.
+func ContentHash(data ...[]byte) string {
+	h := sha256.New()
+	for _, d := range data {
+		h.Write(d)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
+
+// ExecTool runs a Python tool by invoking the venv's Python interpreter
+// with the script path. This avoids shebang dependencies.
+func ExecTool(ctx context.Context, venvDir, name string, args ...string) error {
+	python := venvPython(venvDir)
+	script := BinaryPath(venvDir, name)
+	execArgs := append([]string{script}, args...)
+	return pk.Exec(ctx, python, execArgs...)
 }
 
 // DefaultVenvPattern is the naming pattern for venvs. %s is replaced with the Python version.

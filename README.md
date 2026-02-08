@@ -142,7 +142,8 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlag(Task, pkg.FlagName, "value")` sets task-specific flags
+- **Flag overrides**: `WithFlag(Task, pkg.FlagName, "value")` sets task-specific
+  flags
 - [and more...](./REFERENCE.md)
 
 ```go

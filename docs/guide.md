@@ -463,6 +463,9 @@ var Docs = &pk.Task{
 | Type/Function                             | Description                                  |
 | :---------------------------------------- | :------------------------------------------- |
 | `uv.Install`                              | Task that ensures uv is available            |
+| `uv.ContentHash(data...)`                 | Content-addressable directory name           |
+| `uv.ExecTool(ctx, venvDir, name, args…)`  | Run tool via Python interpreter (no shebang) |
+| `uv.EnsureInstalled(venvDir, name, fn)`   | Skip install if binary + Python exist        |
 | `uv.IsInstalled(venvDir, name)`           | Check tool binary + Python interpreter exist |
 | `uv.SyncOptions`                          | Config for `uv sync` (version, venv, groups) |
 | `uv.RunOptions`                           | Config for `uv run` (version, venv)          |
@@ -503,6 +506,17 @@ See `tools/mdformat/` for a complete example:
 // tools/mdformat/mdformat.go
 package mdformat
 
+//go:embed pyproject.toml
+var pyprojectTOML []byte
+
+//go:embed uv.lock
+var uvLock []byte
+
+// Version returns a content hash based on pyproject.toml, uv.lock, and Python version.
+func Version() string {
+    return uv.ContentHash(pyprojectTOML, uvLock, []byte(uv.DefaultPythonVersion))
+}
+
 // Install ensures mdformat is available.
 var Install = &pk.Task{
     Name:   "install:mdformat",
@@ -513,34 +527,25 @@ var Install = &pk.Task{
 }
 
 func installMdformat() pk.Runnable {
-    return pk.Do(func(ctx context.Context) error {
-        venvDir := pk.FromToolsDir("mdformat", Version())
-
-        // Skip if already installed.
-        if uv.IsInstalled(venvDir, "mdformat") {
-            return nil
-        }
-
-        // Create venv and install.
-        if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
-            return err
-        }
-        reqPath := filepath.Join(venvDir, "requirements.txt")
-        if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
-            return err
-        }
-        // No symlink - Exec() handles invocation.
-        return uv.PipInstallRequirements(ctx, venvDir, reqPath)
+    installDir := pk.FromToolsDir(Name, Version())
+    venvPath := filepath.Join(installDir, "venv")
+    return uv.EnsureInstalled(venvPath, Name, func(ctx context.Context) error {
+        os.MkdirAll(installDir, 0o755)
+        os.WriteFile(filepath.Join(installDir, "pyproject.toml"), pyprojectTOML, 0o644)
+        os.WriteFile(filepath.Join(installDir, "uv.lock"), uvLock, 0o644)
+        return uv.Sync(ctx, uv.SyncOptions{
+            PythonVersion: uv.DefaultPythonVersion,
+            VenvPath:      venvPath,
+            ProjectDir:    installDir,
+        })
     })
 }
 
 // Exec runs mdformat with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
-    venvDir := pk.FromToolsDir("mdformat", Version())
-    python := uv.BinaryPath(venvDir, "python")
-    // Run as module to avoid shebang path issues.
-    execArgs := append([]string{"-m", "mdformat"}, args...)
-    return pk.Exec(ctx, python, execArgs...)
+    installDir := pk.FromToolsDir(Name, Version())
+    venvDir := filepath.Join(installDir, "venv")
+    return uv.ExecTool(ctx, venvDir, Name, args...)
 }
 ```
 
@@ -632,6 +637,11 @@ var packageJSON []byte
 //go:embed bun.lock
 var lockfile []byte
 
+// Version returns a content hash based on package.json and bun.lock.
+func Version() string {
+    return bun.ContentHash(packageJSON, lockfile)
+}
+
 // Install ensures prettier is available.
 var Install = &pk.Task{
     Name:   "install:prettier",
@@ -642,20 +652,11 @@ var Install = &pk.Task{
 }
 
 func installPrettier() pk.Runnable {
-    return pk.Do(func(ctx context.Context) error {
-        installDir := pk.FromToolsDir(Name, Version())
-
-        // Skip if already installed.
-        if bun.IsInstalled(installDir, Name) {
-            return nil
-        }
-
-        // Write embedded lockfiles.
+    installDir := pk.FromToolsDir(Name, Version())
+    return bun.EnsureInstalled(installDir, Name, func(ctx context.Context) error {
         os.MkdirAll(installDir, 0o755)
         os.WriteFile(filepath.Join(installDir, "package.json"), packageJSON, 0o644)
         os.WriteFile(filepath.Join(installDir, "bun.lock"), lockfile, 0o644)
-
-        // No symlink - Exec() handles invocation.
         return bun.InstallFromLockfile(ctx, installDir)
     })
 }
@@ -663,7 +664,6 @@ func installPrettier() pk.Runnable {
 // Exec runs prettier with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
     installDir := pk.FromToolsDir(Name, Version())
-    // Run via bun since prettier is a Node.js script.
     return bun.Run(ctx, installDir, Name, args...)
 }
 ```
@@ -686,6 +686,8 @@ var Format = &pk.Task{
 | Function                                 | Description                              |
 | :--------------------------------------- | :--------------------------------------- |
 | `bun.Install`                            | Task that ensures bun is available       |
+| `bun.ContentHash(data...)`               | Content-addressable directory name       |
+| `bun.EnsureInstalled(dir, name, fn)`     | Skip install if binary exists            |
 | `bun.IsInstalled(installDir, name)`      | Check tool binary exists in node_modules |
 | `bun.InstallFromLockfile(ctx, dir)`      | Install from package.json + bun.lock     |
 | `bun.BinaryPath(installDir, name)`       | Path to binary in node_modules/.bin      |
@@ -1181,10 +1183,10 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlag(github.Workflows, github.FlagSkipPocket, true)` disables the simple
-   `pocket.yml` workflow
-3. `pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true)` enables the
-   `pocket-perjob.yml` workflow
+2. `pk.WithFlag(github.Workflows, github.FlagSkipPocket, true)` disables the
+   simple `pocket.yml` workflow
+3. `pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true)` enables
+   the `pocket-perjob.yml` workflow
 4. `pk.WithContextValue(github.PerJobConfigKey{}, cfg)` configures platforms and
    task overrides for job generation
 

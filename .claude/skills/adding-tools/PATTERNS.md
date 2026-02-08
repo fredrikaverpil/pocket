@@ -171,11 +171,12 @@ download.Download(url,
 
 For Python tools installed into isolated virtual environments.
 
-**Always prefer `pyproject.toml`/`uv.lock` (pattern 3b) for new tools.** It
-provides reproducible, locked builds. Pattern 3a (`requirements.txt`) exists in
-older tools but should not be used for new ones.
+All Python tools use the same structure:
 
-### 3a: Using requirements.txt (legacy)
+- `pyproject.toml` + `uv.lock` for reproducible, locked builds
+- Content-hash directory via `uv.ContentHash` for deterministic cache busting
+- `venv/` subdirectory within the install dir
+- `uv.ExecTool` for execution (avoids shebang dependencies)
 
 **Example: mdformat** (`tools/mdformat/mdformat.go`)
 
@@ -184,9 +185,7 @@ package mdformat
 
 import (
     "context"
-    "crypto/sha256"
     _ "embed"
-    "encoding/hex"
     "os"
     "path/filepath"
 
@@ -195,16 +194,16 @@ import (
 )
 
 const Name = "mdformat"
-const pythonVersion = "3.13"
 
-//go:embed requirements.txt
-var requirements []byte
+//go:embed pyproject.toml
+var pyprojectTOML []byte
 
+//go:embed uv.lock
+var uvLock []byte
+
+// Version returns a content hash based on pyproject.toml, uv.lock, and Python version.
 func Version() string {
-    h := sha256.New()
-    h.Write(requirements)
-    h.Write([]byte(pythonVersion))
-    return hex.EncodeToString(h.Sum(nil))[:12]
+    return uv.ContentHash(pyprojectTOML, uvLock, []byte(uv.DefaultPythonVersion))
 }
 
 var Install = &pk.Task{
@@ -216,89 +215,9 @@ var Install = &pk.Task{
 }
 
 func installMdformat() pk.Runnable {
-    return pk.Do(func(ctx context.Context) error {
-        venvDir := pk.FromToolsDir("mdformat", Version())
-
-        if uv.IsInstalled(venvDir, "mdformat") {
-            return nil
-        }
-
-        if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
-            return err
-        }
-
-        reqPath := filepath.Join(venvDir, "requirements.txt")
-        if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
-            return err
-        }
-
-        return uv.PipInstallRequirements(ctx, venvDir, reqPath)
-    })
-}
-
-func Exec(ctx context.Context, args ...string) error {
-    venvDir := pk.FromToolsDir("mdformat", Version())
-    python := uv.BinaryPath(venvDir, "python")
-    execArgs := append([]string{"-m", "mdformat"}, args...)
-    return pk.Exec(ctx, python, execArgs...)
-}
-```
-
-**Renovate:** Put version pins in `requirements.txt` with Renovate comments.
-
-### 3b: Using pyproject.toml + uv.lock
-
-**Example: zensical** (`tools/zensical/zensical.go`)
-
-```go
-package zensical
-
-import (
-    "context"
-    _ "embed"
-    "os"
-    "path/filepath"
-    "regexp"
-
-    "github.com/fredrikaverpil/pocket/pk"
-    "github.com/fredrikaverpil/pocket/tools/uv"
-)
-
-const Name = "zensical"
-
-//go:embed pyproject.toml
-var pyprojectTOML []byte
-
-//go:embed uv.lock
-var uvLock []byte
-
-// Version extracts the version from pyproject.toml.
-// renovate: datasource=pypi depName=zensical
-func Version() string {
-    re := regexp.MustCompile(`"zensical==([^"]+)"`)
-    if m := re.FindSubmatch(pyprojectTOML); len(m) > 1 {
-        return string(m[1])
-    }
-    return ""
-}
-
-var Install = &pk.Task{
-    Name:   "install:zensical",
-    Usage:  "install zensical",
-    Body:   pk.Serial(uv.Install, installZensical()),
-    Hidden: true,
-    Global: true,
-}
-
-func installZensical() pk.Runnable {
-    return pk.Do(func(ctx context.Context) error {
-        installDir := pk.FromToolsDir(Name, Version())
-        venvPath := filepath.Join(installDir, "venv")
-
-        if uv.IsInstalled(venvPath, Name) {
-            return nil
-        }
-
+    installDir := pk.FromToolsDir(Name, Version())
+    venvPath := filepath.Join(installDir, "venv")
+    return uv.EnsureInstalled(venvPath, Name, func(ctx context.Context) error {
         if err := os.MkdirAll(installDir, 0o755); err != nil {
             return err
         }
@@ -321,32 +240,26 @@ func installZensical() pk.Runnable {
     })
 }
 
-// Exec runs zensical with the given arguments.
-// The working directory is determined by the context path.
+// Exec runs mdformat with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
-    binary := uv.BinaryPath(VenvPath(), Name)
-    return pk.Exec(ctx, binary, args...)
-}
-
-// InstallDir returns the installation directory for zensical.
-func InstallDir() string {
-    return pk.FromToolsDir(Name, Version())
-}
-
-// VenvPath returns the virtual environment path for zensical.
-func VenvPath() string {
-    return filepath.Join(InstallDir(), "venv")
+    installDir := pk.FromToolsDir(Name, Version())
+    venvDir := filepath.Join(installDir, "venv")
+    return uv.ExecTool(ctx, venvDir, Name, args...)
 }
 ```
 
-Companion file `tools/zensical/pyproject.toml`:
+Companion file `tools/mdformat/pyproject.toml`:
 
 ```toml
 [project]
-name = "pocket-zensical"
+name = "pocket-mdformat"
 version = "0.0.0"
-requires-python = ">=3.11"
-dependencies = ["zensical==0.0.21"]
+requires-python = ">=3.13"
+dependencies = [
+    "mdformat==1.0.0",
+    "mdformat-gfm==1.0.0",
+    "mdformat-admon==2.1.1",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -355,14 +268,19 @@ build-backend = "hatchling.build"
 
 Generate `uv.lock` by running `uv lock` in the tool directory.
 
+**Renovate:** Put version pins in `pyproject.toml` dependencies. Renovate
+updates them automatically.
+
 ### uv helper API
 
 ```go
 uv.Install                                    // Task: ensures uv binary exists
+uv.ContentHash(data...)                       // content-addressable directory name
+uv.ExecTool(ctx, venvDir, name, args...)      // run tool via Python interpreter (no shebang)
+uv.EnsureInstalled(venvDir, name, installFn)  // skip install if binary + Python exist
 uv.IsInstalled(venvDir, name)                  // check binary + Python exist
 uv.CreateVenv(ctx, venvDir, pythonVersion)     // create venv
 uv.PipInstall(ctx, venvDir, pkg)               // pip install single package
-uv.PipInstallRequirements(ctx, venvDir, path)  // pip install -r
 uv.Sync(ctx, SyncOptions{...})                // install from pyproject.toml
 uv.Run(ctx, RunOptions{...}, cmd, args...)    // run command in venv
 uv.BinaryPath(venvDir, name)                   // path to binary in venv
@@ -375,6 +293,12 @@ uv.VenvPath(projectPath, pythonVersion)        // compute venv location
 
 For Node.js tools installed with bun from a lockfile.
 
+Node tools use the same content-hash directory strategy as Python tools:
+
+- `package.json` + `bun.lock` for reproducible, locked builds
+- Content-hash directory via `bun.ContentHash`
+- `bun.Run` for execution (already shebang-safe)
+
 **Example: prettier** (`tools/prettier/prettier.go`)
 
 ```go
@@ -383,10 +307,8 @@ package prettier
 import (
     "context"
     _ "embed"
-    "encoding/json"
     "os"
     "path/filepath"
-    "sync"
 
     "github.com/fredrikaverpil/pocket/pk"
     "github.com/fredrikaverpil/pocket/tools/bun"
@@ -400,21 +322,9 @@ var packageJSON []byte
 //go:embed bun.lock
 var lockfile []byte
 
-var (
-    versionOnce sync.Once
-    version     string
-)
-
+// Version returns a content hash based on package.json and bun.lock.
 func Version() string {
-    versionOnce.Do(func() {
-        var pkg struct {
-            Dependencies map[string]string `json:"dependencies"`
-        }
-        if err := json.Unmarshal(packageJSON, &pkg); err == nil {
-            version = pkg.Dependencies[Name]
-        }
-    })
-    return version
+    return bun.ContentHash(packageJSON, lockfile)
 }
 
 var Install = &pk.Task{
@@ -426,13 +336,8 @@ var Install = &pk.Task{
 }
 
 func installPrettier() pk.Runnable {
-    return pk.Do(func(ctx context.Context) error {
-        installDir := pk.FromToolsDir(Name, Version())
-
-        if bun.IsInstalled(installDir, Name) {
-            return nil
-        }
-
+    installDir := pk.FromToolsDir(Name, Version())
+    return bun.EnsureInstalled(installDir, Name, func(ctx context.Context) error {
         if err := os.MkdirAll(installDir, 0o755); err != nil {
             return err
         }
@@ -451,6 +356,7 @@ func installPrettier() pk.Runnable {
     })
 }
 
+// Exec runs prettier with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
     installDir := pk.FromToolsDir(Name, Version())
     return bun.Run(ctx, installDir, Name, args...)
@@ -467,6 +373,8 @@ automatically.
 
 ```go
 bun.Install                                 // Task: ensures bun binary exists
+bun.ContentHash(data...)                    // content-addressable directory name
+bun.EnsureInstalled(installDir, name, fn)   // skip install if binary exists
 bun.IsInstalled(installDir, name)           // check binary exists in node_modules
 bun.InstallFromLockfile(ctx, dir)           // bun install --frozen-lockfile
 bun.Run(ctx, installDir, pkgName, args...)  // run installed package
@@ -512,8 +420,8 @@ independently, `uv sync --python <version>` will fail on fresh CI environments
 |-----------------|-----------------------------------------------------------------------|
 | Go module       | `// renovate: datasource=go depName=github.com/org/repo`             |
 | GitHub releases | `// renovate: datasource=github-releases depName=owner/repo`         |
-| PyPI            | `// renovate: datasource=pypi depName=package-name`                  |
-| npm             | Automatic via `package.json`                                          |
+| PyPI            | Via `pyproject.toml` dependencies (automatic)                         |
+| npm             | Via `package.json` dependencies (automatic)                           |
 
 For GitHub releases with non-standard tag formats, use `extractVersion`:
 

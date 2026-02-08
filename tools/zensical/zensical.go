@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/tools/uv"
@@ -16,21 +15,14 @@ import (
 const Name = "zensical"
 
 //go:embed pyproject.toml
-var pyprojectToml []byte
+var pyprojectTOML []byte
 
 //go:embed uv.lock
 var uvLock []byte
 
-// Version returns the zensical version from pyproject.toml.
-// renovate: datasource=pypi depName=zensical
+// Version returns a content hash based on pyproject.toml, uv.lock, and Python version.
 func Version() string {
-	// Parse version from dependencies array in pyproject.toml
-	// Looking for: "zensical==X.Y.Z"
-	re := regexp.MustCompile(`"zensical==([^"]+)"`)
-	if matches := re.FindSubmatch(pyprojectToml); len(matches) > 1 {
-		return string(matches[1])
-	}
-	return ""
+	return uv.ContentHash(pyprojectTOML, uvLock, []byte(uv.DefaultPythonVersion))
 }
 
 // Install is a hidden, global task that installs zensical.
@@ -44,20 +36,14 @@ var Install = &pk.Task{
 }
 
 func installZensical() pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		installDir := pk.FromToolsDir(Name, Version())
-		venvPath := filepath.Join(installDir, "venv")
-
-		// Skip if already installed.
-		if uv.IsInstalled(venvPath, Name) {
-			return nil
-		}
-
+	installDir := pk.FromToolsDir(Name, Version())
+	venvPath := filepath.Join(installDir, "venv")
+	return uv.EnsureInstalled(venvPath, Name, func(ctx context.Context) error {
 		// Create install directory and write project files.
 		if err := os.MkdirAll(installDir, 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(installDir, "pyproject.toml"), pyprojectToml, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(installDir, "pyproject.toml"), pyprojectTOML, 0o644); err != nil {
 			return err
 		}
 		if err := os.WriteFile(filepath.Join(installDir, "uv.lock"), uvLock, 0o644); err != nil {
@@ -65,7 +51,6 @@ func installZensical() pk.Runnable {
 		}
 
 		// Sync dependencies using uv.
-		// Set explicit venv path and project directory.
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: uv.DefaultPythonVersion,
 			VenvPath:      venvPath,
@@ -77,16 +62,7 @@ func installZensical() pk.Runnable {
 // Exec runs zensical with the given arguments.
 // The working directory is determined by the context path.
 func Exec(ctx context.Context, args ...string) error {
-	binary := uv.BinaryPath(VenvPath(), Name)
-	return pk.Exec(ctx, binary, args...)
-}
-
-// InstallDir returns the installation directory for zensical.
-func InstallDir() string {
-	return pk.FromToolsDir(Name, Version())
-}
-
-// VenvPath returns the virtual environment path for zensical.
-func VenvPath() string {
-	return filepath.Join(InstallDir(), "venv")
+	installDir := pk.FromToolsDir(Name, Version())
+	venvDir := filepath.Join(installDir, "venv")
+	return uv.ExecTool(ctx, venvDir, Name, args...)
 }

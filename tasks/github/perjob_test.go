@@ -73,7 +73,7 @@ func TestGetTaskOverride(t *testing.T) {
 
 func TestGetTaskOverride_InvalidRegexp(t *testing.T) {
 	overrides := map[string]TaskOverride{
-		"[invalid": {Platforms: []string{PlatformMacOS}},  // invalid regexp
+		"[invalid": {Platforms: []string{PlatformMacOS}}, // invalid regexp
 		"valid":    {Platforms: []string{PlatformUbuntu}},
 	}
 
@@ -241,7 +241,12 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 	for _, job := range jobs {
 		if strings.HasPrefix(job.Task, "py-test:") {
 			if job.Platform != PlatformUbuntu {
-				t.Errorf("%s should only run on %s (matched by py-test:.*), got %q", job.Task, PlatformUbuntu, job.Platform)
+				t.Errorf(
+					"%s should only run on %s (matched by py-test:.*), got %q",
+					job.Task,
+					PlatformUbuntu,
+					job.Platform,
+				)
 			}
 		} else if job.Task == "go-lint" {
 			if job.Platform != PlatformUbuntu {

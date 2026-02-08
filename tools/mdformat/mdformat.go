@@ -4,9 +4,7 @@ package mdformat
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 
@@ -17,18 +15,15 @@ import (
 // Name is the binary name for mdformat.
 const Name = "mdformat"
 
-// Python 3.13+ required by mdformat v1 for --exclude support.
-const pythonVersion = "3.13"
+//go:embed pyproject.toml
+var pyprojectTOML []byte
 
-//go:embed requirements.txt
-var requirements []byte
+//go:embed uv.lock
+var uvLock []byte
 
-// Version creates a unique hash based on requirements and Python version.
+// Version returns a content hash based on pyproject.toml, uv.lock, and Python version.
 func Version() string {
-	h := sha256.New()
-	h.Write(requirements)
-	h.Write([]byte(pythonVersion))
-	return hex.EncodeToString(h.Sum(nil))[:12]
+	return uv.ContentHash(pyprojectTOML, uvLock, []byte(uv.DefaultPythonVersion))
 }
 
 // Install ensures mdformat is available.
@@ -41,36 +36,32 @@ var Install = &pk.Task{
 }
 
 func installMdformat() pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		venvDir := pk.FromToolsDir("mdformat", Version())
-
-		// Skip if already installed.
-		if uv.IsInstalled(venvDir, "mdformat") {
-			return nil
+	installDir := pk.FromToolsDir(Name, Version())
+	venvPath := filepath.Join(installDir, "venv")
+	return uv.EnsureInstalled(venvPath, Name, func(ctx context.Context) error {
+		// Create install directory and write project files.
+		if err := os.MkdirAll(installDir, 0o755); err != nil {
+			return err
 		}
-
-		// Create virtual environment with Python 3.13+.
-		if err := uv.CreateVenv(ctx, venvDir, pythonVersion); err != nil {
+		if err := os.WriteFile(filepath.Join(installDir, "pyproject.toml"), pyprojectTOML, 0o644); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(installDir, "uv.lock"), uvLock, 0o644); err != nil {
 			return err
 		}
 
-		// Write requirements.txt to venv dir.
-		reqPath := filepath.Join(venvDir, "requirements.txt")
-		if err := os.WriteFile(reqPath, requirements, 0o644); err != nil {
-			return err
-		}
-
-		// Install from requirements.txt.
-		// No symlink needed since Exec() runs via venv Python.
-		return uv.PipInstallRequirements(ctx, venvDir, reqPath)
+		// Sync dependencies using uv.
+		return uv.Sync(ctx, uv.SyncOptions{
+			PythonVersion: uv.DefaultPythonVersion,
+			VenvPath:      venvPath,
+			ProjectDir:    installDir,
+		})
 	})
 }
 
 // Exec runs mdformat with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
-	venvDir := pk.FromToolsDir("mdformat", Version())
-	python := uv.BinaryPath(venvDir, "python")
-	// Run as module to avoid shebang path issues.
-	execArgs := append([]string{"-m", "mdformat"}, args...)
-	return pk.Exec(ctx, python, execArgs...)
+	installDir := pk.FromToolsDir(Name, Version())
+	venvDir := filepath.Join(installDir, "venv")
+	return uv.ExecTool(ctx, venvDir, Name, args...)
 }

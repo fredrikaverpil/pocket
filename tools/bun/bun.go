@@ -4,6 +4,8 @@ package bun
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,11 +71,33 @@ func platformArch() string {
 	}
 }
 
+// ContentHash returns a short hash for use as a directory name.
+// Pass all embedded files to get a content-addressable key.
+func ContentHash(data ...[]byte) string {
+	h := sha256.New()
+	for _, d := range data {
+		h.Write(d)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
+
 // IsInstalled reports whether a Node tool is properly installed in the directory.
 // It checks that the tool binary exists in node_modules/.bin/.
 func IsInstalled(installDir, name string) bool {
 	_, err := os.Stat(BinaryPath(installDir, name))
 	return err == nil
+}
+
+// EnsureInstalled returns a Runnable that skips installFn if the tool is already
+// installed. Use this instead of calling IsInstalled manually to ensure the
+// check is never forgotten.
+func EnsureInstalled(installDir, name string, installFn func(ctx context.Context) error) pk.Runnable {
+	return pk.Do(func(ctx context.Context) error {
+		if IsInstalled(installDir, name) {
+			return nil
+		}
+		return installFn(ctx)
+	})
 }
 
 // BinaryPath returns the path to a binary installed by bun in the given directory.

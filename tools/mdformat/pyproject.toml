@@ -1,0 +1,13 @@
+[project]
+name = "pocket-mdformat"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = [
+    "mdformat==1.0.0",
+    "mdformat-gfm==1.0.0",
+    "mdformat-admon==2.1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

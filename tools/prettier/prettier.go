@@ -5,7 +5,6 @@ package prettier
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"os"
 	"path/filepath"
 
@@ -28,15 +27,9 @@ var packageJSON []byte
 //go:embed bun.lock
 var lockfile []byte
 
-// Version returns the prettier version from package.json.
+// Version returns a content hash based on package.json and bun.lock.
 func Version() string {
-	var pkg struct {
-		Dependencies map[string]string `json:"dependencies"`
-	}
-	if err := json.Unmarshal(packageJSON, &pkg); err == nil {
-		return pkg.Dependencies[Name]
-	}
-	return ""
+	return bun.ContentHash(packageJSON, lockfile)
 }
 
 // Install ensures prettier is available.
@@ -49,14 +42,8 @@ var Install = &pk.Task{
 }
 
 func installPrettier() pk.Runnable {
-	return pk.Do(func(ctx context.Context) error {
-		installDir := pk.FromToolsDir(Name, Version())
-
-		// Skip if already installed.
-		if bun.IsInstalled(installDir, Name) {
-			return nil
-		}
-
+	installDir := pk.FromToolsDir(Name, Version())
+	return bun.EnsureInstalled(installDir, Name, func(ctx context.Context) error {
 		// Create install directory and write lockfile.
 		if err := os.MkdirAll(installDir, 0o755); err != nil {
 			return err
@@ -69,7 +56,6 @@ func installPrettier() pk.Runnable {
 		}
 
 		// Install prettier using bun with frozen lockfile.
-		// No symlink needed since Exec() runs via bun.Run().
 		return bun.InstallFromLockfile(ctx, installDir)
 	})
 }
