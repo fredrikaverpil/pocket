@@ -1,5 +1,6 @@
 # Plan
 
+- [ ] Ignore CHANGELOG.md from md-format task.
 - [ ] Do we have enough tests (AAA pattern) so that we avoid breaking
       functionality?
   - [ ] Measure code coverage and inspect non-covered parts and whether we
