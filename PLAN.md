@@ -59,25 +59,25 @@ conversion helpers.
 
 ### Version pinning
 
-Nix versions are pinned via a `flake.lock` (analogous to `bun.lock` / `uv.lock`).
-The project has a `flake.nix` that declares which packages to expose, and
-`flake.lock` pins the exact nixpkgs revision.
+Nix versions are pinned via a `flake.lock` (analogous to `bun.lock` /
+`uv.lock`). The project has a `flake.nix` that declares which packages to
+expose, and `flake.lock` pins the exact nixpkgs revision.
 
-| Backend    | Manifest          | Lock file    | Version model            |
-| ---------- | ----------------- | ------------ | ------------------------ |
-| `download` | URL with version  | —            | Explicit per-tool        |
-| `golang`   | `pkg@version`     | —            | Explicit per-tool        |
-| `bun`      | `package.json`    | `bun.lock`   | Explicit per-tool        |
-| `uv`       | `pyproject.toml`  | `uv.lock`    | Explicit per-tool        |
-| **`nix`**  | `flake.nix`       | `flake.lock` | Implicit via nixpkgs pin |
+| Backend    | Manifest         | Lock file    | Version model            |
+| ---------- | ---------------- | ------------ | ------------------------ |
+| `download` | URL with version | —            | Explicit per-tool        |
+| `golang`   | `pkg@version`    | —            | Explicit per-tool        |
+| `bun`      | `package.json`   | `bun.lock`   | Explicit per-tool        |
+| `uv`       | `pyproject.toml` | `uv.lock`    | Explicit per-tool        |
+| **`nix`**  | `flake.nix`      | `flake.lock` | Implicit via nixpkgs pin |
 
 **Recommended approach: single nixpkgs pin.** All tools share one nixpkgs
 revision. Versions move together as a coherent set (this is how nixpkgs is
 tested). Renovate already has a Nix manager that can update `flake.lock`.
 
 Per-tool nixpkgs pins (multiple flake inputs) are possible but add complexity
-and defeat Nix's "coherent set" strength. Tools that need a specific version
-can still use another backend.
+and defeat Nix's "coherent set" strength. Tools that need a specific version can
+still use another backend.
 
 ### File layout
 
@@ -101,16 +101,16 @@ that already have Nix in their CI** (or are willing to add it).
 
 CI platform support varies:
 
-- **GitHub Actions**: well-supported via `DeterminateSystems/nix-installer-action`
-  (~30s install overhead).
+- **GitHub Actions**: well-supported via
+  `DeterminateSystems/nix-installer-action` (~30s install overhead).
 - **Forgejo/Codeberg/Tangled**: less mature Nix support, often self-hosted
   runners where Nix must be installed manually.
 - **Nix-native CI** (Garnix, Hercules CI): Nix is already there.
 
 This reinforces that the Nix backend should be **opt-in per tool**, not a
-default strategy. Projects without Nix continue using the existing backends
-with zero external dependencies. The positioning: "If your CI already has Nix,
-Pocket can leverage it to eliminate tool installation boilerplate."
+default strategy. Projects without Nix continue using the existing backends with
+zero external dependencies. The positioning: "If your CI already has Nix, Pocket
+can leverage it to eliminate tool installation boilerplate."
 
 ### What to explore
 
@@ -118,8 +118,8 @@ Pocket can leverage it to eliminate tool installation boilerplate."
   platforms (Linux, macOS)?
 - What is the cold-start performance of `nix build` for a typical tool vs the
   current download approach?
-- Should Pocket generate the `flake.nix` from tool declarations, or should
-  the user maintain it?
+- Should Pocket generate the `flake.nix` from tool declarations, or should the
+  user maintain it?
 - How does this interact with NixOS users who may already have tools via their
   system config?
 - Could Pocket detect Nix availability and auto-select the Nix backend, or
