@@ -24,6 +24,7 @@
 package uv
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -31,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
@@ -117,6 +119,48 @@ func venvPython(venvPath string) string {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
+}
+
+// removeStaleVenv removes a venv whose base Python installation no longer exists.
+// This happens when CI caches .pocket/venvs but not the uv-managed Python
+// installations (e.g. on Windows where the venv's python.exe is a redirector
+// that embeds an absolute path to the uv-managed interpreter). Removing the
+// stale venv allows uv to recreate it with a freshly downloaded Python.
+func removeStaleVenv(ctx context.Context, venvPath string) error {
+	home, ok := pyvenvHome(venvPath)
+	if !ok {
+		return nil
+	}
+	if _, err := os.Stat(home); err == nil {
+		return nil // Base Python exists, venv is fine.
+	}
+	if pk.Verbose(ctx) {
+		pk.Printf(ctx, "Removing stale venv %s (Python home %s no longer exists)\n", venvPath, home)
+	}
+	return os.RemoveAll(venvPath)
+}
+
+// pyvenvHome reads the "home" key from pyvenv.cfg in the given venv directory.
+// It returns the path and true if found, or empty string and false otherwise.
+func pyvenvHome(venvPath string) (string, bool) {
+	cfgPath := filepath.Join(venvPath, "pyvenv.cfg")
+	f, err := os.Open(cfgPath)
+	if err != nil {
+		return "", false
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		key, value, ok := strings.Cut(scanner.Text(), "=")
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(key) == "home" {
+			return strings.TrimSpace(value), true
+		}
+	}
+	return "", false
 }
 
 // IsInstalled reports whether a Python tool is properly installed in a venv.
@@ -240,6 +284,10 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		venvPath = VenvPath(projectDir, pythonVersion)
 	}
 
+	if err := removeStaleVenv(ctx, venvPath); err != nil {
+		return fmt.Errorf("remove stale venv: %w", err)
+	}
+
 	if pk.Verbose(ctx) {
 		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
@@ -272,6 +320,10 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 	venvPath := opts.VenvPath
 	if venvPath == "" {
 		venvPath = VenvPath(projectDir, pythonVersion)
+	}
+
+	if err := removeStaleVenv(ctx, venvPath); err != nil {
+		return fmt.Errorf("remove stale venv: %w", err)
 	}
 
 	if pk.Verbose(ctx) {
