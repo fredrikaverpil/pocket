@@ -12,6 +12,7 @@ package golang
 
 import (
 	"context"
+	"debug/buildinfo"
 	"fmt"
 	"os"
 	"os/exec"
@@ -51,14 +52,23 @@ func install(ctx context.Context, pkg, version string) error {
 
 	// Check if already installed.
 	if _, err := os.Stat(toolBinPath); err == nil {
-		// Already installed, ensure symlink exists.
-		if _, err := download.CreateSymlink(toolBinPath); err != nil {
-			return err
+		if !builtWithStaleGo(toolBinPath) {
+			// Already installed, ensure symlink exists.
+			if _, err := download.CreateSymlink(toolBinPath); err != nil {
+				return err
+			}
+			if pk.Verbose(ctx) {
+				pk.Printf(ctx, "  [install] %s@%s already installed\n", binaryName, version)
+			}
+			return nil
 		}
+		// Binary was built with a different Go version. Rebuild it.
 		if pk.Verbose(ctx) {
-			pk.Printf(ctx, "  [install] %s@%s already installed\n", binaryName, version)
+			pk.Printf(ctx, "  [install] %s@%s rebuilding (Go version changed)\n", binaryName, version)
 		}
-		return nil
+		if err := os.RemoveAll(toolDir); err != nil {
+			return fmt.Errorf("remove stale tool: %w", err)
+		}
 	}
 
 	// Create tool directory.
@@ -120,4 +130,15 @@ func isVersion(s string) bool {
 		}
 	}
 	return true
+}
+
+// builtWithStaleGo reports whether the binary at path was built with a
+// different Go version than the currently running one. This catches cases
+// where a cached tool binary panics after a Go toolchain upgrade.
+func builtWithStaleGo(path string) bool {
+	info, err := buildinfo.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return info.GoVersion != runtime.Version()
 }
