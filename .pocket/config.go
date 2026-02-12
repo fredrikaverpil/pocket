@@ -15,7 +15,6 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			pk.WithFlag(github.Workflows, github.FlagSkipGhPages, true),
 			pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
 			pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
 			pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{

@@ -58,14 +58,14 @@ const (
 )
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
-// By default, all workflows are copied. Use flags to select specific ones.
+// Most workflows are included by default. Use flags to include/exclude specific ones.
 var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
 	Flags: map[string]pk.FlagDef{
 		FlagIncludePocketPerjob: {Default: false, Usage: "include pocket-perjob workflow (excluded by default)"},
 		FlagPlatforms:           {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
-		FlagSkipGhPages:         {Default: false, Usage: "exclude GitHub Pages workflow"},
+		FlagSkipGhPages:         {Default: true, Usage: "exclude GitHub Pages workflow"},
 		FlagSkipPocket:          {Default: false, Usage: "exclude pocket workflow"},
 		FlagSkipPR:              {Default: false, Usage: "exclude PR workflow"},
 		FlagSkipRelease:         {Default: false, Usage: "exclude release-please workflow"},
