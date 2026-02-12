@@ -292,7 +292,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
-	args := []string{"sync", "--python", pythonVersion}
+	args := []string{"sync", "--frozen", "--python", pythonVersion}
 	if opts.AllGroups {
 		args = append(args, "--all-groups")
 	}
@@ -330,7 +330,7 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
-	uvArgs := []string{"run", "--python", pythonVersion, cmdName}
+	uvArgs := []string{"run", "--frozen", "--python", pythonVersion, cmdName}
 	uvArgs = append(uvArgs, args...)
 
 	ctx = pk.ContextWithPath(ctx, projectDir)
