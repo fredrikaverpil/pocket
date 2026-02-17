@@ -11,7 +11,7 @@ const Name = "golangci-lint"
 
 // Version is the version of golangci-lint to install.
 // renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
-const Version = "v2.1.6"
+const Version = "v2.10.1"
 
 // Install is a hidden, global task that installs golangci-lint.
 // Global ensures it only runs once regardless of path context.
