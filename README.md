@@ -104,6 +104,7 @@ same version.
 > Pocket has both tools and tasks hosted in this repo. They are used throughout
 > my personal projects and are quite opinionated. Examples:
 >
+> - [claudeline](https://github.com/fredrikaverpil/claudeline/blob/main/.pocket/config.go)
 > - [creosote](https://github.com/fredrikaverpil/creosote/blob/main/.pocket/config.go)
 > - [neotest-golang](https://github.com/fredrikaverpil/neotest-golang/blob/main/.pocket/config.go)
 >
