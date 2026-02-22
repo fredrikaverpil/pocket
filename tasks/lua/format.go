@@ -23,7 +23,7 @@ var Format = &pk.Task{
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		configPath := pk.GetFlag[string](ctx, FlagConfig)
-		if configPath == "" {
+		if configPath == "" && !stylua.HasProjectConfig() {
 			configPath = stylua.EnsureDefaultConfig()
 		}
 
@@ -33,7 +33,9 @@ func formatCmd() pk.Runnable {
 		if pk.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
-		args = append(args, "-f", configPath)
+		if configPath != "" {
+			args = append(args, "-f", configPath)
+		}
 		args = append(args, absDir)
 
 		return pk.Exec(ctx, stylua.Name, args...)

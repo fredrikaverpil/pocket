@@ -24,6 +24,12 @@ var defaultConfig []byte
 // DefaultConfigFile is the name of the default config file.
 const DefaultConfigFile = "stylua.toml"
 
+// configFileNames are the filenames stylua searches for.
+var configFileNames = []string{
+	"stylua.toml",
+	".stylua.toml",
+}
+
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/stylua/
 // and returns its path. Safe to call multiple times.
 func EnsureDefaultConfig() string {
@@ -33,6 +39,17 @@ func EnsureDefaultConfig() string {
 		_ = os.WriteFile(configPath, defaultConfig, 0o644)
 	}
 	return configPath
+}
+
+// HasProjectConfig checks if the project has its own stylua config file
+// at the git root.
+func HasProjectConfig() bool {
+	for _, name := range configFileNames {
+		if _, err := os.Stat(pk.FromGitRoot(name)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // Install ensures stylua is available.

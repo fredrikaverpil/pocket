@@ -27,7 +27,7 @@ var Format = &pk.Task{
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		configPath := pk.GetFlag[string](ctx, FlagConfig)
-		if configPath == "" {
+		if configPath == "" && !prettier.HasProjectConfig() {
 			configPath = prettier.EnsureDefaultConfig()
 		}
 
@@ -38,7 +38,9 @@ func formatCmd() pk.Runnable {
 			args = append(args, "--write")
 		}
 
-		args = append(args, "--config", configPath)
+		if configPath != "" {
+			args = append(args, "--config", configPath)
+		}
 
 		// Add ignore file if available.
 		if ignorePath, err := prettier.EnsureIgnoreFile(); err == nil {

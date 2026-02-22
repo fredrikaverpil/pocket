@@ -63,6 +63,21 @@ func installPrettier() pk.Runnable {
 // DefaultConfigFile is the name of the default config file.
 const DefaultConfigFile = ".prettierrc"
 
+// configFileNames are the filenames prettier searches for.
+var configFileNames = []string{
+	".prettierrc",
+	".prettierrc.json",
+	".prettierrc.yml",
+	".prettierrc.yaml",
+	".prettierrc.toml",
+	".prettierrc.js",
+	".prettierrc.cjs",
+	".prettierrc.mjs",
+	"prettier.config.js",
+	"prettier.config.cjs",
+	"prettier.config.mjs",
+}
+
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/prettier/
 // and returns its path. Safe to call multiple times.
 func EnsureDefaultConfig() string {
@@ -72,6 +87,17 @@ func EnsureDefaultConfig() string {
 		_ = os.WriteFile(configPath, defaultConfig, 0o644)
 	}
 	return configPath
+}
+
+// HasProjectConfig checks if the project has its own prettier config file
+// at the git root.
+func HasProjectConfig() bool {
+	for _, name := range configFileNames {
+		if _, err := os.Stat(pk.FromGitRoot(name)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // EnsureIgnoreFile ensures a .prettierignore file exists at git root.
