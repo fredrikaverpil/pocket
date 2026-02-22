@@ -31,9 +31,15 @@ func lintCmd() pk.Runnable {
 		if pk.Verbose(ctx) {
 			args = append(args, "-v")
 		}
-		if config := pk.GetFlag[string](ctx, FlagLintConfig); config != "" {
-			args = append(args, "-c", config)
+
+		configPath := pk.GetFlag[string](ctx, FlagLintConfig)
+		if configPath == "" && !golangcilint.HasProjectConfig() {
+			configPath = golangcilint.EnsureDefaultConfig()
 		}
+		if configPath != "" {
+			args = append(args, "-c", configPath)
+		}
+
 		if pk.GetFlag[bool](ctx, FlagLintFix) {
 			args = append(args, "--fix")
 		}
