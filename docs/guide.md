@@ -1229,6 +1229,7 @@ Use `pk.WithFlag()` to configure the `github.Workflows` task:
 | `skip-release`          | `bool` | Exclude `release.yml` workflow                        |
 | `skip-stale`            | `bool` | Exclude `stale.yml` workflow                          |
 | `platforms`             | `str`  | Override platforms for `pocket.yml` (comma-separated) |
+| `include-goreleaser`    | `bool` | Include goreleaser job in `release.yml` workflow      |
 | `include-pocket-perjob` | `bool` | Enable `pocket-perjob.yml` workflow                   |
 
 ### PerJobConfig Options
