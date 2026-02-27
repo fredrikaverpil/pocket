@@ -11,7 +11,7 @@ const Name = "skill-validator"
 
 // Version is the version of skill-validator to install.
 // renovate: datasource=go depName=github.com/dacharyc/skill-validator
-const Version = "v0.6.0"
+const Version = "v0.8.0"
 
 // Install is a hidden, global task that installs skill-validator.
 // Global ensures it only runs once regardless of path context.
