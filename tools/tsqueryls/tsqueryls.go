@@ -14,7 +14,7 @@ const Name = "ts_query_ls"
 
 // Version is the ts_query_ls version to install.
 // renovate: datasource=github-releases depName=ribru17/ts_query_ls
-const Version = "v3.15.1"
+const Version = "v3.16.0"
 
 // Install creates a task that ensures ts_query_ls is available.
 // ts_query_ls is used for formatting and linting tree-sitter query (.scm) files.
