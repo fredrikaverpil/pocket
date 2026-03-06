@@ -15,7 +15,7 @@ const Name = "commitsar"
 
 // Version is the version of commitsar to install.
 // renovate: datasource=github-releases depName=aevea/commitsar
-const Version = "1.0.2"
+const Version = "1.0.3"
 
 // Install ensures commitsar is available.
 var Install = &pk.Task{
