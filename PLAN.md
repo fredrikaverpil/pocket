@@ -34,6 +34,23 @@
       documentation better, and here I'm actually thinking alot about LLMs
       finding one place where documentation needs updating and doesn't see the
       other file which also needs updating.
+- [ ] Pre-release (v0.1.0)
+  - [ ] `pk/download` has 0% test coverage. Add tests for `ExtractTarGz`,
+        `ExtractZip`, `CreateSymlink`, and the path traversal guard in
+        `extract.go`.
+  - [ ] Engine test coverage is 69.2%. Target ~80% for release. Gaps are likely
+        in CLI parsing, plan edge cases, and error paths.
+  - [ ] README still has the "under heavy development" warning. Update or remove
+        for release.
+  - [ ] Update to Go 1.26.1.
+  - [ ] README quickstart shows `Type: pk.FlagString` but the actual `FlagDef`
+        struct uses `Default: "World"` with type inference. Fix the README
+        example.
+  - [ ] `tools/go.mod` in the scaffold template uses hardcoded `go 1.23`. Keep
+        in sync with the project's Go version or set dynamically.
+  - [ ] Remove the no-op `resolveVersion()` function in Python tasks — it just
+        returns its input.
+  - [ ] Regex cache in `paths.go` is unbounded. Consider adding a size limit.
 - [ ] Explore Nix as a package manager backend for tool installation. See
       [Nix exploration notes](#nix-as-a-package-manager-backend) below.
 
