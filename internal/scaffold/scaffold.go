@@ -2,10 +2,13 @@
 package scaffold
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"text/template"
 )
 
 //go:embed templates/config.go.tmpl
@@ -64,7 +67,8 @@ func GenerateAll(pocketDir string) error {
 	return nil
 }
 
-// EnsureToolsGomod creates .pocket/tools/go.mod if it doesn't exist.
+// EnsureToolsGomod creates or updates .pocket/tools/go.mod.
+// The Go version is read from .pocket/go.mod to stay in sync.
 // This prevents go mod tidy from scanning downloaded Go toolchains and other tools.
 func EnsureToolsGomod(pocketDir string) error {
 	toolsDir := filepath.Join(pocketDir, "tools")
@@ -72,13 +76,42 @@ func EnsureToolsGomod(pocketDir string) error {
 		return fmt.Errorf("creating tools directory: %w", err)
 	}
 
+	goVersion, err := goVersionFromMod(pocketDir)
+	if err != nil {
+		return fmt.Errorf("reading Go version: %w", err)
+	}
+
+	tmpl, err := template.New("tools_gomod").Parse(toolsGomodTemplate)
+	if err != nil {
+		return fmt.Errorf("parsing tools/go.mod template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct{ GoVersion string }{GoVersion: goVersion}); err != nil {
+		return fmt.Errorf("executing tools/go.mod template: %w", err)
+	}
+
 	gomodPath := filepath.Join(toolsDir, "go.mod")
-	if _, err := os.Stat(gomodPath); os.IsNotExist(err) {
-		if err := os.WriteFile(gomodPath, []byte(toolsGomodTemplate), 0o644); err != nil {
-			return fmt.Errorf("writing tools/go.mod: %w", err)
-		}
+	if err := os.WriteFile(gomodPath, buf.Bytes(), 0o644); err != nil {
+		return fmt.Errorf("writing tools/go.mod: %w", err)
 	}
 	return nil
+}
+
+// goVersionFromMod reads the Go version directive from go.mod in the specified directory.
+func goVersionFromMod(dir string) (string, error) {
+	gomodPath := filepath.Join(dir, "go.mod")
+	data, err := os.ReadFile(gomodPath)
+	if err != nil {
+		return "", fmt.Errorf("read go.mod: %w", err)
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(line, "go "); ok {
+			return strings.TrimSpace(after), nil
+		}
+	}
+	return "", fmt.Errorf("no go directive in %s", gomodPath)
 }
 
 // RegenerateMain regenerates only the main.go file.
