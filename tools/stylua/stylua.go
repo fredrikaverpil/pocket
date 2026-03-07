@@ -16,7 +16,7 @@ const Name = "stylua"
 
 // Version is the version of stylua to install.
 // renovate: datasource=github-releases depName=JohnnyMorganz/StyLua
-const Version = "2.3.1"
+const Version = "2.4.0"
 
 //go:embed stylua.toml
 var defaultConfig []byte
