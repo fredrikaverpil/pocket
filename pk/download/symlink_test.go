@@ -18,7 +18,6 @@ func TestCopyFile(t *testing.T) {
 
 		// Act
 		err := CopyFile(src, dst)
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

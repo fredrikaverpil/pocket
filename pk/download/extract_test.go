@@ -92,10 +92,12 @@ func TestResolveOutputName(t *testing.T) {
 			wantExtract: false,
 		},
 		{
-			name:        "full path match takes precedence over base name",
-			fullPath:    "dir/file.txt",
-			baseName:    "file.txt",
-			cfg:         &extractConfig{renameMap: map[string]string{"dir/file.txt": "full.txt", "file.txt": "base.txt"}},
+			name:     "full path match takes precedence over base name",
+			fullPath: "dir/file.txt",
+			baseName: "file.txt",
+			cfg: &extractConfig{
+				renameMap: map[string]string{"dir/file.txt": "full.txt", "file.txt": "base.txt"},
+			},
 			wantName:    "full.txt",
 			wantExtract: true,
 		},
@@ -126,7 +128,6 @@ func TestExtractTarGz(t *testing.T) {
 
 		// Act
 		err := ExtractTarGz(src, dest)
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -157,7 +158,6 @@ func TestExtractTarGz(t *testing.T) {
 
 		// Act
 		err := ExtractTarGz(src, dest, WithFlatten())
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -182,7 +182,6 @@ func TestExtractTarGz(t *testing.T) {
 
 		// Act
 		err := ExtractTarGz(src, dest, WithRenameFile("bin/tool-v1.2", "tool"))
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -211,7 +210,6 @@ func TestExtractTarGz(t *testing.T) {
 
 		// Act
 		err := ExtractTarGz(src, dest, WithExtractFile("wanted.txt"))
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -289,7 +287,6 @@ func TestExtractZip(t *testing.T) {
 
 		// Act
 		err := ExtractZip(src, dest)
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -320,7 +317,6 @@ func TestExtractZip(t *testing.T) {
 
 		// Act
 		err := ExtractZip(src, dest, WithFlatten())
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -345,7 +341,6 @@ func TestExtractZip(t *testing.T) {
 
 		// Act
 		err := ExtractZip(src, dest, WithRenameFile("bin/tool-v1.2", "tool"))
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -419,7 +414,6 @@ func TestExtractGz(t *testing.T) {
 
 		// Act
 		err = ExtractGz(src, dest, "mybinary")
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -452,7 +446,6 @@ func TestExtractGz(t *testing.T) {
 
 		// Act
 		err = ExtractGz(src, dest, "output")
-
 		// Assert
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
