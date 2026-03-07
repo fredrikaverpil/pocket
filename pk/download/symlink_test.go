@@ -3,6 +3,7 @@ package download
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -33,8 +34,10 @@ func TestCopyFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("stat dest: %v", err)
 		}
-		if info.Mode().Perm() != 0o755 {
-			t.Errorf("permissions: got %o, want %o", info.Mode().Perm(), 0o755)
+		if runtime.GOOS != "windows" {
+			if info.Mode().Perm() != 0o755 {
+				t.Errorf("permissions: got %o, want %o", info.Mode().Perm(), 0o755)
+			}
 		}
 	})
 
