@@ -398,3 +398,67 @@ func TestExtractZip(t *testing.T) {
 		}
 	})
 }
+
+func TestExtractGz(t *testing.T) {
+	t.Run("extracts single gzipped file", func(t *testing.T) {
+		// Arrange
+		srcDir := t.TempDir()
+		src := filepath.Join(srcDir, "binary.gz")
+		dest := t.TempDir()
+
+		f, err := os.Create(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gw := gzip.NewWriter(f)
+		if _, err := gw.Write([]byte("binary content")); err != nil {
+			t.Fatal(err)
+		}
+		gw.Close()
+		f.Close()
+
+		// Act
+		err = ExtractGz(src, dest, "mybinary")
+
+		// Assert
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(filepath.Join(dest, "mybinary"))
+		if err != nil {
+			t.Fatalf("read mybinary: %v", err)
+		}
+		if string(got) != "binary content" {
+			t.Errorf("content: got %q, want %q", string(got), "binary content")
+		}
+	})
+
+	t.Run("creates destination directory", func(t *testing.T) {
+		// Arrange
+		srcDir := t.TempDir()
+		src := filepath.Join(srcDir, "file.gz")
+		dest := filepath.Join(t.TempDir(), "nested", "dir")
+
+		f, err := os.Create(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gw := gzip.NewWriter(f)
+		if _, err := gw.Write([]byte("data")); err != nil {
+			t.Fatal(err)
+		}
+		gw.Close()
+		f.Close()
+
+		// Act
+		err = ExtractGz(src, dest, "output")
+
+		// Assert
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(dest, "output")); err != nil {
+			t.Errorf("output file should exist: %v", err)
+		}
+	})
+}
