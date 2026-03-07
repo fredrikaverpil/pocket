@@ -2,6 +2,7 @@ package download
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"os"
 	"path/filepath"
@@ -237,6 +238,155 @@ func TestExtractTarGz(t *testing.T) {
 
 		// Act
 		err := ExtractTarGz(src, dest)
+
+		// Assert
+		if err == nil {
+			t.Fatal("expected error for path traversal, got nil")
+		}
+		want := "invalid file path: ../../../etc/passwd"
+		if err.Error() != want {
+			t.Errorf("error message: got %q, want %q", err.Error(), want)
+		}
+	})
+}
+
+type zipFile struct {
+	name    string
+	content string
+}
+
+func createZip(t *testing.T, path string, files []zipFile) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	zw := zip.NewWriter(f)
+	defer zw.Close()
+
+	for _, file := range files {
+		w, err := zw.Create(file.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(file.content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestExtractZip(t *testing.T) {
+	t.Run("extracts all files preserving structure", func(t *testing.T) {
+		// Arrange
+		src := filepath.Join(t.TempDir(), "test.zip")
+		dest := t.TempDir()
+		createZip(t, src, []zipFile{
+			{name: "dir/hello.txt", content: "hello"},
+			{name: "dir/world.txt", content: "world"},
+		})
+
+		// Act
+		err := ExtractZip(src, dest)
+
+		// Assert
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(filepath.Join(dest, "dir", "hello.txt"))
+		if err != nil {
+			t.Fatalf("read hello.txt: %v", err)
+		}
+		if string(got) != "hello" {
+			t.Errorf("hello.txt content: got %q, want %q", string(got), "hello")
+		}
+		got, err = os.ReadFile(filepath.Join(dest, "dir", "world.txt"))
+		if err != nil {
+			t.Fatalf("read world.txt: %v", err)
+		}
+		if string(got) != "world" {
+			t.Errorf("world.txt content: got %q, want %q", string(got), "world")
+		}
+	})
+
+	t.Run("with flatten", func(t *testing.T) {
+		// Arrange
+		src := filepath.Join(t.TempDir(), "test.zip")
+		dest := t.TempDir()
+		createZip(t, src, []zipFile{
+			{name: "deep/nested/file.txt", content: "flat"},
+		})
+
+		// Act
+		err := ExtractZip(src, dest, WithFlatten())
+
+		// Assert
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(filepath.Join(dest, "file.txt"))
+		if err != nil {
+			t.Fatalf("read file.txt: %v", err)
+		}
+		if string(got) != "flat" {
+			t.Errorf("content: got %q, want %q", string(got), "flat")
+		}
+	})
+
+	t.Run("with rename file", func(t *testing.T) {
+		// Arrange
+		src := filepath.Join(t.TempDir(), "test.zip")
+		dest := t.TempDir()
+		createZip(t, src, []zipFile{
+			{name: "bin/tool-v1.2", content: "binary"},
+			{name: "README.md", content: "docs"},
+		})
+
+		// Act
+		err := ExtractZip(src, dest, WithRenameFile("bin/tool-v1.2", "tool"))
+
+		// Assert
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(filepath.Join(dest, "tool"))
+		if err != nil {
+			t.Fatalf("read tool: %v", err)
+		}
+		if string(got) != "binary" {
+			t.Errorf("content: got %q, want %q", string(got), "binary")
+		}
+		if _, err := os.Stat(filepath.Join(dest, "README.md")); err == nil {
+			t.Error("README.md should not be extracted when using WithRenameFile")
+		}
+	})
+
+	t.Run("path traversal blocked", func(t *testing.T) {
+		// Arrange
+		src := filepath.Join(t.TempDir(), "test.zip")
+		dest := t.TempDir()
+
+		// Create zip with raw header containing traversal path.
+		f, err := os.Create(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zw := zip.NewWriter(f)
+		header := &zip.FileHeader{Name: "../../../etc/passwd"}
+		header.Method = zip.Store
+		w, err := zw.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte("malicious")); err != nil {
+			t.Fatal(err)
+		}
+		zw.Close()
+		f.Close()
+
+		// Act
+		err = ExtractZip(src, dest)
 
 		// Assert
 		if err == nil {
