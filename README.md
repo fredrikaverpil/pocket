@@ -211,8 +211,8 @@ workflow generation** instead of manually syncing your CI configuration with
 your tasks, let Pocket generate it.
 
 Here's an example using the
-[GitHub Actions per-job](./docs/guide.md#per-job-workflow) integration
-([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-perjob.yml)):
+[GitHub Actions per-task](./docs/guide.md#per-task-workflow) integration
+([see it in action](https://github.com/fredrikaverpil/pocket/actions/workflows/pocket-pertask.yml)):
 
 ```go
 import "github.com/fredrikaverpil/pocket/tasks/github"

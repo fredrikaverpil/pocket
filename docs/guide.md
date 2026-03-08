@@ -46,7 +46,7 @@ defining your first task to building complex CI pipelines.
   - [Plan Structure](#plan-structure)
 - [GitHub Actions Integration](#github-actions-integration)
   - [Simple Workflow](#simple-workflow)
-  - [Per-Job Workflow](#per-job-workflow)
+  - [Per-Task Workflow](#per-task-workflow)
   - [PerPocketTaskJobOption](#perpockettaskjoboption)
 
 ---
@@ -426,7 +426,7 @@ and `pk.WithFlags()` to set the Python version and enable coverage:
 | `python.Detect()`  | DetectFunc for pyproject.toml            |
 
 When `pk.WithNameSuffix("3.9")` is used, tasks are automatically named with a
-suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions per-job
+suffix (e.g., `py-test:3.9`) for CLI invocation and GitHub Actions per-task
 workflow generation.
 
 > [!NOTE]
@@ -1173,9 +1173,9 @@ jobs:
 
 **Cons:** All tasks run serially; no per-task platform customization.
 
-### Per-Job Workflow
+### Per-Task Workflow
 
-For per-task parallelism and platform customization, enable the per-job
+For per-task parallelism and platform customization, enable the per-task
 workflow. This generates static job definitions at workflow creation time—each
 task/platform combination becomes a separate job in the YAML file.
 
@@ -1203,7 +1203,7 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlags(github.WorkflowFlags{...})` enables the per-job workflow and
+2. `pk.WithFlags(github.WorkflowFlags{...})` enables the per-task workflow and
    configures platforms and per-task options
 
 Running `./pok github-workflows` generates jobs like:
@@ -1269,7 +1269,7 @@ type PerPocketTaskJobOption struct {
     // Platforms overrides WorkflowFlags.Platforms for this task.
     Platforms []Platform
 
-    // Exclude removes this task from the per-job workflow entirely.
+    // Exclude removes this task from the per-task workflow entirely.
     Exclude bool
 
     // GitDiff overrides WorkflowFlags.GitDiff for this task.

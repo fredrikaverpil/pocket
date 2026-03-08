@@ -3,8 +3,8 @@ package github
 import "github.com/fredrikaverpil/pocket/pk"
 
 // Tasks returns GitHub-related tasks.
-// Workflows generates GitHub Actions workflow files, including the per-job
-// pocket-perjob workflow when enabled with the PerPocketTaskJob flag.
+// Workflows generates GitHub Actions workflow files, including the per-task
+// pocket-pertask workflow when enabled with the PerPocketTaskJob flag.
 //
 // Use with pk.WithOptions to configure:
 //

@@ -124,8 +124,8 @@ func runWorkflows(ctx context.Context) error {
 		{"stale.yml.tmpl", "stale.yml", staleConfig, boolVal(f.StaleWorkflow)},
 	}
 
-	// Also manage pocket-perjob.yml (generated separately via per-job generation)
-	allManagedFiles := []string{"pocket-perjob.yml"}
+	// Also manage pocket-pertask.yml (generated separately via per-task generation)
+	allManagedFiles := []string{"pocket-pertask.yml"}
 	for _, wf := range workflowDefs {
 		allManagedFiles = append(allManagedFiles, wf.outFile)
 	}
@@ -193,10 +193,10 @@ func runWorkflows(ctx context.Context) error {
 		}
 	}
 
-	// Generate per-job workflow if requested.
+	// Generate per-task workflow if requested.
 	if boolVal(f.PerPocketTaskJob) {
-		if err := generatePerJobWorkflow(ctx, workflowDir, verbose); err != nil {
-			return fmt.Errorf("generate pocket-perjob workflow: %w", err)
+		if err := generatePerTaskWorkflow(ctx, workflowDir, verbose); err != nil {
+			return fmt.Errorf("generate pocket-pertask workflow: %w", err)
 		}
 		copied++
 	}
@@ -208,12 +208,12 @@ func runWorkflows(ctx context.Context) error {
 	return nil
 }
 
-// perJobData holds the data for the per-job workflow template.
-type perJobData struct {
+// perTaskData holds the data for the per-task workflow template.
+type perTaskData struct {
 	Jobs []StaticJob
 }
 
-func generatePerJobWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
+func generatePerTaskWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
 	plan := pk.PlanFromContext(ctx)
 	if plan == nil {
 		return fmt.Errorf("plan not available in context")
@@ -223,24 +223,24 @@ func generatePerJobWorkflow(ctx context.Context, workflowDir string, verbose boo
 	jobs := GenerateStaticJobs(plan.Tasks(), flags)
 
 	// Read template
-	tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", "pocket-perjob.yml.tmpl"))
+	tmplContent, err := workflowTemplates.ReadFile(path.Join("workflows", "pocket-pertask.yml.tmpl"))
 	if err != nil {
 		return fmt.Errorf("read template: %w", err)
 	}
 
 	// Parse and execute template
-	tmpl, err := template.New("pocket-perjob.yml.tmpl").Parse(string(tmplContent))
+	tmpl, err := template.New("pocket-pertask.yml.tmpl").Parse(string(tmplContent))
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, perJobData{Jobs: jobs}); err != nil {
+	if err := tmpl.Execute(&buf, perTaskData{Jobs: jobs}); err != nil {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
 	// Write workflow file
-	destPath := filepath.Join(workflowDir, "pocket-perjob.yml")
+	destPath := filepath.Join(workflowDir, "pocket-pertask.yml")
 	if err := os.WriteFile(destPath, buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write workflow: %w", err)
 	}

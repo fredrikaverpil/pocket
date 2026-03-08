@@ -532,7 +532,7 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 }
 
 // TaskInfo represents a task for introspection.
-// This is the public type for CI/CD integration (e.g., per-job workflow generation).
+// This is the public type for CI/CD integration (e.g., per-task workflow generation).
 type TaskInfo struct {
 	Name   string         `json:"name"`            // CLI command name
 	Usage  string         `json:"usage,omitempty"` // Description/help text

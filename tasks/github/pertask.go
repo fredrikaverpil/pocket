@@ -22,7 +22,7 @@ func AllPlatforms() []Platform {
 	return []Platform{Ubuntu, MacOS, Windows}
 }
 
-// PerPocketTaskJobOption configures a single task in the per-job matrix.
+// PerPocketTaskJobOption configures a single task in the per-task matrix.
 // Keys in WorkflowFlags.PerPocketTaskJobOptions are treated as regular
 // expressions and matched against task names.
 type PerPocketTaskJobOption struct {
