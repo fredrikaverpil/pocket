@@ -200,7 +200,7 @@ These options work with any task:
 pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithIncludePath("services/.*"),
-    pk.WithFlags(Test, golang.TestFlags{Race: true}),
+    pk.WithFlags(golang.TestFlags{Race: true}),
 )
 ```
 
@@ -215,8 +215,8 @@ distinct **variants** of the same task:
 
 ```go
 // Same task definition, two distinct variants
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.9"}))
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.10"}))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.TestFlags{Python: "3.9"}))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.TestFlags{Python: "3.10"}))
 ```
 
 Each variant has an **effective name** (base name + suffix). Variants are
@@ -582,7 +582,7 @@ type TaskInfo struct {
     Name   string         `json:"name"`            // Effective name (e.g., "py-test:3.9")
     Usage  string         `json:"usage,omitempty"` // Description/help text
     Paths  []string       `json:"paths"`           // Directories this task runs in
-    Flags  map[string]any `json:"flags,omitempty"` // Flag overrides from pk.WithFlags()
+    Flags  map[string]any `json:"flags,omitempty"` // Flag overrides from WithFlags()
     Hidden bool           `json:"hidden"`          // Whether task is hidden from help
     Manual bool           `json:"manual"`          // Whether task is manual-only
 }

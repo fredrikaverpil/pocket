@@ -630,7 +630,15 @@ func findTaskInfo(tasks []TaskInfo, name string) *TaskInfo {
 	return nil
 }
 
-type pyFlagsTest struct {
+type pyFormatFlagsTest struct {
+	Python string `flag:"python" usage:"python version"`
+}
+
+type pyLintFlagsTest struct {
+	Python string `flag:"python" usage:"python version"`
+}
+
+type pyTypecheckFlagsTest struct {
 	Python string `flag:"python" usage:"python version"`
 }
 
@@ -660,15 +668,15 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 		uvInstall := &Task{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Do: noop}
 		pyFormat := &Task{
 			Name: "py-format", Usage: "format python files", Do: noop,
-			Flags: pyFlagsTest{},
+			Flags: pyFormatFlagsTest{},
 		}
 		pyLint := &Task{
 			Name: "py-lint", Usage: "lint python files", Do: noop,
-			Flags: pyFlagsTest{},
+			Flags: pyLintFlagsTest{},
 		}
 		pyTypecheck := &Task{
 			Name: "py-typecheck", Usage: "type-check python files", Do: noop,
-			Flags: pyFlagsTest{},
+			Flags: pyTypecheckFlagsTest{},
 		}
 		pyTest := &Task{
 			Name: "py-test", Usage: "run python tests", Do: noop,
@@ -691,20 +699,20 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				WithOptions(
 					Serial(uvInstall, pyFormat, pyLint, Parallel(pyTypecheck, pyTest)),
 					WithNameSuffix("3.9"),
-					WithFlags(pyFormat, pyFlagsTest{Python: "3.9"}),
-					WithFlags(pyLint, pyFlagsTest{Python: "3.9"}),
-					WithFlags(pyTypecheck, pyFlagsTest{Python: "3.9"}),
-					WithFlags(pyTest, pyTestFlagsTest{Python: "3.9", Coverage: true}),
+					WithFlags(pyFormatFlagsTest{Python: "3.9"}),
+					WithFlags(pyLintFlagsTest{Python: "3.9"}),
+					WithFlags(pyTypecheckFlagsTest{Python: "3.9"}),
+					WithFlags(pyTestFlagsTest{Python: "3.9", Coverage: true}),
 					WithDetect(detectPyproject),
 				),
 
 				// Additional Python version tests.
 				WithOptions(
 					Parallel(
-						WithOptions(pyTest, WithNameSuffix("3.10"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.10"})),
-						WithOptions(pyTest, WithNameSuffix("3.11"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.11"})),
-						WithOptions(pyTest, WithNameSuffix("3.12"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.12"})),
-						WithOptions(pyTest, WithNameSuffix("3.13"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.13"})),
+						WithOptions(pyTest, WithNameSuffix("3.10"), WithFlags(pyTestFlagsTest{Python: "3.10"})),
+						WithOptions(pyTest, WithNameSuffix("3.11"), WithFlags(pyTestFlagsTest{Python: "3.11"})),
+						WithOptions(pyTest, WithNameSuffix("3.12"), WithFlags(pyTestFlagsTest{Python: "3.12"})),
+						WithOptions(pyTest, WithNameSuffix("3.13"), WithFlags(pyTestFlagsTest{Python: "3.13"})),
 					),
 					WithDetect(detectPyproject),
 				),
@@ -714,7 +722,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 					preCommitCheck,
 					WithOptions(
 						ghWorkflows,
-						WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
+						WithFlags(ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
 					),
 				),
 			),
@@ -844,15 +852,15 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				),
 
 				Serial(
-					WithOptions(queryFormat, WithFlags(queryFormat, parsersFlagsTest{Parsers: "go"})),
-					WithOptions(queryLint, WithFlags(queryLint, queryLintFlagsTest{Parsers: "go"})),
+					WithOptions(queryFormat, WithFlags(parsersFlagsTest{Parsers: "go"})),
+					WithOptions(queryLint, WithFlags(queryLintFlagsTest{Parsers: "go"})),
 				),
 
 				Parallel(nvimTestStable, nvimTestNightly),
 
 				WithOptions(
 					ghWorkflows,
-					WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
+					WithFlags(ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
 				),
 			),
 		}
@@ -922,4 +930,39 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 			t.Errorf("github-workflows per-pocket-task-job: got %v, want true", ghTask.Flags["per-pocket-task-job"])
 		}
 	})
+}
+
+func TestPlan_WithFlagsInferTask(t *testing.T) {
+	type inferPlanFlags struct {
+		Mode string `flag:"mode" usage:"mode"`
+	}
+	task := &Task{
+		Name:  "infer-test",
+		Usage: "test",
+		Flags: inferPlanFlags{Mode: "default"},
+		Do:    func(_ context.Context) error { return nil },
+	}
+
+	cfg := &Config{
+		Auto: WithOptions(
+			task,
+			WithFlags(inferPlanFlags{Mode: "overridden"}),
+		),
+	}
+
+	plan, err := newPlan(cfg, t.TempDir(), []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tasks := plan.Tasks()
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+	if tasks[0].Name != "infer-test" {
+		t.Errorf("expected name=infer-test, got %q", tasks[0].Name)
+	}
+	if tasks[0].Flags["mode"] != "overridden" {
+		t.Errorf("expected mode=overridden, got %v", tasks[0].Flags["mode"])
+	}
 }

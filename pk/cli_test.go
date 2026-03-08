@@ -75,8 +75,8 @@ func TestFindTaskByName_WithSuffix(t *testing.T) {
 
 	cfg := &Config{
 		Auto: Serial(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, pyCliFlags{Python: "3.9"})),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, pyCliFlags{Python: "3.10"})),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(pyCliFlags{Python: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(pyCliFlags{Python: "3.10"})),
 		),
 	}
 

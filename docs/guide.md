@@ -374,19 +374,19 @@ var Config = &pk.Config{
         pk.WithOptions(
             python.Tasks(),
             pk.WithNameSuffix("3.9"),
-            pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
-            pk.WithFlags(python.Lint, python.LintFlags{Python: "3.9"}),
-            pk.WithFlags(python.Typecheck, python.TypecheckFlags{Python: "3.9"}),
-            pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
+            pk.WithFlags(python.FormatFlags{Python: "3.9"}),
+            pk.WithFlags(python.LintFlags{Python: "3.9"}),
+            pk.WithFlags(python.TypecheckFlags{Python: "3.9"}),
+            pk.WithFlags(python.TestFlags{Python: "3.9", Coverage: true}),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.10"})),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.11"})),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.12"})),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.13"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.TestFlags{Python: "3.10"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlags(python.TestFlags{Python: "3.11"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlags(python.TestFlags{Python: "3.12"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlags(python.TestFlags{Python: "3.13"})),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -838,7 +838,7 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithExcludePath(patterns...)` | Skip matching directories              |
 | `pk.WithDetect(fn)`               | Auto-detect directories                |
 | `pk.WithNameSuffix(suffix)`       | Add suffix to task names (e.g., `:v2`) |
-| `pk.WithFlags(task, flagsStruct)` | Override a task's flags                |
+| `pk.WithFlags(flagsStruct)`       | Override a task's flags                |
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |
 
@@ -848,9 +848,9 @@ Use `pk.WithFlags()` to set task flags explicitly:
 pk.WithOptions(
     python.Tasks(),
     pk.WithNameSuffix("3.9"),
-    pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
-    pk.WithFlags(python.Lint, python.LintFlags{Python: "3.9"}),
-    pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
+    pk.WithFlags(python.FormatFlags{Python: "3.9"}),
+    pk.WithFlags(python.LintFlags{Python: "3.9"}),
+    pk.WithFlags(python.TestFlags{Python: "3.9", Coverage: true}),
     pk.WithDetect(python.Detect()),
 )
 ```
@@ -864,7 +864,7 @@ type MyFlags struct {
 }
 
 func EnableFeature() pk.PathOption {
-    return pk.WithFlags(MyTask, MyFlags{Feature: true})
+    return pk.WithFlags(MyFlags{Feature: true})
 }
 ```
 
@@ -924,7 +924,7 @@ Apply constraints to specific tasks without refactoring the tree:
 | `WithExcludePath(patterns...)`       | Exclude paths for ALL tasks in scope   |
 | `WithExcludeTask(task, patterns...)` | Exclude paths for a SPECIFIC task only |
 | `WithSkipTask(tasks...)`             | Remove tasks entirely from scope       |
-| `WithFlags(task, flagsStruct)`       | Set flag overrides for a task          |
+| `WithFlags(flagsStruct)`             | Set flag overrides for a task          |
 
 ```go
 pk.WithOptions(
@@ -932,7 +932,7 @@ pk.WithOptions(
     pk.WithExcludePath("vendor"),              // Global: no tasks run in vendor/
     pk.WithExcludeTask(golang.Test, "foo/.*"), // Only go-test skips foo/
     pk.WithSkipTask(golang.Lint),              // Remove linting entirely
-    pk.WithFlags(golang.Test, golang.TestFlags{Race: true}), // Enable race detector
+    pk.WithFlags(golang.TestFlags{Race: true}), // Enable race detector
 )
 ```
 
@@ -1170,7 +1170,7 @@ var Config = &pk.Config{
         golang.Tasks(),
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlags(github.Workflows, github.WorkflowFlags{
+            pk.WithFlags(github.WorkflowFlags{
                 PerPocketTaskJob: new(true),
                 Platforms:        github.AllPlatforms(),
                 PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
@@ -1186,8 +1186,8 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlags(github.Workflows, github.WorkflowFlags{...})` enables the
-   per-job workflow and configures platforms and per-task options
+2. `pk.WithFlags(github.WorkflowFlags{...})` enables the per-job workflow and
+   configures platforms and per-task options
 
 Running `./pok github-workflows` generates jobs like:
 

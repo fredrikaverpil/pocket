@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 )
 
 // PathOption configures path filtering and execution behavior for a Runnable.
@@ -63,46 +64,21 @@ func WithSkipTask(tasks ...any) PathOption {
 	}
 }
 
-// WithFlags sets flag overrides for a specific task in the current scope.
-// The flags struct must be the same type as the task's Flags field.
+// WithFlags sets flag overrides for a task in the current scope.
+// The task is inferred by matching the flags struct type against
+// the Flags field of tasks in scope. The flags struct must be the
+// same type as exactly one task's Flags field within the scope.
 // Only fields that differ from the task's defaults are applied as overrides.
-// The task can be specified by its string name or by the task object itself.
-func WithFlags(task, flags any) PathOption {
+func WithFlags(flags any) PathOption {
 	return func(pf *pathFilter) {
-		taskName := toTaskName(task)
-
-		// Get defaults from the task to compute diff.
-		var defaults any
-		if t, ok := task.(*Task); ok && t.Flags != nil {
-			defaults = t.Flags
+		ft := reflect.TypeOf(flags)
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
 		}
-
-		if defaults != nil {
-			diff, err := diffStructs(defaults, flags)
-			if err != nil {
-				panic(fmt.Sprintf("pk.WithFlags: %v", err))
-			}
-			for name, value := range diff {
-				pf.flags = append(pf.flags, flagOverride{
-					taskName: taskName,
-					flagName: name,
-					value:    value,
-				})
-			}
-		} else {
-			// No defaults available (task passed as string) — use all fields.
-			m, err := structToMap(flags)
-			if err != nil {
-				panic(fmt.Sprintf("pk.WithFlags: %v", err))
-			}
-			for name, value := range m {
-				pf.flags = append(pf.flags, flagOverride{
-					taskName: taskName,
-					flagName: name,
-					value:    value,
-				})
-			}
-		}
+		pf.flags = append(pf.flags, flagOverride{
+			flagsType: ft,
+			flags:     flags,
+		})
 	}
 }
 
@@ -128,7 +104,7 @@ func WithForceRun() PathOption {
 //	pk.WithOptions(
 //	    golang.Tasks(),
 //	    pk.WithExcludePath("vendor"), // Excludes vendor/ from the Go task scope
-//	    pk.WithFlags(golang.Test, golang.TestFlags{Race: true}),
+//	    pk.WithFlags(golang.TestFlags{Race: true}),
 //	)
 func WithDetect(fn DetectFunc) PathOption {
 	return func(pf *pathFilter) {
@@ -154,8 +130,8 @@ func WithNoticePatterns(patterns ...string) PathOption {
 //
 // Example:
 //
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Test, python.Flags{Python: "3.9"}))
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.Flags{Python: "3.10"}))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Flags{Python: "3.9"}))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Flags{Python: "3.10"}))
 func WithNameSuffix(suffix string) PathOption {
 	return func(pf *pathFilter) {
 		pf.nameSuffix = suffix
@@ -222,9 +198,11 @@ type excludePattern struct {
 }
 
 type flagOverride struct {
-	taskName string
-	flagName string
-	value    any
+	taskName  string       // Set when task is known (resolved or explicit).
+	flagName  string       // Individual flag name.
+	value     any          // Individual flag value.
+	flagsType reflect.Type // Set when task should be inferred from flags type.
+	flags     any          // The full flags struct (for deferred resolution).
 }
 
 // run implements the Runnable interface.
@@ -255,6 +233,89 @@ func (pf *pathFilter) run(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// resolveTypedFlags resolves flagOverrides that use flagsType (deferred resolution)
+// by matching against tasks found in the inner runnable. Returns resolved flagOverrides
+// with taskName filled in.
+func resolveTypedFlags(flags []flagOverride, inner Runnable) ([]flagOverride, error) {
+	resolved := make([]flagOverride, 0, len(flags))
+	for _, f := range flags {
+		if f.flagsType == nil {
+			// Already resolved (has taskName + individual flag entries).
+			resolved = append(resolved, f)
+			continue
+		}
+
+		// Find task with matching Flags type.
+		taskName, task, err := findTaskByFlagsType(inner, f.flagsType)
+		if err != nil {
+			return nil, err
+		}
+
+		// Compute diff and expand to individual flag overrides.
+		diff, err := diffStructs(task.Flags, f.flags)
+		if err != nil {
+			return nil, fmt.Errorf("pk.WithFlags: %v", err)
+		}
+		for name, value := range diff {
+			resolved = append(resolved, flagOverride{
+				taskName: taskName,
+				flagName: name,
+				value:    value,
+			})
+		}
+	}
+	return resolved, nil
+}
+
+// findTaskByFlagsType walks a Runnable tree to find the task whose Flags field
+// matches the given type. Returns an error if zero or multiple tasks match.
+func findTaskByFlagsType(r Runnable, ft reflect.Type) (string, *Task, error) {
+	var matches []*Task
+	walkTasks(r, func(t *Task) {
+		if t.Flags == nil {
+			return
+		}
+		tt := reflect.TypeOf(t.Flags)
+		if tt.Kind() == reflect.Pointer {
+			tt = tt.Elem()
+		}
+		if tt == ft {
+			matches = append(matches, t)
+		}
+	})
+
+	switch len(matches) {
+	case 0:
+		return "", nil, fmt.Errorf("pk.WithFlags: no task found with flags type %v", ft)
+	case 1:
+		return matches[0].Name, matches[0], nil
+	default:
+		names := make([]string, len(matches))
+		for i, m := range matches {
+			names[i] = m.Name
+		}
+		return "", nil, fmt.Errorf("pk.WithFlags: ambiguous flags type %v matches tasks: %v", ft, names)
+	}
+}
+
+// walkTasks calls fn for every *Task reachable from r.
+func walkTasks(r Runnable, fn func(*Task)) {
+	switch v := r.(type) {
+	case *Task:
+		fn(v)
+	case *serial:
+		for _, child := range v.runnables {
+			walkTasks(child, fn)
+		}
+	case *parallel:
+		for _, child := range v.runnables {
+			walkTasks(child, fn)
+		}
+	case *pathFilter:
+		walkTasks(v.inner, fn)
+	}
 }
 
 func toTaskNames(tasks []any) []string {

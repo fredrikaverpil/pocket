@@ -432,11 +432,17 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevNameSuffix := pc.activeNameSuffix
 		prevFlags := pc.activeFlags
 
+		// Resolve type-based flag overrides against the inner runnable.
+		resolvedFlags, err := resolveTypedFlags(v.flags, v.inner)
+		if err != nil {
+			return err
+		}
+
 		// 3. Update state with new constraints.
 		pc.candidates = v.resolvedPaths
 		pc.activeExcludes = append(pc.activeExcludes, v.excludePaths...)
 		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
-		pc.activeFlags = append(pc.activeFlags, v.flags...)
+		pc.activeFlags = append(pc.activeFlags, resolvedFlags...)
 		pc.currentPath = v
 
 		// Apply name suffix (cumulative: "3.9" + "foo" -> "3.9:foo").

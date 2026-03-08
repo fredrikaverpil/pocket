@@ -188,7 +188,7 @@ func TestE2E_ExecuteTask_FlagResolution(t *testing.T) {
 	task := rec.taskWithFlags("flagged", flaggedFlags{Mode: "default-mode", Count: 1})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlags(task, flaggedFlags{Mode: "overridden", Count: 1})),
+		Auto: WithOptions(task, WithFlags(flaggedFlags{Mode: "overridden", Count: 1})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {
@@ -218,7 +218,7 @@ func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 	task := rec.taskWithFlags("cli-flagged", cliFlaggedFlags{Mode: "default"})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlags(task, cliFlaggedFlags{Mode: "plan-override"})),
+		Auto: WithOptions(task, WithFlags(cliFlaggedFlags{Mode: "plan-override"})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {
@@ -278,7 +278,7 @@ func TestE2E_ExecuteTask_NameSuffix(t *testing.T) {
 	task := rec.taskWithFlags("versioned", versionedFlags{Ver: "unset"})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, versionedFlags{Ver: "3.9"})),
+		Auto: WithOptions(task, WithNameSuffix("3.9"), WithFlags(versionedFlags{Ver: "3.9"})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {

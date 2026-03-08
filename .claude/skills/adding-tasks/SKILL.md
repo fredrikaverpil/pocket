@@ -146,7 +146,7 @@ Access flags with `pk.GetFlags[LintFlags](ctx)`, then use struct fields directly
 
 Users override flags via CLI: `./pok go-lint -fix=false`
 
-Config authors override defaults: `pk.WithFlags(golang.Lint, golang.LintFlags{Fix: false})`
+Config authors override defaults: `pk.WithFlags(golang.LintFlags{Fix: false})`
 
 ## Cross-platform
 

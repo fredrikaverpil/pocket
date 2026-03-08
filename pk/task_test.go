@@ -588,8 +588,8 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 
 	cfg := &Config{
 		Auto: Parallel(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, multiVerFlags{Version: "3.9"})),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, multiVerFlags{Version: "3.10"})),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(multiVerFlags{Version: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(multiVerFlags{Version: "3.10"})),
 		),
 	}
 

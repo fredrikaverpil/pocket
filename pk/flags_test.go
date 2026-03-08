@@ -3,6 +3,7 @@ package pk
 import (
 	"context"
 	"flag"
+	"strings"
 	"testing"
 	"time"
 )
@@ -289,20 +290,112 @@ func TestWithFlags(t *testing.T) {
 		Do:    func(_ context.Context) error { return nil },
 	}
 
-	// WithFlags should produce a PathOption.
-	opt := WithFlags(task, flags{Mode: "custom", Count: 10})
-	pf := &pathFilter{}
+	// WithFlags should produce a PathOption that stores deferred resolution.
+	opt := WithFlags(flags{Mode: "custom", Count: 10})
+	pf := &pathFilter{inner: task}
 	opt(pf)
 
-	// Should have one flag override for "mode" (Count unchanged = not in diff).
+	// Should have one deferred flag override.
 	if len(pf.flags) != 1 {
 		t.Fatalf("expected 1 flag override, got %d", len(pf.flags))
 	}
-	if pf.flags[0].flagName != "mode" {
-		t.Errorf("expected flagName=mode, got %q", pf.flags[0].flagName)
+	if pf.flags[0].flagsType == nil {
+		t.Error("flagsType should be set")
 	}
-	if pf.flags[0].value != "custom" {
-		t.Errorf("expected value=custom, got %v", pf.flags[0].value)
+
+	// Resolve and verify diff.
+	resolved, err := resolveTypedFlags(pf.flags, task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resolved) != 1 {
+		t.Fatalf("expected 1 resolved flag override, got %d", len(resolved))
+	}
+	if resolved[0].flagName != "mode" {
+		t.Errorf("expected flagName=mode, got %q", resolved[0].flagName)
+	}
+	if resolved[0].value != "custom" {
+		t.Errorf("expected value=custom, got %v", resolved[0].value)
+	}
+}
+
+func TestWithFlags_InferTask(t *testing.T) {
+	type inferFlags struct {
+		Mode string `flag:"mode" usage:"mode"`
+	}
+	task := &Task{
+		Name:  "inferred",
+		Usage: "test task",
+		Flags: inferFlags{Mode: "default"},
+		Do:    func(_ context.Context) error { return nil },
+	}
+
+	// WithFlags without task argument — infer from flags type.
+	opt := WithFlags(inferFlags{Mode: "custom"})
+
+	pf := &pathFilter{
+		inner: task,
+		flags: []flagOverride{},
+	}
+	opt(pf)
+
+	// Should store the flags type for deferred resolution.
+	if len(pf.flags) != 1 {
+		t.Fatalf("expected 1 flag override, got %d", len(pf.flags))
+	}
+	if pf.flags[0].taskName != "" {
+		t.Errorf("taskName should be empty for deferred resolution, got %q", pf.flags[0].taskName)
+	}
+	if pf.flags[0].flagsType == nil {
+		t.Error("flagsType should be set")
+	}
+}
+
+func TestWithFlags_AmbiguousFlagsType(t *testing.T) {
+	type sharedFlags struct {
+		Mode string `flag:"mode" usage:"mode"`
+	}
+	task1 := &Task{Name: "task1", Flags: sharedFlags{}, Do: func(_ context.Context) error { return nil }}
+	task2 := &Task{Name: "task2", Flags: sharedFlags{}, Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Auto: WithOptions(
+			Parallel(task1, task2),
+			WithFlags(sharedFlags{Mode: "x"}),
+		),
+	}
+
+	_, err := newPlan(cfg, t.TempDir(), []string{"."})
+	if err == nil {
+		t.Fatal("expected error for ambiguous flags type")
+	}
+	if !strings.Contains(err.Error(), "ambiguous flags type") {
+		t.Errorf("expected 'ambiguous flags type' in error, got: %v", err)
+	}
+}
+
+func TestWithFlags_NoMatchingTask(t *testing.T) {
+	type taskFlags struct {
+		Mode string `flag:"mode" usage:"mode"`
+	}
+	type wrongFlags struct {
+		Other string `flag:"other" usage:"other"`
+	}
+	task := &Task{Name: "task", Flags: taskFlags{}, Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Auto: WithOptions(
+			task,
+			WithFlags(wrongFlags{Other: "x"}),
+		),
+	}
+
+	_, err := newPlan(cfg, t.TempDir(), []string{"."})
+	if err == nil {
+		t.Fatal("expected error for no matching task")
+	}
+	if !strings.Contains(err.Error(), "no task found with flags type") {
+		t.Errorf("expected 'no task found with flags type' in error, got: %v", err)
 	}
 }
 

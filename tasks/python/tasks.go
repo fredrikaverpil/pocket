@@ -29,8 +29,8 @@ func Detect() pk.DetectFunc {
 //
 //	pk.WithOptions(
 //	    python.Tasks(),
-//	    pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
-//	    pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
+//	    pk.WithFlags(python.FormatFlags{Python: "3.9"}),
+//	    pk.WithFlags(python.TestFlags{Python: "3.9", Coverage: true}),
 //	    pk.WithDetect(python.Detect()),
 //	)
 func Tasks() pk.Runnable {

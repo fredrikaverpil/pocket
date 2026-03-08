@@ -182,8 +182,8 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 
 	cfg := &Config{
 		Auto: Serial(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, pyTestIntFlags{Python: "3.9"})),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, pyTestIntFlags{Python: "3.10"})),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(pyTestIntFlags{Python: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(pyTestIntFlags{Python: "3.10"})),
 		),
 	}
 
@@ -346,7 +346,7 @@ func TestIntegration_FlagOverrideViaWithFlag(t *testing.T) {
 	}
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlags(task, modeIntFlags{Mode: "overridden"})),
+		Auto: WithOptions(task, WithFlags(modeIntFlags{Mode: "overridden"})),
 	}
 
 	plan, err := newPlan(cfg, "/tmp", []string{"."})

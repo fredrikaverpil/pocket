@@ -145,7 +145,7 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlags(Task, FlagsStruct{Field: value})` sets
+- **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets
   task-specific flags
 - [and more...](./REFERENCE.md)
 
@@ -154,7 +154,7 @@ pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
     pk.WithExcludePath("testdata"),      // skip test fixtures
-    pk.WithFlags(Test, golang.TestFlags{Race: false}),  // disable race detector for Test
+    pk.WithFlags(golang.TestFlags{Race: false}),  // disable race detector for Test
 )
 ```
 
@@ -221,7 +221,7 @@ var Config = &pk.Config{
         Lint, Test, Build,
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlags(github.Workflows, github.WorkflowFlags{
+            pk.WithFlags(github.WorkflowFlags{
                 PerPocketTaskJob: new(true),
                 Platforms:        []github.Platform{github.Ubuntu, github.MacOS},
                 PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{

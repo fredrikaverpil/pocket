@@ -15,7 +15,7 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			pk.WithFlags(github.Workflows, github.WorkflowFlags{
+			pk.WithFlags(github.WorkflowFlags{
 				PerPocketTaskJob: new(true),
 				Platforms:        []github.Platform{github.Ubuntu},
 				PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{

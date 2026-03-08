@@ -307,8 +307,8 @@ Auto: pk.Parallel(
     pk.WithOptions(
         python.Tasks(),
         pk.WithDetect(python.Detect()),
-        pk.WithFlags(python.Lint, python.LintFlags{Python: "3.12"}),
-        pk.WithFlags(python.Test, python.TestFlags{Coverage: true}),
+        pk.WithFlags(python.LintFlags{Python: "3.12"}),
+        pk.WithFlags(python.TestFlags{Coverage: true}),
     ),
 ),
 ```
