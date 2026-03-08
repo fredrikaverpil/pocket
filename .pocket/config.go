@@ -16,8 +16,8 @@ var Config = &pk.Config{
 		pk.WithOptions(
 			github.Tasks(),
 			pk.WithFlags(github.WorkflowFlags{
-				PerPocketTaskJob: new(true),
 				Platforms:        []github.Platform{github.Ubuntu},
+				PerPocketTaskJob: new(true),
 				PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
 					golang.Test.Name: {Platforms: github.AllPlatforms()},
 				},
