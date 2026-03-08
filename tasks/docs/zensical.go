@@ -7,28 +7,27 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/zensical"
 )
 
-// Flag names for the Zensical task.
-const (
-	FlagServe = "serve"
-	FlagBuild = "build"
-)
+// ZensicalFlags holds flags for the Zensical task.
+type ZensicalFlags struct {
+	Serve bool `flag:"serve" usage:"serve documentation locally"`
+	Build bool `flag:"build" usage:"build documentation"`
+}
 
 // Zensical generates or serves documentation using zensical.
 // Automatically installs zensical if not present. Builds documentation if no flags are passed.
 var Zensical = &pk.Task{
 	Name:  "docs",
 	Usage: "generate or serve documentation with zensical",
-	Flags: map[string]pk.FlagDef{
-		FlagServe: {Default: false, Usage: "serve documentation locally"},
-		FlagBuild: {Default: false, Usage: "build documentation"},
-	},
-	Body: pk.Serial(zensical.Install, zensicalCmd()),
+	Flags: ZensicalFlags{},
+	Body:  pk.Serial(zensical.Install, zensicalCmd()),
 }
 
 func zensicalCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		serve := pk.GetFlag[bool](ctx, FlagServe)
-		build := pk.GetFlag[bool](ctx, FlagBuild)
+		f := pk.GetFlags[ZensicalFlags](ctx)
+
+		serve := f.Serve
+		build := f.Build
 
 		// Default to build if neither flag is specified.
 		if !serve && !build {

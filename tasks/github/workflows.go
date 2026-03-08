@@ -52,34 +52,25 @@ type ReleaseConfig struct {
 	IncludeGoreleaser bool
 }
 
-// Flag names for the Workflows task.
-const (
-	FlagIncludeGoreleaser   = "include-goreleaser"
-	FlagIncludePocketPerjob = "include-pocket-perjob"
-	FlagPlatforms           = "platforms"
-	FlagSkipGhPages         = "skip-gh-pages"
-	FlagSkipPocket          = "skip-pocket"
-	FlagSkipPR              = "skip-pr"
-	FlagSkipRelease         = "skip-release"
-	FlagSkipStale           = "skip-stale"
-)
+// WorkflowFlags holds flags for the Workflows task.
+type WorkflowFlags struct {
+	IncludeGoreleaser   bool   `flag:"include-goreleaser" usage:"include goreleaser job in release workflow"`
+	IncludePocketPerjob bool   `flag:"include-pocket-perjob" usage:"include pocket-perjob workflow (excluded by default)"`
+	Platforms           string `flag:"platforms" usage:"platforms for pocket.yml (comma-separated)"`
+	SkipGhPages         bool   `flag:"skip-gh-pages" usage:"exclude GitHub Pages workflow"`
+	SkipPocket          bool   `flag:"skip-pocket" usage:"exclude pocket workflow"`
+	SkipPR              bool   `flag:"skip-pr" usage:"exclude PR workflow"`
+	SkipRelease         bool   `flag:"skip-release" usage:"exclude release-please workflow"`
+	SkipStale           bool   `flag:"skip-stale" usage:"exclude stale workflow"`
+}
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
 // Most workflows are included by default. Use flags to include/exclude specific ones.
 var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
-	Flags: map[string]pk.FlagDef{
-		FlagIncludeGoreleaser:   {Default: false, Usage: "include goreleaser job in release workflow"},
-		FlagIncludePocketPerjob: {Default: false, Usage: "include pocket-perjob workflow (excluded by default)"},
-		FlagPlatforms:           {Default: "", Usage: "platforms for pocket.yml (comma-separated)"},
-		FlagSkipGhPages:         {Default: true, Usage: "exclude GitHub Pages workflow"},
-		FlagSkipPocket:          {Default: false, Usage: "exclude pocket workflow"},
-		FlagSkipPR:              {Default: false, Usage: "exclude PR workflow"},
-		FlagSkipRelease:         {Default: false, Usage: "exclude release-please workflow"},
-		FlagSkipStale:           {Default: false, Usage: "exclude stale workflow"},
-	},
-	Do: runWorkflows,
+	Flags: WorkflowFlags{SkipGhPages: true},
+	Do:    runWorkflows,
 }
 
 func runWorkflows(ctx context.Context) error {
@@ -103,22 +94,23 @@ func runWorkflows(ctx context.Context) error {
 		include  bool
 	}
 
+	f := pk.GetFlags[WorkflowFlags](ctx)
+
 	pocketConfig := DefaultPocketConfig()
-	if p := pk.GetFlag[string](ctx, FlagPlatforms); p != "" {
-		pocketConfig.Platforms = p
+	if f.Platforms != "" {
+		pocketConfig.Platforms = f.Platforms
 	}
 	staleConfig := DefaultStaleConfig()
 
 	// Build release config.
-	includeGoreleaser := pk.GetFlag[bool](ctx, FlagIncludeGoreleaser)
-	releaseConfig := ReleaseConfig{IncludeGoreleaser: includeGoreleaser}
+	releaseConfig := ReleaseConfig{IncludeGoreleaser: f.IncludeGoreleaser}
 
 	workflowDefs := []workflowDef{
-		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, !pk.GetFlag[bool](ctx, FlagSkipGhPages)},
-		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !pk.GetFlag[bool](ctx, FlagSkipPocket)},
-		{"pr.yml.tmpl", "pr.yml", nil, !pk.GetFlag[bool](ctx, FlagSkipPR)},
-		{"release.yml.tmpl", "release.yml", releaseConfig, !pk.GetFlag[bool](ctx, FlagSkipRelease)},
-		{"stale.yml.tmpl", "stale.yml", staleConfig, !pk.GetFlag[bool](ctx, FlagSkipStale)},
+		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, !f.SkipGhPages},
+		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !f.SkipPocket},
+		{"pr.yml.tmpl", "pr.yml", nil, !f.SkipPR},
+		{"release.yml.tmpl", "release.yml", releaseConfig, !f.SkipRelease},
+		{"stale.yml.tmpl", "stale.yml", staleConfig, !f.SkipStale},
 	}
 
 	// Also manage pocket-perjob.yml (generated separately via per-job generation)
@@ -180,7 +172,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Write default .goreleaser.yml if goreleaser is enabled and no config exists.
-	if includeGoreleaser {
+	if f.IncludeGoreleaser {
 		cfgPath, err := goreleaser.WriteDefaultConfig()
 		if err != nil {
 			return fmt.Errorf("write goreleaser config: %w", err)
@@ -191,7 +183,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Generate per-job workflow if requested.
-	if pk.GetFlag[bool](ctx, FlagIncludePocketPerjob) {
+	if f.IncludePocketPerjob {
 		if err := generatePerJobWorkflow(ctx, workflowDir, verbose); err != nil {
 			return fmt.Errorf("generate pocket-perjob workflow: %w", err)
 		}

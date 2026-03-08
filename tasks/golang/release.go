@@ -8,40 +8,37 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/goreleaser"
 )
 
-// Flag names for the Release task.
-const (
-	FlagReleaseSnapshot = "snapshot"
-	FlagReleaseClean    = "clean"
-	FlagReleaseArgs     = "args"
-)
+// ReleaseFlags holds flags for the Release task.
+type ReleaseFlags struct {
+	Snapshot bool   `flag:"snapshot" usage:"build without publishing (local/CI preview)"`
+	Clean    bool   `flag:"clean" usage:"remove dist/ before build"`
+	Args     string `flag:"args" usage:"additional goreleaser arguments"`
+}
 
 // Release builds and releases Go binaries with goreleaser.
 // Defaults to snapshot mode (safe for local development).
 var Release = &pk.Task{
 	Name:  "go-release",
 	Usage: "build and release Go binaries with goreleaser",
-	Flags: map[string]pk.FlagDef{
-		FlagReleaseSnapshot: {Default: true, Usage: "build without publishing (local/CI preview)"},
-		FlagReleaseClean:    {Default: true, Usage: "remove dist/ before build"},
-		FlagReleaseArgs:     {Default: "", Usage: "additional goreleaser arguments"},
-	},
-	Body: pk.Serial(goreleaser.Install, releaseCmd()),
+	Flags: ReleaseFlags{Snapshot: true, Clean: true},
+	Body:  pk.Serial(goreleaser.Install, releaseCmd()),
 }
 
 func releaseCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		f := pk.GetFlags[ReleaseFlags](ctx)
 		args := []string{"release"}
-		if pk.GetFlag[bool](ctx, FlagReleaseSnapshot) {
+		if f.Snapshot {
 			args = append(args, "--snapshot")
 		}
-		if pk.GetFlag[bool](ctx, FlagReleaseClean) {
+		if f.Clean {
 			args = append(args, "--clean")
 		}
 		if pk.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
-		if extraArgs := pk.GetFlag[string](ctx, FlagReleaseArgs); extraArgs != "" {
-			args = append(args, strings.Fields(extraArgs)...)
+		if f.Args != "" {
+			args = append(args, strings.Fields(f.Args)...)
 		}
 		return pk.Exec(ctx, goreleaser.Name, args...)
 	})

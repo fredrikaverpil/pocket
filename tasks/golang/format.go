@@ -7,24 +7,25 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
-// FlagFormatConfig is the flag name for the golangci-lint config file path.
-const FlagFormatConfig = "config"
+// FormatFlags holds flags for the Format task.
+type FormatFlags struct {
+	Config string `flag:"config" usage:"path to golangci-lint config file"`
+}
 
 // Format formats Go code using golangci-lint fmt.
 var Format = &pk.Task{
 	Name:  "go-format",
 	Usage: "format Go code",
-	Flags: map[string]pk.FlagDef{
-		FlagFormatConfig: {Default: "", Usage: "path to golangci-lint config file"},
-	},
-	Body: pk.Serial(golangcilint.Install, formatCmd()),
+	Flags: FormatFlags{},
+	Body:  pk.Serial(golangcilint.Install, formatCmd()),
 }
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
+		f := pk.GetFlags[FormatFlags](ctx)
 		args := []string{"fmt"}
 
-		configPath := pk.GetFlag[string](ctx, FlagFormatConfig)
+		configPath := f.Config
 		if configPath == "" && !golangcilint.HasProjectConfig() {
 			configPath = golangcilint.EnsureDefaultConfig()
 		}

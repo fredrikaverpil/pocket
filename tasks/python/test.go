@@ -7,8 +7,11 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-// FlagTestCoverage is the flag name for enabling coverage in the Test task.
-const FlagTestCoverage = "coverage"
+// TestFlags holds flags for the Test task.
+type TestFlags struct {
+	Coverage bool   `flag:"coverage" usage:"enable coverage reporting"`
+	Python   string `flag:"python" usage:"Python version to use (e.g., 3.9)"`
+}
 
 // Test runs Python tests using pytest.
 // Requires pytest as a project dependency in pyproject.toml.
@@ -17,18 +20,15 @@ const FlagTestCoverage = "coverage"
 var Test = &pk.Task{
 	Name:  "py-test",
 	Usage: "run Python tests",
-	Flags: map[string]pk.FlagDef{
-		FlagTestCoverage: {Default: false, Usage: "enable coverage reporting"},
-		FlagPython:       {Default: "", Usage: "Python version to use (e.g., 3.9)"},
-	},
-	Body: pk.Serial(uv.Install, testSyncCmd(), testCmd()),
+	Flags: TestFlags{},
+	Body:  pk.Serial(uv.Install, testSyncCmd(), testCmd()),
 }
 
 func testSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := pk.GetFlag[string](ctx, FlagPython)
+		f := pk.GetFlags[TestFlags](ctx)
 		return uv.Sync(ctx, uv.SyncOptions{
-			PythonVersion: version,
+			PythonVersion: f.Python,
 			AllGroups:     true,
 		})
 	})
@@ -36,8 +36,8 @@ func testSyncCmd() pk.Runnable {
 
 func testCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := pk.GetFlag[string](ctx, FlagPython)
-		return runTest(ctx, version, !pk.GetFlag[bool](ctx, FlagTestCoverage))
+		f := pk.GetFlags[TestFlags](ctx)
+		return runTest(ctx, f.Python, !f.Coverage)
 	})
 }
 

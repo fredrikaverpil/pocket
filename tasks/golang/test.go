@@ -7,73 +7,61 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
-// Flag names for the Test task.
-const (
-	FlagTestRace         = "race"
-	FlagTestRun          = "run"
-	FlagTestTimeout      = "timeout"
-	FlagTestCoverage     = "coverage"
-	FlagTestCoverageHTML = "coverage-html"
-	FlagTestCPUProfile   = "cpuprofile"
-	FlagTestMemProfile   = "memprofile"
-	FlagTestBlockProfile = "blockprofile"
-	FlagTestMutexProfile = "mutexprofile"
-	FlagTestPkg          = "pkg"
-	FlagTestArgs         = "args"
-)
+// TestFlags holds flags for the Test task.
+type TestFlags struct {
+	Race         bool   `flag:"race" usage:"enable race detector"`
+	Run          string `flag:"run" usage:"run only tests matching regexp"`
+	Timeout      string `flag:"timeout" usage:"test timeout (e.g., 5m, 30s)"`
+	Coverage     bool   `flag:"coverage" usage:"enable coverage and write to coverage.out"`
+	CoverageHTML bool   `flag:"coverage-html" usage:"enable coverage and generate coverage.html"`
+	CPUProfile   string `flag:"cpuprofile" usage:"write CPU profile to file (e.g., cpu.prof)"`
+	MemProfile   string `flag:"memprofile" usage:"write memory profile to file (e.g., mem.prof)"`
+	BlockProfile string `flag:"blockprofile" usage:"write block profile to file (e.g., block.prof)"`
+	MutexProfile string `flag:"mutexprofile" usage:"write mutex profile to file (e.g., mutex.prof)"`
+	Pkg          string `flag:"pkg" usage:"package pattern to test (e.g., ./pk)"`
+	Args         string `flag:"args" usage:"additional arguments to pass to go test"`
+}
 
 // Test runs Go tests.
 var Test = &pk.Task{
 	Name:  "go-test",
 	Usage: "run go tests",
-	Flags: map[string]pk.FlagDef{
-		FlagTestRace:         {Default: true, Usage: "enable race detector"},
-		FlagTestRun:          {Default: "", Usage: "run only tests matching regexp"},
-		FlagTestTimeout:      {Default: "", Usage: "test timeout (e.g., 5m, 30s)"},
-		FlagTestCoverage:     {Default: false, Usage: "enable coverage and write to coverage.out"},
-		FlagTestCoverageHTML: {Default: false, Usage: "enable coverage and generate coverage.html"},
-		FlagTestCPUProfile:   {Default: "", Usage: "write CPU profile to file (e.g., cpu.prof)"},
-		FlagTestMemProfile:   {Default: "", Usage: "write memory profile to file (e.g., mem.prof)"},
-		FlagTestBlockProfile: {Default: "", Usage: "write block profile to file (e.g., block.prof)"},
-		FlagTestMutexProfile: {Default: "", Usage: "write mutex profile to file (e.g., mutex.prof)"},
-		FlagTestPkg:          {Default: "./...", Usage: "package pattern to test (e.g., ./pk)"},
-		FlagTestArgs:         {Default: "", Usage: "additional arguments to pass to go test"},
-	},
+	Flags: TestFlags{Race: true, Pkg: "./..."},
 	Do: func(ctx context.Context) error {
+		f := pk.GetFlags[TestFlags](ctx)
 		args := []string{"test"}
-		if pk.GetFlag[bool](ctx, FlagTestRace) {
+		if f.Race {
 			args = append(args, "-race")
 		}
-		coverageHTML := pk.GetFlag[bool](ctx, FlagTestCoverageHTML)
-		if pk.GetFlag[bool](ctx, FlagTestCoverage) || coverageHTML {
+		if f.Coverage || f.CoverageHTML {
 			args = append(args, "-coverprofile=coverage.out", "-covermode=atomic")
 		}
-		if pattern := pk.GetFlag[string](ctx, FlagTestRun); pattern != "" {
-			args = append(args, "-run", pattern)
+		if f.Run != "" {
+			args = append(args, "-run", f.Run)
 		}
-		if timeout := pk.GetFlag[string](ctx, FlagTestTimeout); timeout != "" {
-			args = append(args, "-timeout", timeout)
+		if f.Timeout != "" {
+			args = append(args, "-timeout", f.Timeout)
 		}
-		if cpuprofile := pk.GetFlag[string](ctx, FlagTestCPUProfile); cpuprofile != "" {
-			args = append(args, "-cpuprofile="+cpuprofile)
+		if f.CPUProfile != "" {
+			args = append(args, "-cpuprofile="+f.CPUProfile)
 		}
-		if memprofile := pk.GetFlag[string](ctx, FlagTestMemProfile); memprofile != "" {
-			args = append(args, "-memprofile="+memprofile)
+		if f.MemProfile != "" {
+			args = append(args, "-memprofile="+f.MemProfile)
 		}
-		if blockprofile := pk.GetFlag[string](ctx, FlagTestBlockProfile); blockprofile != "" {
-			args = append(args, "-blockprofile="+blockprofile)
+		if f.BlockProfile != "" {
+			args = append(args, "-blockprofile="+f.BlockProfile)
 		}
-		if mutexprofile := pk.GetFlag[string](ctx, FlagTestMutexProfile); mutexprofile != "" {
-			args = append(args, "-mutexprofile="+mutexprofile)
+		if f.MutexProfile != "" {
+			args = append(args, "-mutexprofile="+f.MutexProfile)
 		}
-		if extraArgs := pk.GetFlag[string](ctx, FlagTestArgs); extraArgs != "" {
-			args = append(args, strings.Fields(extraArgs)...)
+		if f.Args != "" {
+			args = append(args, strings.Fields(f.Args)...)
 		}
-		args = append(args, pk.GetFlag[string](ctx, FlagTestPkg))
+		args = append(args, f.Pkg)
 		if err := pk.Exec(ctx, "go", args...); err != nil {
 			return err
 		}
-		if coverageHTML {
+		if f.CoverageHTML {
 			return pk.Exec(ctx, "go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html")
 		}
 		return nil

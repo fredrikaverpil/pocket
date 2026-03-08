@@ -8,10 +8,6 @@ import (
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
-// FlagPython is the flag name for specifying the Python version.
-// Shared across Format, Lint, Test, and Typecheck tasks.
-const FlagPython = "python"
-
 // pythonVersionToRuff converts a Python version (e.g., "3.9") to ruff's format (e.g., "py39").
 func pythonVersionToRuff(version string) string {
 	parts := strings.Split(version, ".")
@@ -27,14 +23,14 @@ func Detect() pk.DetectFunc {
 }
 
 // Tasks returns all Python tasks (Format, Lint, Typecheck, Test).
-// Use with WithVersion to specify the Python version.
+// Use with pk.WithFlags to specify options per task.
 //
 // Example:
 //
 //	pk.WithOptions(
 //	    python.Tasks(),
-//	    python.WithVersion("3.9"),
-//	    python.WithTestCoverage(),
+//	    pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
+//	    pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
 //	    pk.WithDetect(python.Detect()),
 //	)
 func Tasks() pk.Runnable {
