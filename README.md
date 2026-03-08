@@ -108,7 +108,9 @@ same version.
 >
 > - [claudeline](https://github.com/fredrikaverpil/claudeline/blob/main/.pocket/config.go)
 > - [creosote](https://github.com/fredrikaverpil/creosote/blob/main/.pocket/config.go)
+> - [go-playground](https://github.com/fredrikaverpil/go-playground/blob/main/.pocket/config.go)
 > - [neotest-golang](https://github.com/fredrikaverpil/neotest-golang/blob/main/.pocket/config.go)
+> - [pr.nvim](https://github.com/fredrikaverpil/pr.nvim/blob/main/.pocket/config.go)
 >
 > Feel free to use my tools/tasks or build your own!
 
