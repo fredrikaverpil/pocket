@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"context"
 	"flag"
 	"testing"
 	"time"
@@ -175,4 +176,38 @@ func TestDiffStructs(t *testing.T) {
 	if _, ok := diff["count"]; ok {
 		t.Error("count should not be in diff (unchanged)")
 	}
+}
+
+func TestGetFlags(t *testing.T) {
+	t.Run("FromContext", func(t *testing.T) {
+		m := map[string]any{
+			"name":    "hello",
+			"verbose": true,
+			"count":   42,
+			"big":     int64(0),
+			"small":   uint(0),
+			"large":   uint64(0),
+			"rate":    0.0,
+			"dur":     time.Duration(0),
+		}
+		ctx := withTaskFlags(context.Background(), m)
+
+		flags := GetFlags[testFlags](ctx)
+		if flags.Name != "hello" {
+			t.Errorf("expected name=hello, got %q", flags.Name)
+		}
+		if !flags.Verbose {
+			t.Error("expected verbose=true")
+		}
+		if flags.Count != 42 {
+			t.Errorf("expected count=42, got %d", flags.Count)
+		}
+	})
+
+	t.Run("NoFlagsInContextPanics", func(t *testing.T) {
+		ctx := context.Background()
+		assertFlagPanic(t, func() {
+			GetFlags[testFlags](ctx)
+		}, "no flags in context")
+	})
 }

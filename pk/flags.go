@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -178,4 +179,19 @@ func diffStructs(defaults, overrides any) (map[string]any, error) {
 		}
 	}
 	return diff, nil
+}
+
+// GetFlags retrieves the resolved flags struct from context.
+// Panics with a flagError if no flags are in context.
+// The panic is recovered by task.run() and surfaced as a returned error.
+func GetFlags[T any](ctx context.Context) T {
+	var zero T
+	m := taskFlagsFromContext(ctx)
+	if m == nil {
+		panic(flagError{fmt.Errorf("no flags in context")})
+	}
+	if err := mapToStruct(m, &zero); err != nil {
+		panic(flagError{err})
+	}
+	return zero
 }
