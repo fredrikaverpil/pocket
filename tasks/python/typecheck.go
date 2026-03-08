@@ -21,7 +21,7 @@ var Typecheck = &pk.Task{
 
 func typecheckSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -31,7 +31,7 @@ func typecheckSyncCmd() pk.Runnable {
 
 func typecheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return runTypecheck(ctx, version)
 	})
 }

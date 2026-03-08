@@ -21,7 +21,7 @@ var Format = &pk.Task{
 
 func formatSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -31,7 +31,7 @@ func formatSyncCmd() pk.Runnable {
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return runFormat(ctx, version)
 	})
 }
@@ -52,7 +52,3 @@ func runFormat(ctx context.Context, pythonVersion string) error {
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }
 
-// resolveVersion returns the Python version from the flag.
-func resolveVersion(_ context.Context, flagValue string) string {
-	return flagValue
-}

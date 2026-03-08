@@ -25,7 +25,7 @@ var Lint = &pk.Task{
 
 func lintSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: version,
 			AllGroups:     true,
@@ -35,7 +35,7 @@ func lintSyncCmd() pk.Runnable {
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		version := resolveVersion(ctx, pk.GetFlag[string](ctx, FlagPython))
+		version := pk.GetFlag[string](ctx, FlagPython)
 		return runLint(ctx, version, pk.GetFlag[bool](ctx, FlagLintSkipFix))
 	})
 }
