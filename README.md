@@ -65,7 +65,7 @@ var Hello = &pk.Task{
     Name:  "hello",
     Usage: "say hello",
     Flags: map[string]pk.FlagDef{
-        "name": {Type: pk.FlagString, Default: "World", Usage: "name to greet"},
+        "name": {Default: "World", Usage: "name to greet"},
     },
     Do: func(ctx context.Context) error {
         name := pk.GetFlag[string](ctx, "name")
