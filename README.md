@@ -145,8 +145,8 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets
-  task-specific flags
+- **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets task-specific
+  flags
 - [and more...](./REFERENCE.md)
 
 ```go

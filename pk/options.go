@@ -8,10 +8,10 @@ import (
 	"reflect"
 )
 
-// PathOption configures path filtering and execution behavior for a Runnable.
-// Path options determine which directories a task should execute in and
-// control deduplication behavior.
-type PathOption func(*pathFilter)
+// Option configures execution behavior for a Runnable within a [WithOptions] scope.
+// Options control path filtering, flag overrides, task skipping, deduplication,
+// and other scope-level settings.
+type Option func(*pathFilter)
 
 // DetectFunc is a function that filters directories to find those with specific markers.
 // It receives the pre-walked directory list and git root path, and returns matching directories.
@@ -21,7 +21,7 @@ type DetectFunc func(dirs []string, gitRoot string) []string
 // WithIncludePath adds include patterns for path filtering.
 // Only directories matching any of the patterns will be included.
 // Patterns are relative to the git root and are interpreted as regular expressions.
-func WithIncludePath(patterns ...string) PathOption {
+func WithIncludePath(patterns ...string) Option {
 	return func(pf *pathFilter) {
 		pf.includePaths = append(pf.includePaths, patterns...)
 	}
@@ -30,7 +30,7 @@ func WithIncludePath(patterns ...string) PathOption {
 // WithExcludePath adds exclude patterns for path filtering.
 // Directories matching any of the patterns will be excluded for ALL tasks in the current scope.
 // Patterns are relative to the git root and are interpreted as regular expressions.
-func WithExcludePath(patterns ...string) PathOption {
+func WithExcludePath(patterns ...string) Option {
 	return func(pf *pathFilter) {
 		for _, p := range patterns {
 			pf.excludePaths = append(pf.excludePaths, excludePattern{
@@ -44,7 +44,7 @@ func WithExcludePath(patterns ...string) PathOption {
 // WithExcludeTask excludes a specific task from certain patterns.
 // Patterns are relative to the git root and are interpreted as regular expressions.
 // The task can be specified by its string name or by the task object itself.
-func WithExcludeTask(task any, patterns ...string) PathOption {
+func WithExcludeTask(task any, patterns ...string) Option {
 	return func(pf *pathFilter) {
 		name := toTaskName(task)
 		for _, p := range patterns {
@@ -58,7 +58,7 @@ func WithExcludeTask(task any, patterns ...string) PathOption {
 
 // WithSkipTask completely removes specific tasks from the current scope.
 // Tasks can be specified by their string name or by the task object itself.
-func WithSkipTask(tasks ...any) PathOption {
+func WithSkipTask(tasks ...any) Option {
 	return func(pf *pathFilter) {
 		pf.skippedTasks = append(pf.skippedTasks, toTaskNames(tasks)...)
 	}
@@ -69,7 +69,7 @@ func WithSkipTask(tasks ...any) PathOption {
 // the Flags field of tasks in scope. The flags struct must be the
 // same type as exactly one task's Flags field within the scope.
 // Only fields that differ from the task's defaults are applied as overrides.
-func WithFlags(flags any) PathOption {
+func WithFlags(flags any) Option {
 	return func(pf *pathFilter) {
 		ft := reflect.TypeOf(flags)
 		if ft.Kind() == reflect.Pointer {
@@ -86,7 +86,7 @@ func WithFlags(flags any) PathOption {
 // By default, tasks are deduplicated per (task pointer, path) pair within
 // a single invocation. WithForceRun causes the task to always execute,
 // even if it has already run for the same path.
-func WithForceRun() PathOption {
+func WithForceRun() Option {
 	return func(pf *pathFilter) {
 		pf.forceRun = true
 	}
@@ -106,7 +106,7 @@ func WithForceRun() PathOption {
 //	    pk.WithExcludePath("vendor"), // Excludes vendor/ from the Go task scope
 //	    pk.WithFlags(golang.TestFlags{Race: true}),
 //	)
-func WithDetect(fn DetectFunc) PathOption {
+func WithDetect(fn DetectFunc) Option {
 	return func(pf *pathFilter) {
 		pf.detectFunc = fn
 	}
@@ -115,7 +115,7 @@ func WithDetect(fn DetectFunc) PathOption {
 // WithNoticePatterns sets the patterns used to detect warning-like output
 // from commands in the current scope. Uses replace semantics (not append).
 // Pass no patterns to disable notice detection entirely.
-func WithNoticePatterns(patterns ...string) PathOption {
+func WithNoticePatterns(patterns ...string) Option {
 	return func(pf *pathFilter) {
 		pf.noticePatterns = patterns
 	}
@@ -132,7 +132,7 @@ func WithNoticePatterns(patterns ...string) PathOption {
 //
 //	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Flags{Python: "3.9"}))
 //	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Flags{Python: "3.10"}))
-func WithNameSuffix(suffix string) PathOption {
+func WithNameSuffix(suffix string) Option {
 	return func(pf *pathFilter) {
 		pf.nameSuffix = suffix
 	}
@@ -141,7 +141,7 @@ func WithNameSuffix(suffix string) PathOption {
 // WithOptions wraps a Runnable with path filtering options.
 // The wrapped Runnable will execute in directories determined by
 // include/exclude patterns resolved against the filesystem.
-func WithOptions(r Runnable, opts ...PathOption) Runnable {
+func WithOptions(r Runnable, opts ...Option) Runnable {
 	pf := &pathFilter{
 		inner:        r,
 		includePaths: []string{},

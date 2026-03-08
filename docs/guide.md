@@ -863,7 +863,7 @@ type MyFlags struct {
     Feature bool `flag:"feature" usage:"enable feature"`
 }
 
-func EnableFeature() pk.PathOption {
+func EnableFeature() pk.Option {
     return pk.WithFlags(MyFlags{Feature: true})
 }
 ```

@@ -290,7 +290,7 @@ func TestWithFlags(t *testing.T) {
 		Do:    func(_ context.Context) error { return nil },
 	}
 
-	// WithFlags should produce a PathOption that stores deferred resolution.
+	// WithFlags should produce an Option that stores deferred resolution.
 	opt := WithFlags(flags{Mode: "custom", Count: 10})
 	pf := &pathFilter{inner: task}
 	opt(pf)

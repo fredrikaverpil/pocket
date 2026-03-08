@@ -514,7 +514,7 @@ Context accessors and modifiers are available from the `pk` package.
 ### Modifiers (Setters)
 
 Context modifiers use the `ContextWith*` naming convention to distinguish them
-from `PathOption` functions (which use `With*`).
+from `Option` functions (which use `With*`).
 
 | Function               | Description                                      |
 | :--------------------- | :----------------------------------------------- |
