@@ -186,13 +186,15 @@ func TestTask_Hidden(t *testing.T) {
 	}
 }
 
+type flagTaskFlags struct {
+	Myflag string `flag:"myflag" usage:"usage"`
+}
+
 func TestTask_Run_FlagOverrides(t *testing.T) {
 	task := &Task{
 		Name:  "flag-task",
 		Usage: "test task",
-		Flags: map[string]FlagDef{
-			"myflag": {Default: "default", Usage: "usage"},
-		},
+		Flags: flagTaskFlags{Myflag: "default"},
 		Do: func(_ context.Context) error {
 			return nil
 		},
@@ -217,10 +219,9 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	}
 
 	t.Run("DefaultValue", func(t *testing.T) {
-		// Capture the flag value via GetFlag from inside the task.
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlag[string](ctx, "myflag")
+			captured = GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -235,14 +236,12 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 
 	t.Run("WithOverride", func(t *testing.T) {
 		ctx := context.Background()
-		// Create Plan with pre-computed flag override.
 		plan := planWithFlags(map[string]any{"myflag": "overridden"})
 		ctx = context.WithValue(ctx, planKey{}, plan)
 
-		// Capture the flag value via GetFlag from inside the task.
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlag[string](ctx, "myflag")
+			captured = GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -261,7 +260,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlag[string](ctx, "myflag")
+			captured = GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -540,15 +539,17 @@ func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {
 
 func TestBuildFlagSet(t *testing.T) {
 	t.Run("AllTypes", func(t *testing.T) {
+		type allFlags struct {
+			Name    string  `flag:"name"    usage:"a name"`
+			Verbose bool    `flag:"verbose" usage:"verbose mode"`
+			Count   int     `flag:"count"   usage:"a count"`
+			Rate    float64 `flag:"rate"    usage:"a rate"`
+		}
+
 		task := &Task{
-			Name: "test",
-			Flags: map[string]FlagDef{
-				"name":    {Default: "hello", Usage: "a name"},
-				"verbose": {Default: false, Usage: "verbose mode"},
-				"count":   {Default: 42, Usage: "a count"},
-				"rate":    {Default: 1.5, Usage: "a rate"},
-			},
-			Do: func(_ context.Context) error { return nil },
+			Name:  "test",
+			Flags: allFlags{Name: "hello", Verbose: false, Count: 42, Rate: 1.5},
+			Do:    func(_ context.Context) error { return nil },
 		}
 
 		if err := task.buildFlagSet(); err != nil {
@@ -571,12 +572,14 @@ func TestBuildFlagSet(t *testing.T) {
 	})
 
 	t.Run("UnsupportedType", func(t *testing.T) {
+		type badFlags struct {
+			Bad []string `flag:"bad" usage:"unsupported"`
+		}
+
 		task := &Task{
-			Name: "test",
-			Flags: map[string]FlagDef{
-				"bad": {Default: []string{"a", "b"}, Usage: "unsupported"},
-			},
-			Do: func(_ context.Context) error { return nil },
+			Name:  "test",
+			Flags: badFlags{Bad: []string{"a", "b"}},
+			Do:    func(_ context.Context) error { return nil },
 		}
 
 		if err := task.buildFlagSet(); err == nil {
@@ -602,6 +605,10 @@ func TestBuildFlagSet(t *testing.T) {
 // TestTask_Parallel_WithNameSuffix_FlagRace tests that parallel execution of
 // the same task with different WithNameSuffix and WithFlag values doesn't race
 // on the shared flagSet. Run with `go test -race` to verify.
+type multiVerFlags struct {
+	Version string `flag:"version" usage:"version"`
+}
+
 func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	var (
 		captured39  string
@@ -611,11 +618,9 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	task := &Task{
 		Name:  "multi-ver",
 		Usage: "test task",
-		Flags: map[string]FlagDef{
-			"version": {Default: "unset", Usage: "version"},
-		},
+		Flags: multiVerFlags{Version: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := GetFlag[string](ctx, "version")
+			ver := GetFlags[multiVerFlags](ctx).Version
 			suffix := nameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
@@ -656,12 +661,14 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	}
 }
 
+type badFlagFlags struct {
+	Real string `flag:"real" usage:"a real flag"`
+}
+
 func TestGetFlag_RecoveredByTaskRun(t *testing.T) {
 	task := &Task{
-		Name: "bad-flag",
-		Flags: map[string]FlagDef{
-			"real": {Default: "value", Usage: "a real flag"},
-		},
+		Name:  "bad-flag",
+		Flags: badFlagFlags{Real: "value"},
 		Do: func(ctx context.Context) error {
 			_ = GetFlag[string](ctx, "typo") // This will panic.
 			return nil

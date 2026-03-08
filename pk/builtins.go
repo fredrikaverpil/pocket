@@ -77,21 +77,24 @@ var shimsTask = &Task{
 	},
 }
 
+// planFlags defines flags for the plan task.
+type planFlags struct {
+	JSON bool `flag:"json" usage:"output as JSON"`
+}
+
 // planTask displays the execution plan.
 var planTask = &Task{
 	Name:       "plan",
 	Usage:      "show execution plan without running tasks",
 	HideHeader: true,
-	Flags: map[string]FlagDef{
-		"json": {Default: false, Usage: "output as JSON"},
-	},
+	Flags:      planFlags{},
 	Do: func(ctx context.Context) error {
 		p := PlanFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
 		}
 
-		if GetFlag[bool](ctx, "json") {
+		if GetFlags[planFlags](ctx).JSON {
 			return printPlanJSON(ctx, p.tree, p)
 		}
 
@@ -144,13 +147,16 @@ var gitDiffTask = &Task{
 	},
 }
 
+// selfUpdateFlags defines flags for the self-update task.
+type selfUpdateFlags struct {
+	Force bool `flag:"force" usage:"bypass Go proxy cache (slower, but guarantees latest)"`
+}
+
 // selfUpdateTask updates Pocket and regenerates scaffolded files.
 var selfUpdateTask = &Task{
 	Name:  "self-update",
 	Usage: "update Pocket and regenerate scaffolded files",
-	Flags: map[string]FlagDef{
-		"force": {Default: false, Usage: "bypass Go proxy cache (slower, but guarantees latest)"},
-	},
+	Flags: selfUpdateFlags{},
 	Do: func(ctx context.Context) error {
 		gitRoot := findGitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
@@ -159,7 +165,7 @@ var selfUpdateTask = &Task{
 		ctx = ContextWithPath(ctx, pocketDir)
 
 		// 1. go get latest.
-		if GetFlag[bool](ctx, "force") {
+		if GetFlags[selfUpdateFlags](ctx).Force {
 			// Bypass proxy cache to guarantee absolute latest.
 			if Verbose(ctx) {
 				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
