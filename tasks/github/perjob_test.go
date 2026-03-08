@@ -5,119 +5,53 @@ import (
 	"testing"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"gotest.tools/v3/assert"
 )
 
-func TestDefaultPerJobConfig(t *testing.T) {
-	cfg := DefaultPerJobConfig()
-
-	expectedPlatforms := AllPlatforms()
-	if len(cfg.DefaultPlatforms) != len(expectedPlatforms) {
-		t.Errorf("expected %d default platforms, got %d", len(expectedPlatforms), len(cfg.DefaultPlatforms))
-	}
-	for i, p := range expectedPlatforms {
-		if i < len(cfg.DefaultPlatforms) && cfg.DefaultPlatforms[i] != p {
-			t.Errorf("expected platform[%d] = %q, got %q", i, p, cfg.DefaultPlatforms[i])
-		}
-	}
-	if cfg.WindowsShell != "powershell" {
-		t.Errorf("expected default WindowsShell 'powershell', got %q", cfg.WindowsShell)
-	}
-	if cfg.WindowsShim != "ps1" {
-		t.Errorf("expected default WindowsShim 'ps1', got %q", cfg.WindowsShim)
-	}
-}
-
-func TestGetTaskOverride(t *testing.T) {
-	overrides := map[string]TaskOverride{
-		"py-test:.*":  {Platforms: []string{PlatformUbuntu}},
-		"go-.*":       {Platforms: []string{PlatformMacOS}},
-		"exact-match": {Platforms: []string{PlatformWindows}},
+func TestGetTaskOption(t *testing.T) {
+	options := map[string]PerPocketTaskJobOption{
+		"py-test:.*":  {Platforms: []Platform{Ubuntu}},
+		"go-.*":       {Platforms: []Platform{MacOS}},
+		"exact-match": {Platforms: []Platform{Windows}},
 	}
 
 	tests := []struct {
+		name          string
 		taskName      string
-		wantMatch     bool
-		wantPlatforms []string
+		wantPlatforms []Platform
 	}{
-		{"py-test:3.9", true, []string{PlatformUbuntu}},
-		{"py-test:3.10", true, []string{PlatformUbuntu}},
-		{"py-test:3.11", true, []string{PlatformUbuntu}},
-		{"go-lint", true, []string{PlatformMacOS}},
-		{"go-test", true, []string{PlatformMacOS}},
-		{"go-format", true, []string{PlatformMacOS}},
-		{"exact-match", true, []string{PlatformWindows}},
-		{"no-match", false, nil},
-		{"py-test", false, nil}, // doesn't match "py-test:.*" (requires colon)
+		{name: "regexp match py-test:3.9", taskName: "py-test:3.9", wantPlatforms: []Platform{Ubuntu}},
+		{name: "regexp match py-test:3.10", taskName: "py-test:3.10", wantPlatforms: []Platform{Ubuntu}},
+		{name: "regexp match py-test:3.11", taskName: "py-test:3.11", wantPlatforms: []Platform{Ubuntu}},
+		{name: "regexp match go-lint", taskName: "go-lint", wantPlatforms: []Platform{MacOS}},
+		{name: "regexp match go-test", taskName: "go-test", wantPlatforms: []Platform{MacOS}},
+		{name: "regexp match go-format", taskName: "go-format", wantPlatforms: []Platform{MacOS}},
+		{name: "exact match", taskName: "exact-match", wantPlatforms: []Platform{Windows}},
+		{name: "no match", taskName: "no-match", wantPlatforms: nil},
+		{name: "py-test without colon", taskName: "py-test", wantPlatforms: nil},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.taskName, func(t *testing.T) {
-			override := getTaskOverride(tt.taskName, overrides)
-			gotMatch := len(override.Platforms) > 0
-			if gotMatch != tt.wantMatch {
-				t.Errorf("getTaskOverride(%q) match=%v, want match=%v", tt.taskName, gotMatch, tt.wantMatch)
-			}
-			if tt.wantPlatforms != nil && len(override.Platforms) > 0 {
-				if override.Platforms[0] != tt.wantPlatforms[0] {
-					t.Errorf(
-						"getTaskOverride(%q) Platforms=%v, want %v",
-						tt.taskName,
-						override.Platforms,
-						tt.wantPlatforms,
-					)
-				}
-			}
+		t.Run(tt.name, func(t *testing.T) {
+			got := getTaskOption(tt.taskName, options)
+			assert.DeepEqual(t, tt.wantPlatforms, got.Platforms)
 		})
 	}
 }
 
-func TestGetTaskOverride_InvalidRegexp(t *testing.T) {
-	overrides := map[string]TaskOverride{
-		"[invalid": {Platforms: []string{PlatformMacOS}}, // invalid regexp
-		"valid":    {Platforms: []string{PlatformUbuntu}},
+func TestGetTaskOption_InvalidRegexp(t *testing.T) {
+	options := map[string]PerPocketTaskJobOption{
+		"[invalid": {Platforms: []Platform{MacOS}},
+		"valid":    {Platforms: []Platform{Ubuntu}},
 	}
 
-	// Should not panic, just skip invalid patterns
-	override := getTaskOverride("valid", overrides)
-	if len(override.Platforms) != 1 || override.Platforms[0] != PlatformUbuntu {
-		t.Errorf("expected valid pattern to match, got %+v", override)
-	}
+	// Should not panic, just skip invalid patterns.
+	got := getTaskOption("valid", options)
+	assert.DeepEqual(t, []Platform{Ubuntu}, got.Platforms)
 
-	// Invalid pattern should be skipped
-	_ = getTaskOverride("[invalid", overrides)
-	// This might or might not match depending on iteration order, but shouldn't panic
+	// Invalid pattern should be skipped, not panic.
+	_ = getTaskOption("[invalid", options)
 }
-
-func TestShimForPlatform(t *testing.T) {
-	tests := []struct {
-		platform     string
-		windowsShell string
-		windowsShim  string
-		want         string
-	}{
-		{PlatformUbuntu, "powershell", "ps1", "./pok"},
-		{PlatformMacOS, "powershell", "ps1", "./pok"},
-		{PlatformWindows, "powershell", "ps1", ".\\pok.ps1"},
-		{PlatformWindows, "powershell", "cmd", ".\\pok.cmd"},
-		{"windows-2022", "powershell", "ps1", ".\\pok.ps1"},
-		{"windows-2022", "powershell", "cmd", ".\\pok.cmd"},
-		{PlatformWindows, "bash", "ps1", "./pok"}, // bash ignores windowsShim
-		{PlatformWindows, "bash", "cmd", "./pok"}, // bash ignores windowsShim
-		{"ubuntu-22.04", "bash", "ps1", "./pok"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.platform+"_"+tt.windowsShell+"_"+tt.windowsShim, func(t *testing.T) {
-			got := shimForPlatform(tt.platform, tt.windowsShell, tt.windowsShim)
-			if got != tt.want {
-				t.Errorf("shimForPlatform(%q, %q, %q) = %q, want %q",
-					tt.platform, tt.windowsShell, tt.windowsShim, got, tt.want)
-			}
-		})
-	}
-}
-
-// Tests for static job generation
 
 func TestGenerateStaticJobs_Default(t *testing.T) {
 	tasks := []pk.TaskInfo{
@@ -125,34 +59,20 @@ func TestGenerateStaticJobs_Default(t *testing.T) {
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := DefaultPerJobConfig()
-	jobs := GenerateStaticJobs(tasks, cfg)
+	flags := WorkflowFlags{}
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// 2 tasks × 3 platforms = 6 jobs
-	if len(jobs) != 6 {
-		t.Fatalf("expected 6 jobs, got %d", len(jobs))
-	}
+	// 2 tasks x 3 platforms = 6 jobs.
+	assert.Equal(t, 6, len(jobs))
 
-	// Verify job structure
+	// Verify all jobs have required fields populated.
 	for _, job := range jobs {
-		if job.ID == "" {
-			t.Error("job ID should not be empty")
-		}
-		if job.Name == "" {
-			t.Error("job Name should not be empty")
-		}
-		if job.Task == "" {
-			t.Error("job Task should not be empty")
-		}
-		if job.Platform == "" {
-			t.Error("job Platform should not be empty")
-		}
-		if job.Shell == "" {
-			t.Error("job Shell should not be empty")
-		}
-		if job.Shim == "" {
-			t.Error("job Shim should not be empty")
-		}
+		assert.Assert(t, job.ID != "", "job ID should not be empty")
+		assert.Assert(t, job.Name != "", "job Name should not be empty")
+		assert.Assert(t, job.Task != "", "job Task should not be empty")
+		assert.Assert(t, job.Platform != "", "job Platform should not be empty")
+		assert.Assert(t, job.Shell != "", "job Shell should not be empty")
+		assert.Assert(t, job.Shim != "", "job Shim should not be empty")
 	}
 }
 
@@ -161,59 +81,55 @@ func TestGenerateStaticJobs_JobID(t *testing.T) {
 		{Name: "go-test", Usage: "test go code"},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: []string{PlatformUbuntu},
+	flags := WorkflowFlags{
+		Platforms: []Platform{Ubuntu},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	if len(jobs) != 1 {
-		t.Fatalf("expected 1 job, got %d", len(jobs))
-	}
+	assert.Equal(t, 1, len(jobs))
 
-	job := jobs[0]
-	if job.ID != "go-test-ubuntu" {
-		t.Errorf("expected ID 'go-test-ubuntu', got %q", job.ID)
+	got := jobs[0]
+	want := StaticJob{
+		ID:       "go-test-ubuntu",
+		Name:     "go-test (" + Ubuntu + ")",
+		Task:     "go-test",
+		Platform: Ubuntu,
+		Shell:    "bash",
+		Shim:     "./pok",
+		GitDiff:  false,
 	}
-	if job.Name != "go-test ("+PlatformUbuntu+")" {
-		t.Errorf("expected Name 'go-test (%s)', got %q", PlatformUbuntu, job.Name)
-	}
+	assert.DeepEqual(t, want, got)
 }
 
-func TestGenerateStaticJobs_TaskOverrides(t *testing.T) {
+func TestGenerateStaticJobs_PerPocketTaskJobOptions(t *testing.T) {
 	tasks := []pk.TaskInfo{
 		{Name: "lint", Usage: "lint code"},
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: AllPlatforms(),
-		TaskOverrides: map[string]TaskOverride{
-			"lint": {Platforms: []string{PlatformUbuntu}}, // lint only on ubuntu
+	flags := WorkflowFlags{
+		Platforms: AllPlatforms(),
+		PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
+			"lint": {Platforms: []Platform{Ubuntu}},
 		},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// lint: 1 platform, test: 3 platforms = 4 jobs
-	if len(jobs) != 4 {
-		t.Fatalf("expected 4 jobs, got %d", len(jobs))
-	}
+	// lint: 1 platform, test: 3 platforms = 4 jobs.
+	assert.Equal(t, 4, len(jobs))
 
-	// Count lint jobs
+	// Count lint jobs and verify platform.
 	lintCount := 0
 	for _, job := range jobs {
 		if job.Task == "lint" {
 			lintCount++
-			if job.Platform != PlatformUbuntu {
-				t.Errorf("lint should only run on ubuntu-latest, got %q", job.Platform)
-			}
+			assert.Equal(t, Ubuntu, job.Platform)
 		}
 	}
-	if lintCount != 1 {
-		t.Errorf("expected 1 lint job, got %d", lintCount)
-	}
+	assert.Equal(t, 1, lintCount)
 }
 
-func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
+func TestGenerateStaticJobs_PerPocketTaskJobOptionsRegexp(t *testing.T) {
 	tasks := []pk.TaskInfo{
 		{Name: "py-test:3.9", Usage: "test python 3.9"},
 		{Name: "py-test:3.10", Usage: "test python 3.10"},
@@ -221,37 +137,27 @@ func TestGenerateStaticJobs_TaskOverridesRegexp(t *testing.T) {
 		{Name: "go-lint", Usage: "lint go code"},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: AllPlatforms(),
-		TaskOverrides: map[string]TaskOverride{
-			"py-test:.*": {Platforms: []string{PlatformUbuntu}}, // regexp: match all py-test variants
-			"go-lint":    {Platforms: []string{PlatformUbuntu}},
+	flags := WorkflowFlags{
+		Platforms: AllPlatforms(),
+		PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
+			"py-test:.*": {Platforms: []Platform{Ubuntu}},
+			"go-lint":    {Platforms: []Platform{Ubuntu}},
 		},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// py-test:3.9, py-test:3.10, py-test:3.11: 1 platform each = 3 jobs
-	// go-lint: 1 platform = 1 job
-	// Total: 4 jobs
-	if len(jobs) != 4 {
-		t.Fatalf("expected 4 jobs, got %d", len(jobs))
-	}
+	// py-test:3.9, py-test:3.10, py-test:3.11: 1 platform each = 3 jobs.
+	// go-lint: 1 platform = 1 job.
+	// Total: 4 jobs.
+	assert.Equal(t, 4, len(jobs))
 
-	// Verify py-test tasks have platform override applied
 	for _, job := range jobs {
 		if strings.HasPrefix(job.Task, "py-test:") {
-			if job.Platform != PlatformUbuntu {
-				t.Errorf(
-					"%s should only run on %s (matched by py-test:.*), got %q",
-					job.Task,
-					PlatformUbuntu,
-					job.Platform,
-				)
-			}
+			assert.Equal(t, Ubuntu, job.Platform,
+				"%s should only run on %s (matched by py-test:.*)", job.Task, Ubuntu)
 		} else if job.Task == "go-lint" {
-			if job.Platform != PlatformUbuntu {
-				t.Errorf("go-lint should only run on %s, got %q", PlatformUbuntu, job.Platform)
-			}
+			assert.Equal(t, Ubuntu, job.Platform,
+				"go-lint should only run on %s", Ubuntu)
 		}
 	}
 }
@@ -263,21 +169,19 @@ func TestGenerateStaticJobs_ExcludeTasks(t *testing.T) {
 		{Name: "test", Usage: "run tests"},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: []string{PlatformUbuntu},
-		ExcludeTasks:     []string{"format"},
+	flags := WorkflowFlags{
+		Platforms: []Platform{Ubuntu},
+		PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
+			"format": {Exclude: true},
+		},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// 3 tasks - 1 excluded = 2 jobs
-	if len(jobs) != 2 {
-		t.Fatalf("expected 2 jobs, got %d", len(jobs))
-	}
+	// 3 tasks - 1 excluded = 2 jobs.
+	assert.Equal(t, 2, len(jobs))
 
 	for _, job := range jobs {
-		if job.Task == "format" {
-			t.Error("format task should be excluded")
-		}
+		assert.Assert(t, job.Task != "format", "format task should be excluded")
 	}
 }
 
@@ -287,18 +191,13 @@ func TestGenerateStaticJobs_HiddenTasksExcluded(t *testing.T) {
 		{Name: "install:tool", Usage: "install tool", Hidden: true},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: []string{PlatformUbuntu},
+	flags := WorkflowFlags{
+		Platforms: []Platform{Ubuntu},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// Only non-hidden task = 1 job
-	if len(jobs) != 1 {
-		t.Fatalf("expected 1 job, got %d", len(jobs))
-	}
-	if jobs[0].Task != "lint" {
-		t.Errorf("expected task 'lint', got %q", jobs[0].Task)
-	}
+	assert.Equal(t, 1, len(jobs))
+	assert.Equal(t, "lint", jobs[0].Task)
 }
 
 func TestGenerateStaticJobs_ManualTasksExcluded(t *testing.T) {
@@ -307,18 +206,13 @@ func TestGenerateStaticJobs_ManualTasksExcluded(t *testing.T) {
 		{Name: "deploy", Usage: "deploy to prod", Manual: true},
 	}
 
-	cfg := PerJobConfig{
-		DefaultPlatforms: []string{PlatformUbuntu},
+	flags := WorkflowFlags{
+		Platforms: []Platform{Ubuntu},
 	}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	// Only non-manual task = 1 job
-	if len(jobs) != 1 {
-		t.Fatalf("expected 1 job, got %d", len(jobs))
-	}
-	if jobs[0].Task != "lint" {
-		t.Errorf("expected task 'lint', got %q", jobs[0].Task)
-	}
+	assert.Equal(t, 1, len(jobs))
+	assert.Equal(t, "lint", jobs[0].Task)
 }
 
 func TestGenerateStaticJobs_GitDiff(t *testing.T) {
@@ -326,117 +220,177 @@ func TestGenerateStaticJobs_GitDiff(t *testing.T) {
 		{Name: "lint", Usage: "lint code"},
 	}
 
-	// Default: gitDiff enabled
-	cfg := DefaultPerJobConfig()
-	cfg.DefaultPlatforms = []string{PlatformUbuntu}
-	jobs := GenerateStaticJobs(tasks, cfg)
+	t.Run("enabled", func(t *testing.T) {
+		flags := WorkflowFlags{
+			Platforms: []Platform{Ubuntu},
+			GitDiff:   true,
+		}
+		jobs := GenerateStaticJobs(tasks, flags)
+		assert.Assert(t, jobs[0].GitDiff, "expected GitDiff=true")
+	})
 
-	if !jobs[0].GitDiff {
-		t.Error("expected GitDiff=true by default")
-	}
-
-	// Disabled
-	cfg.DisableGitDiff = true
-	jobs = GenerateStaticJobs(tasks, cfg)
-
-	if jobs[0].GitDiff {
-		t.Error("expected GitDiff=false when DisableGitDiff=true")
-	}
+	t.Run("disabled", func(t *testing.T) {
+		flags := WorkflowFlags{
+			Platforms: []Platform{Ubuntu},
+			GitDiff:   false,
+		}
+		jobs := GenerateStaticJobs(tasks, flags)
+		assert.Assert(t, !jobs[0].GitDiff, "expected GitDiff=false")
+	})
 }
 
-func TestGenerateStaticJobs_WindowsShell(t *testing.T) {
+func TestGenerateStaticJobs_GitDiffPerTaskOverride(t *testing.T) {
+	tasks := []pk.TaskInfo{
+		{Name: "lint", Usage: "lint code"},
+		{Name: "test", Usage: "run tests"},
+	}
+
+	gitDiffTrue := true
+	gitDiffFalse := false
+
+	t.Run("override_to_false", func(t *testing.T) {
+		flags := WorkflowFlags{
+			Platforms: []Platform{Ubuntu},
+			GitDiff:   true,
+			PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
+				"lint": {GitDiff: &gitDiffFalse},
+			},
+		}
+		jobs := GenerateStaticJobs(tasks, flags)
+		for _, job := range jobs {
+			if job.Task == "lint" {
+				assert.Assert(t, !job.GitDiff, "lint should have GitDiff=false (overridden)")
+			} else {
+				assert.Assert(t, job.GitDiff, "test should have GitDiff=true (default)")
+			}
+		}
+	})
+
+	t.Run("override_to_true", func(t *testing.T) {
+		flags := WorkflowFlags{
+			Platforms: []Platform{Ubuntu},
+			GitDiff:   false,
+			PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
+				"lint": {GitDiff: &gitDiffTrue},
+			},
+		}
+		jobs := GenerateStaticJobs(tasks, flags)
+		for _, job := range jobs {
+			if job.Task == "lint" {
+				assert.Assert(t, job.GitDiff, "lint should have GitDiff=true (overridden)")
+			} else {
+				assert.Assert(t, !job.GitDiff, "test should have GitDiff=false (default)")
+			}
+		}
+	})
+}
+
+func TestGenerateStaticJobs_WindowsPlatform(t *testing.T) {
 	tasks := []pk.TaskInfo{
 		{Name: "test", Usage: "run tests"},
 	}
 
-	tests := []struct {
-		name         string
-		windowsShell string
-		windowsShim  string
-		wantShell    string
-		wantShim     string
-	}{
-		{"default", "", "", "pwsh", ".\\pok.ps1"},
-		{"powershell_ps1", "powershell", "ps1", "pwsh", ".\\pok.ps1"},
-		{"powershell_cmd", "powershell", "cmd", "pwsh", ".\\pok.cmd"},
-		{"bash", "bash", "", "bash", "./pok"},
+	flags := WorkflowFlags{
+		Platforms: []Platform{Windows},
 	}
+	jobs := GenerateStaticJobs(tasks, flags)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := PerJobConfig{
-				DefaultPlatforms: []string{PlatformWindows},
-				WindowsShell:     tt.windowsShell,
-				WindowsShim:      tt.windowsShim,
-			}
-			jobs := GenerateStaticJobs(tasks, cfg)
-
-			if len(jobs) != 1 {
-				t.Fatalf("expected 1 job, got %d", len(jobs))
-			}
-			if jobs[0].Shell != tt.wantShell {
-				t.Errorf("expected Shell %q, got %q", tt.wantShell, jobs[0].Shell)
-			}
-			if jobs[0].Shim != tt.wantShim {
-				t.Errorf("expected Shim %q, got %q", tt.wantShim, jobs[0].Shim)
-			}
-		})
-	}
+	assert.Equal(t, 1, len(jobs))
+	assert.Equal(t, "pwsh", jobs[0].Shell)
+	assert.Equal(t, ".\\pok.ps1", jobs[0].Shim)
 }
 
 func TestGenerateStaticJobs_Empty(t *testing.T) {
-	cfg := DefaultPerJobConfig()
-	jobs := GenerateStaticJobs(nil, cfg)
+	flags := WorkflowFlags{}
+	jobs := GenerateStaticJobs(nil, flags)
 
-	if len(jobs) != 0 {
-		t.Errorf("expected 0 jobs, got %d", len(jobs))
-	}
+	assert.Equal(t, 0, len(jobs))
 }
 
 func TestJobID(t *testing.T) {
 	tests := []struct {
+		name     string
 		task     string
 		platform string
 		want     string
 	}{
-		{"go-test", PlatformUbuntu, "go-test-ubuntu"},
-		{"go-test", PlatformMacOS, "go-test-macos"},
-		{"go-test", PlatformWindows, "go-test-windows"},
-		{"py-test:3.9", PlatformUbuntu, "py-test-3-9-ubuntu"},
-		{"py-test:3.10", PlatformMacOS, "py-test-3-10-macos"},
-		{"lint", "ubuntu-22.04", "lint-ubuntu-22-04"},
-		{"test.unit", PlatformUbuntu, "test-unit-ubuntu"},
+		{name: "ubuntu", task: "go-test", platform: Ubuntu, want: "go-test-ubuntu"},
+		{name: "macos", task: "go-test", platform: MacOS, want: "go-test-macos"},
+		{name: "windows", task: "go-test", platform: Windows, want: "go-test-windows"},
+		{name: "colon in task", task: "py-test:3.9", platform: Ubuntu, want: "py-test-3-9-ubuntu"},
+		{name: "colon and version", task: "py-test:3.10", platform: MacOS, want: "py-test-3-10-macos"},
+		{name: "custom platform", task: "lint", platform: "ubuntu-22.04", want: "lint-ubuntu-22-04"},
+		{name: "dot in task", task: "test.unit", platform: Ubuntu, want: "test-unit-ubuntu"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.task+"_"+tt.platform, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := jobID(tt.task, tt.platform)
-			if got != tt.want {
-				t.Errorf("jobID(%q, %q) = %q, want %q", tt.task, tt.platform, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestPlatformShort(t *testing.T) {
 	tests := []struct {
+		name     string
 		platform string
 		want     string
 	}{
-		{PlatformUbuntu, "ubuntu"},
-		{PlatformMacOS, "macos"},
-		{PlatformWindows, "windows"},
-		{"ubuntu-22.04", "ubuntu-22-04"},
-		{"macos-13", "macos-13"},
-		{"windows-2022", "windows-2022"},
+		{name: "ubuntu-latest", platform: Ubuntu, want: "ubuntu"},
+		{name: "macos-latest", platform: MacOS, want: "macos"},
+		{name: "windows-latest", platform: Windows, want: "windows"},
+		{name: "ubuntu-22.04", platform: "ubuntu-22.04", want: "ubuntu-22-04"},
+		{name: "macos-13", platform: "macos-13", want: "macos-13"},
+		{name: "windows-2022", platform: "windows-2022", want: "windows-2022"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.platform, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := platformShort(tt.platform)
-			if got != tt.want {
-				t.Errorf("platformShort(%q) = %q, want %q", tt.platform, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestShimForPlatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform string
+		want     string
+	}{
+		{name: "ubuntu", platform: Ubuntu, want: "./pok"},
+		{name: "macos", platform: MacOS, want: "./pok"},
+		{name: "windows", platform: Windows, want: ".\\pok.ps1"},
+		{name: "windows-2022", platform: "windows-2022", want: ".\\pok.ps1"},
+		{name: "ubuntu-22.04", platform: "ubuntu-22.04", want: "./pok"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shimForPlatform(tt.platform)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestShellForPlatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform string
+		want     string
+	}{
+		{name: "ubuntu", platform: Ubuntu, want: "bash"},
+		{name: "macos", platform: MacOS, want: "bash"},
+		{name: "windows", platform: Windows, want: "pwsh"},
+		{name: "windows-2022", platform: "windows-2022", want: "pwsh"},
+		{name: "ubuntu-22.04", platform: "ubuntu-22.04", want: "bash"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shellForPlatform(tt.platform)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -239,11 +239,6 @@ func executeTask(ctx context.Context, instance *taskInstance) (*executionTracker
 // Named "execute" rather than "run" to avoid satisfying the Runnable interface,
 // since taskInstance is not a composable Runnable.
 func (inst *taskInstance) execute(ctx context.Context) error {
-	// Apply context values from the task instance (e.g., Python version).
-	for _, cv := range inst.contextValues {
-		ctx = context.WithValue(ctx, cv.key, cv.value)
-	}
-
 	// Extract and apply name suffix from instance name (e.g., "py-lint:3.9" -> "3.9").
 	// This ensures flag overrides are found when task.run() looks up by effective name.
 	baseName := inst.task.Name

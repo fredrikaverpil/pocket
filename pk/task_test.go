@@ -190,7 +190,6 @@ type flagTaskFlags struct {
 	Myflag string `flag:"myflag" usage:"usage"`
 }
 
-
 func TestTask_Run_FlagOverrides(t *testing.T) {
 	task := &Task{
 		Name:  "flag-task",
@@ -472,7 +471,6 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		}
 	})
 }
-
 
 // assertFlagPanic asserts that fn panics with a flagError containing wantMsg.
 func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {

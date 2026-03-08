@@ -9,7 +9,7 @@ import (
 
 // FormatFlags holds flags for the Format task.
 type FormatFlags struct {
-	Check  bool   `flag:"check" usage:"check only, don't write"`
+	Check  bool   `flag:"check"  usage:"check only, don't write"`
 	Config string `flag:"config" usage:"path to prettier config file"`
 }
 

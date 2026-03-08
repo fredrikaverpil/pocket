@@ -17,7 +17,6 @@ type Plan struct {
 type taskInstance struct {
     task          *Task
     name          string               // Effective name (with suffix)
-    contextValues []contextValue
     flags         map[string]any       // Pre-merged flag overrides
     isManual      bool
     resolvedPaths []string

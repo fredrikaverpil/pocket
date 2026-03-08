@@ -51,13 +51,20 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 		}
 	})
 
-	t.Run("MissingFlagTag", func(t *testing.T) {
-		type bad struct {
-			Name string `usage:"a name"` // no flag tag
+	t.Run("ProgrammaticOnlyField", func(t *testing.T) {
+		type mixed struct {
+			Name  string   `flag:"name" usage:"a name"`
+			Items []string // no flag tag — programmatic-only
 		}
-		_, err := buildFlagSetFromStruct("test", bad{})
-		if err == nil {
-			t.Error("expected error for missing flag tag")
+		fs, err := buildFlagSetFromStruct("test", mixed{Name: "default"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should only register 1 CLI flag, skipping the programmatic-only field.
+		count := 0
+		fs.VisitAll(func(_ *flag.Flag) { count++ })
+		if count != 1 {
+			t.Errorf("expected 1 CLI flag, got %d", count)
 		}
 	})
 
@@ -153,9 +160,9 @@ func TestDiffStructs(t *testing.T) {
 
 	overrides := testFlags{
 		Name:    "custom", // differs
-		Verbose: true,    // same as default
-		Count:   10,      // same as default
-		Rate:    2.0,     // differs
+		Verbose: true,     // same as default
+		Count:   10,       // same as default
+		Rate:    2.0,      // differs
 	}
 
 	diff, err := diffStructs(defaults, overrides)

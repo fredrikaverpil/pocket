@@ -185,17 +185,16 @@ Options passed to `WithOptions` to control where and how tasks execute.
 
 These options work with any task:
 
-| Option             | Description                                                 |
-| :----------------- | :---------------------------------------------------------- |
-| `WithIncludePath`  | Run only in directories matching the regex patterns         |
-| `WithExcludePath`  | Skip directories matching the regex patterns                |
-| `WithDetect`       | Dynamically discover paths using a detection function       |
-| `WithNameSuffix`   | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
-| `WithForceRun`     | Bypass task deduplication for the wrapped runnable          |
-| `WithFlags`        | Set flag overrides for a task in scope                      |
-| `WithSkipTask`     | Skip specified tasks within this scope                      |
-| `WithExcludeTask`  | Exclude a task from directories matching patterns           |
-| `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
+| Option            | Description                                              |
+| :---------------- | :------------------------------------------------------- |
+| `WithIncludePath` | Run only in directories matching the regex patterns      |
+| `WithExcludePath` | Skip directories matching the regex patterns             |
+| `WithDetect`      | Dynamically discover paths using a detection function    |
+| `WithNameSuffix`  | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
+| `WithForceRun`    | Bypass task deduplication for the wrapped runnable       |
+| `WithFlags`       | Set flag overrides for a task in scope                   |
+| `WithSkipTask`    | Skip specified tasks within this scope                   |
+| `WithExcludeTask` | Exclude a task from directories matching patterns        |
 
 ```go
 pk.WithOptions(
@@ -505,12 +504,12 @@ Context accessors and modifiers are available from the `pk` package.
 
 ### Accessors (Getters)
 
-| Function             | Description                                          |
-| :------------------- | :--------------------------------------------------- |
-| `pk.GetFlags[T]`     | Retrieve the resolved flags struct from context      |
-| `pk.PathFromContext` | Current execution path relative to git root          |
-| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)            |
-| `pk.Verbose`         | Whether `-v` flag was provided                       |
+| Function             | Description                                     |
+| :------------------- | :---------------------------------------------- |
+| `pk.GetFlags[T]`     | Retrieve the resolved flags struct from context |
+| `pk.PathFromContext` | Current execution path relative to git root     |
+| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)       |
+| `pk.Verbose`         | Whether `-v` flag was provided                  |
 
 ### Modifiers (Setters)
 

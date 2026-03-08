@@ -18,7 +18,7 @@ type QueryFormatFlags struct {
 
 // QueryLintFlags holds flags for the QueryLint task.
 type QueryLintFlags struct {
-	Fix     bool   `flag:"fix" usage:"auto-fix lint issues"`
+	Fix     bool   `flag:"fix"     usage:"auto-fix lint issues"`
 	Parsers string `flag:"parsers" usage:"comma-separated parser names to compile"`
 }
 

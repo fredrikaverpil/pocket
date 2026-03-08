@@ -47,7 +47,7 @@ defining your first task to building complex CI pipelines.
 - [GitHub Actions Integration](#github-actions-integration)
   - [Simple Workflow](#simple-workflow)
   - [Per-Job Workflow](#per-job-workflow)
-  - [PerJobConfig Options](#perjobconfig-options)
+  - [PerPocketTaskJobOption](#perpockettaskjoboption)
 
 ---
 
@@ -1170,13 +1170,13 @@ var Config = &pk.Config{
         golang.Tasks(),
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, IncludePocketPerjob: true}),
-            pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-                DefaultPlatforms: github.AllPlatforms(),
-                TaskOverrides: map[string]github.TaskOverride{
-                    golang.Lint.Name: {Platforms: []string{github.PlatformUbuntu}}, // lint only on Linux
+            pk.WithFlags(github.Workflows, github.WorkflowFlags{
+                PerPocketTaskJob: true,
+                Platforms:        github.AllPlatforms(),
+                PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
+                    golang.Lint.Name: {Platforms: []github.Platform{github.Ubuntu}}, // lint only on Linux
+                    "github-workflows": {Exclude: true},
                 },
-                ExcludeTasks: []string{"github-workflows"},
             }),
         ),
     ),
@@ -1186,10 +1186,8 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, ...})`
-   disables the simple `pocket.yml` and enables the per-job workflow
-4. `pk.WithContextValue(github.PerJobConfigKey{}, cfg)` configures platforms and
-   task overrides for job generation
+2. `pk.WithFlags(github.Workflows, github.WorkflowFlags{...})` enables the
+   per-job workflow and configures platforms and per-task options
 
 Running `./pok github-workflows` generates jobs like:
 
@@ -1225,58 +1223,50 @@ Use `pk.WithFlags()` to configure the `github.Workflows` task:
 
 ```go
 type WorkflowFlags struct {
-    IncludeGoreleaser   bool   `flag:"include-goreleaser" usage:"include goreleaser job in release workflow"`
-    IncludePocketPerjob bool   `flag:"include-pocket-perjob" usage:"include pocket-perjob workflow"`
-    Platforms           string `flag:"platforms" usage:"platforms for pocket.yml (comma-separated)"`
-    SkipGhPages         bool   `flag:"skip-gh-pages" usage:"exclude GitHub Pages workflow"`
-    SkipPocket          bool   `flag:"skip-pocket" usage:"exclude pocket workflow"`
-    SkipPR              bool   `flag:"skip-pr" usage:"exclude PR workflow"`
-    SkipRelease         bool   `flag:"skip-release" usage:"exclude release-please workflow"`
-    SkipStale           bool   `flag:"skip-stale" usage:"exclude stale workflow"`
+    // CLI flags (can be set via command line or pk.WithFlags):
+    ConventionalCommitWorkflow bool `flag:"conventional-commit-workflow" usage:"include conventional commit workflow"`
+    GhPagesWorkflow            bool `flag:"gh-pages-workflow"            usage:"include GitHub Pages workflow"`
+    GoReleaserWorkflow         bool `flag:"goreleaser-workflow"          usage:"include goreleaser workflow"`
+    PerPocketTaskJob           bool `flag:"per-pocket-task-job"          usage:"include per-pocket-task-job workflow"`
+    ReleasePleaseWorkflow      bool `flag:"release-please-workflow"      usage:"include release-please workflow"`
+    StaleWorkflow              bool `flag:"stale-workflow"               usage:"include stale workflow"`
+    GitDiff                    bool `flag:"git-diff"                     usage:"enable git diff filtering in CI"`
+
+    // Programmatic-only (set via pk.WithFlags, not available as CLI flags):
+    Platforms               []Platform                          // platforms for workflow jobs
+    PerPocketTaskJobOptions map[string]PerPocketTaskJobOption   // per-task options for per-job workflow
 }
 ```
 
-### PerJobConfig Options
+### PerPocketTaskJobOption
 
-For complex configuration like `TaskOverrides`, use `pk.WithContextValue` to
-pass a `PerJobConfig` for workflow generation:
+Per-task options are configured directly within `WorkflowFlags` via the
+`PerPocketTaskJobOptions` map:
 
 ```go
-type PerJobConfig struct {
-    // DefaultPlatforms for all tasks.
-    // Default: AllPlatforms().
-    DefaultPlatforms []string
+type PerPocketTaskJobOption struct {
+    // Platforms overrides WorkflowFlags.Platforms for this task.
+    Platforms []Platform
 
-    // TaskOverrides provides per-task platform configuration.
-    // Keys are regular expressions matched against task names.
-    TaskOverrides map[string]TaskOverride
+    // Exclude removes this task from the per-job workflow entirely.
+    Exclude bool
 
-    // ExcludeTasks removes tasks from the workflow entirely.
-    ExcludeTasks []string
-
-    // WindowsShell: "powershell" (default) or "bash"
-    WindowsShell string
-
-    // WindowsShim: "ps1" (default) or "cmd"
-    WindowsShim string
-
-    // DisableGitDiff prevents -g from being added in CI.
-    // Default (false): per-job workflow outputs gitDiff: true for all tasks.
-    DisableGitDiff bool
-}
-
-type TaskOverride struct {
-    // Platforms overrides DefaultPlatforms for this task.
-    Platforms []string
+    // GitDiff overrides WorkflowFlags.GitDiff for this task.
+    GitDiff *bool
 }
 ```
+
+Available platforms are `github.Ubuntu`, `github.MacOS`, and `github.Windows`.
+Use `github.AllPlatforms()` to get all platforms (returns `[]Platform`).
 
 > [!NOTE]
 >
-> The `github-workflows` task also accepts flags directly (e.g.,
-> `./pok github-workflows -include-pocket-perjob`). Flag overrides via
+> The `github-workflows` task also accepts CLI flags directly (e.g.,
+> `./pok github-workflows -per-pocket-task-job`). Flag overrides via
 > `pk.WithFlags` only apply when running through the composition tree (bare
 > `./pok`). When invoking tasks directly, pass flags explicitly.
+> Programmatic-only fields (`Platforms`, `PerPocketTaskJobOptions`) can only be
+> set via `pk.WithFlags`.
 
 **Benefits comparison:**
 

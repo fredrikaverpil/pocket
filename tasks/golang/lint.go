@@ -10,7 +10,7 @@ import (
 // LintFlags holds flags for the Lint task.
 type LintFlags struct {
 	Config string `flag:"config" usage:"path to golangci-lint config file"`
-	Fix    bool   `flag:"fix" usage:"apply fixes"`
+	Fix    bool   `flag:"fix"    usage:"apply fixes"`
 }
 
 // Lint runs golangci-lint on Go code.

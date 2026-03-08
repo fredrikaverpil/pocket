@@ -10,7 +10,7 @@ import (
 // TestFlags holds flags for the Test task.
 type TestFlags struct {
 	Coverage bool   `flag:"coverage" usage:"enable coverage reporting"`
-	Python   string `flag:"python" usage:"Python version to use (e.g., 3.9)"`
+	Python   string `flag:"python"   usage:"Python version to use (e.g., 3.9)"`
 }
 
 // Test runs Python tests using pytest.

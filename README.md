@@ -221,11 +221,11 @@ var Config = &pk.Config{
         Lint, Test, Build,
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, IncludePocketPerjob: true}),
-            pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-                DefaultPlatforms: []string{github.PlatformUbuntu, github.PlatformMacOS},
-                TaskOverrides: map[string]github.TaskOverride{
-                    Lint.Name: {Platforms: []string{github.PlatformUbuntu}},
+            pk.WithFlags(github.Workflows, github.WorkflowFlags{
+                PerPocketTaskJob: true,
+                Platforms:        []github.Platform{github.Ubuntu, github.MacOS},
+                PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
+                    Lint.Name: {Platforms: []github.Platform{github.Ubuntu}},
                 },
             }),
         ),

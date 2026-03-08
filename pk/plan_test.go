@@ -640,8 +640,7 @@ type pyTestFlagsTest struct {
 }
 
 type ghWorkflowFlagsTest struct {
-	SkipPocket          bool `flag:"skip-pocket"           usage:"exclude pocket workflow"`
-	IncludePocketPerjob bool `flag:"include-pocket-perjob" usage:"include pocket-perjob workflow"`
+	PerPocketTaskJob bool `flag:"per-pocket-task-job" usage:"use per-task jobs instead of single pocket job"`
 }
 
 type parsersFlagsTest struct {
@@ -715,7 +714,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 					preCommitCheck,
 					WithOptions(
 						ghWorkflows,
-						WithFlags(ghWorkflows, ghWorkflowFlagsTest{SkipPocket: true, IncludePocketPerjob: true}),
+						WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: true}),
 					),
 				),
 			),
@@ -780,13 +779,10 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 		if ghTask == nil {
 			t.Fatal("expected to find github-workflows")
 		}
-		if ghTask.Flags["skip-pocket"] != true {
-			t.Errorf("github-workflows skip-pocket flag: got %v, want true", ghTask.Flags["skip-pocket"])
-		}
-		if ghTask.Flags["include-pocket-perjob"] != true {
+		if ghTask.Flags["per-pocket-task-job"] != true {
 			t.Errorf(
-				"github-workflows include-pocket-perjob flag: got %v, want true",
-				ghTask.Flags["include-pocket-perjob"],
+				"github-workflows per-pocket-task-job flag: got %v, want true",
+				ghTask.Flags["per-pocket-task-job"],
 			)
 		}
 
@@ -856,7 +852,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 
 				WithOptions(
 					ghWorkflows,
-					WithFlags(ghWorkflows, ghWorkflowFlagsTest{SkipPocket: true, IncludePocketPerjob: true}),
+					WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: true}),
 				),
 			),
 		}
@@ -922,85 +918,8 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 		if ghTask == nil {
 			t.Fatal("expected to find github-workflows")
 		}
-		if ghTask.Flags["skip-pocket"] != true {
-			t.Errorf("github-workflows skip-pocket: got %v, want true", ghTask.Flags["skip-pocket"])
-		}
-	})
-}
-
-func TestPlan_ContextValues(t *testing.T) {
-	allDirs := []string{"."}
-
-	// Define a context key for testing
-	type versionKey struct{}
-
-	t.Run("ContextValuesAreCapturedInTaskInstance", func(t *testing.T) {
-		task := &Task{Name: "py-test", Usage: "test", Do: func(_ context.Context) error {
-			return nil
-		}}
-
-		cfg := &Config{
-			Auto: Serial(
-				WithOptions(task, WithNameSuffix("3.9"), WithContextValue(versionKey{}, "3.9")),
-				WithOptions(task, WithNameSuffix("3.10"), WithContextValue(versionKey{}, "3.10")),
-			),
-		}
-
-		plan, err := newPlan(cfg, "/tmp", allDirs)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// Find the 3.9 instance and verify it has the correct context value
-		instance39 := findTaskByName(plan, "py-test:3.9")
-		if instance39 == nil {
-			t.Fatal("expected to find py-test:3.9")
-		}
-		if len(instance39.contextValues) != 1 {
-			t.Errorf("expected 1 context value, got %d", len(instance39.contextValues))
-		} else if instance39.contextValues[0].value != "3.9" {
-			t.Errorf("expected context value '3.9', got %v", instance39.contextValues[0].value)
-		}
-
-		// Find the 3.10 instance and verify it has the correct context value
-		instance310 := findTaskByName(plan, "py-test:3.10")
-		if instance310 == nil {
-			t.Fatal("expected to find py-test:3.10")
-		}
-		if len(instance310.contextValues) != 1 {
-			t.Errorf("expected 1 context value, got %d", len(instance310.contextValues))
-		} else if instance310.contextValues[0].value != "3.10" {
-			t.Errorf("expected context value '3.10', got %v", instance310.contextValues[0].value)
-		}
-	})
-
-	t.Run("NestedContextValuesAccumulate", func(t *testing.T) {
-		type otherKey struct{}
-
-		task := &Task{Name: "test", Usage: "test", Do: func(_ context.Context) error {
-			return nil
-		}}
-
-		cfg := &Config{
-			Auto: WithOptions(
-				WithOptions(task, WithContextValue(otherKey{}, "inner")),
-				WithContextValue(versionKey{}, "outer"),
-			),
-		}
-
-		plan, err := newPlan(cfg, "/tmp", allDirs)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		instance := findTaskByName(plan, "test")
-		if instance == nil {
-			t.Fatal("expected to find test")
-		}
-
-		// Should have both context values (outer first, then inner)
-		if len(instance.contextValues) != 2 {
-			t.Errorf("expected 2 context values, got %d", len(instance.contextValues))
+		if ghTask.Flags["per-pocket-task-job"] != true {
+			t.Errorf("github-workflows per-pocket-task-job: got %v, want true", ghTask.Flags["per-pocket-task-job"])
 		}
 	})
 }

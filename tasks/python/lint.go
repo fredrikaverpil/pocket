@@ -9,7 +9,7 @@ import (
 
 // LintFlags holds flags for the Lint task.
 type LintFlags struct {
-	Python  string `flag:"python" usage:"Python version (for target-version inference)"`
+	Python  string `flag:"python"   usage:"Python version (for target-version inference)"`
 	SkipFix bool   `flag:"skip-fix" usage:"don't auto-fix issues"`
 }
 

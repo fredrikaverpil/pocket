@@ -9,17 +9,17 @@ import (
 
 // TestFlags holds flags for the Test task.
 type TestFlags struct {
-	Race         bool   `flag:"race" usage:"enable race detector"`
-	Run          string `flag:"run" usage:"run only tests matching regexp"`
-	Timeout      string `flag:"timeout" usage:"test timeout (e.g., 5m, 30s)"`
-	Coverage     bool   `flag:"coverage" usage:"enable coverage and write to coverage.out"`
+	Race         bool   `flag:"race"          usage:"enable race detector"`
+	Run          string `flag:"run"           usage:"run only tests matching regexp"`
+	Timeout      string `flag:"timeout"       usage:"test timeout (e.g., 5m, 30s)"`
+	Coverage     bool   `flag:"coverage"      usage:"enable coverage and write to coverage.out"`
 	CoverageHTML bool   `flag:"coverage-html" usage:"enable coverage and generate coverage.html"`
-	CPUProfile   string `flag:"cpuprofile" usage:"write CPU profile to file (e.g., cpu.prof)"`
-	MemProfile   string `flag:"memprofile" usage:"write memory profile to file (e.g., mem.prof)"`
-	BlockProfile string `flag:"blockprofile" usage:"write block profile to file (e.g., block.prof)"`
-	MutexProfile string `flag:"mutexprofile" usage:"write mutex profile to file (e.g., mutex.prof)"`
-	Pkg          string `flag:"pkg" usage:"package pattern to test (e.g., ./pk)"`
-	Args         string `flag:"args" usage:"additional arguments to pass to go test"`
+	CPUProfile   string `flag:"cpuprofile"    usage:"write CPU profile to file (e.g., cpu.prof)"`
+	MemProfile   string `flag:"memprofile"    usage:"write memory profile to file (e.g., mem.prof)"`
+	BlockProfile string `flag:"blockprofile"  usage:"write block profile to file (e.g., block.prof)"`
+	MutexProfile string `flag:"mutexprofile"  usage:"write mutex profile to file (e.g., mutex.prof)"`
+	Pkg          string `flag:"pkg"           usage:"package pattern to test (e.g., ./pk)"`
+	Args         string `flag:"args"          usage:"additional arguments to pass to go test"`
 }
 
 // Test runs Go tests.

@@ -185,11 +185,10 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 // taskInstance stores a task with its effective name and pre-computed configuration.
 // All computation happens during planning; execution just reads these values.
 type taskInstance struct {
-	task          *Task
-	name          string         // Effective name (may include suffix like "py-test:3.9")
-	contextValues []contextValue // Context values to apply when executing this task instance.
-	flags         map[string]any // Pre-merged flag overrides for this task.
-	isManual      bool           // Whether task is manual (from Config.Manual).
+	task     *Task
+	name     string         // Effective name (may include suffix like "py-test:3.9")
+	flags    map[string]any // Pre-merged flag overrides for this task.
+	isManual bool           // Whether task is manual (from Config.Manual).
 
 	// Execution context from path filter.
 	resolvedPaths []string // Directories where this task executes.
@@ -205,13 +204,12 @@ type taskCollector struct {
 	allDirs       []string    // Cached directory list from filesystem walk.
 
 	// Cumulative state
-	candidates          []string         // Current allowed directories.
-	activeExcludes      []excludePattern // All excludes in current scope.
-	activeSkips         []string         // All skipped tasks in current scope.
-	activeNameSuffix    string           // Current name suffix from WithNameSuffix.
-	activeContextValues []contextValue   // Context values in current scope.
-	activeFlags         []flagOverride   // All flag overrides in current scope.
-	inManualSection     bool             // True when walking Config.Manual tasks.
+	candidates       []string         // Current allowed directories.
+	activeExcludes   []excludePattern // All excludes in current scope.
+	activeSkips      []string         // All skipped tasks in current scope.
+	activeNameSuffix string           // Current name suffix from WithNameSuffix.
+	activeFlags      []flagOverride   // All flag overrides in current scope.
+	inManualSection  bool             // True when walking Config.Manual tasks.
 }
 
 // taskKey uniquely identifies a task in a specific naming context.
@@ -364,12 +362,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 		key := taskKey{task: v, suffix: pc.activeNameSuffix}
 		if !pc.seenTasks[key] {
 			pc.seenTasks[key] = true
-			// Copy context values to avoid sharing the slice.
-			var ctxValues []contextValue
-			if len(pc.activeContextValues) > 0 {
-				ctxValues = make([]contextValue, len(pc.activeContextValues))
-				copy(ctxValues, pc.activeContextValues)
-			}
 			// Pre-merge flags for this task from all active scopes.
 			var mergedFlags map[string]any
 			for _, f := range pc.activeFlags {
@@ -383,7 +375,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 			pc.taskInstances = append(pc.taskInstances, taskInstance{
 				task:          v,
 				name:          effectiveName,
-				contextValues: ctxValues,
 				flags:         mergedFlags,
 				isManual:      pc.inManualSection,
 				resolvedPaths: finalPaths,
@@ -439,7 +430,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevSkips := pc.activeSkips
 		prevPath := pc.currentPath
 		prevNameSuffix := pc.activeNameSuffix
-		prevContextValues := pc.activeContextValues
 		prevFlags := pc.activeFlags
 
 		// 3. Update state with new constraints.
@@ -458,9 +448,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
-		// Accumulate context values (later values override earlier ones with same key).
-		pc.activeContextValues = append(pc.activeContextValues, v.contextValues...)
-
 		// 4. Walk inner with cumulative state.
 		if err := pc.walk(v.inner); err != nil {
 			return err
@@ -472,7 +459,6 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeSkips = prevSkips
 		pc.currentPath = prevPath
 		pc.activeNameSuffix = prevNameSuffix
-		pc.activeContextValues = prevContextValues
 		pc.activeFlags = prevFlags
 
 	default:

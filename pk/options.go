@@ -67,7 +67,7 @@ func WithSkipTask(tasks ...any) PathOption {
 // The flags struct must be the same type as the task's Flags field.
 // Only fields that differ from the task's defaults are applied as overrides.
 // The task can be specified by its string name or by the task object itself.
-func WithFlags(task any, flags any) PathOption {
+func WithFlags(task, flags any) PathOption {
 	return func(pf *pathFilter) {
 		taskName := toTaskName(task)
 
@@ -133,17 +133,6 @@ func WithForceRun() PathOption {
 func WithDetect(fn DetectFunc) PathOption {
 	return func(pf *pathFilter) {
 		pf.detectFunc = fn
-	}
-}
-
-// WithContextValue passes structured configuration to tasks via context.
-// Tasks retrieve the value using ctx.Value(key).
-//
-// Use this when configuration is too complex for simple flags (structs, maps, slices).
-// For simple string/bool values, prefer pk.WithFlags instead.
-func WithContextValue(key, value any) PathOption {
-	return func(pf *pathFilter) {
-		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})
 	}
 }
 
@@ -220,17 +209,11 @@ type pathFilter struct {
 	excludePaths   []excludePattern
 	skippedTasks   []string
 	flags          []flagOverride
-	contextValues  []contextValue // Key-value pairs to add to context.
-	nameSuffix     string         // Suffix to append to task names (e.g., ":3.9").
-	detectFunc     DetectFunc     // Optional detection function for dynamic path discovery.
-	resolvedPaths  []string       // Cached resolved paths from plan building.
-	forceRun       bool           // Disable task deduplication for the wrapped Runnable.
-	noticePatterns []string       // Custom notice detection patterns (nil = use default).
-}
-
-type contextValue struct {
-	key   any
-	value any
+	nameSuffix     string     // Suffix to append to task names (e.g., ":3.9").
+	detectFunc     DetectFunc // Optional detection function for dynamic path discovery.
+	resolvedPaths  []string   // Cached resolved paths from plan building.
+	forceRun       bool       // Disable task deduplication for the wrapped Runnable.
+	noticePatterns []string   // Custom notice detection patterns (nil = use default).
 }
 
 type excludePattern struct {
@@ -252,11 +235,6 @@ func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
 	if pf.forceRun {
 		ctx = withForceRun(ctx)
-	}
-
-	// Apply context values.
-	for _, cv := range pf.contextValues {
-		ctx = context.WithValue(ctx, cv.key, cv.value)
 	}
 
 	// Apply name suffix to context.

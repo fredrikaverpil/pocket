@@ -11,8 +11,8 @@ import (
 // ReleaseFlags holds flags for the Release task.
 type ReleaseFlags struct {
 	Snapshot bool   `flag:"snapshot" usage:"build without publishing (local/CI preview)"`
-	Clean    bool   `flag:"clean" usage:"remove dist/ before build"`
-	Args     string `flag:"args" usage:"additional goreleaser arguments"`
+	Clean    bool   `flag:"clean"    usage:"remove dist/ before build"`
+	Args     string `flag:"args"     usage:"additional goreleaser arguments"`
 }
 
 // Release builds and releases Go binaries with goreleaser.

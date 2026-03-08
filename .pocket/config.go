@@ -15,10 +15,14 @@ var Config = &pk.Config{
 		markdown.Format, // Format markdown files from root
 		pk.WithOptions(
 			github.Tasks(),
-			pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, IncludePocketPerjob: true}),
-			pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
-				DefaultPlatforms: []string{github.PlatformUbuntu},
-				TaskOverrides: map[string]github.TaskOverride{
+			pk.WithFlags(github.Workflows, github.WorkflowFlags{
+				ConventionalCommitWorkflow: true,
+				ReleasePleaseWorkflow:      true,
+				StaleWorkflow:              true,
+				GitDiff:                    true,
+				PerPocketTaskJob:           true,
+				Platforms:        []github.Platform{github.Ubuntu},
+				PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
 					golang.Test.Name: {Platforms: github.AllPlatforms()},
 				},
 			}),
@@ -35,5 +39,3 @@ var Config = &pk.Config{
 		Shims: pk.AllShimsConfig(), // pok, pok.cmd, pok.ps1
 	},
 }
-
-

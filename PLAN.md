@@ -1,16 +1,17 @@
 # Plan
 
-- [ ] Do we have enough tests (AAA pattern) so that we avoid breaking
-      functionality?
+- [ ] Minor naming friction: WithExcludeTask vs WithSkipTask. These two do
+      different things ("exclude task from specific paths" vs "remove task
+      entirely") but the names don't convey this clearly. WithExcludeTask is
+      really "exclude task from paths matching pattern" — maybe
+      WithExcludeTaskPath would be clearer? But this is minor compared to
+      WithContextValue.
+- [ ] Do we have enough tests (AAA pattern + table tests) so that we avoid
+      breaking functionality?
   - [ ] Measure code coverage and inspect non-covered parts and whether we
         should cover with tests.
   - [ ] Can we create complete test scenarios with composed Config.Auto setups?
   - [ ] Can we end-to-end test the bootstrapper (`pocket init`)?
-- [x] Add [zensical](https://github.com/zensical/zensical) as tool into the
-      "tools" package, with flags -serve and -build. For this tool, we want to
-      maintain the version string in Pocket (with Renovate-ability to bump), and
-      it would be ideal if we simply abstract away the whole Python setup and
-      need of a .venv from projects.
 - [ ] Analyze Pocket
   - [ ] DX - do we have good developer experience?
   - [ ] From a DX perspective; is the API surface easy to understand?
@@ -34,22 +35,12 @@
       finding one place where documentation needs updating and doesn't see the
       other file which also needs updating.
 - [ ] Pre-release (v0.1.0)
-  - [ ] `pk/download` has 0% test coverage. Add tests for `ExtractTarGz`,
+  - [x] `pk/download` has 0% test coverage. Add tests for `ExtractTarGz`,
         `ExtractZip`, `CreateSymlink`, and the path traversal guard in
-        `extract.go`.
-  - [ ] Engine test coverage is 69.2%. Target ~80% for release. Gaps are likely
-        in CLI parsing, plan edge cases, and error paths.
+        `extract.go`. Use the AAA pattern and always assert on full objects,
+        when possible
   - [ ] README still has the "under heavy development" warning. Update or remove
         for release.
-  - [ ] Update to Go 1.26.1.
-  - [ ] README quickstart shows `Type: pk.FlagString` but the actual `FlagDef`
-        struct uses `Default: "World"` with type inference. Fix the README
-        example.
-  - [ ] `tools/go.mod` in the scaffold template uses hardcoded `go 1.23`. Keep
-        in sync with the project's Go version or set dynamically.
-  - [ ] Remove the no-op `resolveVersion()` function in Python tasks — it just
-        returns its input.
-  - [ ] Regex cache in `paths.go` is unbounded. Consider adding a size limit.
 - [ ] Explore Nix as a package manager backend for tool installation. See
       [Nix exploration notes](#nix-as-a-package-manager-backend) below.
 

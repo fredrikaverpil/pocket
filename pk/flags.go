@@ -40,7 +40,7 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 		value    reflect.Value
 		kind     reflect.Kind
 	}
-	var fields []fieldInfo
+	fields := make([]fieldInfo, 0, t.NumField())
 
 	for i := range t.NumField() {
 		f := t.Field(i)
@@ -50,7 +50,7 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 
 		flagName := f.Tag.Get("flag")
 		if flagName == "" {
-			return nil, fmt.Errorf("task %q: field %q is missing the \"flag\" struct tag", taskName, f.Name)
+			continue // programmatic-only field, skip CLI registration
 		}
 
 		usage := f.Tag.Get("usage")
@@ -109,11 +109,11 @@ func structToMap(flags any) (map[string]any, error) {
 		if !f.IsExported() {
 			continue
 		}
-		flagName := f.Tag.Get("flag")
-		if flagName == "" {
-			continue
+		key := f.Tag.Get("flag")
+		if key == "" {
+			key = f.Name // programmatic-only: use Go field name
 		}
-		m[flagName] = v.Field(i).Interface()
+		m[key] = v.Field(i).Interface()
 	}
 	return m, nil
 }
@@ -132,11 +132,11 @@ func mapToStruct(m map[string]any, dst any) error {
 		if !f.IsExported() {
 			continue
 		}
-		flagName := f.Tag.Get("flag")
-		if flagName == "" {
-			continue
+		key := f.Tag.Get("flag")
+		if key == "" {
+			key = f.Name // programmatic-only: use Go field name
 		}
-		val, ok := m[flagName]
+		val, ok := m[key]
 		if !ok {
 			continue
 		}
@@ -170,12 +170,12 @@ func diffStructs(defaults, overrides any) (map[string]any, error) {
 		if !f.IsExported() {
 			continue
 		}
-		flagName := f.Tag.Get("flag")
-		if flagName == "" {
-			continue
+		key := f.Tag.Get("flag")
+		if key == "" {
+			key = f.Name // programmatic-only: use Go field name
 		}
 		if !reflect.DeepEqual(dv.Field(i).Interface(), ov.Field(i).Interface()) {
-			diff[flagName] = ov.Field(i).Interface()
+			diff[key] = ov.Field(i).Interface()
 		}
 	}
 	return diff, nil
