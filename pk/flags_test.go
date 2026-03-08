@@ -235,3 +235,32 @@ func TestBuildFlagSet_Struct(t *testing.T) {
 		t.Error("expected 'name' flag")
 	}
 }
+
+func TestWithFlags(t *testing.T) {
+	type flags struct {
+		Mode  string `flag:"mode"  usage:"mode"`
+		Count int    `flag:"count" usage:"count"`
+	}
+
+	task := &Task{
+		Name:  "test",
+		Flags: flags{Mode: "default", Count: 10},
+		Do:    func(_ context.Context) error { return nil },
+	}
+
+	// WithFlags should produce a PathOption.
+	opt := WithFlags(task, flags{Mode: "custom", Count: 10})
+	pf := &pathFilter{}
+	opt(pf)
+
+	// Should have one flag override for "mode" (Count unchanged = not in diff).
+	if len(pf.flags) != 1 {
+		t.Fatalf("expected 1 flag override, got %d", len(pf.flags))
+	}
+	if pf.flags[0].flagName != "mode" {
+		t.Errorf("expected flagName=mode, got %q", pf.flags[0].flagName)
+	}
+	if pf.flags[0].value != "custom" {
+		t.Errorf("expected value=custom, got %v", pf.flags[0].value)
+	}
+}

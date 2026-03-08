@@ -75,6 +75,49 @@ func WithFlag(task any, flagName string, value any) PathOption {
 	}
 }
 
+// WithFlags sets flag overrides for a specific task in the current scope.
+// The flags struct must be the same type as the task's Flags field.
+// Only fields that differ from the task's defaults are applied as overrides.
+// The task can be specified by its string name or by the task object itself.
+func WithFlags(task any, flags any) PathOption {
+	return func(pf *pathFilter) {
+		taskName := toTaskName(task)
+
+		// Get defaults from the task to compute diff.
+		var defaults any
+		if t, ok := task.(*Task); ok && t.Flags != nil {
+			defaults = t.Flags
+		}
+
+		if defaults != nil {
+			diff, err := diffStructs(defaults, flags)
+			if err != nil {
+				panic(fmt.Sprintf("pk.WithFlags: %v", err))
+			}
+			for name, value := range diff {
+				pf.flags = append(pf.flags, flagOverride{
+					taskName: taskName,
+					flagName: name,
+					value:    value,
+				})
+			}
+		} else {
+			// No defaults available (task passed as string) — use all fields.
+			m, err := structToMap(flags)
+			if err != nil {
+				panic(fmt.Sprintf("pk.WithFlags: %v", err))
+			}
+			for name, value := range m {
+				pf.flags = append(pf.flags, flagOverride{
+					taskName: taskName,
+					flagName: name,
+					value:    value,
+				})
+			}
+		}
+	}
+}
+
 // WithForceRun disables task deduplication for the wrapped Runnable.
 // By default, tasks are deduplicated per (task pointer, path) pair within
 // a single invocation. WithForceRun causes the task to always execute,
