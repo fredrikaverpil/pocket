@@ -78,7 +78,7 @@ func GenerateStaticJobs(tasks []pk.TaskInfo, flags WorkflowFlags) []StaticJob {
 		}
 
 		// Determine git-diff for this task.
-		gitDiff := flags.GitDiff
+		gitDiff := boolVal(flags.GitDiff)
 		if option.GitDiff != nil {
 			gitDiff = *option.GitDiff
 		}
@@ -155,4 +155,12 @@ func shimForPlatform(platform string) string {
 		return ".\\pok.ps1"
 	}
 	return "./pok"
+}
+
+// boolVal safely dereferences a *bool, returning false for nil.
+func boolVal(p *bool) bool {
+	if p == nil {
+		return false
+	}
+	return *p
 }

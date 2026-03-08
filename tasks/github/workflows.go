@@ -53,15 +53,16 @@ type ReleaseConfig struct {
 }
 
 // WorkflowFlags holds flags for the Workflows task.
+// Pointer bools use nil = "not set" (inherit default), non-nil = explicit override.
 type WorkflowFlags struct {
-	// CLI flags — each workflow is a bool toggled on/off.
-	ConventionalCommitWorkflow bool `flag:"conventional-commit-workflow" usage:"conventional commit PR"`
-	GhPagesWorkflow            bool `flag:"gh-pages-workflow"            usage:"GitHub Pages"`
-	GoReleaserWorkflow         bool `flag:"goreleaser-workflow"          usage:"GoReleaser release"`
-	PerPocketTaskJob           bool `flag:"per-pocket-task-job"          usage:"per-task jobs"`
-	ReleasePleaseWorkflow      bool `flag:"release-please-workflow"      usage:"release-please"`
-	StaleWorkflow              bool `flag:"stale-workflow"               usage:"stale issues"`
-	GitDiff                    bool `flag:"git-diff"                     usage:"check uncommitted changes"`
+	// CLI flags — each workflow is a *bool toggled on/off.
+	ConventionalCommitWorkflow *bool `flag:"conventional-commit-workflow" usage:"conventional commit PR"`
+	GhPagesWorkflow            *bool `flag:"gh-pages-workflow"            usage:"GitHub Pages"`
+	GoReleaserWorkflow         *bool `flag:"goreleaser-workflow"          usage:"GoReleaser release"`
+	PerPocketTaskJob           *bool `flag:"per-pocket-task-job"          usage:"per-task jobs"`
+	ReleasePleaseWorkflow      *bool `flag:"release-please-workflow"      usage:"release-please"`
+	StaleWorkflow              *bool `flag:"stale-workflow"               usage:"stale issues"`
+	GitDiff                    *bool `flag:"git-diff"                     usage:"check uncommitted changes"`
 
 	// Programmatic-only fields (no flag tag — set via pk.WithFlags, not CLI).
 	Platforms               []Platform
@@ -74,10 +75,10 @@ var Workflows = &pk.Task{
 	Name:  "github-workflows",
 	Usage: "bootstrap GitHub workflow files",
 	Flags: WorkflowFlags{
-		ConventionalCommitWorkflow: true,
-		ReleasePleaseWorkflow:      true,
-		StaleWorkflow:              true,
-		GitDiff:                    true,
+		ConventionalCommitWorkflow: new(true),
+		ReleasePleaseWorkflow:      new(true),
+		StaleWorkflow:              new(true),
+		GitDiff:                    new(true),
 		Platforms:                  AllPlatforms(),
 	},
 	Do: runWorkflows,
@@ -113,14 +114,14 @@ func runWorkflows(ctx context.Context) error {
 	staleConfig := DefaultStaleConfig()
 
 	// Build release config.
-	releaseConfig := ReleaseConfig{IncludeGoreleaser: f.GoReleaserWorkflow}
+	releaseConfig := ReleaseConfig{IncludeGoreleaser: boolVal(f.GoReleaserWorkflow)}
 
 	workflowDefs := []workflowDef{
-		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, f.GhPagesWorkflow},
-		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !f.PerPocketTaskJob},
-		{"pr.yml.tmpl", "pr.yml", nil, f.ConventionalCommitWorkflow},
-		{"release.yml.tmpl", "release.yml", releaseConfig, f.ReleasePleaseWorkflow},
-		{"stale.yml.tmpl", "stale.yml", staleConfig, f.StaleWorkflow},
+		{"gh-pages.yml.tmpl", "gh-pages.yml", nil, boolVal(f.GhPagesWorkflow)},
+		{"pocket.yml.tmpl", "pocket.yml", pocketConfig, !boolVal(f.PerPocketTaskJob)},
+		{"pr.yml.tmpl", "pr.yml", nil, boolVal(f.ConventionalCommitWorkflow)},
+		{"release.yml.tmpl", "release.yml", releaseConfig, boolVal(f.ReleasePleaseWorkflow)},
+		{"stale.yml.tmpl", "stale.yml", staleConfig, boolVal(f.StaleWorkflow)},
 	}
 
 	// Also manage pocket-perjob.yml (generated separately via per-job generation)
@@ -182,7 +183,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Write default .goreleaser.yml if goreleaser is enabled and no config exists.
-	if f.GoReleaserWorkflow {
+	if boolVal(f.GoReleaserWorkflow) {
 		cfgPath, err := goreleaser.WriteDefaultConfig()
 		if err != nil {
 			return fmt.Errorf("write goreleaser config: %w", err)
@@ -193,7 +194,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	// Generate per-job workflow if requested.
-	if f.PerPocketTaskJob {
+	if boolVal(f.PerPocketTaskJob) {
 		if err := generatePerJobWorkflow(ctx, workflowDir, verbose); err != nil {
 			return fmt.Errorf("generate pocket-perjob workflow: %w", err)
 		}

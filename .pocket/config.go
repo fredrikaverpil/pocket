@@ -16,11 +16,7 @@ var Config = &pk.Config{
 		pk.WithOptions(
 			github.Tasks(),
 			pk.WithFlags(github.Workflows, github.WorkflowFlags{
-				ConventionalCommitWorkflow: true,
-				ReleasePleaseWorkflow:      true,
-				StaleWorkflow:              true,
-				GitDiff:                    true,
-				PerPocketTaskJob:           true,
+				PerPocketTaskJob: new(true),
 				Platforms:        []github.Platform{github.Ubuntu},
 				PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
 					golang.Test.Name: {Platforms: github.AllPlatforms()},

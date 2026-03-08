@@ -86,6 +86,36 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 			fs.Uint64(fi.flagName, fi.value.Uint(), fi.usage)
 		case reflect.Float64:
 			fs.Float64(fi.flagName, fi.value.Float(), fi.usage)
+		case reflect.Pointer:
+			// Pointer fields: dereference for CLI default, register underlying type.
+			elem := fi.value.Type().Elem()
+			var elemVal reflect.Value
+			if fi.value.IsNil() {
+				elemVal = reflect.Zero(elem)
+			} else {
+				elemVal = fi.value.Elem()
+			}
+			switch elem.Kind() {
+			case reflect.Bool:
+				fs.Bool(fi.flagName, elemVal.Bool(), fi.usage)
+			case reflect.String:
+				fs.String(fi.flagName, elemVal.String(), fi.usage)
+			case reflect.Int:
+				fs.Int(fi.flagName, int(elemVal.Int()), fi.usage)
+			case reflect.Int64:
+				fs.Int64(fi.flagName, elemVal.Int(), fi.usage)
+			case reflect.Uint:
+				fs.Uint(fi.flagName, uint(elemVal.Uint()), fi.usage)
+			case reflect.Uint64:
+				fs.Uint64(fi.flagName, elemVal.Uint(), fi.usage)
+			case reflect.Float64:
+				fs.Float64(fi.flagName, elemVal.Float(), fi.usage)
+			default:
+				return nil, fmt.Errorf(
+					"task %q: flag %q has unsupported pointer type *%v",
+					taskName, fi.flagName, elem.Kind(),
+				)
+			}
 		default:
 			return nil, fmt.Errorf("task %q: flag %q has unsupported type %v", taskName, fi.flagName, fi.kind)
 		}
@@ -113,7 +143,15 @@ func structToMap(flags any) (map[string]any, error) {
 		if key == "" {
 			key = f.Name // programmatic-only: use Go field name
 		}
-		m[key] = v.Field(i).Interface()
+		fieldVal := v.Field(i)
+		if fieldVal.Kind() == reflect.Pointer {
+			if fieldVal.IsNil() {
+				continue // nil pointer = not set, skip.
+			}
+			m[key] = fieldVal.Elem().Interface()
+		} else {
+			m[key] = fieldVal.Interface()
+		}
 	}
 	return m, nil
 }
@@ -142,7 +180,14 @@ func mapToStruct(m map[string]any, dst any) error {
 		}
 		field := v.Field(i)
 		rv := reflect.ValueOf(val)
-		if rv.Type().ConvertibleTo(field.Type()) {
+		if field.Kind() == reflect.Pointer {
+			// Create pointer and set dereferenced value.
+			ptr := reflect.New(field.Type().Elem())
+			if rv.Type().ConvertibleTo(field.Type().Elem()) {
+				ptr.Elem().Set(rv.Convert(field.Type().Elem()))
+			}
+			field.Set(ptr)
+		} else if rv.Type().ConvertibleTo(field.Type()) {
 			field.Set(rv.Convert(field.Type()))
 		}
 	}
@@ -174,8 +219,24 @@ func diffStructs(defaults, overrides any) (map[string]any, error) {
 		if key == "" {
 			key = f.Name // programmatic-only: use Go field name
 		}
-		if !reflect.DeepEqual(dv.Field(i).Interface(), ov.Field(i).Interface()) {
-			diff[key] = ov.Field(i).Interface()
+		oField := ov.Field(i)
+		dField := dv.Field(i)
+
+		if oField.Kind() == reflect.Pointer {
+			if oField.IsNil() {
+				continue // nil pointer in override = not set, skip.
+			}
+			// Compare dereferenced values.
+			oVal := oField.Elem().Interface()
+			var dVal any
+			if !dField.IsNil() {
+				dVal = dField.Elem().Interface()
+			}
+			if !reflect.DeepEqual(dVal, oVal) {
+				diff[key] = oVal // Store dereferenced value in diff.
+			}
+		} else if !reflect.DeepEqual(dField.Interface(), oField.Interface()) {
+			diff[key] = oField.Interface()
 		}
 	}
 	return diff, nil

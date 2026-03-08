@@ -222,7 +222,7 @@ var Config = &pk.Config{
         pk.WithOptions(
             github.Tasks(),
             pk.WithFlags(github.Workflows, github.WorkflowFlags{
-                PerPocketTaskJob: true,
+                PerPocketTaskJob: new(true),
                 Platforms:        []github.Platform{github.Ubuntu, github.MacOS},
                 PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
                     Lint.Name: {Platforms: []github.Platform{github.Ubuntu}},

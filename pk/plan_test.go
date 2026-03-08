@@ -640,7 +640,7 @@ type pyTestFlagsTest struct {
 }
 
 type ghWorkflowFlagsTest struct {
-	PerPocketTaskJob bool `flag:"per-pocket-task-job" usage:"use per-task jobs instead of single pocket job"`
+	PerPocketTaskJob *bool `flag:"per-pocket-task-job" usage:"per-task jobs"`
 }
 
 type parsersFlagsTest struct {
@@ -714,7 +714,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 					preCommitCheck,
 					WithOptions(
 						ghWorkflows,
-						WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: true}),
+						WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
 					),
 				),
 			),
@@ -852,7 +852,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 
 				WithOptions(
 					ghWorkflows,
-					WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: true}),
+					WithFlags(ghWorkflows, ghWorkflowFlagsTest{PerPocketTaskJob: new(true)}),
 				),
 			),
 		}

@@ -1171,7 +1171,7 @@ var Config = &pk.Config{
         pk.WithOptions(
             github.Tasks(),
             pk.WithFlags(github.Workflows, github.WorkflowFlags{
-                PerPocketTaskJob: true,
+                PerPocketTaskJob: new(true),
                 Platforms:        github.AllPlatforms(),
                 PerPocketTaskJobOptions: map[string]github.PerPocketTaskJobOption{
                     golang.Lint.Name: {Platforms: []github.Platform{github.Ubuntu}}, // lint only on Linux
@@ -1224,19 +1224,23 @@ Use `pk.WithFlags()` to configure the `github.Workflows` task:
 ```go
 type WorkflowFlags struct {
     // CLI flags (can be set via command line or pk.WithFlags):
-    ConventionalCommitWorkflow bool `flag:"conventional-commit-workflow" usage:"include conventional commit workflow"`
-    GhPagesWorkflow            bool `flag:"gh-pages-workflow"            usage:"include GitHub Pages workflow"`
-    GoReleaserWorkflow         bool `flag:"goreleaser-workflow"          usage:"include goreleaser workflow"`
-    PerPocketTaskJob           bool `flag:"per-pocket-task-job"          usage:"include per-pocket-task-job workflow"`
-    ReleasePleaseWorkflow      bool `flag:"release-please-workflow"      usage:"include release-please workflow"`
-    StaleWorkflow              bool `flag:"stale-workflow"               usage:"include stale workflow"`
-    GitDiff                    bool `flag:"git-diff"                     usage:"enable git diff filtering in CI"`
+    ConventionalCommitWorkflow *bool `flag:"conventional-commit-workflow" usage:"conventional commit PR"`
+    GhPagesWorkflow            *bool `flag:"gh-pages-workflow"            usage:"GitHub Pages"`
+    GoReleaserWorkflow         *bool `flag:"goreleaser-workflow"          usage:"GoReleaser release"`
+    PerPocketTaskJob           *bool `flag:"per-pocket-task-job"          usage:"per-task jobs"`
+    ReleasePleaseWorkflow      *bool `flag:"release-please-workflow"      usage:"release-please"`
+    StaleWorkflow              *bool `flag:"stale-workflow"               usage:"stale issues"`
+    GitDiff                    *bool `flag:"git-diff"                     usage:"check uncommitted changes"`
 
     // Programmatic-only (set via pk.WithFlags, not available as CLI flags):
-    Platforms               []Platform                          // platforms for workflow jobs
-    PerPocketTaskJobOptions map[string]PerPocketTaskJobOption   // per-task options for per-job workflow
+    Platforms               []Platform
+    PerPocketTaskJobOptions map[string]PerPocketTaskJobOption
 }
 ```
+
+> **Pointer semantics:** `*bool` fields use `nil` = inherit default,
+> `new(true)`/`new(false)` = explicit override. This is what makes `WithFlags`
+> ergonomic — you only set what you want to change.
 
 ### PerPocketTaskJobOption
 

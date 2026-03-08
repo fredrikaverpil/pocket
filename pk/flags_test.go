@@ -68,6 +68,40 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 		}
 	})
 
+	t.Run("PointerBoolField", func(t *testing.T) {
+		type flags struct {
+			Enable *bool `flag:"enable" usage:"enable feature"`
+		}
+		fs, err := buildFlagSetFromStruct("test", flags{Enable: new(true)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := fs.Lookup("enable")
+		if f == nil {
+			t.Fatal("expected flag 'enable' to be registered")
+		}
+		if f.DefValue != "true" {
+			t.Errorf("expected default 'true', got %q", f.DefValue)
+		}
+	})
+
+	t.Run("NilPointerBoolField", func(t *testing.T) {
+		type flags struct {
+			Enable *bool `flag:"enable" usage:"enable feature"`
+		}
+		fs, err := buildFlagSetFromStruct("test", flags{Enable: nil})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := fs.Lookup("enable")
+		if f == nil {
+			t.Fatal("expected flag 'enable' to be registered")
+		}
+		if f.DefValue != "false" {
+			t.Errorf("expected default 'false' for nil pointer, got %q", f.DefValue)
+		}
+	})
+
 	t.Run("UnsupportedFieldType", func(t *testing.T) {
 		type bad struct {
 			Names []string `flag:"names" usage:"list of names"`
@@ -269,5 +303,132 @@ func TestWithFlags(t *testing.T) {
 	}
 	if pf.flags[0].value != "custom" {
 		t.Errorf("expected value=custom, got %v", pf.flags[0].value)
+	}
+}
+
+func TestDiffStructs_PointerFields(t *testing.T) {
+	type flags struct {
+		Enable  *bool  `flag:"enable"`
+		Verbose *bool  `flag:"verbose"`
+		Name    string `flag:"name"`
+	}
+
+	t.Run("NilPointerSkipped", func(t *testing.T) {
+		defaults := flags{Enable: new(true), Verbose: new(false), Name: "default"}
+		overrides := flags{Enable: nil, Verbose: nil, Name: "custom"}
+
+		diff, err := diffStructs(defaults, overrides)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// nil pointers should be skipped — only Name differs.
+		if _, ok := diff["enable"]; ok {
+			t.Error("nil pointer 'enable' should not be in diff")
+		}
+		if _, ok := diff["verbose"]; ok {
+			t.Error("nil pointer 'verbose' should not be in diff")
+		}
+		if diff["name"] != "custom" {
+			t.Errorf("expected name=custom, got %v", diff["name"])
+		}
+	})
+
+	t.Run("NonNilPointerIncluded", func(t *testing.T) {
+		defaults := flags{Enable: new(true), Verbose: new(false)}
+		overrides := flags{Enable: new(false), Verbose: nil}
+
+		diff, err := diffStructs(defaults, overrides)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Enable explicitly set to false (differs from default true).
+		if diff["enable"] != false {
+			t.Errorf("expected enable=false, got %v", diff["enable"])
+		}
+		// Verbose nil = not set, should be absent.
+		if _, ok := diff["verbose"]; ok {
+			t.Error("nil pointer 'verbose' should not be in diff")
+		}
+	})
+
+	t.Run("SameValueNotInDiff", func(t *testing.T) {
+		defaults := flags{Enable: new(true)}
+		overrides := flags{Enable: new(true)}
+
+		diff, err := diffStructs(defaults, overrides)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := diff["enable"]; ok {
+			t.Error("same value should not be in diff")
+		}
+	})
+}
+
+func TestStructToMap_PointerFields(t *testing.T) {
+	type flags struct {
+		Enable *bool   `flag:"enable"`
+		Name   *string `flag:"name"`
+		Count  int     `flag:"count"`
+	}
+
+	t.Run("NonNilDereferenced", func(t *testing.T) {
+		name := "hello"
+		m, err := structToMap(flags{Enable: new(true), Name: &name, Count: 5})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if m["enable"] != true {
+			t.Errorf("expected enable=true, got %v", m["enable"])
+		}
+		if m["name"] != "hello" {
+			t.Errorf("expected name=hello, got %v", m["name"])
+		}
+		if m["count"] != 5 {
+			t.Errorf("expected count=5, got %v", m["count"])
+		}
+	})
+
+	t.Run("NilSkipped", func(t *testing.T) {
+		m, err := structToMap(flags{Enable: nil, Name: nil, Count: 5})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := m["enable"]; ok {
+			t.Error("nil pointer 'enable' should not be in map")
+		}
+		if _, ok := m["name"]; ok {
+			t.Error("nil pointer 'name' should not be in map")
+		}
+		if m["count"] != 5 {
+			t.Errorf("expected count=5, got %v", m["count"])
+		}
+	})
+}
+
+func TestMapToStruct_PointerFields(t *testing.T) {
+	type flags struct {
+		Enable *bool   `flag:"enable"`
+		Name   *string `flag:"name"`
+		Count  int     `flag:"count"`
+	}
+
+	m := map[string]any{
+		"enable": true,
+		"name":   "hello",
+		"count":  42,
+	}
+	var result flags
+	if err := mapToStruct(m, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Enable == nil || *result.Enable != true {
+		t.Errorf("expected enable=true, got %v", result.Enable)
+	}
+	if result.Name == nil || *result.Name != "hello" {
+		t.Errorf("expected name=hello, got %v", result.Name)
+	}
+	if result.Count != 42 {
+		t.Errorf("expected count=42, got %d", result.Count)
 	}
 }

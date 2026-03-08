@@ -223,7 +223,7 @@ func TestGenerateStaticJobs_GitDiff(t *testing.T) {
 	t.Run("enabled", func(t *testing.T) {
 		flags := WorkflowFlags{
 			Platforms: []Platform{Ubuntu},
-			GitDiff:   true,
+			GitDiff:   new(true),
 		}
 		jobs := GenerateStaticJobs(tasks, flags)
 		assert.Assert(t, jobs[0].GitDiff, "expected GitDiff=true")
@@ -232,7 +232,7 @@ func TestGenerateStaticJobs_GitDiff(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		flags := WorkflowFlags{
 			Platforms: []Platform{Ubuntu},
-			GitDiff:   false,
+			GitDiff:   new(false),
 		}
 		jobs := GenerateStaticJobs(tasks, flags)
 		assert.Assert(t, !jobs[0].GitDiff, "expected GitDiff=false")
@@ -251,7 +251,7 @@ func TestGenerateStaticJobs_GitDiffPerTaskOverride(t *testing.T) {
 	t.Run("override_to_false", func(t *testing.T) {
 		flags := WorkflowFlags{
 			Platforms: []Platform{Ubuntu},
-			GitDiff:   true,
+			GitDiff:   new(true),
 			PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
 				"lint": {GitDiff: &gitDiffFalse},
 			},
@@ -269,7 +269,7 @@ func TestGenerateStaticJobs_GitDiffPerTaskOverride(t *testing.T) {
 	t.Run("override_to_true", func(t *testing.T) {
 		flags := WorkflowFlags{
 			Platforms: []Platform{Ubuntu},
-			GitDiff:   false,
+			GitDiff:   new(false),
 			PerPocketTaskJobOptions: map[string]PerPocketTaskJobOption{
 				"lint": {GitDiff: &gitDiffTrue},
 			},
