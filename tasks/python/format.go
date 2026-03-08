@@ -51,4 +51,3 @@ func runFormat(ctx context.Context, pythonVersion string) error {
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }
-
