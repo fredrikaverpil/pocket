@@ -104,7 +104,8 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("read source: %w", err)
 	}
-	if err := os.WriteFile(dst, data, 0o755); err != nil {
+	//nolint:gosec // dst is constructed internally, not from external input.
+	if err := os.WriteFile(filepath.Clean(dst), data, 0o755); err != nil {
 		return fmt.Errorf("write destination: %w", err)
 	}
 	return nil

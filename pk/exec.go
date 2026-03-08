@@ -96,6 +96,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	// include .pocket/bin yet.
 	resolvedName := lookPathInEnv(name, env)
 
+	//nolint:gosec // Task runner executes user-configured commands by design.
 	cmd := exec.CommandContext(ctx, resolvedName, args...)
 	cmd.Dir = targetDir
 	cmd.Env = env

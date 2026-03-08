@@ -330,7 +330,8 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
-	uvArgs := []string{"run", "--frozen", "--python", pythonVersion, cmdName}
+	uvArgs := make([]string, 0, 5+len(args))
+	uvArgs = append(uvArgs, "run", "--frozen", "--python", pythonVersion, cmdName)
 	uvArgs = append(uvArgs, args...)
 
 	ctx = pk.ContextWithPath(ctx, projectDir)

@@ -57,7 +57,8 @@ func queryFormatCmd() pk.Runnable {
 
 		configArgs := tsQueryLsConfigArgs(parserDir)
 		for _, dir := range dirs {
-			args := []string{"format"}
+			args := make([]string, 0, 1+len(configArgs)+1)
+			args = append(args, "format")
 			args = append(args, configArgs...)
 			args = append(args, dir)
 			if err := pk.Exec(ctx, tsqueryls.Name, args...); err != nil {

@@ -123,7 +123,8 @@ func InstallFromLockfile(ctx context.Context, dir string) error {
 
 // Run executes a package installed via bun.
 func Run(ctx context.Context, installDir, packageName string, args ...string) error {
-	runArgs := []string{"run", "--cwd", installDir, packageName}
+	runArgs := make([]string, 0, 4+len(args))
+	runArgs = append(runArgs, "run", "--cwd", installDir, packageName)
 	runArgs = append(runArgs, args...)
 	return pk.Exec(ctx, Name, runArgs...)
 }
