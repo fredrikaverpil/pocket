@@ -61,15 +61,17 @@ import (
     "github.com/fredrikaverpil/pocket/pk"
 )
 
+type HelloFlags struct {
+    Name string `flag:"name" usage:"name to greet"`
+}
+
 var Hello = &pk.Task{
     Name:  "hello",
     Usage: "say hello",
-    Flags: map[string]pk.FlagDef{
-        "name": {Default: "World", Usage: "name to greet"},
-    },
+    Flags: HelloFlags{Name: "World"},
     Do: func(ctx context.Context) error {
-        name := pk.GetFlag[string](ctx, "name")
-        fmt.Printf("Hello, %s, from Pocket!\n", name)
+        f := pk.GetFlags[HelloFlags](ctx)
+        fmt.Printf("Hello, %s, from Pocket!\n", f.Name)
         return nil
     },
 }
@@ -143,8 +145,8 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path filtering**: `WithIncludePath("services/*")` runs only in matching
   paths
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlag(Task, pkg.FlagName, "value")` sets task-specific
-  flags
+- **Flag overrides**: `WithFlags(Task, FlagsStruct{Field: value})` sets
+  task-specific flags
 - [and more...](./REFERENCE.md)
 
 ```go
@@ -152,8 +154,7 @@ pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
     pk.WithExcludePath("testdata"),      // skip test fixtures
-    pk.WithFlag(Test, golang.FlagTestRace, false),      // disable race detector for Test
-    pk.WithFlag(Test, golang.FlagTestTimeout, "5m"),    // set test timeout
+    pk.WithFlags(Test, golang.TestFlags{Race: false}),  // disable race detector for Test
 )
 ```
 
@@ -220,8 +221,7 @@ var Config = &pk.Config{
         Lint, Test, Build,
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
-            pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
+            pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, IncludePocketPerjob: true}),
             pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
                 DefaultPlatforms: []string{github.PlatformUbuntu, github.PlatformMacOS},
                 TaskOverrides: map[string]github.TaskOverride{

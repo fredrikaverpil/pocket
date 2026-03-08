@@ -126,19 +126,21 @@ var Config = &pk.Config{
 
 ### Task Flags
 
-Flags are defined declaratively using `map[string]pk.FlagDef` and accessed at
-runtime with `pk.GetFlag[T]`:
+Flags are defined as a struct with `flag` and `usage` struct tags, and accessed
+at runtime with `pk.GetFlags[T]`:
 
 ```go
+type DeployFlags struct {
+    Env string `flag:"env" usage:"target environment"`
+}
+
 var Deploy = &pk.Task{
     Name:  "deploy",
     Usage: "deploy the app",
-    Flags: map[string]pk.FlagDef{
-        "env": {Default: "staging", Usage: "target environment"},
-    },
+    Flags: DeployFlags{Env: "staging"},
     Do: func(ctx context.Context) error {
-        env := pk.GetFlag[string](ctx, "env")
-        fmt.Printf("Deploying to %s...\n", env)
+        f := pk.GetFlags[DeployFlags](ctx)
+        fmt.Printf("Deploying to %s...\n", f.Env)
         return nil
     },
 }
@@ -150,11 +152,11 @@ Run it with:
 ./pok deploy -env prod
 ```
 
-Supported default types: `string`, `bool`, `int`, `float64`.
+Supported field types: `string`, `bool`, `int`, `int64`, `uint`, `uint64`,
+`float64`, `time.Duration`.
 
-`GetFlag` catches typos and type mismatches immediately — if you call
-`pk.GetFlag[bool](ctx, "evn")` (typo), the task fails with a clear error:
-`task "deploy": flag "evn": not found`.
+The struct approach provides compile-time safety. Field access via the returned
+struct means typos are caught by the compiler, not at runtime.
 
 ### Suppressing Headers
 
@@ -372,20 +374,19 @@ var Config = &pk.Config{
         pk.WithOptions(
             python.Tasks(),
             pk.WithNameSuffix("3.9"),
-            pk.WithFlag(python.Format, python.FlagPython, "3.9"),
-            pk.WithFlag(python.Lint, python.FlagPython, "3.9"),
-            pk.WithFlag(python.Typecheck, python.FlagPython, "3.9"),
-            pk.WithFlag(python.Test, python.FlagPython, "3.9"),
-            pk.WithFlag(python.Test, python.FlagTestCoverage, true),
+            pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
+            pk.WithFlags(python.Lint, python.LintFlags{Python: "3.9"}),
+            pk.WithFlags(python.Typecheck, python.TypecheckFlags{Python: "3.9"}),
+            pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
             pk.WithDetect(python.Detect()),
         ),
         // Test against remaining Python versions (without coverage)
         pk.WithOptions(
             pk.Parallel(
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlag(python.Test, python.FlagPython, "3.11")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlag(python.Test, python.FlagPython, "3.12")),
-                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlag(python.Test, python.FlagPython, "3.13")),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.10"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.11"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.11"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.12"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.12"})),
+                pk.WithOptions(python.Test, pk.WithNameSuffix("3.13"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.13"})),
             ),
             pk.WithDetect(python.Detect()),
         ),
@@ -396,7 +397,7 @@ var Config = &pk.Config{
 **Configuring Python tasks:**
 
 Use `pk.WithNameSuffix()` to add a suffix to task names (e.g., `py-test:3.9`)
-and `pk.WithFlag()` to set the Python version and enable coverage:
+and `pk.WithFlags()` to set the Python version and enable coverage:
 
 **Available tasks:**
 
@@ -837,30 +838,33 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithExcludePath(patterns...)` | Skip matching directories              |
 | `pk.WithDetect(fn)`               | Auto-detect directories                |
 | `pk.WithNameSuffix(suffix)`       | Add suffix to task names (e.g., `:v2`) |
-| `pk.WithFlag(task, name, value)`  | Override a task's flag                 |
+| `pk.WithFlags(task, flagsStruct)` | Override a task's flags                |
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |
 
-Use `pk.WithFlag()` to set task flags explicitly:
+Use `pk.WithFlags()` to set task flags explicitly:
 
 ```go
 pk.WithOptions(
     python.Tasks(),
-    pk.WithNameSuffix("3.9"),                          // Add :3.9 suffix to task names
-    pk.WithFlag(python.Format, python.FlagPython, "3.9"),        // Set Python version for format
-    pk.WithFlag(python.Lint, python.FlagPython, "3.9"),          // Set Python version for lint
-    pk.WithFlag(python.Test, python.FlagPython, "3.9"),          // Set Python version for test
-    pk.WithFlag(python.Test, python.FlagTestCoverage, true),     // Enable coverage for test
-    pk.WithDetect(python.Detect()),              // Auto-detect Python projects
+    pk.WithNameSuffix("3.9"),
+    pk.WithFlags(python.Format, python.FormatFlags{Python: "3.9"}),
+    pk.WithFlags(python.Lint, python.LintFlags{Python: "3.9"}),
+    pk.WithFlags(python.Test, python.TestFlags{Python: "3.9", Coverage: true}),
+    pk.WithDetect(python.Detect()),
 )
 ```
 
 **Creating custom options:** When building your own task packages, use
-`pk.WithFlag` to set task flags:
+`pk.WithFlags` to set task flags:
 
 ```go
+type MyFlags struct {
+    Feature bool `flag:"feature" usage:"enable feature"`
+}
+
 func EnableFeature() pk.PathOption {
-    return pk.WithFlag(MyTask, "feature", true)
+    return pk.WithFlags(MyTask, MyFlags{Feature: true})
 }
 ```
 
@@ -920,7 +924,7 @@ Apply constraints to specific tasks without refactoring the tree:
 | `WithExcludePath(patterns...)`       | Exclude paths for ALL tasks in scope   |
 | `WithExcludeTask(task, patterns...)` | Exclude paths for a SPECIFIC task only |
 | `WithSkipTask(tasks...)`             | Remove tasks entirely from scope       |
-| `WithFlag(task, name, value)`        | Set default flag value for a task      |
+| `WithFlags(task, flagsStruct)`       | Set flag overrides for a task          |
 
 ```go
 pk.WithOptions(
@@ -928,7 +932,7 @@ pk.WithOptions(
     pk.WithExcludePath("vendor"),              // Global: no tasks run in vendor/
     pk.WithExcludeTask(golang.Test, "foo/.*"), // Only go-test skips foo/
     pk.WithSkipTask(golang.Lint),              // Remove linting entirely
-    pk.WithFlag(golang.Test, golang.FlagTestRace, true),    // Enable race detector
+    pk.WithFlags(golang.Test, golang.TestFlags{Race: true}), // Enable race detector
 )
 ```
 
@@ -937,7 +941,7 @@ safety).
 
 > [!NOTE]
 >
-> `WithFlag` overrides only apply when the task runs as part of the composition
+> `WithFlags` overrides only apply when the task runs as part of the composition
 > tree (e.g., via bare `./pok`). When you invoke a task directly (e.g.,
 > `./pok my-task`), it runs with its default flag values, bypassing
 > composition-level overrides. If you need the flag applied for direct
@@ -1166,8 +1170,7 @@ var Config = &pk.Config{
         golang.Tasks(),
         pk.WithOptions(
             github.Tasks(),
-            pk.WithFlag(github.Workflows, github.FlagSkipPocket, true),
-            pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true),
+            pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, IncludePocketPerjob: true}),
             pk.WithContextValue(github.PerJobConfigKey{}, github.PerJobConfig{
                 DefaultPlatforms: github.AllPlatforms(),
                 TaskOverrides: map[string]github.TaskOverride{
@@ -1183,10 +1186,8 @@ var Config = &pk.Config{
 This configuration:
 
 1. `github.Tasks()` returns the `Workflows` task
-2. `pk.WithFlag(github.Workflows, github.FlagSkipPocket, true)` disables the
-   simple `pocket.yml` workflow
-3. `pk.WithFlag(github.Workflows, github.FlagIncludePocketPerjob, true)` enables
-   the `pocket-perjob.yml` workflow
+2. `pk.WithFlags(github.Workflows, github.WorkflowFlags{SkipPocket: true, ...})`
+   disables the simple `pocket.yml` and enables the per-job workflow
 4. `pk.WithContextValue(github.PerJobConfigKey{}, cfg)` configures platforms and
    task overrides for job generation
 
@@ -1220,17 +1221,20 @@ jobs:
 
 ### GitHub Task Configuration
 
-Use `pk.WithFlag()` to configure the `github.Workflows` task:
+Use `pk.WithFlags()` to configure the `github.Workflows` task:
 
-| Flag                    | Type   | Description                                           |
-| :---------------------- | :----- | :---------------------------------------------------- |
-| `skip-pocket`           | `bool` | Exclude `pocket.yml` workflow                         |
-| `skip-pr`               | `bool` | Exclude `pr.yml` workflow                             |
-| `skip-release`          | `bool` | Exclude `release.yml` workflow                        |
-| `skip-stale`            | `bool` | Exclude `stale.yml` workflow                          |
-| `platforms`             | `str`  | Override platforms for `pocket.yml` (comma-separated) |
-| `include-goreleaser`    | `bool` | Include goreleaser job in `release.yml` workflow      |
-| `include-pocket-perjob` | `bool` | Enable `pocket-perjob.yml` workflow                   |
+```go
+type WorkflowFlags struct {
+    IncludeGoreleaser   bool   `flag:"include-goreleaser" usage:"include goreleaser job in release workflow"`
+    IncludePocketPerjob bool   `flag:"include-pocket-perjob" usage:"include pocket-perjob workflow"`
+    Platforms           string `flag:"platforms" usage:"platforms for pocket.yml (comma-separated)"`
+    SkipGhPages         bool   `flag:"skip-gh-pages" usage:"exclude GitHub Pages workflow"`
+    SkipPocket          bool   `flag:"skip-pocket" usage:"exclude pocket workflow"`
+    SkipPR              bool   `flag:"skip-pr" usage:"exclude PR workflow"`
+    SkipRelease         bool   `flag:"skip-release" usage:"exclude release-please workflow"`
+    SkipStale           bool   `flag:"skip-stale" usage:"exclude stale workflow"`
+}
+```
 
 ### PerJobConfig Options
 
@@ -1271,7 +1275,7 @@ type TaskOverride struct {
 >
 > The `github-workflows` task also accepts flags directly (e.g.,
 > `./pok github-workflows -include-pocket-perjob`). Flag overrides via
-> `pk.WithFlag` only apply when running through the composition tree (bare
+> `pk.WithFlags` only apply when running through the composition tree (bare
 > `./pok`). When invoking tasks directly, pass flags explicitly.
 
 **Benefits comparison:**

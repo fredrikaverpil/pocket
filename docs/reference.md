@@ -91,15 +91,10 @@ type Task struct {
     Usage      string                         // Short description for help output
     Do         func(context.Context) error    // Inline function (mutually exclusive with Body)
     Body       Runnable                       // Composed logic (mutually exclusive with Do)
-    Flags      map[string]FlagDef             // Declarative CLI flags
+    Flags      any                            // Struct with `flag` and `usage` tags
     Hidden     bool                           // Hide from CLI listings
     HideHeader bool                           // Suppress ":: taskname" header
     Global     bool                           // Deduplicate by name only, ignoring path
-}
-
-type FlagDef struct {
-    Default any     // Default value (string, bool, int, or float64)
-    Usage   string  // Help text
 }
 ```
 
@@ -115,27 +110,31 @@ var Lint = &pk.Task{
 
 ### Task Flags
 
-Flags are declared on the task and accessed via `GetFlag[T]`:
+Flags are declared as a struct on the task and accessed via `GetFlags[T]`:
 
 ```go
-func GetFlag[T any](ctx context.Context, name string) T
+func GetFlags[T any](ctx context.Context) T
 ```
 
-`GetFlag` returns the resolved flag value. If the flag name is not found or the
-type doesn't match, the task fails with a clear error (e.g.,
-`task "lint": flag "fxi": not found`).
+`GetFlags` returns the resolved flags struct. The struct's field values provide
+defaults; `flag` and `usage` struct tags define the CLI name and help text.
+
+Supported types: `string`, `bool`, `int`, `int64`, `uint`, `uint64`, `float64`,
+`time.Duration`.
 
 ```go
+type DeployFlags struct {
+    Env    string `flag:"env" usage:"target environment"`
+    DryRun bool   `flag:"dry-run" usage:"preview without deploying"`
+}
+
 var Deploy = &pk.Task{
     Name:  "deploy",
     Usage: "deploy the app",
-    Flags: map[string]pk.FlagDef{
-        "env":     {Default: "staging", Usage: "target environment"},
-        "dry-run": {Default: false, Usage: "preview without deploying"},
-    },
+    Flags: DeployFlags{Env: "staging"},
     Do: func(ctx context.Context) error {
-        env := pk.GetFlag[string](ctx, "env")
-        dryRun := pk.GetFlag[bool](ctx, "dry-run")
+        f := pk.GetFlags[DeployFlags](ctx)
+        // f.Env, f.DryRun
         // ...
     },
 }
@@ -193,7 +192,7 @@ These options work with any task:
 | `WithDetect`       | Dynamically discover paths using a detection function       |
 | `WithNameSuffix`   | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
 | `WithForceRun`     | Bypass task deduplication for the wrapped runnable          |
-| `WithFlag`         | Set a default flag value for a task in scope                |
+| `WithFlags`        | Set flag overrides for a task in scope                      |
 | `WithSkipTask`     | Skip specified tasks within this scope                      |
 | `WithExcludeTask`  | Exclude a task from directories matching patterns           |
 | `WithContextValue` | Pass structured config (structs, maps) to tasks via context |
@@ -202,7 +201,7 @@ These options work with any task:
 pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithIncludePath("services/.*"),
-    pk.WithFlag(Test, golang.FlagTestRace, true),
+    pk.WithFlags(Test, golang.TestFlags{Race: true}),
 )
 ```
 
@@ -217,8 +216,8 @@ distinct **variants** of the same task:
 
 ```go
 // Same task definition, two distinct variants
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, python.FlagPython, "3.9"))
-pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10"))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.9"}))
+pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.TestFlags{Python: "3.10"}))
 ```
 
 Each variant has an **effective name** (base name + suffix). Variants are
@@ -508,7 +507,7 @@ Context accessors and modifiers are available from the `pk` package.
 
 | Function             | Description                                          |
 | :------------------- | :--------------------------------------------------- |
-| `pk.GetFlag[T]`      | Retrieve a task flag value (errors on typo/mismatch) |
+| `pk.GetFlags[T]`     | Retrieve the resolved flags struct from context      |
 | `pk.PathFromContext` | Current execution path relative to git root          |
 | `pk.PlanFromContext` | The `*Plan` from context (nil if not set)            |
 | `pk.Verbose`         | Whether `-v` flag was provided                       |
@@ -584,7 +583,7 @@ type TaskInfo struct {
     Name   string         `json:"name"`            // Effective name (e.g., "py-test:3.9")
     Usage  string         `json:"usage,omitempty"` // Description/help text
     Paths  []string       `json:"paths"`           // Directories this task runs in
-    Flags  map[string]any `json:"flags,omitempty"` // Flag overrides from pk.WithFlag()
+    Flags  map[string]any `json:"flags,omitempty"` // Flag overrides from pk.WithFlags()
     Hidden bool           `json:"hidden"`          // Whether task is hidden from help
     Manual bool           `json:"manual"`          // Whether task is manual-only
 }

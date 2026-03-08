@@ -46,15 +46,17 @@ type taskInstance struct {
 
 4. **Build index** — Task instances indexed by effective name for O(1) lookup.
 
-5. **Build flag sets** — Each task's `flagSet` is built from its `FlagDef` map.
-   This happens lazily but is triggered during plan building for user tasks.
+5. **Build flag sets** — Each task's `flagSet` is built from its `Flags` struct
+   using `buildFlagSetFromStruct`. The struct's field values provide defaults,
+   and `flag`/`usage` struct tags define CLI names and help text.
 
 ### Flag merge order
 
 Flags resolve with increasing priority:
 
-1. **Task defaults** — `FlagDef.Default` values
-2. **Plan overrides** — `WithFlag()` values accumulated during tree traversal
+1. **Task defaults** — Field values from the `Flags` struct on the task
+2. **Plan overrides** — `WithFlags()` values accumulated during tree traversal
+   (only changed fields are applied, detected via `diffStructs`)
 3. **CLI arguments** — User-provided flags on the command line
 
 Plan overrides are stored in `taskInstance.flags` and applied at execution time
@@ -123,8 +125,8 @@ task.run(ctx)
 
 ### Flag panic recovery
 
-`GetFlag[T]` panics with a `flagError` if the flag is not found or the type
-doesn't match. `task.execute()` recovers this panic and converts it to a
+`GetFlags[T]` panics with a `flagError` if no flags are in context or the
+struct mapping fails. `task.execute()` recovers this panic and converts it to a
 regular error. This provides a clean API without requiring error returns at
 every flag access.
 

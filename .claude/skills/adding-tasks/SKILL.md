@@ -34,19 +34,17 @@ Each action file (e.g., `lint.go`, `format.go`) defines a task variable:
 ```go
 // lint.go
 
-// Flag names for the Lint task.
-const (
-    FlagLintConfig = "config"
-    FlagLintFix    = "fix"
-)
+// LintFlags holds flags for the Lint task.
+type LintFlags struct {
+    Config string `flag:"config" usage:"path to config file"`
+    Fix    bool   `flag:"fix" usage:"apply fixes"`
+}
 
 var Lint = &pk.Task{
     Name:  "go-lint",
     Usage: "run golangci-lint",
-    Flags: map[string]pk.FlagDef{
-        FlagLintFix: {Default: true, Usage: "apply fixes"},
-    },
-    Body: pk.Serial(golangcilint.Install, lintCmd()),
+    Flags: LintFlags{Fix: true},
+    Body:  pk.Serial(golangcilint.Install, lintCmd()),
 }
 ```
 
@@ -130,26 +128,25 @@ if pk.Verbose(ctx) {
 
 ## Flags
 
-Define only flags you need (YAGNI). Export constants for flag names so that
-renaming a flag causes compile errors across package boundaries:
+Define flags as an exported struct type with `flag` and `usage` struct tags.
+Only add flags you need (YAGNI). The struct type is exported so config authors
+can reference it for overrides:
 
 ```go
-const (
-    FlagLintConfig = "config"
-    FlagLintFix    = "fix"
-)
+// LintFlags holds flags for the Lint task.
+type LintFlags struct {
+    Config string `flag:"config" usage:"path to config file"`
+    Fix    bool   `flag:"fix" usage:"apply fixes"`
+}
 
-Flags: map[string]pk.FlagDef{
-    FlagLintFix:    {Default: true, Usage: "apply fixes"},
-    FlagLintConfig: {Default: "", Usage: "path to config file"},
-},
+Flags: LintFlags{Fix: true},
 ```
 
-Access flags with `pk.GetFlag[T](ctx, FlagLintFix)`.
+Access flags with `pk.GetFlags[LintFlags](ctx)`, then use struct fields directly.
 
 Users override flags via CLI: `./pok go-lint -fix=false`
 
-Config authors override defaults: `pk.WithFlag(golang.Lint, golang.FlagLintFix, false)`
+Config authors override defaults: `pk.WithFlags(golang.Lint, golang.LintFlags{Fix: false})`
 
 ## Cross-platform
 
