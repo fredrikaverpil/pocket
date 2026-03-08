@@ -10,6 +10,20 @@ import (
 	"testing"
 )
 
+// Flag struct types for test tasks.
+type flaggedFlags struct {
+	Mode  string `flag:"mode"  usage:"mode flag"`
+	Count int    `flag:"count" usage:"count flag"`
+}
+
+type cliFlaggedFlags struct {
+	Mode string `flag:"mode" usage:"mode flag"`
+}
+
+type versionedFlags struct {
+	Ver string `flag:"ver" usage:"version"`
+}
+
 // execRecord captures the context a task received at execution time.
 type execRecord struct {
 	TaskName string
@@ -64,7 +78,7 @@ func (r *recorder) failTask(name string) *Task {
 }
 
 // taskWithFlags creates a spy task with flags that records flag values.
-func (r *recorder) taskWithFlags(name string, flags map[string]FlagDef) *Task {
+func (r *recorder) taskWithFlags(name string, flags any) *Task {
 	return &Task{
 		Name:  name,
 		Usage: name,
@@ -171,13 +185,10 @@ func TestE2E_ExecuteTask_PathScoping(t *testing.T) {
 func TestE2E_ExecuteTask_FlagResolution(t *testing.T) {
 	e2eSetup(t)
 	rec := newRecorder()
-	task := rec.taskWithFlags("flagged", map[string]FlagDef{
-		"mode":  {Default: "default-mode", Usage: "mode flag"},
-		"count": {Default: 1, Usage: "count flag"},
-	})
+	task := rec.taskWithFlags("flagged", flaggedFlags{Mode: "default-mode", Count: 1})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlag(task, "mode", "overridden")),
+		Auto: WithOptions(task, WithFlags(task, flaggedFlags{Mode: "overridden", Count: 1})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {
@@ -204,12 +215,10 @@ func TestE2E_ExecuteTask_FlagResolution(t *testing.T) {
 func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 	e2eSetup(t)
 	rec := newRecorder()
-	task := rec.taskWithFlags("cli-flagged", map[string]FlagDef{
-		"mode": {Default: "default", Usage: "mode flag"},
-	})
+	task := rec.taskWithFlags("cli-flagged", cliFlaggedFlags{Mode: "default"})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlag(task, "mode", "plan-override")),
+		Auto: WithOptions(task, WithFlags(task, cliFlaggedFlags{Mode: "plan-override"})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {
@@ -266,12 +275,10 @@ func TestE2E_ExecuteTask_EnvPropagation(t *testing.T) {
 func TestE2E_ExecuteTask_NameSuffix(t *testing.T) {
 	e2eSetup(t)
 	rec := newRecorder()
-	task := rec.taskWithFlags("versioned", map[string]FlagDef{
-		"ver": {Default: "unset", Usage: "version"},
-	})
+	task := rec.taskWithFlags("versioned", versionedFlags{Ver: "unset"})
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithNameSuffix("3.9"), WithFlag(task, "ver", "3.9")),
+		Auto: WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, versionedFlags{Ver: "3.9"})),
 	}
 	plan, err := NewPlan(cfg)
 	if err != nil {

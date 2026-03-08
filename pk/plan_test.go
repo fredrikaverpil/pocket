@@ -630,6 +630,29 @@ func findTaskInfo(tasks []TaskInfo, name string) *TaskInfo {
 	return nil
 }
 
+type pyFlagsTest struct {
+	Python string `flag:"python" usage:"python version"`
+}
+
+type pyTestFlagsTest struct {
+	Python   string `flag:"python"   usage:"python version"`
+	Coverage bool   `flag:"coverage" usage:"enable coverage"`
+}
+
+type ghWorkflowFlagsTest struct {
+	SkipPocket          bool `flag:"skip-pocket"           usage:"exclude pocket workflow"`
+	IncludePocketPerjob bool `flag:"include-pocket-perjob" usage:"include pocket-perjob workflow"`
+}
+
+type parsersFlagsTest struct {
+	Parsers string `flag:"parsers" usage:"parser names"`
+}
+
+type queryLintFlagsTest struct {
+	Parsers string `flag:"parsers" usage:"parser names"`
+	Fix     bool   `flag:"fix"     usage:"auto-fix"`
+}
+
 func TestNewPlan_ComposedConfigs(t *testing.T) {
 	noop := func(_ context.Context) error { return nil }
 
@@ -638,31 +661,25 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 		uvInstall := &Task{Name: "install:uv", Usage: "install uv", Hidden: true, Global: true, Do: noop}
 		pyFormat := &Task{
 			Name: "py-format", Usage: "format python files", Do: noop,
-			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+			Flags: pyFlagsTest{},
 		}
 		pyLint := &Task{
 			Name: "py-lint", Usage: "lint python files", Do: noop,
-			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+			Flags: pyFlagsTest{},
 		}
 		pyTypecheck := &Task{
 			Name: "py-typecheck", Usage: "type-check python files", Do: noop,
-			Flags: map[string]FlagDef{"python": {Default: "", Usage: "python version"}},
+			Flags: pyFlagsTest{},
 		}
 		pyTest := &Task{
 			Name: "py-test", Usage: "run python tests", Do: noop,
-			Flags: map[string]FlagDef{
-				"python":   {Default: "", Usage: "python version"},
-				"coverage": {Default: false, Usage: "enable coverage"},
-			},
+			Flags: pyTestFlagsTest{},
 		}
 		creosoteTask := &Task{Name: "creosote", Usage: "run creosote self-check", Do: noop}
 		preCommitCheck := &Task{Name: "pre-commit-check", Usage: "check pre-commit rev format", Do: noop}
 		ghWorkflows := &Task{
 			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
-			Flags: map[string]FlagDef{
-				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
-				"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow"},
-			},
+			Flags: ghWorkflowFlagsTest{},
 		}
 
 		// Detect function that returns root (simulating pyproject.toml at root).
@@ -675,21 +692,20 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				WithOptions(
 					Serial(uvInstall, pyFormat, pyLint, Parallel(pyTypecheck, pyTest)),
 					WithNameSuffix("3.9"),
-					WithFlag(pyFormat, "python", "3.9"),
-					WithFlag(pyLint, "python", "3.9"),
-					WithFlag(pyTypecheck, "python", "3.9"),
-					WithFlag(pyTest, "python", "3.9"),
-					WithFlag(pyTest, "coverage", true),
+					WithFlags(pyFormat, pyFlagsTest{Python: "3.9"}),
+					WithFlags(pyLint, pyFlagsTest{Python: "3.9"}),
+					WithFlags(pyTypecheck, pyFlagsTest{Python: "3.9"}),
+					WithFlags(pyTest, pyTestFlagsTest{Python: "3.9", Coverage: true}),
 					WithDetect(detectPyproject),
 				),
 
 				// Additional Python version tests.
 				WithOptions(
 					Parallel(
-						WithOptions(pyTest, WithNameSuffix("3.10"), WithFlag(pyTest, "python", "3.10")),
-						WithOptions(pyTest, WithNameSuffix("3.11"), WithFlag(pyTest, "python", "3.11")),
-						WithOptions(pyTest, WithNameSuffix("3.12"), WithFlag(pyTest, "python", "3.12")),
-						WithOptions(pyTest, WithNameSuffix("3.13"), WithFlag(pyTest, "python", "3.13")),
+						WithOptions(pyTest, WithNameSuffix("3.10"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.10"})),
+						WithOptions(pyTest, WithNameSuffix("3.11"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.11"})),
+						WithOptions(pyTest, WithNameSuffix("3.12"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.12"})),
+						WithOptions(pyTest, WithNameSuffix("3.13"), WithFlags(pyTest, pyTestFlagsTest{Python: "3.13"})),
 					),
 					WithDetect(detectPyproject),
 				),
@@ -699,8 +715,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 					preCommitCheck,
 					WithOptions(
 						ghWorkflows,
-						WithFlag(ghWorkflows, "skip-pocket", true),
-						WithFlag(ghWorkflows, "include-pocket-perjob", true),
+						WithFlags(ghWorkflows, ghWorkflowFlagsTest{SkipPocket: true, IncludePocketPerjob: true}),
 					),
 				),
 			),
@@ -797,14 +812,11 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 
 		queryFormat := &Task{
 			Name: "query-format", Usage: "format tree-sitter queries", Do: noop,
-			Flags: map[string]FlagDef{"parsers": {Default: "", Usage: "parser names"}},
+			Flags: parsersFlagsTest{},
 		}
 		queryLint := &Task{
 			Name: "query-lint", Usage: "lint tree-sitter queries", Do: noop,
-			Flags: map[string]FlagDef{
-				"parsers": {Default: "", Usage: "parser names"},
-				"fix":     {Default: false, Usage: "auto-fix"},
-			},
+			Flags: queryLintFlagsTest{},
 		}
 
 		nvimTestStable := &Task{Name: "nvim-test:stable", Usage: "plenary tests (stable)", Do: noop}
@@ -812,10 +824,7 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 
 		ghWorkflows := &Task{
 			Name: "github-workflows", Usage: "bootstrap github workflows", Do: noop,
-			Flags: map[string]FlagDef{
-				"skip-pocket":           {Default: false, Usage: "exclude pocket workflow"},
-				"include-pocket-perjob": {Default: false, Usage: "include pocket-perjob workflow"},
-			},
+			Flags: ghWorkflowFlagsTest{},
 		}
 
 		// Simulate directory structure with go.mod in root and some subdirs.
@@ -839,16 +848,15 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				),
 
 				Serial(
-					WithOptions(queryFormat, WithFlag(queryFormat, "parsers", "go")),
-					WithOptions(queryLint, WithFlag(queryLint, "parsers", "go")),
+					WithOptions(queryFormat, WithFlags(queryFormat, parsersFlagsTest{Parsers: "go"})),
+					WithOptions(queryLint, WithFlags(queryLint, queryLintFlagsTest{Parsers: "go"})),
 				),
 
 				Parallel(nvimTestStable, nvimTestNightly),
 
 				WithOptions(
 					ghWorkflows,
-					WithFlag(ghWorkflows, "skip-pocket", true),
-					WithFlag(ghWorkflows, "include-pocket-perjob", true),
+					WithFlags(ghWorkflows, ghWorkflowFlagsTest{SkipPocket: true, IncludePocketPerjob: true}),
 				),
 			),
 		}

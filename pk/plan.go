@@ -545,7 +545,7 @@ type TaskInfo struct {
 	Name   string         `json:"name"`            // CLI command name
 	Usage  string         `json:"usage,omitempty"` // Description/help text
 	Paths  []string       `json:"paths"`           // Directories this task runs in (resolved)
-	Flags  map[string]any `json:"flags,omitempty"` // Flag overrides set via pk.WithFlag()
+	Flags  map[string]any `json:"flags,omitempty"` // Flag overrides set via pk.WithFlags()
 	Hidden bool           `json:"hidden"`          // Whether task is hidden from help
 	Manual bool           `json:"manual"`          // Whether task is manual-only
 }
@@ -562,7 +562,7 @@ func (p *Plan) Tasks() []TaskInfo {
 		info := TaskInfo{
 			Name:   instance.name, // Use effective name (may include suffix).
 			Usage:  instance.task.Usage,
-			Flags:  instance.flags, // Pre-merged flag overrides from pk.WithFlag().
+			Flags:  instance.flags, // Pre-merged flag overrides from pk.WithFlags().
 			Hidden: instance.task.Hidden,
 			Manual: instance.isManual, // Set by Config.Manual during planning.
 		}

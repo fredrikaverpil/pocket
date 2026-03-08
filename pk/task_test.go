@@ -190,6 +190,7 @@ type flagTaskFlags struct {
 	Myflag string `flag:"myflag" usage:"usage"`
 }
 
+
 func TestTask_Run_FlagOverrides(t *testing.T) {
 	task := &Task{
 		Name:  "flag-task",
@@ -472,51 +473,6 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 }
 
-func TestGetFlag(t *testing.T) {
-	t.Run("FromContext", func(t *testing.T) {
-		ctx := withTaskFlags(context.Background(), map[string]any{
-			"name":  "hello",
-			"fix":   true,
-			"count": 42,
-		})
-
-		if got := GetFlag[string](ctx, "name"); got != "hello" {
-			t.Errorf("expected 'hello', got %q", got)
-		}
-		if got := GetFlag[bool](ctx, "fix"); !got {
-			t.Errorf("expected true, got %v", got)
-		}
-		if got := GetFlag[int](ctx, "count"); got != 42 {
-			t.Errorf("expected 42, got %d", got)
-		}
-	})
-
-	t.Run("MissingFlagPanics", func(t *testing.T) {
-		ctx := withTaskFlags(context.Background(), map[string]any{})
-
-		assertFlagPanic(t, func() {
-			GetFlag[string](ctx, "missing")
-		}, `flag "missing": not found`)
-	})
-
-	t.Run("NoFlagsInContextPanics", func(t *testing.T) {
-		ctx := context.Background()
-
-		assertFlagPanic(t, func() {
-			GetFlag[string](ctx, "name")
-		}, `flag "name": no flags in context`)
-	})
-
-	t.Run("TypeMismatchPanics", func(t *testing.T) {
-		ctx := withTaskFlags(context.Background(), map[string]any{
-			"name": 42, // int, not string
-		})
-
-		assertFlagPanic(t, func() {
-			GetFlag[string](ctx, "name")
-		}, `flag "name": expected string, got int`)
-	})
-}
 
 // assertFlagPanic asserts that fn panics with a flagError containing wantMsg.
 func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {
@@ -634,8 +590,8 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 
 	cfg := &Config{
 		Auto: Parallel(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlag(task, "version", "3.9")),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlag(task, "version", "3.10")),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, multiVerFlags{Version: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, multiVerFlags{Version: "3.10"})),
 		),
 	}
 
@@ -661,30 +617,21 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	}
 }
 
-type badFlagFlags struct {
-	Real string `flag:"real" usage:"a real flag"`
-}
-
-func TestGetFlag_RecoveredByTaskRun(t *testing.T) {
+func TestGetFlags_RecoveredByTaskRun(t *testing.T) {
 	task := &Task{
-		Name:  "bad-flag",
-		Flags: badFlagFlags{Real: "value"},
+		Name: "bad-flag",
 		Do: func(ctx context.Context) error {
-			_ = GetFlag[string](ctx, "typo") // This will panic.
+			_ = GetFlags[flagTaskFlags](ctx) // This will panic (no flags in context).
 			return nil
 		},
-	}
-
-	if err := task.buildFlagSet(); err != nil {
-		t.Fatal(err)
 	}
 
 	// task.run() should recover the panic and return an error.
 	err := task.run(context.Background())
 	if err == nil {
-		t.Fatal("expected error from recovered GetFlag panic, got nil")
+		t.Fatal("expected error from recovered GetFlags panic, got nil")
 	}
-	if got := err.Error(); got != `task "bad-flag": flag "typo": not found` {
+	if got := err.Error(); got != `task "bad-flag": no flags in context` {
 		t.Errorf("unexpected error message: %q", got)
 	}
 }

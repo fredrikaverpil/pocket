@@ -156,17 +156,19 @@ func TestIntegration_DeduplicationAcrossComposition(t *testing.T) {
 	}
 }
 
+type pyTestIntFlags struct {
+	Python string `flag:"python" usage:"python version"`
+}
+
 func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 	var captured39, captured310 string
 
 	task := &Task{
 		Name:  "py-test",
 		Usage: "python test",
-		Flags: map[string]FlagDef{
-			"python": {Default: "unset", Usage: "python version"},
-		},
+		Flags: pyTestIntFlags{Python: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := GetFlag[string](ctx, "python")
+			ver := GetFlags[pyTestIntFlags](ctx).Python
 			suffix := nameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
@@ -180,8 +182,8 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 
 	cfg := &Config{
 		Auto: Serial(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlag(task, "python", "3.9")),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlag(task, "python", "3.10")),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, pyTestIntFlags{Python: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, pyTestIntFlags{Python: "3.10"})),
 		),
 	}
 
@@ -327,22 +329,24 @@ func TestIntegration_ManualTaskSkippedInAutoExec(t *testing.T) {
 	}
 }
 
+type modeIntFlags struct {
+	Mode string `flag:"mode" usage:"mode"`
+}
+
 func TestIntegration_FlagOverrideViaWithFlag(t *testing.T) {
 	var captured string
 	task := &Task{
 		Name:  "test",
 		Usage: "test",
-		Flags: map[string]FlagDef{
-			"mode": {Default: "default", Usage: "mode"},
-		},
+		Flags: modeIntFlags{Mode: "default"},
 		Do: func(ctx context.Context) error {
-			captured = GetFlag[string](ctx, "mode")
+			captured = GetFlags[modeIntFlags](ctx).Mode
 			return nil
 		},
 	}
 
 	cfg := &Config{
-		Auto: WithOptions(task, WithFlag(task, "mode", "overridden")),
+		Auto: WithOptions(task, WithFlags(task, modeIntFlags{Mode: "overridden"})),
 	}
 
 	plan, err := newPlan(cfg, "/tmp", []string{"."})

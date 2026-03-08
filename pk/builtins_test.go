@@ -158,13 +158,15 @@ func TestBuildJSONTree(t *testing.T) {
 	})
 }
 
+type lintHelpFlags struct {
+	Fix bool `flag:"fix" usage:"apply fixes"`
+}
+
 func TestPrintTaskHelp(t *testing.T) {
 	task := &Task{
 		Name:  "lint",
 		Usage: "run linters",
-		Flags: map[string]FlagDef{
-			"fix": {Default: true, Usage: "apply fixes"},
-		},
+		Flags: lintHelpFlags{Fix: true},
 	}
 	_ = task.buildFlagSet()
 

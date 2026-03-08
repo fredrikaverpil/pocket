@@ -61,20 +61,22 @@ func TestFindTask_NilPlan(t *testing.T) {
 	}
 }
 
+type pyCliFlags struct {
+	Python string `flag:"python" usage:"python version"`
+}
+
 func TestFindTaskByName_WithSuffix(t *testing.T) {
 	task := &Task{
 		Name:  "py-test",
 		Usage: "python test",
-		Flags: map[string]FlagDef{
-			"python": {Default: "3.9", Usage: "python version"},
-		},
-		Do: func(_ context.Context) error { return nil },
+		Flags: pyCliFlags{Python: "3.9"},
+		Do:    func(_ context.Context) error { return nil },
 	}
 
 	cfg := &Config{
 		Auto: Serial(
-			WithOptions(task, WithNameSuffix("3.9"), WithFlag(task, "python", "3.9")),
-			WithOptions(task, WithNameSuffix("3.10"), WithFlag(task, "python", "3.10")),
+			WithOptions(task, WithNameSuffix("3.9"), WithFlags(task, pyCliFlags{Python: "3.9"})),
+			WithOptions(task, WithNameSuffix("3.10"), WithFlags(task, pyCliFlags{Python: "3.10"})),
 		),
 	}
 
