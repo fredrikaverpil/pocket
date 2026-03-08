@@ -211,3 +211,27 @@ func TestGetFlags(t *testing.T) {
 		}, "no flags in context")
 	})
 }
+
+func TestBuildFlagSet_Struct(t *testing.T) {
+	type flags struct {
+		Fix  bool   `flag:"fix"  usage:"apply fixes"`
+		Name string `flag:"name" usage:"a name"`
+	}
+
+	task := &Task{
+		Name:  "test",
+		Flags: flags{Fix: true, Name: "default"},
+		Do:    func(_ context.Context) error { return nil },
+	}
+
+	if err := task.buildFlagSet(); err != nil {
+		t.Fatal(err)
+	}
+
+	if f := task.flagSet.Lookup("fix"); f == nil {
+		t.Error("expected 'fix' flag")
+	}
+	if f := task.flagSet.Lookup("name"); f == nil {
+		t.Error("expected 'name' flag")
+	}
+}

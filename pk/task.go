@@ -4,10 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"maps"
 	"slices"
-	"sort"
 )
 
 // Task represents a named, executable unit of work.
@@ -39,9 +37,11 @@ type Task struct {
 	Do func(context.Context) error
 	// Body is the task's composed logic. Mutually exclusive with Do.
 	Body Runnable
-	// Flags defines declarative CLI flags for the task.
-	// Access flag values at runtime with [GetFlag].
-	Flags map[string]FlagDef
+	// Flags defines declarative CLI flags for the task as a struct.
+	// Each exported field becomes a flag. Use struct tags:
+	//   `flag:"name" usage:"help text"`
+	// Access flag values at runtime with [GetFlags].
+	Flags any
 	// Hidden makes the task invisible in CLI listings. Hidden tasks can still
 	// be executed directly.
 	Hidden bool
@@ -57,7 +57,7 @@ type Task struct {
 }
 
 // FlagDef defines a declarative CLI flag.
-// Supported Default types: string, bool, int, float64.
+// Deprecated: Use a struct with `flag` and `usage` struct tags instead.
 type FlagDef struct {
 	// Default is the flag's default value.
 	Default any
@@ -123,40 +123,13 @@ func GetFlag[T any](ctx context.Context, name string) T {
 	return typed
 }
 
-// buildFlagSet constructs the internal *flag.FlagSet from the Flags map.
+// buildFlagSet constructs the internal *flag.FlagSet from the Flags struct.
 // Flags are registered in sorted order for deterministic -h output.
 func (t *Task) buildFlagSet() error {
-	fs := flag.NewFlagSet(t.Name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	if len(t.Flags) == 0 {
-		t.flagSet = fs
-		return nil
+	fs, err := buildFlagSetFromStruct(t.Name, t.Flags)
+	if err != nil {
+		return err
 	}
-
-	// Sort flag names for deterministic output.
-	names := make([]string, 0, len(t.Flags))
-	for name := range t.Flags {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		def := t.Flags[name]
-		switch v := def.Default.(type) {
-		case string:
-			fs.String(name, v, def.Usage)
-		case bool:
-			fs.Bool(name, v, def.Usage)
-		case int:
-			fs.Int(name, v, def.Usage)
-		case float64:
-			fs.Float64(name, v, def.Usage)
-		default:
-			return fmt.Errorf("task %q: flag %q has unsupported default type %T", t.Name, name, def.Default)
-		}
-	}
-
 	t.flagSet = fs
 	return nil
 }
@@ -185,10 +158,10 @@ func (t *Task) run(ctx context.Context) error {
 	// Build resolved flags from declared defaults + plan overrides + CLI overrides.
 	// This avoids mutating the shared flagSet, preventing races when the same
 	// task runs in parallel with different WithNameSuffix variants.
-	if len(t.Flags) > 0 {
-		resolved := make(map[string]any, len(t.Flags))
-		for name, def := range t.Flags {
-			resolved[name] = def.Default
+	if t.Flags != nil {
+		resolved, err := structToMap(t.Flags)
+		if err != nil {
+			return fmt.Errorf("task %q: %w", t.Name, err)
 		}
 		// Apply plan-level overrides (from WithFlag).
 		if plan := PlanFromContext(ctx); plan != nil {
