@@ -123,9 +123,9 @@ workflows:
 ```go
 var Config = &pk.Config{
     Auto: pk.Serial(
-        pk.Parallel(Fix, Format),  // run concurrently
-        Test,                      // then run tests
-        Build,                     // finally build
+        Format,                   // first run tests
+        pk.Parallel(Lint, Test),  // then run concurrently
+        Build,                    // finally build
     ),
 }
 ```
