@@ -147,7 +147,7 @@ Wrap tasks with `WithOptions` to customize behavior:
 - **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
 - **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets task-specific
   flags
-- [and more...](./REFERENCE.md)
+- [and more...](./docs/reference.md)
 
 ```go
 pk.WithOptions(

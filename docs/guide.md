@@ -153,7 +153,12 @@ Run it with:
 ```
 
 Supported field types: `string`, `bool`, `int`, `int64`, `uint`, `uint64`,
-`float64`, `time.Duration`.
+`float64`, `time.Duration`, and pointer variants (`*string`, `*bool`, etc.) for
+optional overrides.
+
+Pointer fields use `nil` = not set (inherits default), non-nil = explicit
+override. This is useful with `pk.WithFlags` — you only set what you want to
+change, and `nil` fields are skipped during diffing.
 
 The struct approach provides compile-time safety. Field access via the returned
 struct means typos are caught by the compiler, not at runtime.
@@ -196,6 +201,16 @@ pk.Do(func(ctx context.Context) error {
 
 This keeps CI logs clean while ensuring warnings and deprecation notices are
 never silently hidden.
+
+To override the default notice patterns or disable detection entirely, use
+`pk.WithNoticePatterns(...)` in your `WithOptions` scope:
+
+```go
+pk.WithOptions(
+    NoisyTask,
+    pk.WithNoticePatterns(), // disable notice detection entirely
+)
+```
 
 **Other features:**
 
@@ -841,6 +856,7 @@ specific directories. All path patterns are **regular expressions**.
 | `pk.WithFlags(flagsStruct)`       | Override a task's flags                |
 | `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
 | `pk.WithForceRun()`               | Disable deduplication                  |
+| `pk.WithNoticePatterns(...)`      | Override warning detection patterns    |
 
 Use `pk.WithFlags()` to set task flags explicitly:
 

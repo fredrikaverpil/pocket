@@ -6,7 +6,7 @@ Technical reference for the `github.com/fredrikaverpil/pocket/pk` package.
 
 - [Configuration](#configuration)
 - [Composition](#composition)
-- [Path Options](#path-options)
+- [Task Options](#task-options)
 - [Detection](#detection)
 - [Tasks](#tasks)
 - [Execution](#execution)
@@ -120,7 +120,8 @@ func GetFlags[T any](ctx context.Context) T
 defaults; `flag` and `usage` struct tags define the CLI name and help text.
 
 Supported types: `string`, `bool`, `int`, `int64`, `uint`, `uint64`, `float64`,
-`time.Duration`.
+`time.Duration`, and pointer variants (`*string`, `*bool`, etc.) for optional
+overrides where `nil` means "not set".
 
 ```go
 type DeployFlags struct {
@@ -185,16 +186,17 @@ Options passed to `WithOptions` to control where and how tasks execute.
 
 These options work with any task:
 
-| Option            | Description                                              |
-| :---------------- | :------------------------------------------------------- |
-| `WithIncludePath` | Run only in directories matching the regex patterns      |
-| `WithExcludePath` | Skip directories matching the regex patterns             |
-| `WithDetect`      | Dynamically discover paths using a detection function    |
-| `WithNameSuffix`  | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
-| `WithForceRun`    | Bypass task deduplication for the wrapped runnable       |
-| `WithFlags`       | Set flag overrides for a task in scope                   |
-| `WithSkipTask`    | Skip specified tasks within this scope                   |
-| `WithExcludeTask` | Exclude a task from directories matching patterns        |
+| Option               | Description                                              |
+| :------------------- | :------------------------------------------------------- |
+| `WithIncludePath`    | Run only in directories matching the regex patterns      |
+| `WithExcludePath`    | Skip directories matching the regex patterns             |
+| `WithDetect`         | Dynamically discover paths using a detection function    |
+| `WithNameSuffix`     | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
+| `WithForceRun`       | Bypass task deduplication for the wrapped runnable       |
+| `WithFlags`          | Set flag overrides for a task in scope                   |
+| `WithSkipTask`       | Skip specified tasks within this scope                   |
+| `WithExcludeTask`    | Exclude a task from directories matching patterns        |
+| `WithNoticePatterns` | Override warning detection patterns for the scope        |
 
 ```go
 pk.WithOptions(
@@ -309,7 +311,9 @@ pk.Do(func(ctx context.Context) error {
 
 - **With `-v`:** Output streams to stdout/stderr in real-time
 - **Without `-v`:** Output captured, shown on error or if warnings detected
-- Detects: `warn`, `deprecat`, `notice`, `caution`, `error` (case-insensitive)
+- Detects warnings via `DefaultNoticePatterns`: `warn`, `deprecat`, `notice`,
+  `caution`, `error` (case-insensitive)
+- Override with `WithNoticePatterns(...)`, or pass no patterns to disable
 - Adds `.pocket/bin` to PATH
 - Sends SIGINT for graceful shutdown (Unix)
 
@@ -627,12 +631,12 @@ if errors.Is(err, pk.ErrGitDiffUncommitted) {
 
 ### Flags
 
-| Flag        | Description                        |
-| :---------- | :--------------------------------- |
-| `-g`        | Run git diff check after execution |
-| `-h`        | Show help                          |
-| `-v`        | Verbose mode                       |
-| `--version` | Show version                       |
+| Flag              | Description                        |
+| :---------------- | :--------------------------------- |
+| `-g`, `--gitdiff` | Run git diff check after execution |
+| `-h`, `--help`    | Show help                          |
+| `-v`, `--verbose` | Verbose mode                       |
+| `--version`       | Show version                       |
 
 ### Functions
 
