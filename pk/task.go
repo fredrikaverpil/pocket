@@ -164,7 +164,7 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Check if this task should run at this path based on the Plan's pathMappings.
-	// This handles task-specific excludes (WithExcludeTask).
+	// This handles task-specific excludes (WithSkipTask with patterns).
 	if plan := PlanFromContext(ctx); plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
 			path := PathFromContext(ctx)

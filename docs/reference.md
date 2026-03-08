@@ -173,7 +173,7 @@ type Runnable interface {
 ```go
 pk.Serial(Format, Lint, Test)
 pk.Parallel(Lint, Test, Build)
-pk.WithOptions(Test, pk.WithIncludePath("services"))
+pk.WithOptions(Test, pk.WithPath("services"))
 ```
 
 ---
@@ -186,22 +186,21 @@ Options passed to `WithOptions` to control where and how tasks execute.
 
 These options work with any task:
 
-| Option               | Description                                              |
-| :------------------- | :------------------------------------------------------- |
-| `WithIncludePath`    | Run only in directories matching the regex patterns      |
-| `WithExcludePath`    | Skip directories matching the regex patterns             |
-| `WithDetect`         | Dynamically discover paths using a detection function    |
-| `WithNameSuffix`     | Create a named variant (e.g., `py-test` → `py-test:3.9`) |
-| `WithForceRun`       | Bypass task deduplication for the wrapped runnable       |
-| `WithFlags`          | Set flag overrides for a task in scope                   |
-| `WithSkipTask`       | Skip specified tasks within this scope                   |
-| `WithExcludeTask`    | Exclude a task from directories matching patterns        |
-| `WithNoticePatterns` | Override warning detection patterns for the scope        |
+| Option               | Description                                                 |
+| :------------------- | :---------------------------------------------------------- |
+| `WithPath`           | Run only in directories matching the regex patterns         |
+| `WithSkipPath`       | Skip directories matching the regex patterns                |
+| `WithSkipTask`       | Skip a task entirely, or from directories matching patterns |
+| `WithDetect`         | Dynamically discover paths using a detection function       |
+| `WithNameSuffix`     | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
+| `WithForceRun`       | Bypass task deduplication for the wrapped runnable          |
+| `WithFlags`          | Set flag overrides for a task in scope                      |
+| `WithNoticePatterns` | Override warning detection patterns for the scope           |
 
 ```go
 pk.WithOptions(
     pk.Parallel(Lint, Test),
-    pk.WithIncludePath("services/.*"),
+    pk.WithPath("services/.*"),
     pk.WithFlags(golang.TestFlags{Race: true}),
 )
 ```
@@ -226,7 +225,7 @@ deduplicated separately, so `py-test:3.9` and `py-test:3.10` both run.
 
 ### Default Execution Path
 
-Tasks run at the repository root (`.`) by default. Use `WithIncludePath` or
+Tasks run at the repository root (`.`) by default. Use `WithPath` or
 `WithDetect` to run tasks in specific directories.
 
 ---

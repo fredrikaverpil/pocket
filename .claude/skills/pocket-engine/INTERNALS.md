@@ -37,10 +37,10 @@ type taskInstance struct {
 
 3. **Resolve paths** — For each task instance, paths are resolved against the
    cached directory list:
-   - Global excludes (`WithExcludePath`) filter candidates first
+   - Global excludes (`WithSkipPath`) filter candidates first
    - Detection function runs against filtered candidates (if present)
    - Include patterns filter by regex match (if no detection)
-   - Task-specific excludes (`WithExcludeTask`) apply last
+   - Task-specific excludes (`WithSkipTask` with patterns) apply last
    - Default: `["."]` (root only)
 
 4. **Build index** — Task instances indexed by effective name for O(1) lookup.
@@ -81,11 +81,11 @@ Path resolution transforms user-declared patterns into concrete directories.
 ```
 All directories (from filesystem walk)
     ↓
-Global excludes (WithExcludePath) — removes from ALL tasks in scope
+Global excludes (WithSkipPath) — removes from ALL tasks in scope
     ↓
 Detection OR include filter
     ↓
-Task-specific excludes (WithExcludeTask) — removes for ONE task
+Task-specific excludes (WithSkipTask with patterns) — removes for ONE task
     ↓
 Resolved paths (stored in taskInstance)
 ```
@@ -250,11 +250,11 @@ another's. The order is determined by completion time.
 ### Where shims are generated
 
 1. **Root** (`.`) — always
-2. **Include paths** — each unique path from `WithIncludePath`
+2. **Include paths** — each unique path from `WithPath`
 3. **Detected paths** — each path from detection functions
 
 Only the declared/detected path gets a shim, not every resolved subdirectory.
-Example: `WithIncludePath("internal")` generates `internal/pok`, even if
+Example: `WithPath("internal")` generates `internal/pok`, even if
 `internal/` contains multiple subdirectories.
 
 ### Shim variants

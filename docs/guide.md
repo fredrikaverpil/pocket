@@ -847,16 +847,17 @@ specific directories. All path patterns are **regular expressions**.
 
 **Generic options (`pk.With*`)** work with any task:
 
-| Option                            | Description                            |
-| :-------------------------------- | :------------------------------------- |
-| `pk.WithIncludePath(patterns...)` | Only run in matching directories       |
-| `pk.WithExcludePath(patterns...)` | Skip matching directories              |
-| `pk.WithDetect(fn)`               | Auto-detect directories                |
-| `pk.WithNameSuffix(suffix)`       | Add suffix to task names (e.g., `:v2`) |
-| `pk.WithFlags(flagsStruct)`       | Override a task's flags                |
-| `pk.WithSkipTask(tasks...)`       | Remove tasks from scope                |
-| `pk.WithForceRun()`               | Disable deduplication                  |
-| `pk.WithNoticePatterns(...)`      | Override warning detection patterns    |
+| Option                               | Description                            |
+| :----------------------------------- | :------------------------------------- |
+| `pk.WithPath(patterns...)`           | Only run in matching directories       |
+| `pk.WithSkipPath(patterns...)`       | Skip matching directories              |
+| `pk.WithSkipTask(task)`              | Remove a task from scope               |
+| `pk.WithSkipTask(task, patterns...)` | Skip a task in matching directories    |
+| `pk.WithDetect(fn)`                  | Auto-detect directories                |
+| `pk.WithNameSuffix(suffix)`          | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithFlags(flagsStruct)`          | Override a task's flags                |
+| `pk.WithForceRun()`                  | Disable deduplication                  |
+| `pk.WithNoticePatterns(...)`         | Override warning detection patterns    |
 
 Use `pk.WithFlags()` to set task flags explicitly:
 
@@ -891,8 +892,8 @@ Use `pk.WithOptions` to apply path constraints:
 ```go
 pk.WithOptions(
     pk.Parallel(Lint, Test),
-    pk.WithIncludePath("services/.*"),     // Only in services/ subdirectories
-    pk.WithExcludePath("vendor"),          // Skip vendor/ everywhere
+    pk.WithPath("services/.*"),     // Only in services/ subdirectories
+    pk.WithSkipPath("vendor"),             // Skip vendor/ everywhere
 )
 ```
 
@@ -924,7 +925,7 @@ pk.WithOptions(
         golang.Tasks(),
         pk.WithDetect(pk.DetectByFile("go.mod")),
     ),
-    pk.WithExcludePath("testdata"),  // Applies to inner scope too
+    pk.WithSkipPath("testdata"),     // Applies to inner scope too
 )
 ```
 
@@ -935,18 +936,18 @@ large repositories.
 
 Apply constraints to specific tasks without refactoring the tree:
 
-| Option                               | Description                            |
-| :----------------------------------- | :------------------------------------- |
-| `WithExcludePath(patterns...)`       | Exclude paths for ALL tasks in scope   |
-| `WithExcludeTask(task, patterns...)` | Exclude paths for a SPECIFIC task only |
-| `WithSkipTask(tasks...)`             | Remove tasks entirely from scope       |
-| `WithFlags(flagsStruct)`             | Set flag overrides for a task          |
+| Option                            | Description                         |
+| :-------------------------------- | :---------------------------------- |
+| `WithSkipPath(patterns...)`       | Skip paths for ALL tasks in scope   |
+| `WithSkipTask(task)`              | Remove a task entirely from scope   |
+| `WithSkipTask(task, patterns...)` | Skip a task in matching directories |
+| `WithFlags(flagsStruct)`          | Set flag overrides for a task       |
 
 ```go
 pk.WithOptions(
     golang.Tasks(),
-    pk.WithExcludePath("vendor"),              // Global: no tasks run in vendor/
-    pk.WithExcludeTask(golang.Test, "foo/.*"), // Only go-test skips foo/
+    pk.WithSkipPath("vendor"),                 // Global: no tasks run in vendor/
+    pk.WithSkipTask(golang.Test, "foo/.*"),    // Only go-test skips foo/
     pk.WithSkipTask(golang.Lint),              // Remove linting entirely
     pk.WithFlags(golang.TestFlags{Race: true}), // Enable race detector
 )
@@ -965,7 +966,7 @@ safety).
 
 ### Shim Scoping
 
-Pocket generates `./pok` shims in directories matched by `WithIncludePath` or
+Pocket generates `./pok` shims in directories matched by `WithPath` or
 `WithDetect`.
 
 - Running `./pok` from **root** shows and executes all tasks

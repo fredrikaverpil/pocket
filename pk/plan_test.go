@@ -109,7 +109,7 @@ func TestPlan_Tasks(t *testing.T) {
 		task := newTask("lint", "lint code")
 
 		cfg := &Config{
-			Auto: WithOptions(task, WithIncludePath("services")),
+			Auto: WithOptions(task, WithPath("services")),
 		}
 
 		plan, err := newPlan(cfg, "/tmp", allDirs)
@@ -188,8 +188,8 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		// Intersection should be services/api
 		cfg := &Config{
 			Auto: WithOptions(
-				WithOptions(task, WithIncludePath("services/api"), WithIncludePath("pkg")),
-				WithIncludePath("services"),
+				WithOptions(task, WithPath("services/api"), WithPath("pkg")),
+				WithPath("services"),
 			),
 		}
 
@@ -237,7 +237,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		cfg := &Config{
 			Auto: WithOptions(
 				Parallel(task1, task2),
-				WithExcludeTask(task1, "pkg"),
+				WithSkipTask(task1, "pkg"),
 			),
 		}
 
@@ -263,7 +263,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		cfg := &Config{
 			Auto: WithOptions(
 				task,
-				WithExcludePath("services/.*"),
+				WithSkipPath("services/.*"),
 			),
 		}
 
@@ -296,10 +296,10 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 			Auto: WithOptions(
 				WithOptions(
 					Parallel(taskLint, taskTest, taskExtra),
-					WithIncludePath("^services", "^pkg"),
-					WithExcludeTask(taskTest, "^pkg"),
+					WithPath("^services", "^pkg"),
+					WithSkipTask(taskTest, "^pkg"),
 				),
-				WithExcludePath("^vendor"),
+				WithSkipPath("^vendor"),
 				WithSkipTask(taskExtra),
 			),
 		}
@@ -360,7 +360,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 			Auto: WithOptions(
 				task,
 				WithDetect(detectServices),
-				WithExcludePath("services/api", "services/web"),
+				WithSkipPath("services/api", "services/web"),
 			),
 		}
 
@@ -384,7 +384,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 		taskTest := newTask("go-test")
 
 		// Detection finds services/api and services/web.
-		// WithExcludeTask removes all paths for go-test only.
+		// WithSkipTask removes all paths for go-test only.
 		// This should NOT error - it's intentional to skip go-test in those paths.
 		detectServices := func(dirs []string, _ string) []string {
 			var result []string
@@ -400,7 +400,7 @@ func TestNewPlan_NestedFilters(t *testing.T) {
 			Auto: WithOptions(
 				Parallel(taskLint, taskTest),
 				WithDetect(detectServices),
-				WithExcludeTask(taskTest, "services/api", "services/web"),
+				WithSkipTask(taskTest, "services/api", "services/web"),
 			),
 		}
 
@@ -583,7 +583,7 @@ func TestNewPlan_InvalidRegexPattern(t *testing.T) {
 
 	t.Run("InvalidInclude", func(t *testing.T) {
 		cfg := &Config{
-			Auto: WithOptions(task, WithIncludePath("[invalid(regex")),
+			Auto: WithOptions(task, WithPath("[invalid(regex")),
 		}
 		_, err := newPlan(cfg, "/tmp", allDirs)
 		if err == nil {
@@ -596,7 +596,7 @@ func TestNewPlan_InvalidRegexPattern(t *testing.T) {
 
 	t.Run("InvalidExclude", func(t *testing.T) {
 		cfg := &Config{
-			Auto: WithOptions(task, WithIncludePath("services"), WithExcludePath("[bad")),
+			Auto: WithOptions(task, WithPath("services"), WithSkipPath("[bad")),
 		}
 		_, err := newPlan(cfg, "/tmp", allDirs)
 		if err == nil {
@@ -847,8 +847,8 @@ func TestNewPlan_ComposedConfigs(t *testing.T) {
 				WithOptions(
 					Serial(goFix, goFormat, goLint, Parallel(goTest, goVulncheck)),
 					WithDetect(detectGoMod),
-					WithExcludeTask(goTest, "tests/go", "tests/features"),
-					WithExcludeTask(goLint, "tests/go", "tests/features"),
+					WithSkipTask(goTest, "tests/go", "tests/features"),
+					WithSkipTask(goLint, "tests/go", "tests/features"),
 				),
 
 				Serial(

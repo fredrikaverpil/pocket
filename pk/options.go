@@ -18,49 +18,47 @@ type Option func(*pathFilter)
 // Used with WithDetect to dynamically discover paths for task execution.
 type DetectFunc func(dirs []string, gitRoot string) []string
 
-// WithIncludePath adds include patterns for path filtering.
+// WithPath adds include patterns for path filtering.
 // Only directories matching any of the patterns will be included.
 // Patterns are relative to the git root and are interpreted as regular expressions.
-func WithIncludePath(patterns ...string) Option {
+func WithPath(patterns ...string) Option {
 	return func(pf *pathFilter) {
 		pf.includePaths = append(pf.includePaths, patterns...)
 	}
 }
 
-// WithExcludePath adds exclude patterns for path filtering.
+// WithSkipPath adds exclude patterns for path filtering.
 // Directories matching any of the patterns will be excluded for ALL tasks in the current scope.
 // Patterns are relative to the git root and are interpreted as regular expressions.
-func WithExcludePath(patterns ...string) Option {
+func WithSkipPath(patterns ...string) Option {
 	return func(pf *pathFilter) {
 		for _, p := range patterns {
 			pf.excludePaths = append(pf.excludePaths, excludePattern{
 				pattern: p,
-				tasks:   nil, // Global for the scope
+				tasks:   nil, // Global for the scope.
 			})
 		}
 	}
 }
 
-// WithExcludeTask excludes a specific task from certain patterns.
+// WithSkipTask skips a task within the current scope.
+// When called with only a task, the task is removed entirely from the scope.
+// When called with a task and patterns, the task is excluded from directories matching the patterns.
 // Patterns are relative to the git root and are interpreted as regular expressions.
 // The task can be specified by its string name or by the task object itself.
-func WithExcludeTask(task any, patterns ...string) Option {
+func WithSkipTask(task any, patterns ...string) Option {
 	return func(pf *pathFilter) {
 		name := toTaskName(task)
+		if len(patterns) == 0 {
+			pf.skippedTasks = append(pf.skippedTasks, name)
+			return
+		}
 		for _, p := range patterns {
 			pf.excludePaths = append(pf.excludePaths, excludePattern{
 				pattern: p,
 				tasks:   []string{name},
 			})
 		}
-	}
-}
-
-// WithSkipTask completely removes specific tasks from the current scope.
-// Tasks can be specified by their string name or by the task object itself.
-func WithSkipTask(tasks ...any) Option {
-	return func(pf *pathFilter) {
-		pf.skippedTasks = append(pf.skippedTasks, toTaskNames(tasks)...)
 	}
 }
 
@@ -103,7 +101,7 @@ func WithForceRun() Option {
 //
 //	pk.WithOptions(
 //	    golang.Tasks(),
-//	    pk.WithExcludePath("vendor"), // Excludes vendor/ from the Go task scope
+//	    pk.WithSkipPath("vendor"), // Excludes vendor/ from the Go task scope
 //	    pk.WithFlags(golang.TestFlags{Race: true}),
 //	)
 func WithDetect(fn DetectFunc) Option {
@@ -316,14 +314,6 @@ func walkTasks(r Runnable, fn func(*Task)) {
 	case *pathFilter:
 		walkTasks(v.inner, fn)
 	}
-}
-
-func toTaskNames(tasks []any) []string {
-	names := make([]string, 0, len(tasks))
-	for _, t := range tasks {
-		names = append(names, toTaskName(t))
-	}
-	return names
 }
 
 func toTaskName(v any) string {

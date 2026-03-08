@@ -205,7 +205,7 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 	}
 }
 
-func TestIntegration_WithExcludeTask(t *testing.T) {
+func TestIntegration_WithSkipTaskPattern(t *testing.T) {
 	var lintPaths, testPaths []string
 
 	lint := &Task{Name: "lint", Usage: "lint", Do: func(ctx context.Context) error {
@@ -220,8 +220,8 @@ func TestIntegration_WithExcludeTask(t *testing.T) {
 	cfg := &Config{
 		Auto: WithOptions(
 			Parallel(lint, test),
-			WithIncludePath("svc-a", "svc-b"),
-			WithExcludeTask(test, "svc-b"), // test excluded from svc-b
+			WithPath("svc-a", "svc-b"),
+			WithSkipTask(test, "svc-b"), // test excluded from svc-b
 		),
 	}
 

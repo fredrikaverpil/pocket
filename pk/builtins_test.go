@@ -133,7 +133,7 @@ func TestBuildJSONTree(t *testing.T) {
 	})
 
 	t.Run("WithOptions", func(t *testing.T) {
-		pf := WithOptions(task, WithIncludePath("services"))
+		pf := WithOptions(task, WithPath("services"))
 		result := buildJSONTree(pf, "", plan)
 		if result["type"] != "pathFilter" {
 			t.Errorf("expected type=pathFilter, got %v", result["type"])

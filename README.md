@@ -142,9 +142,8 @@ Wrap tasks with `WithOptions` to customize behavior:
 
 - **Auto-detection**: `WithDetect(golang.Detect())` finds all `go.mod`
   directories
-- **Path filtering**: `WithIncludePath("services/*")` runs only in matching
-  paths
-- **Path exclusion**: `WithExcludePath("vendor")` skips specific directories
+- **Path filtering**: `WithPath("services/*")` runs only in matching paths
+- **Path exclusion**: `WithSkipPath("vendor")` skips specific directories
 - **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets task-specific
   flags
 - [and more...](./docs/reference.md)
@@ -153,7 +152,7 @@ Wrap tasks with `WithOptions` to customize behavior:
 pk.WithOptions(
     pk.Parallel(Lint, Test),
     pk.WithDetect(golang.Detect()),      // run in each Go module
-    pk.WithExcludePath("testdata"),      // skip test fixtures
+    pk.WithSkipPath("testdata"),          // skip test fixtures
     pk.WithFlags(golang.TestFlags{Race: false}),  // disable race detector for Test
 )
 ```
@@ -173,8 +172,8 @@ bypass deduplication when needed.
 ### Shim Scoping
 
 Pocket generates shims in each detected module directory (`pk.Detect`) and each
-path defined with `pk.WithIncludePath`. The root shim runs everything, while
-subfolder shims only run tasks scoped to that path:
+path defined with `pk.WithPath`. The root shim runs everything, while subfolder
+shims only run tasks scoped to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths

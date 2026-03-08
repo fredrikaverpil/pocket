@@ -69,7 +69,7 @@ func (p *Plan) ShimConfig() *ShimConfig {
 // pathInfo describes where a task should execute.
 // This is part of the public Plan API for introspection.
 type pathInfo struct {
-	// includePaths is the original include patterns from WithIncludePath().
+	// includePaths is the original include patterns from WithPath().
 	// Used for visibility filtering (which tasks are visible from which paths).
 	// Empty means the task runs at root only.
 	includePaths []string
@@ -322,7 +322,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			finalPaths = []string{"."}
 		} else {
 			// Inside a pathFilter - apply excludes to current candidates.
-			// First apply global excludes (WithExcludePath), then task-specific (WithExcludeTask).
+			// First apply global excludes (WithSkipPath), then task-specific (WithSkipTask).
 			finalPaths = pc.candidates
 
 			// Apply global excludes first.
@@ -341,11 +341,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// but excluding all directories that would match.
 			if len(finalPaths) == 0 && len(pc.candidates) > 0 {
 				return fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
-					"either adjust excludes or use WithSkipTask to skip this task entirely",
+					"either adjust excludes or use WithSkipTask to remove this task entirely",
 					effectiveName, len(pc.candidates))
 			}
 
-			// Apply task-specific excludes (WithExcludeTask).
+			// Apply task-specific excludes (WithSkipTask with patterns).
 			// If this removes all paths for this task, that's intentional - the task just won't run.
 			for _, ex := range pc.activeExcludes {
 				if len(ex.tasks) > 0 && slices.Contains(ex.tasks, v.Name) {
@@ -502,9 +502,9 @@ func excludeByPatterns(dirs, patterns []string) ([]string, error) {
 // deriveModuleDirectories returns directories where shims should be generated.
 // Shims are generated at:
 //  1. Root (".") - always included if any tasks exist
-//  2. Each unique include path pattern from WithIncludePath()
+//  2. Each unique include path pattern from WithPath()
 //
-// This differs from resolved paths: if WithIncludePath("internal") is used,
+// This differs from resolved paths: if WithPath("internal") is used,
 // we generate a shim at "internal/", NOT at "internal/shim/", "internal/scaffold/", etc.
 //
 // This function derives shim directories from pathMappings, which already contains

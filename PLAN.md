@@ -1,11 +1,7 @@
 # Plan
 
-- [ ] Minor naming friction: WithExcludeTask vs WithSkipTask. These two do
-      different things ("exclude task from specific paths" vs "remove task
-      entirely") but the names don't convey this clearly. WithExcludeTask is
-      really "exclude task from paths matching pattern" — maybe
-      WithExcludeTaskPath would be clearer? But this is minor compared to
-      WithContextValue.
+- [x] ~~Minor naming friction: WithExcludeTask vs WithSkipTask.~~ Resolved:
+      unified to `WithSkipPath` and `WithSkipTask(task, patterns...)`.
 - [ ] Do we have enough tests (AAA pattern + table tests) so that we avoid
       breaking functionality?
   - [ ] Measure code coverage and inspect non-covered parts and whether we

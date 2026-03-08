@@ -159,7 +159,7 @@ func TestE2E_ExecuteTask_PathScoping(t *testing.T) {
 	rec := newRecorder()
 	task := rec.task("scoped")
 
-	cfg := &Config{Auto: WithOptions(task, WithIncludePath("svc-a", "svc-b"))}
+	cfg := &Config{Auto: WithOptions(task, WithPath("svc-a", "svc-b"))}
 	plan, err := NewPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
