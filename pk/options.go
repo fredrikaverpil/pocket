@@ -63,18 +63,6 @@ func WithSkipTask(tasks ...any) PathOption {
 	}
 }
 
-// WithFlag sets a default flag value for a specific task in the current scope.
-// The task can be specified by its string name or by the task object itself.
-func WithFlag(task any, flagName string, value any) PathOption {
-	return func(pf *pathFilter) {
-		pf.flags = append(pf.flags, flagOverride{
-			taskName: toTaskName(task),
-			flagName: flagName,
-			value:    value,
-		})
-	}
-}
-
 // WithFlags sets flag overrides for a specific task in the current scope.
 // The flags struct must be the same type as the task's Flags field.
 // Only fields that differ from the task's defaults are applied as overrides.
@@ -140,7 +128,7 @@ func WithForceRun() PathOption {
 //	pk.WithOptions(
 //	    golang.Tasks(),
 //	    pk.WithExcludePath("vendor"), // Excludes vendor/ from the Go task scope
-//	    pk.WithFlag(golang.Test, golang.FlagTestRace, true),
+//	    pk.WithFlags(golang.Test, golang.TestFlags{Race: true}),
 //	)
 func WithDetect(fn DetectFunc) PathOption {
 	return func(pf *pathFilter) {
@@ -152,7 +140,7 @@ func WithDetect(fn DetectFunc) PathOption {
 // Tasks retrieve the value using ctx.Value(key).
 //
 // Use this when configuration is too complex for simple flags (structs, maps, slices).
-// For simple string/bool values, prefer pk.WithFlag instead.
+// For simple string/bool values, prefer pk.WithFlags instead.
 func WithContextValue(key, value any) PathOption {
 	return func(pf *pathFilter) {
 		pf.contextValues = append(pf.contextValues, contextValue{key: key, value: value})
@@ -177,8 +165,8 @@ func WithNoticePatterns(patterns ...string) PathOption {
 //
 // Example:
 //
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlag(python.Test, python.FlagPython, "3.9"))
-//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlag(python.Test, python.FlagPython, "3.10"))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.9"), pk.WithFlags(python.Test, python.Flags{Python: "3.9"}))
+//	pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.Test, python.Flags{Python: "3.10"}))
 func WithNameSuffix(suffix string) PathOption {
 	return func(pf *pathFilter) {
 		pf.nameSuffix = suffix

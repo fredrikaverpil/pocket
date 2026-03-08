@@ -56,15 +56,6 @@ type Task struct {
 	flagSet *flag.FlagSet
 }
 
-// FlagDef defines a declarative CLI flag.
-// Deprecated: Use a struct with `flag` and `usage` struct tags instead.
-type FlagDef struct {
-	// Default is the flag's default value.
-	Default any
-	// Usage is the help text for the flag.
-	Usage string
-}
-
 // taskFlagsKey is the context key for resolved task flag values.
 type taskFlagsKey struct{}
 
@@ -101,26 +92,6 @@ func cliFlagsFromContext(ctx context.Context) map[string]any {
 // task.run() recovers this specific type and converts it to a returned error.
 type flagError struct {
 	err error
-}
-
-// GetFlag retrieves a flag value from context by name.
-// Panics with a flagError if the flag is not found or has a type mismatch.
-// The panic is recovered by task.run() and surfaced as a returned error.
-func GetFlag[T any](ctx context.Context, name string) T {
-	var zero T
-	flags := taskFlagsFromContext(ctx)
-	if flags == nil {
-		panic(flagError{fmt.Errorf("flag %q: no flags in context", name)})
-	}
-	v, ok := flags[name]
-	if !ok {
-		panic(flagError{fmt.Errorf("flag %q: not found", name)})
-	}
-	typed, ok := v.(T)
-	if !ok {
-		panic(flagError{fmt.Errorf("flag %q: expected %T, got %T", name, zero, v)})
-	}
-	return typed
 }
 
 // buildFlagSet constructs the internal *flag.FlagSet from the Flags struct.
