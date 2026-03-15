@@ -12,11 +12,6 @@ workflows, define your tasks once and run them anywhere—locally, in GitHub
 Actions, GitLab CI, Codeberg's Woodpecker, Tangled Spindles, or any other
 provider. Your CI becomes portable.
 
-> [!WARNING]
->
-> Under heavy development. Breaking changes will occur until the initial
-> release.
-
 ## Key Features
 
 - **Zero-Install Bootstrapping**: The `./pok` shim automatically manages the
