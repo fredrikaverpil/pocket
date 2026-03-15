@@ -220,10 +220,12 @@ var commitsCheckTask = &Task{
 // resolveCommitRange determines the git log range for commit validation.
 // Returns empty string if there are no commits to validate.
 func resolveCommitRange(ctx context.Context) (string, error) {
+	gitRoot := findGitRoot()
+
 	// Try upstream tracking branch first.
 	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
 	cmd := exec.CommandContext(ctx, "git", "log", "--oneline", "@{push}..HEAD")
-	cmd.Dir = findGitRoot()
+	cmd.Dir = gitRoot
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -234,21 +236,43 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 		return "@{push}..HEAD", nil
 	}
 
-	// Fall back to origin/main.
-	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
-	cmd = exec.CommandContext(ctx, "git", "log", "--oneline", "origin/main..HEAD")
-	cmd.Dir = findGitRoot()
+	// Fall back to origin's default branch.
+	defaultBranch := resolveDefaultBranch(ctx, gitRoot)
+	if defaultBranch == "" {
+		// Cannot determine default branch (e.g. shallow clone in CI) — silent no-op.
+		return "", nil
+	}
+
+	ref := "origin/" + defaultBranch + "..HEAD"
+	//nolint:gosec // ref is constructed from git output, not user input.
+	cmd = exec.CommandContext(ctx, "git", "log", "--oneline", ref)
+	cmd.Dir = gitRoot
 	out.Reset()
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("git log origin/main..HEAD: %w\n%s", err, out.String())
+	// Ref may not be available (e.g. shallow clone in CI) — treat as no-op.
+	if cmd.Run() == nil && strings.TrimSpace(out.String()) != "" {
+		return ref, nil
 	}
+	return "", nil
+}
 
-	if strings.TrimSpace(out.String()) == "" {
-		return "", nil // Zero commits in range.
+// resolveDefaultBranch returns the default branch name of the origin remote.
+// Returns empty string if it cannot be determined.
+func resolveDefaultBranch(ctx context.Context, gitRoot string) string {
+	// Use git symbolic-ref to find what origin/HEAD points to.
+	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
+	cmd := exec.CommandContext(ctx, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd.Dir = gitRoot
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return ""
 	}
-	return "origin/main..HEAD", nil
+	// Output is e.g. "refs/remotes/origin/main\n".
+	ref := strings.TrimSpace(out.String())
+	return strings.TrimPrefix(ref, "refs/remotes/origin/")
 }
 
 // selfUpdateFlags defines flags for the self-update task.

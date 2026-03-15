@@ -86,9 +86,9 @@ enabled with the `-c` flag:
 ```
 
 The `-c` flag validates commits between HEAD and the upstream tracking branch
-(or `origin/main` for new branches). Merge commits are skipped. Each commit
-message must match the format `type[(scope)][!]: description`, where the
-description must not start with uppercase.
+(or the origin's default branch for new branches). Merge commits are skipped.
+Each commit message must match the format `type[(scope)][!]: description`, where
+the description must not start with uppercase.
 
 ---
 
