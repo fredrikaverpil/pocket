@@ -1,0 +1,60 @@
+$ErrorActionPreference = "Stop"
+
+# Resolve shim directory to find .pocket
+$ShimDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$PocketDir = Join-Path $ShimDir "{{.PocketDir}}"
+$TaskScope = "{{.Context}}"
+$GoVersion = "{{.GoVersion}}"
+$GoInstallDir = "$PocketDir\tools\go\$GoVersion"
+$GoBin = "$GoInstallDir\go\bin\go.exe"
+
+# Expected checksums for each platform.
+$Checksums = @{
+{{- range $key, $value := .GoChecksums }}
+    "{{ $key }}" = "{{ $value }}"
+{{- end }}
+}
+
+# Find Go binary.
+$GoCmd = $null
+if (Get-Command go -ErrorAction SilentlyContinue) {
+    $GoCmd = "go"
+} elseif (Test-Path $GoBin) {
+    $GoCmd = $GoBin
+} else {
+    # Download Go.
+    Write-Host "Go not found, downloading go$GoVersion..."
+
+    $Arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
+    $Platform = "windows-$Arch"
+    $ZipUrl = "https://go.dev/dl/go$GoVersion.windows-$Arch.zip"
+    $ZipPath = "$env:TEMP\go$GoVersion.zip"
+
+    New-Item -ItemType Directory -Force -Path $GoInstallDir | Out-Null
+    Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath
+
+    # Verify checksum if available.
+    $ExpectedHash = $Checksums[$Platform]
+    if ($ExpectedHash) {
+        $ActualHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLower()
+        if ($ActualHash -ne $ExpectedHash) {
+            Remove-Item $ZipPath -Force
+            Write-Error "Checksum verification failed!`nExpected: $ExpectedHash`nActual:   $ActualHash"
+            exit 1
+        }
+        Write-Host "Checksum verified."
+    } else {
+        Write-Host "Warning: No checksum available for $Platform, skipping verification."
+    }
+
+    Expand-Archive -Path $ZipPath -DestinationPath $GoInstallDir -Force
+    Remove-Item $ZipPath
+
+    $GoCmd = $GoBin
+    Write-Host "Go $GoVersion installed to $GoInstallDir"
+}
+
+$env:TASK_SCOPE = $TaskScope
+& $GoCmd run -C $PocketDir . @args
+exit $LASTEXITCODE
