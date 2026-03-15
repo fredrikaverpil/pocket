@@ -10,6 +10,12 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "github-actions"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["github.com/fredrikaverpil/pocket"],
+      "enabled": false,
+      "description": "Ignored because .pocket/go.mod uses a replace directive to point at the local source"
     }
   ],
   "customManagers": [
