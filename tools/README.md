@@ -175,9 +175,9 @@ bypass deduplication when needed.
 
 ### Shim Scoping
 
-Pocket generates shims in each detected module directory (`pk.Detect`) and each
-path defined with `pk.WithPath`. The root shim runs everything, while subfolder
-shims only run tasks scoped to that path:
+Pocket generates shims in each detected module directory (`pk.WithDetect`) and
+each path defined with `pk.WithPath`. The root shim runs everything, while
+subfolder shims only run tasks scoped to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths

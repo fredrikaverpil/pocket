@@ -90,11 +90,9 @@ Pocket is built around two primitives: **tasks** and **tools**.
 composed into execution trees using `Serial` and `Parallel`.
 
 **Tools** are the dependencies tasks need to run. Instead of assuming
-`golangci-lint` is installed, you declare it as a tool:
-
-Pocket downloads, versions, and caches tools in `.pocket/tools/`, ensuring
-reproducible builds across machines and CI environments. Everyone gets the exact
-same version.
+`golangci-lint` is installed, you declare it as a tool. Pocket downloads,
+versions, and caches tools in `.pocket/tools/`, ensuring reproducible builds
+across machines and CI environments. Everyone gets the exact same version.
 
 > [!TIP]
 >
@@ -120,7 +118,7 @@ workflows:
 ```go
 var Config = &pk.Config{
     Auto: pk.Serial(
-        Format,                   // first run tests
+        Format,                   // first format
         pk.Parallel(Lint, Test),  // then run concurrently
         Build,                    // finally build
     ),
@@ -170,9 +168,9 @@ bypass deduplication when needed.
 
 ### Shim Scoping
 
-Pocket generates shims in each detected module directory (`pk.Detect`) and each
-path defined with `pk.WithPath`. The root shim runs everything, while subfolder
-shims only run tasks scoped to that path:
+Pocket generates shims in each detected module directory (`pk.WithDetect`) and
+each path defined with `pk.WithPath`. The root shim runs everything, while
+subfolder shims only run tasks scoped to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths
@@ -204,7 +202,7 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 
 Tasks can access the full execution plan at runtime via
 `pk.PlanFromContext(ctx)`. This enables powerful workflows like **automatic CI
-workflow generation** instead of manually syncing your CI configuration with
+workflow generation** -- instead of manually syncing your CI configuration with
 your tasks, let Pocket generate it.
 
 Here's an example using the
