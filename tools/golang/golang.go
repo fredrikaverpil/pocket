@@ -22,6 +22,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Install creates a Runnable that installs a Go package using `go install`.
@@ -42,7 +43,7 @@ func Install(pkg, version string) pk.Runnable {
 func install(ctx context.Context, pkg, version string) error {
 	// Extract binary name from package path.
 	binaryName := binaryName(pkg)
-	if runtime.GOOS == pk.Windows {
+	if runtime.GOOS == platform.Windows {
 		binaryName += ".exe"
 	}
 

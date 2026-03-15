@@ -12,6 +12,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for bun.
@@ -32,7 +33,7 @@ var Install = &pk.Task{
 
 func installBun() pk.Runnable {
 	binDir := pk.FromToolsDir(Name, Version, "bin")
-	binaryName := pk.BinaryName(Name)
+	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
@@ -50,21 +51,21 @@ func installBun() pk.Runnable {
 }
 
 func platformArch() string {
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 
 	switch hostOS {
-	case pk.Darwin:
-		if hostArch == pk.ARM64 {
+	case platform.Darwin:
+		if hostArch == platform.ARM64 {
 			return "darwin-aarch64"
 		}
 		return "darwin-x64"
-	case pk.Linux:
-		if hostArch == pk.ARM64 {
+	case platform.Linux:
+		if hostArch == platform.ARM64 {
 			return "linux-aarch64"
 		}
 		return "linux-x64"
-	case pk.Windows:
+	case platform.Windows:
 		return "windows-x64"
 	default:
 		return fmt.Sprintf("%s-%s", hostOS, hostArch)
@@ -102,7 +103,7 @@ func EnsureInstalled(installDir, name string, installFn func(ctx context.Context
 
 // BinaryPath returns the path to a binary installed by bun in the given directory.
 func BinaryPath(installDir, binaryName string) string {
-	return filepath.Join(installDir, "node_modules", ".bin", pk.BinaryName(binaryName))
+	return filepath.Join(installDir, "node_modules", ".bin", platform.BinaryName(binaryName))
 }
 
 // InstallFromLockfile installs dependencies from package.json and bun.lock in dir.

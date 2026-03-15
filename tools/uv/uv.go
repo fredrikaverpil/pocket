@@ -36,6 +36,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
 )
 
 // Name is the binary name for uv.
@@ -60,19 +61,19 @@ var Install = &pk.Task{
 
 func installUV() pk.Runnable {
 	binDir := pk.FromToolsDir("uv", Version, "bin")
-	binaryName := pk.BinaryName("uv")
+	binaryName := platform.BinaryName("uv")
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/astral-sh/uv/releases/download/%s/uv-%s.%s",
 		Version,
 		platformArch(),
-		pk.DefaultArchiveFormat(),
+		platform.DefaultArchiveFormat(),
 	)
 
 	return download.Download(url,
 		download.WithDestDir(binDir),
-		download.WithFormat(pk.DefaultArchiveFormat()),
+		download.WithFormat(platform.DefaultArchiveFormat()),
 		download.WithExtract(download.WithExtractFile(binaryName)),
 		download.WithSymlink(),
 		download.WithSkipIfExists(binaryPath),
@@ -81,17 +82,17 @@ func installUV() pk.Runnable {
 
 func platformArch() string {
 	switch runtime.GOOS {
-	case pk.Darwin:
-		if runtime.GOARCH == pk.ARM64 {
+	case platform.Darwin:
+		if runtime.GOARCH == platform.ARM64 {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case pk.Linux:
-		if runtime.GOARCH == pk.ARM64 {
+	case platform.Linux:
+		if runtime.GOARCH == platform.ARM64 {
 			return "aarch64-unknown-linux-gnu"
 		}
 		return "x86_64-unknown-linux-gnu"
-	case pk.Windows:
+	case platform.Windows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return fmt.Sprintf("%s-%s", runtime.GOARCH, runtime.GOOS)
@@ -115,7 +116,7 @@ func PipInstall(ctx context.Context, venvPath, pkg string) error {
 
 // venvPython returns the path to the Python executable in a venv.
 func venvPython(venvPath string) string {
-	if runtime.GOOS == pk.Windows {
+	if runtime.GOOS == platform.Windows {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
@@ -191,7 +192,7 @@ func EnsureInstalled(venvDir, name string, installFn func(ctx context.Context) e
 
 // BinaryPath returns the cross-platform path to a binary in a Python venv.
 func BinaryPath(venvDir, name string) string {
-	if runtime.GOOS == pk.Windows {
+	if runtime.GOOS == platform.Windows {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)

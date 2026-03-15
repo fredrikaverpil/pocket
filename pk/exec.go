@@ -268,7 +268,7 @@ func lookPathInEnv(name string, env []string) string {
 			return path
 		}
 		// On Windows, binaries have .exe extension.
-		if runtime.GOOS == Windows {
+		if runtime.GOOS == "windows" {
 			exePath := path + ".exe"
 			if fi, err := os.Stat(exePath); err == nil && !fi.IsDir() {
 				return exePath
