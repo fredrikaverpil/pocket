@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
 
@@ -28,7 +29,7 @@ func formatCmd() pk.Runnable {
 			configPath = stylua.EnsureDefaultConfig()
 		}
 
-		absDir := pk.FromGitRoot(pk.PathFromContext(ctx))
+		absDir := repopath.FromGitRoot(pk.PathFromContext(ctx))
 
 		args := []string{}
 		if pk.Verbose(ctx) {

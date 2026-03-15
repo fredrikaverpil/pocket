@@ -67,7 +67,7 @@ func WithSymlink() Opt {
 }
 
 // WithSkipIfExists skips the download if the file at path already exists.
-// Use this with a path like pk.FromToolsDir("tool", "v1.0", "tool") to
+// Use this with a path like repopath.FromToolsDir("tool", "v1.0", "tool") to
 // avoid re-downloading on every run.
 func WithSkipIfExists(path string) Opt {
 	return func(cfg *downloadConfig) {

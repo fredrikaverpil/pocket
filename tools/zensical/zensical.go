@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -36,7 +37,7 @@ var Install = &pk.Task{
 }
 
 func installZensical() pk.Runnable {
-	installDir := pk.FromToolsDir(Name, Version())
+	installDir := repopath.FromToolsDir(Name, Version())
 	venvPath := filepath.Join(installDir, "venv")
 	return uv.EnsureInstalled(venvPath, Name, func(ctx context.Context) error {
 		// Create install directory and write project files.
@@ -62,7 +63,7 @@ func installZensical() pk.Runnable {
 // Exec runs zensical with the given arguments.
 // The working directory is determined by the context path.
 func Exec(ctx context.Context, args ...string) error {
-	installDir := pk.FromToolsDir(Name, Version())
+	installDir := repopath.FromToolsDir(Name, Version())
 	venvDir := filepath.Join(installDir, "venv")
 	return uv.ExecTool(ctx, venvDir, Name, args...)
 }

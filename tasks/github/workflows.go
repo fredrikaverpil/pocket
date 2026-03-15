@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/goreleaser"
 )
 
@@ -106,7 +107,7 @@ func runWorkflows(ctx context.Context) error {
 	verbose := pk.Verbose(ctx)
 
 	// Ensure .github/workflows directory exists
-	workflowDir := pk.FromGitRoot(".github", "workflows")
+	workflowDir := repopath.FromGitRoot(".github", "workflows")
 	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
 		return fmt.Errorf("create workflows dir: %w", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for bun.
@@ -32,7 +33,7 @@ var Install = &pk.Task{
 }
 
 func installBun() pk.Runnable {
-	binDir := pk.FromToolsDir(Name, Version, "bin")
+	binDir := repopath.FromToolsDir(Name, Version, "bin")
 	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 

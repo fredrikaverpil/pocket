@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // planKey is the context key for the execution plan.
@@ -80,7 +82,7 @@ type pathInfo struct {
 // It walks the composition tree to extract tasks, resolves path filters
 // against the filesystem (traversed once), and pre-computes flag overrides.
 func NewPlan(cfg *Config) (*Plan, error) {
-	gitRoot := findGitRoot()
+	gitRoot := repopath.GitRoot()
 
 	// Resolve skip dirs: nil uses defaults, empty slice skips nothing
 	var skipDirs []string
@@ -93,7 +95,7 @@ func NewPlan(cfg *Config) (*Plan, error) {
 		skipDirs = DefaultSkipDirs
 	}
 
-	allDirs, err := walkDirectories(gitRoot, skipDirs, includeHidden)
+	allDirs, err := repopath.WalkDirectories(gitRoot, skipDirs, includeHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) ([]string, error) {
 	case len(pf.includePaths) > 0:
 		for _, dir := range candidates {
 			for _, pattern := range pf.includePaths {
-				matched, err := matchPattern(dir, pattern)
+				matched, err := repopath.MatchPattern(dir, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -478,7 +480,7 @@ func excludeByPatterns(dirs, patterns []string) ([]string, error) {
 	for _, dir := range dirs {
 		excluded := false
 		for _, pattern := range patterns {
-			matched, err := matchPattern(dir, pattern)
+			matched, err := repopath.MatchPattern(dir, pattern)
 			if err != nil {
 				return nil, err
 			}

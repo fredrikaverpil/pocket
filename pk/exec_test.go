@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 func TestContainsNotice(t *testing.T) {
@@ -185,9 +187,8 @@ func TestLookPathInEnv(t *testing.T) {
 
 func TestPrependBinToPath(t *testing.T) {
 	// Save and restore findGitRootFunc.
-	origFunc := findGitRootFunc
-	findGitRootFunc = func() string { return "/repo" }
-	defer func() { findGitRootFunc = origFunc }()
+	repopath.SetGitRootFunc(func() string { return "/repo" })
+	defer repopath.SetGitRootFunc(nil)
 
 	environ := []string{"HOME=/home/user", "PATH=/usr/bin:/usr/local/bin"}
 	got := prependBinToPath(environ)

@@ -8,6 +8,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for ts_query_ls.
@@ -28,7 +29,7 @@ var Install = &pk.Task{
 }
 
 func installTSQueryLs() pk.Runnable {
-	binDir := pk.FromToolsDir("tsqueryls", Version, "bin")
+	binDir := repopath.FromToolsDir("tsqueryls", Version, "bin")
 	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 

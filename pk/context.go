@@ -91,7 +91,7 @@ func forceRunFromContext(ctx context.Context) bool {
 // from the git root; absolute paths are used as-is.
 //
 //	ctx = pk.ContextWithPath(ctx, "services/api")
-//	ctx = pk.ContextWithPath(ctx, pk.FromPocketDir("tools", "mytool", "v1.0"))
+//	ctx = pk.ContextWithPath(ctx, repopath.FromPocketDir("tools", "mytool", "v1.0"))
 func ContextWithPath(ctx context.Context, path string) context.Context {
 	return context.WithValue(ctx, pathKey{}, path)
 }

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Flag struct types for test tasks.
@@ -104,8 +106,8 @@ func (r *recorder) taskWithFlags(name string, flags any) *Task {
 func e2eSetup(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	findGitRootFunc = func() string { return tmpDir }
-	t.Cleanup(func() { findGitRootFunc = nil })
+	repopath.SetGitRootFunc(func() string { return tmpDir })
+	t.Cleanup(func() { repopath.SetGitRootFunc(nil) })
 	return tmpDir
 }
 

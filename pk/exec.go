@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"golang.org/x/term"
 )
 
@@ -83,7 +84,7 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	path := PathFromContext(ctx)
 	targetDir := path
 	if !filepath.IsAbs(path) {
-		targetDir = FromGitRoot(path)
+		targetDir = repopath.FromGitRoot(path)
 	}
 	env := applyEnvConfig(os.Environ(), EnvConfigFromContext(ctx))
 	env = prependBinToPath(env)
@@ -177,7 +178,7 @@ func RegisterPATH(dir string) {
 
 // prependBinToPath adds .pocket/bin and registered directories to the front of PATH.
 func prependBinToPath(environ []string) []string {
-	binDir := FromBinDir()
+	binDir := repopath.FromBinDir()
 
 	// Build list of directories to prepend: binDir first, then extra dirs.
 	extraPATHDirsMu.Lock()

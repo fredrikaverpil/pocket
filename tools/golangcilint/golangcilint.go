@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/golang"
 )
 
@@ -34,7 +35,7 @@ var configFileNames = []string{
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/golangci-lint/
 // and returns its path. Safe to call multiple times.
 func EnsureDefaultConfig() string {
-	configPath := pk.FromToolsDir("golangci-lint", DefaultConfigFile)
+	configPath := repopath.FromToolsDir("golangci-lint", DefaultConfigFile)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(filepath.Dir(configPath), 0o755)
 		_ = os.WriteFile(configPath, defaultConfig, 0o644)
@@ -46,7 +47,7 @@ func EnsureDefaultConfig() string {
 // at the git root.
 func HasProjectConfig() bool {
 	for _, name := range configFileNames {
-		if _, err := os.Stat(pk.FromGitRoot(name)); err == nil {
+		if _, err := os.Stat(repopath.FromGitRoot(name)); err == nil {
 			return true
 		}
 	}

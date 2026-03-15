@@ -1,4 +1,4 @@
-package pk
+package repopath
 
 import (
 	"fmt"
@@ -13,14 +13,20 @@ var (
 	gitRootOnce  sync.Once
 	gitRootCache string
 
-	// findGitRootFunc allows overriding findGitRoot for tests.
+	// findGitRootFunc allows overriding GitRoot for tests.
 	findGitRootFunc func() string
 )
 
-// findGitRoot walks up from the current directory to find the git repository root.
+// SetGitRootFunc overrides GitRoot for testing. Pass nil to restore default.
+// This must only be used in tests.
+func SetGitRootFunc(fn func() string) {
+	findGitRootFunc = fn
+}
+
+// GitRoot walks up from the current directory to find the git repository root.
 // Returns "." if not in a git repository.
 // The result is cached after the first call for performance.
-func findGitRoot() string {
+func GitRoot() string {
 	if findGitRootFunc != nil {
 		return findGitRootFunc()
 	}
@@ -63,7 +69,7 @@ func doFindGitRoot() string {
 //	FromGitRoot("pkg")                 → "/path/to/repo/pkg"
 //	FromGitRoot(".")                   → "/path/to/repo"
 func FromGitRoot(paths ...string) string {
-	gitRoot := findGitRoot()
+	gitRoot := GitRoot()
 	parts := append([]string{gitRoot}, paths...)
 	return filepath.Join(parts...)
 }
@@ -74,7 +80,7 @@ func FromGitRoot(paths ...string) string {
 //	FromPocketDir("bin")      → "/path/to/repo/.pocket/bin"
 //	FromPocketDir("tools")    → "/path/to/repo/.pocket/tools"
 func FromPocketDir(elem ...string) string {
-	parts := append([]string{findGitRoot(), ".pocket"}, elem...)
+	parts := append([]string{GitRoot(), ".pocket"}, elem...)
 	return filepath.Join(parts...)
 }
 
@@ -96,10 +102,10 @@ func FromBinDir(elem ...string) string {
 	return FromPocketDir(parts...)
 }
 
-// walkDirectories walks the filesystem starting from gitRoot and returns
+// WalkDirectories walks the filesystem starting from gitRoot and returns
 // all directories found (relative to gitRoot, using forward slashes).
 // Skips directories in skipDirs, and hidden directories unless includeHidden is true.
-func walkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]string, error) {
+func WalkDirectories(gitRoot string, skipDirs []string, includeHidden bool) ([]string, error) {
 	// Build a set for O(1) lookup
 	skipSet := make(map[string]struct{}, len(skipDirs))
 	for _, d := range skipDirs {
@@ -158,8 +164,8 @@ var (
 	regexCache = make(map[string]*regexp.Regexp)
 )
 
-// matchPattern checks if a path matches a regex pattern.
-func matchPattern(path, pattern string) (bool, error) {
+// MatchPattern checks if a path matches a regex pattern.
+func MatchPattern(path, pattern string) (bool, error) {
 	regexMu.RLock()
 	re, ok := regexCache[pattern]
 	regexMu.RUnlock()

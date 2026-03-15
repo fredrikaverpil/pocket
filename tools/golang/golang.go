@@ -23,6 +23,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Install creates a Runnable that installs a Go package using `go install`.
@@ -48,7 +49,7 @@ func install(ctx context.Context, pkg, version string) error {
 	}
 
 	// Destination directory: .pocket/tools/go/<pkg>/<version>/
-	toolDir := pk.FromToolsDir("go", pkg, version)
+	toolDir := repopath.FromToolsDir("go", pkg, version)
 	toolBinPath := filepath.Join(toolDir, binaryName)
 
 	// Check if already installed.

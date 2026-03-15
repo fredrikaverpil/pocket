@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // RunMain is the CLI entry point for Pocket. It parses arguments, builds
@@ -29,7 +30,7 @@ func RunMain(cfg *Config) {
 func run(cfg *Config) (*executionTracker, error) {
 	// Ensure tools/go.mod exists to prevent go mod tidy from scanning downloaded tools.
 	// This must happen before any go commands that might scan the module.
-	gitRoot := findGitRoot()
+	gitRoot := repopath.GitRoot()
 	pocketDir := filepath.Join(gitRoot, ".pocket")
 	if err := scaffold.EnsureToolsGomod(pocketDir); err != nil {
 		return nil, fmt.Errorf("ensuring tools/go.mod: %w", err)

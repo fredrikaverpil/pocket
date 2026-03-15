@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/prettier"
 )
 
@@ -46,7 +47,7 @@ func formatCmd() pk.Runnable {
 		}
 
 		// Use absolute path pattern since prettier runs from install directory.
-		pattern := pk.FromGitRoot("**/*.md")
+		pattern := repopath.FromGitRoot("**/*.md")
 		args = append(args, pattern)
 
 		return prettier.Exec(ctx, args...)

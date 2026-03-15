@@ -10,6 +10,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 //go:embed goreleaser.yml
@@ -32,7 +33,7 @@ var Install = &pk.Task{
 }
 
 func installGoreleaser() pk.Runnable {
-	binDir := pk.FromToolsDir(Name, Version, "bin")
+	binDir := repopath.FromToolsDir(Name, Version, "bin")
 	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 
@@ -63,7 +64,7 @@ func installGoreleaser() pk.Runnable {
 // WriteDefaultConfig writes a default .goreleaser.yml to the git root.
 // Only writes if the file doesn't already exist. Returns the path written to.
 func WriteDefaultConfig() (string, error) {
-	destPath := pk.FromGitRoot(".goreleaser.yml")
+	destPath := repopath.FromGitRoot(".goreleaser.yml")
 	if _, err := os.Stat(destPath); err == nil {
 		return destPath, nil
 	}

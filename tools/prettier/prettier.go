@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/bun"
 )
 
@@ -42,7 +43,7 @@ var Install = &pk.Task{
 }
 
 func installPrettier() pk.Runnable {
-	installDir := pk.FromToolsDir(Name, Version())
+	installDir := repopath.FromToolsDir(Name, Version())
 	return bun.EnsureInstalled(installDir, Name, func(ctx context.Context) error {
 		// Create install directory and write lockfile.
 		if err := os.MkdirAll(installDir, 0o755); err != nil {
@@ -81,7 +82,7 @@ var configFileNames = []string{
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/prettier/
 // and returns its path. Safe to call multiple times.
 func EnsureDefaultConfig() string {
-	configPath := pk.FromToolsDir("prettier", DefaultConfigFile)
+	configPath := repopath.FromToolsDir("prettier", DefaultConfigFile)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(filepath.Dir(configPath), 0o755)
 		_ = os.WriteFile(configPath, defaultConfig, 0o644)
@@ -93,7 +94,7 @@ func EnsureDefaultConfig() string {
 // at the git root.
 func HasProjectConfig() bool {
 	for _, name := range configFileNames {
-		if _, err := os.Stat(pk.FromGitRoot(name)); err == nil {
+		if _, err := os.Stat(repopath.FromGitRoot(name)); err == nil {
 			return true
 		}
 	}
@@ -102,7 +103,7 @@ func HasProjectConfig() bool {
 
 // EnsureIgnoreFile ensures a .prettierignore file exists at git root.
 func EnsureIgnoreFile() (string, error) {
-	ignoreFile := pk.FromGitRoot(".prettierignore")
+	ignoreFile := repopath.FromGitRoot(".prettierignore")
 
 	if _, err := os.Stat(ignoreFile); err == nil {
 		return ignoreFile, nil
@@ -116,7 +117,7 @@ func EnsureIgnoreFile() (string, error) {
 
 // Exec runs prettier with the given arguments.
 func Exec(ctx context.Context, args ...string) error {
-	installDir := pk.FromToolsDir(Name, Version())
+	installDir := repopath.FromToolsDir(Name, Version())
 	// Run via bun since prettier is a Node.js script (shebang: #!/usr/bin/env node).
 	return bun.Run(ctx, installDir, Name, args...)
 }

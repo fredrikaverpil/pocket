@@ -10,6 +10,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for neovim.
@@ -65,7 +66,7 @@ func BinaryPath(version string) string {
 		plat = fmt.Sprintf("linux-%s", nvimArch)
 	}
 
-	installDir := pk.FromToolsDir("neovim", resolvedVersion)
+	installDir := repopath.FromToolsDir("neovim", resolvedVersion)
 	binaryName := platform.BinaryName(Name)
 	return filepath.Join(installDir, fmt.Sprintf("nvim-%s", plat), "bin", binaryName)
 }
@@ -102,7 +103,7 @@ func installNeovim(version string) pk.Runnable {
 
 	// Extract full distribution (includes bin/, lib/, share/ with runtime files)
 	// The tarball extracts to nvim-{platform}/ directory
-	installDir := pk.FromToolsDir("neovim", resolvedVersion)
+	installDir := repopath.FromToolsDir("neovim", resolvedVersion)
 	url, format, plat := buildDownloadURL(resolvedVersion)
 
 	binaryName := platform.BinaryName(Name)

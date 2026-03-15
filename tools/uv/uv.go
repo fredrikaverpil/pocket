@@ -37,6 +37,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for uv.
@@ -60,7 +61,7 @@ var Install = &pk.Task{
 }
 
 func installUV() pk.Runnable {
-	binDir := pk.FromToolsDir("uv", Version, "bin")
+	binDir := repopath.FromToolsDir("uv", Version, "bin")
 	binaryName := platform.BinaryName("uv")
 	binaryPath := filepath.Join(binDir, binaryName)
 
@@ -262,9 +263,9 @@ func VenvPath(projectPath, pythonVersion string) string {
 	}
 	venvName := fmt.Sprintf(DefaultVenvPattern, pythonVersion)
 	if projectPath == "" || projectPath == "." {
-		return pk.FromPocketDir("venvs", venvName)
+		return repopath.FromPocketDir("venvs", venvName)
 	}
-	return pk.FromPocketDir("venvs", projectPath, venvName)
+	return repopath.FromPocketDir("venvs", projectPath, venvName)
 }
 
 // Sync runs uv sync to install project dependencies.

@@ -8,6 +8,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for tree-sitter.
@@ -27,7 +28,7 @@ var Install = &pk.Task{
 }
 
 func installTreeSitter() pk.Runnable {
-	binDir := pk.FromToolsDir("treesitter", Version, "bin")
+	binDir := repopath.FromToolsDir("treesitter", Version, "bin")
 	binaryName := platform.BinaryName(Name)
 	binaryPath := filepath.Join(binDir, binaryName)
 

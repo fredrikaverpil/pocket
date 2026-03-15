@@ -13,6 +13,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // ErrGitDiffUncommitted is returned when git diff detects uncommitted changes.
@@ -48,7 +49,7 @@ var shimsTask = &Task{
 	Usage:      "regenerate shims in all directories",
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		gitRoot := findGitRoot()
+		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		p := PlanFromContext(ctx)
@@ -181,7 +182,7 @@ var commitsCheckTask = &Task{
 		// (pk.Exec buffers output internally and only surfaces it on error).
 
 		cmd := exec.CommandContext(ctx, "git", "log", "--format=%H %s", commitRange)
-		cmd.Dir = findGitRoot()
+		cmd.Dir = repopath.GitRoot()
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -220,7 +221,7 @@ var commitsCheckTask = &Task{
 // resolveCommitRange determines the git log range for commit validation.
 // Returns empty string if there are no commits to validate.
 func resolveCommitRange(ctx context.Context) (string, error) {
-	gitRoot := findGitRoot()
+	gitRoot := repopath.GitRoot()
 
 	// Try upstream tracking branch first.
 	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
@@ -286,7 +287,7 @@ var selfUpdateTask = &Task{
 	Usage: "update Pocket and regenerate scaffolded files",
 	Flags: selfUpdateFlags{},
 	Do: func(ctx context.Context) error {
-		gitRoot := findGitRoot()
+		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		// Set working directory to .pocket for all commands.
@@ -337,7 +338,7 @@ var purgeTask = &Task{
 	Name:  "purge",
 	Usage: "remove .pocket/tools, .pocket/bin, and .pocket/venvs",
 	Do: func(ctx context.Context) error {
-		gitRoot := findGitRoot()
+		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		dirsToRemove := []string{

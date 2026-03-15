@@ -8,6 +8,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
@@ -19,7 +20,7 @@ func ensureParsers(ctx context.Context, parsers []string) (string, error) {
 		return "", nil
 	}
 
-	dir := pk.FromToolsDir("treesitter-parsers", treesitterCLI.Version)
+	dir := repopath.FromToolsDir("treesitter-parsers", treesitterCLI.Version)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create parser directory: %w", err)
 	}
