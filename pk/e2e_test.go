@@ -102,7 +102,7 @@ func (r *recorder) taskWithFlags(name string, flags any) *Task {
 	}
 }
 
-// e2eSetup creates a temp dir and overrides findGitRootFunc for the test.
+// e2eSetup creates a temp dir and overrides the git root for the test.
 func e2eSetup(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()

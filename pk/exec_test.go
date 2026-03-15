@@ -186,7 +186,7 @@ func TestLookPathInEnv(t *testing.T) {
 }
 
 func TestPrependBinToPath(t *testing.T) {
-	// Save and restore findGitRootFunc.
+	// Override git root for this test.
 	repopath.SetGitRootFunc(func() string { return "/repo" })
 	defer repopath.SetGitRootFunc(nil)
 
