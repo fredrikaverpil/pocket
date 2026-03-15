@@ -86,9 +86,9 @@ enabled with the `-c` flag:
 ```
 
 The `-c` flag validates commits between HEAD and the upstream tracking branch
-(or `origin/main` for new branches). Merge commits are skipped. Each commit
-message must match the format `type[(scope)][!]: description`, where the
-description must not start with uppercase.
+(or the origin's default branch for new branches). Merge commits are skipped.
+Each commit message must match the format `type[(scope)][!]: description`, where
+the description must not start with uppercase.
 
 ---
 
@@ -377,15 +377,17 @@ Use runtime's `Run()` function directly.
 
 ### Go Tools
 
+Import: `"github.com/fredrikaverpil/pocket/tools/golang"`
+
 ```go
-func InstallGo(pkg, version string) Runnable
+func Install(pkg, version string) pk.Runnable
 ```
 
-Installs a Go package to `.pocket/tools/go/<pkg>/<version>/bin/` and symlinks to
+Installs a Go package to `.pocket/tools/go/<pkg>/<version>/` and symlinks to
 `.pocket/bin/`. Uses **Symlink pattern**.
 
 ```go
-pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8")
+golang.Install("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", "v2.1.6")
 ```
 
 ### Runtime-Dependent Tools
@@ -414,14 +416,14 @@ Import: `"github.com/fredrikaverpil/pocket/pk/download"`
 func Download(url string, opts ...Opt) pk.Runnable
 ```
 
-| Option             | Description                                              |
-| :----------------- | :------------------------------------------------------- |
-| `WithDestDir`      | Destination directory for extraction                     |
-| `WithFormat`       | Archive format: `"tar.gz"`, `"tar"`, `"zip"`, `"gz"`, `` |
-| `WithExtract`      | Add extraction options                                   |
-| `WithSymlink`      | Create symlink in `.pocket/bin/`                         |
-| `WithSkipIfExists` | Skip download if file exists                             |
-| `WithOutputName`   | Output filename for `"gz"` format (required for gz)      |
+| Option             | Description                                                      |
+| :----------------- | :--------------------------------------------------------------- |
+| `WithDestDir`      | Destination directory for extraction                             |
+| `WithFormat`       | Archive format: `"tar.gz"`, `"tar"`, `"zip"`, `"gz"`, `""` (raw) |
+| `WithExtract`      | Add extraction options                                           |
+| `WithSymlink`      | Create symlink in `.pocket/bin/`                                 |
+| `WithSkipIfExists` | Skip download if file exists                                     |
+| `WithOutputName`   | Output filename for `"gz"` format (required for gz)              |
 
 ```go
 import "github.com/fredrikaverpil/pocket/pk/download"

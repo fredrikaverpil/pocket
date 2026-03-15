@@ -269,13 +269,15 @@ project controls tool versions, not Pocket.
 
 ### Go Tools
 
-Use `pk.InstallGo` for Go-based tools:
+Use `golang.Install` for Go-based tools:
 
 ```go
+import "github.com/fredrikaverpil/pocket/tools/golang"
+
 var installLint = &pk.Task{
     Name:   "install:golangci-lint",
     Usage:  "install linter",
-    Body:   pk.InstallGo("github.com/golangci/golangci-lint/cmd/golangci-lint", "v1.64.8"),
+    Body:   golang.Install("github.com/golangci/golangci-lint/v2/cmd/golangci-lint", "v2.1.6"),
     Hidden: true,
     Global: true,
 }
@@ -432,8 +434,8 @@ workflow generation.
 > [!NOTE]
 >
 > Tests run without coverage by default to avoid conflicts when testing multiple
-> Python versions. Use `python.WithTestCoverage()` to enable coverage for one
-> version.
+> Python versions. Use `python.TestFlags{Coverage: true}` to enable coverage for
+> one version.
 
 #### Venv Location
 
@@ -1126,7 +1128,7 @@ type Plan struct {
 }
 
 // Public methods
-func (p *Plan) Tasks() []*Task           // All tasks in the plan
+func (p *Plan) Tasks() []TaskInfo        // All tasks in the plan
 func (p *Plan) ShimConfig() *ShimConfig  // Resolved shim configuration
 ```
 
