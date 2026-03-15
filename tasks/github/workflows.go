@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/goreleaser"
 )
@@ -145,7 +146,7 @@ func runWorkflows(ctx context.Context) error {
 		{
 			"pr.yml.tmpl",
 			"pr.yml",
-			struct{ Types []string }{Types: pk.ConventionalCommitTypes},
+			struct{ Types []string }{Types: conventionalcommits.Types},
 			boolVal(f.ConventionalCommitWorkflow),
 		},
 		{"release.yml.tmpl", "release.yml", releaseConfig, boolVal(f.ReleasePleaseWorkflow)},

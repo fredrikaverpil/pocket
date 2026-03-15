@@ -13,6 +13,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
+	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
@@ -202,7 +203,7 @@ var commitsCheckTask = &Task{
 			if len(shortHash) > 7 {
 				shortHash = shortHash[:7]
 			}
-			if err := ValidateCommitMessage(msg); err != nil {
+			if err := conventionalcommits.ValidateMessage(msg); err != nil {
 				invalid = append(invalid, fmt.Sprintf("  %s %q — %s", shortHash, msg, err))
 			}
 		}

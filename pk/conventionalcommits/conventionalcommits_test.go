@@ -1,11 +1,11 @@
-package pk
+package conventionalcommits
 
 import (
 	"strings"
 	"testing"
 )
 
-func TestValidateCommitMessage(t *testing.T) {
+func TestValidateMessage(t *testing.T) {
 	tests := []struct {
 		name    string
 		msg     string
@@ -65,30 +65,30 @@ func TestValidateCommitMessage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateCommitMessage(tc.msg)
+			err := ValidateMessage(tc.msg)
 			if tc.wantErr {
 				if err == nil {
-					t.Errorf("ValidateCommitMessage(%q) = nil, want error containing %q", tc.msg, tc.errMsg)
+					t.Errorf("ValidateMessage(%q) = nil, want error containing %q", tc.msg, tc.errMsg)
 				} else if tc.errMsg != "" && !contains(err.Error(), tc.errMsg) {
-					t.Errorf("ValidateCommitMessage(%q) error = %q, want containing %q", tc.msg, err.Error(), tc.errMsg)
+					t.Errorf("ValidateMessage(%q) error = %q, want containing %q", tc.msg, err.Error(), tc.errMsg)
 				}
 			} else if err != nil {
-				t.Errorf("ValidateCommitMessage(%q) = %v, want nil", tc.msg, err)
+				t.Errorf("ValidateMessage(%q) = %v, want nil", tc.msg, err)
 			}
 		})
 	}
 }
 
-func TestConventionalCommitTypes(t *testing.T) {
+func TestTypes(t *testing.T) {
 	// Verify the type list is non-empty and sorted.
-	if len(ConventionalCommitTypes) == 0 {
-		t.Fatal("ConventionalCommitTypes is empty")
+	if len(Types) == 0 {
+		t.Fatal("Types is empty")
 	}
-	for i := 1; i < len(ConventionalCommitTypes); i++ {
-		if ConventionalCommitTypes[i] <= ConventionalCommitTypes[i-1] {
+	for i := 1; i < len(Types); i++ {
+		if Types[i] <= Types[i-1] {
 			t.Errorf(
-				"ConventionalCommitTypes not sorted: %q should come before %q",
-				ConventionalCommitTypes[i], ConventionalCommitTypes[i-1],
+				"Types not sorted: %q should come before %q",
+				Types[i], Types[i-1],
 			)
 		}
 	}

@@ -1,4 +1,4 @@
-package pk
+package conventionalcommits
 
 import (
 	"fmt"
@@ -11,10 +11,10 @@ import (
 // subject line (the first line of the commit message).
 const MaxSubjectLength = 72
 
-// ConventionalCommitTypes lists the allowed type prefixes for conventional
-// commit messages. Used by [ValidateCommitMessage] and the generated
-// GitHub Actions PR title validation workflow.
-var ConventionalCommitTypes = []string{
+// Types lists the allowed type prefixes for conventional commit messages.
+// Used by [ValidateMessage] and the generated GitHub Actions PR title
+// validation workflow.
+var Types = []string{
 	"build", "chore", "ci", "docs", "feat", "fix",
 	"perf", "refactor", "revert", "style", "test",
 }
@@ -26,16 +26,16 @@ var (
 
 func conventionalCommitRegex() *regexp.Regexp {
 	commitRegexOnce.Do(func() {
-		types := strings.Join(ConventionalCommitTypes, "|")
+		types := strings.Join(Types, "|")
 		pattern := fmt.Sprintf(`^(%s)(\([^)]+\))?!?: (?:[^A-Z]).+$`, types)
 		commitRegex = regexp.MustCompile(pattern)
 	})
 	return commitRegex
 }
 
-// ValidateCommitMessage validates a single commit message first line against
+// ValidateMessage validates a single commit message first line against
 // the conventional commits format. Returns nil if valid.
-func ValidateCommitMessage(msg string) error {
+func ValidateMessage(msg string) error {
 	// Use only the first line.
 	firstLine, _, _ := strings.Cut(msg, "\n")
 	firstLine = strings.TrimSpace(firstLine)
@@ -63,7 +63,7 @@ func ValidateCommitMessage(msg string) error {
 // commitError returns a descriptive error for an invalid commit message.
 func commitError(firstLine string) error {
 	// Check if it has a known type prefix at all.
-	for _, t := range ConventionalCommitTypes {
+	for _, t := range Types {
 		if !strings.HasPrefix(firstLine, t) {
 			continue
 		}
