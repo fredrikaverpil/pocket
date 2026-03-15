@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-// ExtractOpt configures extraction behavior.
+// ExtractOpt configures how archives are unpacked by [ExtractTarGz],
+// [ExtractTar], and [ExtractZip].
 type ExtractOpt func(*extractConfig)
 
 type extractConfig struct {

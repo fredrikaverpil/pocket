@@ -242,9 +242,12 @@ func diffStructs(defaults, overrides any) (map[string]any, error) {
 	return diff, nil
 }
 
-// GetFlags retrieves the resolved flags struct from context.
-// Panics with a flagError if no flags are in context.
-// The panic is recovered by task.run() and surfaced as a returned error.
+// GetFlags retrieves the resolved flags for a task from context.
+// It returns a struct of type T populated with the task's default values,
+// any overrides from [WithFlags], and CLI flag values (highest priority).
+//
+// Must be called from within a task's Do function. If no flags are available
+// in context, the task returns an error.
 func GetFlags[T any](ctx context.Context) T {
 	var zero T
 	m := taskFlagsFromContext(ctx)

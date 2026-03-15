@@ -19,17 +19,12 @@ func PlanFromContext(ctx context.Context) *Plan {
 	return nil
 }
 
-// Plan represents the execution plan created from a Config.
-// It preserves the composition tree structure while extracting metadata.
+// Plan represents the execution plan created from a [Config].
+// It is built once by [NewPlan], which analyzes both the composition tree
+// and the filesystem, then reused throughout execution.
 //
-// The plan is created once by analyzing both the Config and filesystem,
-// then reused throughout execution. This is a PUBLIC API - users can access
-// the plan to inspect what will execute, build custom tooling, or implement
-// their own visualization.
-//
-// IMPORTANT: While Plan is exported for introspection, the composition types
-// (serial, parallel, pathFilter) remain internal. Users should not rely on
-// type assertions against Runnable - the composition structure may change.
+// Use [Plan.Tasks] to inspect what will execute, and [PlanFromContext]
+// to access the plan from within a task's Do function.
 type Plan struct {
 	// tree is the composition tree that preserves dependencies and structure.
 	// Execution walks this tree, respecting Serial/Parallel composition.
@@ -57,8 +52,8 @@ type Plan struct {
 	shimConfig *ShimConfig
 }
 
-// ShimConfig returns the resolved shim configuration.
-// If no shim config was set in Config, defaults to POSIX only.
+// ShimConfig returns the resolved shim configuration from the [Config].
+// Defaults to POSIX only (pok) if no [ShimConfig] was provided.
 func (p *Plan) ShimConfig() *ShimConfig {
 	if p.shimConfig == nil {
 		return &ShimConfig{Posix: true}
@@ -81,9 +76,9 @@ type pathInfo struct {
 	resolvedPaths []string
 }
 
-// NewPlan creates an execution plan from a Config.
-// It walks the composition tree to extract tasks and analyzes the filesystem.
-// The filesystem is traversed ONCE during plan creation.
+// NewPlan creates an execution plan from a [Config].
+// It walks the composition tree to extract tasks, resolves path filters
+// against the filesystem (traversed once), and pre-computes flag overrides.
 func NewPlan(cfg *Config) (*Plan, error) {
 	gitRoot := findGitRoot()
 
@@ -531,19 +526,26 @@ func deriveModuleDirectories(pathMappings map[string]pathInfo) []string {
 	return dirs
 }
 
-// TaskInfo represents a task for introspection.
-// This is the public type for CI/CD integration (e.g., per-task workflow generation).
+// TaskInfo describes a task in the execution plan.
+// Returned by [Plan.Tasks] for introspection, CI workflow generation,
+// and custom tooling.
 type TaskInfo struct {
-	Name   string         `json:"name"`            // CLI command name
-	Usage  string         `json:"usage,omitempty"` // Description/help text
-	Paths  []string       `json:"paths"`           // Directories this task runs in (resolved)
-	Flags  map[string]any `json:"flags,omitempty"` // Flag overrides set via pk.WithFlags()
-	Hidden bool           `json:"hidden"`          // Whether task is hidden from help
-	Manual bool           `json:"manual"`          // Whether task is manual-only
+	// Name is the effective task name, including any suffix (e.g., "py-test:3.9").
+	Name string `json:"name"`
+	// Usage is the short description shown in help output.
+	Usage string `json:"usage,omitempty"`
+	// Paths lists the directories where this task will execute.
+	Paths []string `json:"paths"`
+	// Flags contains flag overrides applied via [WithFlags].
+	Flags map[string]any `json:"flags,omitempty"`
+	// Hidden indicates the task is excluded from CLI help listings.
+	Hidden bool `json:"hidden"`
+	// Manual indicates the task only runs when explicitly invoked, not on bare ./pok.
+	Manual bool `json:"manual"`
 }
 
-// Tasks returns task information for all tasks in the plan.
-// This is the public introspection API for CI/CD integration.
+// Tasks returns information about all tasks in the plan.
+// Task names include any suffix from [WithNameSuffix] (e.g., "py-test:3.9").
 func (p *Plan) Tasks() []TaskInfo {
 	if p == nil {
 		return nil
