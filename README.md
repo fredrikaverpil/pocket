@@ -251,7 +251,3 @@ var Config = &pk.Config{
 - [Engine Architecture](./.claude/skills/pocket-engine/SKILL.md) - Internal
   design, plan building, composition, and execution pipeline.
   [Internals](./.claude/skills/pocket-engine/INTERNALS.md).
-
-```
-
-```
