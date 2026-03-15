@@ -7,11 +7,14 @@ import (
 	"sync"
 )
 
+// MaxSubjectLength is the maximum allowed length for a commit subject line.
+const MaxSubjectLength = 72
+
 // ConventionalCommitTypes is the set of allowed conventional commit types.
 // Used by the -c builtin and the pr.yml workflow template.
 var ConventionalCommitTypes = []string{
 	"build", "chore", "ci", "docs", "feat", "fix",
-	"merge", "perf", "refactor", "revert", "style", "test", "wip",
+	"perf", "refactor", "revert", "style", "test",
 }
 
 var (
@@ -22,7 +25,7 @@ var (
 func conventionalCommitRegex() *regexp.Regexp {
 	commitRegexOnce.Do(func() {
 		types := strings.Join(ConventionalCommitTypes, "|")
-		pattern := fmt.Sprintf(`^(%s)(\(.+\))?!?: (?:[^A-Z]).+$`, types)
+		pattern := fmt.Sprintf(`^(%s)(\([^)]+\))?!?: (?:[^A-Z]).+$`, types)
 		commitRegex = regexp.MustCompile(pattern)
 	})
 	return commitRegex
@@ -42,6 +45,10 @@ func ValidateCommitMessage(msg string) error {
 	// Skip merge commits.
 	if strings.HasPrefix(firstLine, "Merge ") {
 		return nil
+	}
+
+	if len(firstLine) > MaxSubjectLength {
+		return fmt.Errorf("subject exceeds %d characters (%d)", MaxSubjectLength, len(firstLine))
 	}
 
 	if !conventionalCommitRegex().MatchString(firstLine) {
