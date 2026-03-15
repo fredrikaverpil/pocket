@@ -14,8 +14,9 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 )
 
-// RunMain is the main CLI entry point that handles argument parsing and dispatch.
-// It's called from .pocket/main.go.
+// RunMain is the CLI entry point for Pocket. It parses arguments, builds
+// the execution plan, and dispatches task execution. Call this from your
+// .pocket/main.go with the project's [Config].
 func RunMain(cfg *Config) {
 	tracker, err := run(cfg)
 	if err != nil {
@@ -215,9 +216,8 @@ func printTaskHelp(ctx context.Context, task *Task) {
 	task.flagSet.PrintDefaults()
 }
 
-// ExecuteTask runs a single task by name with proper path context.
-// The name can include a suffix (e.g., "py-test:3.9") to select a specific task variant.
-// This is the public API for external callers.
+// ExecuteTask runs a single task by name from a pre-built [Plan].
+// The name can include a suffix (e.g., "py-test:3.9") to select a specific variant.
 func ExecuteTask(ctx context.Context, name string, p *Plan) error {
 	instance := findTaskByName(p, name)
 	if instance == nil {

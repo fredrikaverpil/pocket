@@ -1,5 +1,7 @@
-// Package download provides utilities for downloading and extracting files.
-// It depends on the pk package for Runnable, Printf, and CreateSymlink.
+// Package download provides utilities for downloading, extracting, and
+// symlinking tool binaries. Use [Download] to create a [pk.Runnable] that
+// fetches a URL and optionally extracts and symlinks the result into
+// .pocket/bin/.
 package download
 
 import (
@@ -14,7 +16,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 )
 
-// Opt configures download and extraction behavior.
+// Opt configures [Download] behavior.
 type Opt func(*downloadConfig)
 
 type downloadConfig struct {
@@ -56,14 +58,17 @@ func WithExtract(opt ExtractOpt) Opt {
 	}
 }
 
-// WithSymlink creates a symlink in .pocket/bin/ after extraction.
+// WithSymlink creates a symlink in .pocket/bin/ pointing to the extracted binary.
+// This makes the tool available to [pk.Exec] by name.
 func WithSymlink() Opt {
 	return func(cfg *downloadConfig) {
 		cfg.symlink = true
 	}
 }
 
-// WithSkipIfExists skips the download if the specified file exists.
+// WithSkipIfExists skips the download if the file at path already exists.
+// Use this with a path like pk.FromToolsDir("tool", "v1.0", "tool") to
+// avoid re-downloading on every run.
 func WithSkipIfExists(path string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.skipIfExists = path
@@ -71,13 +76,17 @@ func WithSkipIfExists(path string) Opt {
 }
 
 // WithOutputName sets the output filename for "gz" format extraction.
+// Required when format is "gz" since gzip files don't contain the original filename.
 func WithOutputName(name string) Opt {
 	return func(cfg *downloadConfig) {
 		cfg.outputName = name
 	}
 }
 
-// Download creates a Runnable that fetches a URL and optionally extracts it.
+// Download creates a [pk.Runnable] that fetches a URL and optionally
+// extracts, renames, and symlinks the downloaded file.
+// Configure behavior with [WithDestDir], [WithFormat], [WithExtract],
+// [WithSymlink], and [WithSkipIfExists].
 func Download(url string, opts ...Opt) pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		return download(ctx, url, opts...)

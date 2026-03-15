@@ -19,8 +19,7 @@ import (
 // waitDelay is the time to wait after sending SIGINT before sending SIGKILL.
 const waitDelay = 5 * time.Second
 
-// Do creates a Runnable that executes a dynamic function.
-// Use this when command arguments need to be computed at runtime.
+// Do wraps a Go function as a [Runnable] for use in task composition.
 //
 //	pk.Do(func(ctx context.Context) error {
 //	    return pk.Exec(ctx, "golangci-lint", "run", "--fix", "./...")
@@ -67,19 +66,17 @@ func isTerminal(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
 
-// Exec executes a command with .pocket/bin prepended to PATH.
-// The command runs in the directory specified by PathFromContext(ctx).
+// Exec runs an external command with .pocket/bin prepended to PATH.
+// The command runs in the directory from [PathFromContext].
 //
-// Environment variables can be customized using ContextWithEnv and ContextWithoutEnv:
+// Output handling depends on verbose mode (-v flag):
+//   - Verbose: output streams to stdout/stderr in real-time.
+//   - Non-verbose: output is captured and shown only on error or when
+//     warning-like patterns are detected (see [DefaultNoticePatterns]).
 //
-//	ctx = pk.ContextWithEnv(ctx, "MY_VAR=value")
-//	ctx = pk.ContextWithoutEnv(ctx, "UNWANTED_PREFIX")
-//	pk.Exec(ctx, "mycmd", "arg1")
-//
-// If verbose mode is enabled, command output is streamed to context output.
-// Otherwise, output is captured and only shown on error.
-//
-// Commands are terminated gracefully: SIGINT first, then SIGKILL after WaitDelay.
+// Environment variables can be customized via [ContextWithEnv] and [ContextWithoutEnv].
+// On Unix, commands receive SIGINT on context cancellation for graceful shutdown,
+// followed by SIGKILL after 5 seconds.
 func Exec(ctx context.Context, name string, args ...string) error {
 	colorEnvOnce.Do(initColorEnv)
 
@@ -134,8 +131,10 @@ func Exec(ctx context.Context, name string, args ...string) error {
 	return nil
 }
 
-// DefaultNoticePatterns are the default substrings used to detect
-// warning-like output from commands.
+// DefaultNoticePatterns are the substrings used to detect warning-like output
+// from commands when not in verbose mode. If any pattern matches (case-insensitive),
+// the output is shown to the user even though the command succeeded.
+// Override per scope with [WithNoticePatterns].
 var DefaultNoticePatterns = []string{"warn", "deprecat", "notice", "caution", "error"}
 
 // noticePatternsKey is the context key for custom notice patterns.

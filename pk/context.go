@@ -136,10 +136,13 @@ func contextWithNameSuffix(ctx context.Context, suffix string) context.Context {
 // Environment Configuration
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// EnvConfig holds environment variable overrides for command execution.
+// EnvConfig holds environment variable overrides applied to [Exec] calls.
+// Built up via [ContextWithEnv] and [ContextWithoutEnv].
 type EnvConfig struct {
-	Set    map[string]string // key -> value (replaces existing)
-	Filter []string          // prefixes to filter out
+	// Set contains environment variables to set (or replace). Keys are variable names.
+	Set map[string]string
+	// Filter contains prefixes of environment variables to remove.
+	Filter []string
 }
 
 // ContextWithEnv returns a new context that sets an environment variable for Exec calls.
@@ -172,8 +175,8 @@ func ContextWithoutEnv(ctx context.Context, prefix string) context.Context {
 	return context.WithValue(ctx, envKey{}, cfg)
 }
 
-// EnvConfigFromContext returns the environment config from the context.
-// Returns a copy to avoid mutating the original.
+// EnvConfigFromContext returns a copy of the environment config from the context.
+// Useful for inspecting what environment overrides are in effect.
 func EnvConfigFromContext(ctx context.Context) EnvConfig {
 	cfg, ok := ctx.Value(envKey{}).(EnvConfig)
 	if !ok {

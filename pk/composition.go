@@ -7,8 +7,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Runnable represents a unit of execution in the task graph.
-// The run method is intentionally unexported to keep execution internals private.
+// Runnable is the core abstraction for composable units of work.
+// Tasks, Serial, Parallel, and WithOptions all produce Runnables that
+// can be nested to build execution trees.
+//
+// The run method is unexported; users compose Runnables via the
+// provided constructors rather than implementing the interface directly.
 type Runnable interface {
 	run(ctx context.Context) error
 }
@@ -19,9 +23,10 @@ func Serial(runnables ...Runnable) Runnable {
 	return &serial{runnables: runnables}
 }
 
-// Parallel composes multiple runnables to execute concurrently.
-// All runnables are started simultaneously, and execution waits for all to complete.
-// Returns the first error encountered, or nil if all succeed.
+// Parallel composes multiple runnables to execute concurrently with buffered output.
+// Each runnable's output is captured and flushed atomically on completion to prevent
+// interleaving. If any runnable fails, the shared context is cancelled and remaining
+// runnables exit early. A single runnable runs without buffering for real-time output.
 func Parallel(runnables ...Runnable) Runnable {
 	return &parallel{runnables: runnables}
 }

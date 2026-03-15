@@ -7,11 +7,13 @@ import (
 	"sync"
 )
 
-// MaxSubjectLength is the maximum allowed length for a commit subject line.
+// MaxSubjectLength is the maximum allowed length for a conventional commit
+// subject line (the first line of the commit message).
 const MaxSubjectLength = 72
 
-// ConventionalCommitTypes is the set of allowed conventional commit types.
-// Used by the -c builtin and the pr.yml workflow template.
+// ConventionalCommitTypes lists the allowed type prefixes for conventional
+// commit messages. Used by [ValidateCommitMessage] and the generated
+// GitHub Actions PR title validation workflow.
 var ConventionalCommitTypes = []string{
 	"build", "chore", "ci", "docs", "feat", "fix",
 	"perf", "refactor", "revert", "style", "test",

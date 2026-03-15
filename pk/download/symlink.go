@@ -98,7 +98,7 @@ func CreateSymlinkWithCompanions(binaryPath string, companions ...string) (strin
 	return linkPath, nil
 }
 
-// CopyFile copies a file from src to dst.
+// CopyFile copies a file from src to dst, preserving executable permissions.
 func CopyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
