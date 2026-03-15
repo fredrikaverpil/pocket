@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -23,9 +24,6 @@ func TestValidateCommitMessage(t *testing.T) {
 		{"revert", "revert: undo change", false, ""},
 		{"style", "style: fix formatting", false, ""},
 		{"test", "test: add unit tests", false, ""},
-		{"wip", "wip: work in progress", false, ""},
-		{"merge type", "merge: merge branch", false, ""},
-
 		// Scoped messages.
 		{"scoped feat", "feat(api): add endpoint", false, ""},
 		{"scoped fix", "fix(auth): resolve token issue", false, ""},
@@ -42,6 +40,17 @@ func TestValidateCommitMessage(t *testing.T) {
 		// Multiline (only first line validated).
 		{"multiline valid", "feat: add feature\n\ndetailed description", false, ""},
 		{"multiline invalid", "Add feature\n\nfeat: this is body", true, "type prefix required"},
+
+		// Subject length (72 char limit).
+		{"exactly 72 chars", "feat: " + strings.Repeat("a", 66), false, ""},
+		{"73 chars", "feat: " + strings.Repeat("a", 67), true, "subject exceeds 72 characters"},
+
+		// Greedy scope rejected.
+		{"greedy scope", "feat(a)(b): add thing", true, "invalid format"},
+
+		// Removed types.
+		{"wip rejected", "wip: work in progress", true, "type prefix required"},
+		{"merge type rejected", "merge: merge branch", true, "type prefix required"},
 
 		// Invalid messages.
 		{"empty", "", true, "empty commit message"},
