@@ -1,0 +1,8 @@
+# Downloaded tool binaries
+bin/
+build/
+tools/
+
+# Build artifacts
+pocket
+pocket-build
