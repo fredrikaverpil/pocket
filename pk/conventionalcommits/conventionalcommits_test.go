@@ -93,4 +93,3 @@ func TestTypes(t *testing.T) {
 		}
 	}
 }
-

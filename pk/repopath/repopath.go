@@ -98,4 +98,3 @@ func FromBinDir(elem ...string) string {
 	parts := append([]string{"bin"}, elem...)
 	return FromPocketDir(parts...)
 }
-
