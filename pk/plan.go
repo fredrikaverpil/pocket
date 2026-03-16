@@ -95,7 +95,7 @@ func NewPlan(cfg *Config) (*Plan, error) {
 		skipDirs = DefaultSkipDirs
 	}
 
-	allDirs, err := repopath.WalkDirectories(gitRoot, skipDirs, includeHidden)
+	allDirs, err := walkDirectories(gitRoot, skipDirs, includeHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) ([]string, error) {
 	case len(pf.includePaths) > 0:
 		for _, dir := range candidates {
 			for _, pattern := range pf.includePaths {
-				matched, err := repopath.MatchPattern(dir, pattern)
+				matched, err := matchPattern(dir, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -480,7 +480,7 @@ func excludeByPatterns(dirs, patterns []string) ([]string, error) {
 	for _, dir := range dirs {
 		excluded := false
 		for _, pattern := range patterns {
-			matched, err := repopath.MatchPattern(dir, pattern)
+			matched, err := matchPattern(dir, pattern)
 			if err != nil {
 				return nil, err
 			}

@@ -1,4 +1,4 @@
-package repopath
+package pk
 
 import (
 	"os"
@@ -54,7 +54,7 @@ func TestWalkDirectories_SkipDirs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := WalkDirectories(tmpDir, tc.skipDirs, false)
+			got, err := walkDirectories(tmpDir, tc.skipDirs, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -63,7 +63,7 @@ func TestWalkDirectories_SkipDirs(t *testing.T) {
 			slices.Sort(tc.want)
 
 			if !slices.Equal(got, tc.want) {
-				t.Errorf("WalkDirectories() = %v, want %v", got, tc.want)
+				t.Errorf("walkDirectories() = %v, want %v", got, tc.want)
 			}
 		})
 	}
@@ -71,7 +71,7 @@ func TestWalkDirectories_SkipDirs(t *testing.T) {
 
 func TestMatchPattern(t *testing.T) {
 	t.Run("SimpleMatch", func(t *testing.T) {
-		matched, err := MatchPattern("services/api", "services")
+		matched, err := matchPattern("services/api", "services")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestMatchPattern(t *testing.T) {
 	})
 
 	t.Run("RegexMatch", func(t *testing.T) {
-		matched, err := MatchPattern("services/api-v2", `services/api-v\d+`)
+		matched, err := matchPattern("services/api-v2", `services/api-v\d+`)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -91,7 +91,7 @@ func TestMatchPattern(t *testing.T) {
 	})
 
 	t.Run("NoMatch", func(t *testing.T) {
-		matched, err := MatchPattern("lib/utils", "services")
+		matched, err := matchPattern("lib/utils", "services")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +101,7 @@ func TestMatchPattern(t *testing.T) {
 	})
 
 	t.Run("InvalidRegex", func(t *testing.T) {
-		_, err := MatchPattern("anything", "[invalid")
+		_, err := matchPattern("anything", "[invalid")
 		if err == nil {
 			t.Error("expected error for invalid regex")
 		}
@@ -109,8 +109,8 @@ func TestMatchPattern(t *testing.T) {
 
 	t.Run("CachedResult", func(t *testing.T) {
 		// Call twice with same pattern - second should use cache.
-		got1, err1 := MatchPattern("a/b", "^a")
-		got2, err2 := MatchPattern("a/b", "^a")
+		got1, err1 := matchPattern("a/b", "^a")
+		got2, err2 := matchPattern("a/b", "^a")
 		if err1 != nil || err2 != nil {
 			t.Fatal(err1, err2)
 		}
@@ -132,7 +132,7 @@ func TestWalkDirectories_HiddenDirs(t *testing.T) {
 	}
 
 	t.Run("hidden dirs skipped by default", func(t *testing.T) {
-		got, err := WalkDirectories(tmpDir, []string{}, false)
+		got, err := walkDirectories(tmpDir, []string{}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,12 +141,12 @@ func TestWalkDirectories_HiddenDirs(t *testing.T) {
 		slices.Sort(got)
 
 		if !slices.Equal(got, want) {
-			t.Errorf("WalkDirectories() = %v, want %v", got, want)
+			t.Errorf("walkDirectories() = %v, want %v", got, want)
 		}
 	})
 
 	t.Run("hidden dirs included when includeHidden is true", func(t *testing.T) {
-		got, err := WalkDirectories(tmpDir, []string{}, true)
+		got, err := walkDirectories(tmpDir, []string{}, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,12 +155,12 @@ func TestWalkDirectories_HiddenDirs(t *testing.T) {
 		slices.Sort(got)
 
 		if !slices.Equal(got, want) {
-			t.Errorf("WalkDirectories() = %v, want %v", got, want)
+			t.Errorf("walkDirectories() = %v, want %v", got, want)
 		}
 	})
 
 	t.Run("hidden dirs can be skipped via skipDirs when included", func(t *testing.T) {
-		got, err := WalkDirectories(tmpDir, []string{".git"}, true)
+		got, err := walkDirectories(tmpDir, []string{".git"}, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +169,7 @@ func TestWalkDirectories_HiddenDirs(t *testing.T) {
 		slices.Sort(got)
 
 		if !slices.Equal(got, want) {
-			t.Errorf("WalkDirectories() = %v, want %v", got, want)
+			t.Errorf("walkDirectories() = %v, want %v", got, want)
 		}
 	})
 }
