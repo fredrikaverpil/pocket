@@ -69,7 +69,7 @@ func TestValidateMessage(t *testing.T) {
 			if tc.wantErr {
 				if err == nil {
 					t.Errorf("ValidateMessage(%q) = nil, want error containing %q", tc.msg, tc.errMsg)
-				} else if tc.errMsg != "" && !contains(err.Error(), tc.errMsg) {
+				} else if tc.errMsg != "" && !strings.Contains(err.Error(), tc.errMsg) {
 					t.Errorf("ValidateMessage(%q) error = %q, want containing %q", tc.msg, err.Error(), tc.errMsg)
 				}
 			} else if err != nil {
@@ -94,15 +94,3 @@ func TestTypes(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
