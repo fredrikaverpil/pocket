@@ -35,34 +35,34 @@ func TestContextWithNameSuffix(t *testing.T) {
 
 func TestContextWithEnv(t *testing.T) {
 	t.Run("ValidKeyValue", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "MY_VAR=hello")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithEnv(context.Background(), "MY_VAR=hello")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if cfg.Set["MY_VAR"] != "hello" {
 			t.Errorf("expected MY_VAR=hello, got %v", cfg.Set)
 		}
 	})
 
 	t.Run("Accumulation", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "A=1")
-		ctx = ContextWithEnv(ctx, "B=2")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithEnv(context.Background(), "A=1")
+		ctx = engine.ContextWithEnv(ctx, "B=2")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if cfg.Set["A"] != "1" || cfg.Set["B"] != "2" {
 			t.Errorf("expected A=1, B=2, got %v", cfg.Set)
 		}
 	})
 
 	t.Run("OverwriteSameKey", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "X=old")
-		ctx = ContextWithEnv(ctx, "X=new")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithEnv(context.Background(), "X=old")
+		ctx = engine.ContextWithEnv(ctx, "X=new")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if cfg.Set["X"] != "new" {
 			t.Errorf("expected X=new, got %v", cfg.Set)
 		}
 	})
 
 	t.Run("InvalidFormat", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "NOEQUALSSIGN")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithEnv(context.Background(), "NOEQUALSSIGN")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if len(cfg.Set) != 0 {
 			t.Errorf("expected empty set for invalid format, got %v", cfg.Set)
 		}
@@ -71,17 +71,17 @@ func TestContextWithEnv(t *testing.T) {
 
 func TestContextWithoutEnv(t *testing.T) {
 	t.Run("SingleFilter", func(t *testing.T) {
-		ctx := ContextWithoutEnv(context.Background(), "VIRTUAL_ENV")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithoutEnv(context.Background(), "VIRTUAL_ENV")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if len(cfg.Filter) != 1 || cfg.Filter[0] != "VIRTUAL_ENV" {
 			t.Errorf("expected [VIRTUAL_ENV], got %v", cfg.Filter)
 		}
 	})
 
 	t.Run("Accumulation", func(t *testing.T) {
-		ctx := ContextWithoutEnv(context.Background(), "A")
-		ctx = ContextWithoutEnv(ctx, "B")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithoutEnv(context.Background(), "A")
+		ctx = engine.ContextWithoutEnv(ctx, "B")
+		cfg := engine.EnvConfigFromContext(ctx)
 		if len(cfg.Filter) != 2 {
 			t.Errorf("expected 2 filters, got %v", cfg.Filter)
 		}
@@ -90,7 +90,7 @@ func TestContextWithoutEnv(t *testing.T) {
 
 func TestEnvConfigFromContext(t *testing.T) {
 	t.Run("DefaultEmpty", func(t *testing.T) {
-		cfg := EnvConfigFromContext(context.Background())
+		cfg := engine.EnvConfigFromContext(context.Background())
 		if cfg.Set != nil {
 			t.Errorf("expected nil Set, got %v", cfg.Set)
 		}
@@ -100,9 +100,9 @@ func TestEnvConfigFromContext(t *testing.T) {
 	})
 
 	t.Run("DefensiveCopy", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "A=1")
-		cfg1 := EnvConfigFromContext(ctx)
-		cfg2 := EnvConfigFromContext(ctx)
+		ctx := engine.ContextWithEnv(context.Background(), "A=1")
+		cfg1 := engine.EnvConfigFromContext(ctx)
+		cfg2 := engine.EnvConfigFromContext(ctx)
 
 		// Mutating cfg1 should not affect cfg2.
 		cfg1.Set["A"] = "mutated"
@@ -114,14 +114,14 @@ func TestEnvConfigFromContext(t *testing.T) {
 
 func TestVerbose(t *testing.T) {
 	t.Run("DefaultFalse", func(t *testing.T) {
-		if Verbose(context.Background()) {
+		if engine.Verbose(context.Background()) {
 			t.Error("expected false by default")
 		}
 	})
 
 	t.Run("SetTrue", func(t *testing.T) {
 		ctx := engine.ContextWithVerbose(context.Background(), true)
-		if !Verbose(ctx) {
+		if !engine.Verbose(ctx) {
 			t.Error("expected true after setting")
 		}
 	})
@@ -144,14 +144,14 @@ func TestIsAutoExec(t *testing.T) {
 
 func TestPathFromContext(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		if got := PathFromContext(context.Background()); got != "." {
+		if got := engine.PathFromContext(context.Background()); got != "." {
 			t.Errorf("expected %q, got %q", ".", got)
 		}
 	})
 
 	t.Run("Set", func(t *testing.T) {
-		ctx := ContextWithPath(context.Background(), "services/api")
-		if got := PathFromContext(ctx); got != "services/api" {
+		ctx := engine.ContextWithPath(context.Background(), "services/api")
+		if got := engine.PathFromContext(ctx); got != "services/api" {
 			t.Errorf("expected %q, got %q", "services/api", got)
 		}
 	})

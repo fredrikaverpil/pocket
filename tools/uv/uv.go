@@ -36,9 +36,9 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
-	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Name is the binary name for uv.

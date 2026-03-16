@@ -26,7 +26,7 @@ func planFromContext(ctx context.Context) *Plan {
 }
 
 // Plan represents the execution plan created from a [Config].
-// It is built once by [NewPlan], which analyzes both the composition tree
+// It is built once by newPublicPlan, which analyzes both the composition tree
 // and the filesystem, then reused throughout execution.
 //
 // Use [Plan.Tasks] to inspect what will execute, and [PlanFromContext]
@@ -82,10 +82,9 @@ type pathInfo struct {
 	resolvedPaths []string
 }
 
-// NewPlan creates an execution plan from a [Config].
-// It walks the composition tree to extract tasks, resolves path filters
-// against the filesystem (traversed once), and pre-computes flag overrides.
-func NewPlan(cfg *Config) (*Plan, error) {
+// newPublicPlan creates an execution plan from a Config by walking the
+// filesystem to discover directories, then delegating to newPlan.
+func newPublicPlan(cfg *Config) (*Plan, error) {
 	gitRoot := repopath.GitRoot()
 
 	// Resolve skip dirs: nil uses defaults, empty slice skips nothing

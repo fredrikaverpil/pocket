@@ -145,7 +145,7 @@ func TestParallel_SingleItemNoBuf(t *testing.T) {
 
 func TestParallel_OutputBuffering(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	out := &Output{Stdout: &stdout, Stderr: &stderr}
+	out := &engine.Output{Stdout: &stdout, Stderr: &stderr}
 
 	// Two tasks that write to output.
 	p := Parallel(
@@ -212,8 +212,8 @@ func TestParallel_CancelledContext(t *testing.T) {
 }
 
 // testOutput returns an Output that discards all output.
-func testOutput() *Output {
-	return &Output{
+func testOutput() *engine.Output {
+	return &engine.Output{
 		Stdout: &bytes.Buffer{},
 		Stderr: &bytes.Buffer{},
 	}

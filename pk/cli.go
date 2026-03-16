@@ -70,7 +70,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	}
 
 	// Build Plan
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("building plan: %w", err)
 	}

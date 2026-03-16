@@ -12,7 +12,7 @@ import (
 func TestGitDiffTask_Disabled(t *testing.T) {
 	ctx := context.Background()
 	ctx = engine.ContextWithGitDiffEnabled(ctx, false)
-	ctx = engine.SetOutput(ctx, &Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = engine.SetOutput(ctx, &engine.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when git diff is disabled
 	if err := gitDiffTask.run(ctx); err != nil {
@@ -65,7 +65,7 @@ func TestIsBuiltinName(t *testing.T) {
 func TestCommitsCheckTask_Disabled(t *testing.T) {
 	ctx := context.Background()
 	ctx = engine.ContextWithCommitsCheckEnabled(ctx, false)
-	ctx = engine.SetOutput(ctx, &Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = engine.SetOutput(ctx, &engine.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when commits check is disabled.
 	if err := commitsCheckTask.run(ctx); err != nil {
@@ -203,7 +203,7 @@ func TestPrintTaskHelp(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
+	out := &engine.Output{Stdout: &buf, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
 	printTaskHelp(ctx, task)
@@ -224,7 +224,7 @@ func TestPrintTaskHelp_NoFlags(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
+	out := &engine.Output{Stdout: &buf, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
 	printTaskHelp(ctx, task)
@@ -244,7 +244,7 @@ func TestPrintHelp(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
+	out := &engine.Output{Stdout: &buf, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
 	printHelp(ctx, cfg, plan)
@@ -267,7 +267,7 @@ func TestPrintPlanJSON(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
+	out := &engine.Output{Stdout: &buf, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
 	if err := printPlanJSON(ctx, plan.tree, plan); err != nil {
@@ -292,7 +292,7 @@ func TestPrintTree(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
+	out := &engine.Output{Stdout: &buf, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
 	printTree(ctx, plan.tree, "", true, "", plan)

@@ -20,25 +20,25 @@ func TestContainsNotice(t *testing.T) {
 		{
 			name:     "matches WARNING",
 			output:   "some WARNING: something bad",
-			patterns: DefaultNoticePatterns,
+			patterns: engine.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "matches deprecation",
 			output:   "DeprecationWarning: old API",
-			patterns: DefaultNoticePatterns,
+			patterns: engine.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "case insensitive",
 			output:   "NOTICE: update available",
-			patterns: DefaultNoticePatterns,
+			patterns: engine.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "no match",
 			output:   "all good, no issues",
-			patterns: DefaultNoticePatterns,
+			patterns: engine.DefaultNoticePatterns,
 			want:     false,
 		},
 		{
@@ -50,7 +50,7 @@ func TestContainsNotice(t *testing.T) {
 		{
 			name:     "empty output",
 			output:   "",
-			patterns: DefaultNoticePatterns,
+			patterns: engine.DefaultNoticePatterns,
 			want:     false,
 		},
 		{
@@ -80,7 +80,7 @@ func TestContainsNotice(t *testing.T) {
 func TestApplyEnvConfig(t *testing.T) {
 	t.Run("NoChanges", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "PATH=/usr/bin"}
-		cfg := EnvConfig{}
+		cfg := engine.EnvConfig{}
 		got := engine.ApplyEnvConfig(environ, cfg)
 		if !slices.Equal(got, environ) {
 			t.Errorf("expected unchanged environ, got %v", got)
@@ -89,7 +89,7 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("FilterPrefix", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "VIRTUAL_ENV=/venv", "VIRTUAL_ENV_PROMPT=(venv)", "PATH=/usr/bin"}
-		cfg := EnvConfig{Filter: []string{"VIRTUAL_ENV"}}
+		cfg := engine.EnvConfig{Filter: []string{"VIRTUAL_ENV"}}
 		got := engine.ApplyEnvConfig(environ, cfg)
 		want := []string{"HOME=/home/user", "PATH=/usr/bin"}
 		if !slices.Equal(got, want) {
@@ -99,7 +99,7 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("SetReplacesExisting", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "FOO=old"}
-		cfg := EnvConfig{Set: map[string]string{"FOO": "new"}}
+		cfg := engine.EnvConfig{Set: map[string]string{"FOO": "new"}}
 		got := engine.ApplyEnvConfig(environ, cfg)
 
 		// FOO=old should be removed and FOO=new should be appended.
@@ -116,7 +116,7 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("SetAddsNew", func(t *testing.T) {
 		environ := []string{"HOME=/home/user"}
-		cfg := EnvConfig{Set: map[string]string{"NEW_VAR": "value"}}
+		cfg := engine.EnvConfig{Set: map[string]string{"NEW_VAR": "value"}}
 		got := engine.ApplyEnvConfig(environ, cfg)
 		if !slices.Contains(got, "NEW_VAR=value") {
 			t.Errorf("expected NEW_VAR=value, got %v", got)
@@ -125,7 +125,7 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("FilterAndSet", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "PYENV_ROOT=/pyenv", "PYENV_VERSION=3.9"}
-		cfg := EnvConfig{
+		cfg := engine.EnvConfig{
 			Filter: []string{"PYENV_"},
 			Set:    map[string]string{"PYENV_VERSION": "3.10"},
 		}

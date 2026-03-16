@@ -10,7 +10,7 @@ import (
 
 func TestBufferedOutput_Flush(t *testing.T) {
 	var parentStdout, parentStderr bytes.Buffer
-	parent := &Output{Stdout: &parentStdout, Stderr: &parentStderr}
+	parent := &engine.Output{Stdout: &parentStdout, Stderr: &parentStderr}
 
 	buf := engine.NewBufferedOutput(parent)
 	out := buf.Output()
@@ -30,7 +30,7 @@ func TestBufferedOutput_Flush(t *testing.T) {
 
 func TestBufferedOutput_FlushEmpty(t *testing.T) {
 	var parentStdout, parentStderr bytes.Buffer
-	parent := &Output{Stdout: &parentStdout, Stderr: &parentStderr}
+	parent := &engine.Output{Stdout: &parentStdout, Stderr: &parentStderr}
 
 	buf := engine.NewBufferedOutput(parent)
 	buf.Flush() // Should be a no-op.
@@ -46,7 +46,7 @@ func TestBufferedOutput_FlushEmpty(t *testing.T) {
 func TestOutputFromContext(t *testing.T) {
 	t.Run("ReturnsSetOutput", func(t *testing.T) {
 		var buf bytes.Buffer
-		out := &Output{Stdout: &buf, Stderr: &buf}
+		out := &engine.Output{Stdout: &buf, Stderr: &buf}
 		ctx := engine.SetOutput(context.Background(), out)
 
 		got := engine.OutputFromContext(ctx)
@@ -65,10 +65,10 @@ func TestOutputFromContext(t *testing.T) {
 
 func TestPrintf(t *testing.T) {
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
+	out := &engine.Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
 	ctx := engine.SetOutput(context.Background(), out)
 
-	Printf(ctx, "hello %s", "world")
+	engine.Printf(ctx, "hello %s", "world")
 
 	if got := buf.String(); got != "hello world" {
 		t.Errorf("expected %q, got %q", "hello world", got)
@@ -77,10 +77,10 @@ func TestPrintf(t *testing.T) {
 
 func TestErrorf(t *testing.T) {
 	var buf bytes.Buffer
-	out := &Output{Stdout: &bytes.Buffer{}, Stderr: &buf}
+	out := &engine.Output{Stdout: &bytes.Buffer{}, Stderr: &buf}
 	ctx := engine.SetOutput(context.Background(), out)
 
-	Errorf(ctx, "error: %d", 42)
+	engine.Errorf(ctx, "error: %d", 42)
 
 	if got := buf.String(); got != "error: 42" {
 		t.Errorf("expected %q, got %q", "error: 42", got)
@@ -89,10 +89,10 @@ func TestErrorf(t *testing.T) {
 
 func TestPrintln(t *testing.T) {
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
+	out := &engine.Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
 	ctx := engine.SetOutput(context.Background(), out)
 
-	Println(ctx, "hello")
+	engine.Println(ctx, "hello")
 
 	if got := buf.String(); got != "hello\n" {
 		t.Errorf("expected %q, got %q", "hello\n", got)

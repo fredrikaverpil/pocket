@@ -12,20 +12,20 @@ import (
 // ═══════════════════════════════════════════════════════════════════════════════
 
 type (
-	pathKey         struct{} // Current execution path.
-	forceRunKey     struct{} // Forcing task execution.
-	verboseKey      struct{} // Verbose mode.
-	gitDiffKey      struct{} // Git diff enabled flag.
-	commitsCheckKey struct{} // Commits check enabled flag.
-	envKey          struct{} // Environment variable overrides.
-	nameSuffixKey   struct{} // Task name suffix.
-	autoExecKey     struct{} // Auto execution mode (manual tasks are skipped).
-	taskFlagsKey    struct{} // Resolved task flag values.
-	cliFlagsKey     struct{} // CLI-provided flag overrides.
+	pathKey           struct{} // Current execution path.
+	forceRunKey       struct{} // Forcing task execution.
+	verboseKey        struct{} // Verbose mode.
+	gitDiffKey        struct{} // Git diff enabled flag.
+	commitsCheckKey   struct{} // Commits check enabled flag.
+	envKey            struct{} // Environment variable overrides.
+	nameSuffixKey     struct{} // Task name suffix.
+	autoExecKey       struct{} // Auto execution mode (manual tasks are skipped).
+	taskFlagsKey      struct{} // Resolved task flag values.
+	cliFlagsKey       struct{} // CLI-provided flag overrides.
 	noticePatternsKey struct{} // Custom notice patterns.
-	planKey         struct{} // Execution plan (stored as any).
-	trackerKey      struct{} // Execution tracker (stored as any).
-	outputKey       struct{} // Output writers.
+	planKey           struct{} // Execution plan (stored as any).
+	trackerKey        struct{} // Execution tracker (stored as any).
+	outputKey         struct{} // Output writers.
 )
 
 // WarningMarker is implemented by types that can record warnings.

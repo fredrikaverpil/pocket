@@ -236,7 +236,7 @@ func TestGetFlags(t *testing.T) {
 		}
 		ctx := engine.WithTaskFlags(context.Background(), m)
 
-		flags := GetFlags[testFlags](ctx)
+		flags := engine.GetFlags[testFlags](ctx)
 		if flags.Name != "hello" {
 			t.Errorf("expected name=hello, got %q", flags.Name)
 		}
@@ -251,7 +251,7 @@ func TestGetFlags(t *testing.T) {
 	t.Run("NoFlagsInContextPanics", func(t *testing.T) {
 		ctx := context.Background()
 		assertFlagPanic(t, func() {
-			GetFlags[testFlags](ctx)
+			engine.GetFlags[testFlags](ctx)
 		}, "no flags in context")
 	})
 }

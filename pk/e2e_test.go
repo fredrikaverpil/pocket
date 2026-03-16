@@ -32,7 +32,7 @@ type execRecord struct {
 	TaskName string
 	Path     string
 	Flags    map[string]any
-	Env      EnvConfig
+	Env      engine.EnvConfig
 }
 
 // recorder collects execution records from spy tasks.
@@ -55,8 +55,8 @@ func (r *recorder) task(name string) *Task {
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     PathFromContext(ctx),
-				Env:      EnvConfigFromContext(ctx),
+				Path:     engine.PathFromContext(ctx),
+				Env:      engine.EnvConfigFromContext(ctx),
 			})
 			return nil
 		},
@@ -73,7 +73,7 @@ func (r *recorder) failTask(name string) *Task {
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     PathFromContext(ctx),
+				Path:     engine.PathFromContext(ctx),
 			})
 			return fmt.Errorf("task %s failed", name)
 		},
@@ -94,9 +94,9 @@ func (r *recorder) taskWithFlags(name string, flags any) *Task {
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     PathFromContext(ctx),
+				Path:     engine.PathFromContext(ctx),
 				Flags:    captured,
-				Env:      EnvConfigFromContext(ctx),
+				Env:      engine.EnvConfigFromContext(ctx),
 			})
 			return nil
 		},
@@ -128,7 +128,7 @@ func TestE2E_ExecuteTask_Basic(t *testing.T) {
 	task := rec.task("basic")
 
 	cfg := &Config{Auto: task}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestE2E_ExecuteTask_PathScoping(t *testing.T) {
 	task := rec.task("scoped")
 
 	cfg := &Config{Auto: WithOptions(task, WithPath("svc-a", "svc-b"))}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestE2E_ExecuteTask_FlagResolution(t *testing.T) {
 	cfg := &Config{
 		Auto: WithOptions(task, WithFlags(flaggedFlags{Mode: "overridden", Count: 1})),
 	}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 	cfg := &Config{
 		Auto: WithOptions(task, WithFlags(cliFlaggedFlags{Mode: "plan-override"})),
 	}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,14 +250,14 @@ func TestE2E_ExecuteTask_EnvPropagation(t *testing.T) {
 	task := rec.task("env-task")
 
 	cfg := &Config{Auto: task}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = ContextWithEnv(ctx, "MY_VAR=hello")
-	ctx = ContextWithEnv(ctx, "OTHER=world")
+	ctx = engine.ContextWithEnv(ctx, "MY_VAR=hello")
+	ctx = engine.ContextWithEnv(ctx, "OTHER=world")
 
 	if err := ExecuteTask(ctx, "env-task", plan); err != nil {
 		t.Fatal(err)
@@ -283,7 +283,7 @@ func TestE2E_ExecuteTask_NameSuffix(t *testing.T) {
 	cfg := &Config{
 		Auto: WithOptions(task, WithNameSuffix("3.9"), WithFlags(versionedFlags{Ver: "3.9"})),
 	}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestE2E_ExecuteTask_NotFound(t *testing.T) {
 		Usage: "exists",
 		Do:    func(context.Context) error { return nil },
 	}}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestE2E_AutoExec_SerialOrder(t *testing.T) {
 	a, b, c := rec.task("a"), rec.task("b"), rec.task("c")
 
 	cfg := &Config{Auto: Serial(a, b, c)}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +355,7 @@ func TestE2E_AutoExec_ParallelAll(t *testing.T) {
 	a, b, c := rec.task("a"), rec.task("b"), rec.task("c")
 
 	cfg := &Config{Auto: Parallel(a, b, c)}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestE2E_AutoExec_MixedComposition(t *testing.T) {
 	a, b, c, d := rec.task("a"), rec.task("b"), rec.task("c"), rec.task("d")
 
 	cfg := &Config{Auto: Serial(a, Parallel(b, c), d)}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +422,7 @@ func TestE2E_AutoExec_SerialStopsOnError(t *testing.T) {
 	c := rec.task("c")
 
 	cfg := &Config{Auto: Serial(a, fail, c)}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +460,7 @@ func TestE2E_AutoExec_ManualSkipped(t *testing.T) {
 		Auto:   autoTask,
 		Manual: []Runnable{manualTask},
 	}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestE2E_AutoExec_Deduplication(t *testing.T) {
 	shared := rec.task("shared")
 
 	cfg := &Config{Auto: Serial(shared, Parallel(shared, shared))}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -538,7 +538,7 @@ func TestE2E_AutoExec_PathFilterWithDetect(t *testing.T) {
 	cfg := &Config{
 		Auto: WithOptions(task, WithDetect(DetectByFile("go.mod"))),
 	}
-	plan, err := NewPlan(cfg)
+	plan, err := newPublicPlan(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

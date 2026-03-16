@@ -38,7 +38,7 @@ func TestTask_Run_Deduplication(t *testing.T) {
 	}
 
 	// Run with different path context should execute (different path).
-	ctxServices := ContextWithPath(ctx, "services")
+	ctxServices := engine.ContextWithPath(ctx, "services")
 	if err := task.run(ctxServices); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	t.Run("DefaultValue", func(t *testing.T) {
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlags[flagTaskFlags](ctx).Myflag
+			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -243,7 +243,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlags[flagTaskFlags](ctx).Myflag
+			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -262,7 +262,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = GetFlags[flagTaskFlags](ctx).Myflag
+			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -367,7 +367,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with different path - should still be skipped (global ignores path too).
-	ctx39Services := ContextWithPath(ctx39, "services")
+	ctx39Services := engine.ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.9 at services - should execute (different path).
-	ctx39Services := ContextWithPath(ctx39, "services")
+	ctx39Services := engine.ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.10 at services - should execute (different suffix).
-	ctx310Services := ContextWithPath(engine.ContextWithNameSuffix(ctx, "3.10"), "services")
+	ctx310Services := engine.ContextWithPath(engine.ContextWithNameSuffix(ctx, "3.10"), "services")
 	if err := task.run(ctx310Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 		Usage: "test task",
 		Flags: multiVerFlags{Version: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := GetFlags[multiVerFlags](ctx).Version
+			ver := engine.GetFlags[multiVerFlags](ctx).Version
 			suffix := engine.NameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
@@ -603,7 +603,7 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	ctx := context.Background()
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
 	ctx = engine.SetPlan(ctx, plan)
-	ctx = engine.SetOutput(ctx, StdOutput())
+	ctx = engine.SetOutput(ctx, engine.StdOutput())
 
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
@@ -621,7 +621,7 @@ func TestGetFlags_RecoveredByTaskRun(t *testing.T) {
 	task := &Task{
 		Name: "bad-flag",
 		Do: func(ctx context.Context) error {
-			_ = GetFlags[flagTaskFlags](ctx) // This will panic (no flags in context).
+			_ = engine.GetFlags[flagTaskFlags](ctx) // This will panic (no flags in context).
 			return nil
 		},
 	}

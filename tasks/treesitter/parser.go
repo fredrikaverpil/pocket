@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/fredrikaverpil/pocket/pk/platform"
-	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 

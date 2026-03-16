@@ -227,7 +227,7 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		pathCtx := ContextWithPath(ctx, path)
+		pathCtx := engine.ContextWithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err
 		}

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
-	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/prettier"
 )
 

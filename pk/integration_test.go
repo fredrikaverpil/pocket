@@ -16,7 +16,7 @@ import (
 func integrationCtx(t *testing.T, plan *Plan) (context.Context, *bytes.Buffer) {
 	t.Helper()
 	var stdout bytes.Buffer
-	out := &Output{Stdout: &stdout, Stderr: &stdout}
+	out := &engine.Output{Stdout: &stdout, Stderr: &stdout}
 
 	ctx := context.Background()
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
@@ -108,7 +108,7 @@ func TestIntegration_PathFilterWithDetect(t *testing.T) {
 
 	var ranPaths []string
 	task := &Task{Name: "test", Usage: "test", Do: func(ctx context.Context) error {
-		ranPaths = append(ranPaths, PathFromContext(ctx))
+		ranPaths = append(ranPaths, engine.PathFromContext(ctx))
 		return nil
 	}}
 
@@ -170,7 +170,7 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 		Usage: "python test",
 		Flags: pyTestIntFlags{Python: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := GetFlags[pyTestIntFlags](ctx).Python
+			ver := engine.GetFlags[pyTestIntFlags](ctx).Python
 			suffix := engine.NameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
@@ -211,11 +211,11 @@ func TestIntegration_WithSkipTaskPattern(t *testing.T) {
 	var lintPaths, testPaths []string
 
 	lint := &Task{Name: "lint", Usage: "lint", Do: func(ctx context.Context) error {
-		lintPaths = append(lintPaths, PathFromContext(ctx))
+		lintPaths = append(lintPaths, engine.PathFromContext(ctx))
 		return nil
 	}}
 	test := &Task{Name: "test", Usage: "test", Do: func(ctx context.Context) error {
-		testPaths = append(testPaths, PathFromContext(ctx))
+		testPaths = append(testPaths, engine.PathFromContext(ctx))
 		return nil
 	}}
 
@@ -342,7 +342,7 @@ func TestIntegration_FlagOverrideViaWithFlag(t *testing.T) {
 		Usage: "test",
 		Flags: modeIntFlags{Mode: "default"},
 		Do: func(ctx context.Context) error {
-			captured = GetFlags[modeIntFlags](ctx).Mode
+			captured = engine.GetFlags[modeIntFlags](ctx).Mode
 			return nil
 		},
 	}
