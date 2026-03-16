@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/goreleaser"
 )
 
@@ -26,7 +27,7 @@ var Release = &pk.Task{
 
 func releaseCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[ReleaseFlags](ctx)
+		f := run.GetFlags[ReleaseFlags](ctx)
 		args := []string{"release"}
 		if f.Snapshot {
 			args = append(args, "--snapshot")
@@ -34,12 +35,12 @@ func releaseCmd() pk.Runnable {
 		if f.Clean {
 			args = append(args, "--clean")
 		}
-		if pk.Verbose(ctx) {
+		if run.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
 		if f.Args != "" {
 			args = append(args, strings.Fields(f.Args)...)
 		}
-		return pk.Exec(ctx, goreleaser.Name, args...)
+		return run.Exec(ctx, goreleaser.Name, args...)
 	})
 }

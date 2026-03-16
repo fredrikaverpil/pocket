@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -24,7 +25,7 @@ var Typecheck = &pk.Task{
 
 func typecheckSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[TypecheckFlags](ctx)
+		f := run.GetFlags[TypecheckFlags](ctx)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: f.Python,
 			AllGroups:     true,
@@ -34,7 +35,7 @@ func typecheckSyncCmd() pk.Runnable {
 
 func typecheckCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[TypecheckFlags](ctx)
+		f := run.GetFlags[TypecheckFlags](ctx)
 		return runTypecheck(ctx, f.Python)
 	})
 }
@@ -43,13 +44,13 @@ func runTypecheck(ctx context.Context, pythonVersion string) error {
 	args := []string{
 		"--exclude", `\.pocket/`,
 	}
-	if pk.Verbose(ctx) {
+	if run.Verbose(ctx) {
 		args = append(args, "-v")
 	}
 	if pythonVersion != "" {
 		args = append(args, "--python-version", pythonVersion)
 	}
-	args = append(args, pk.PathFromContext(ctx))
+	args = append(args, run.PathFromContext(ctx))
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "mypy", args...)
 }

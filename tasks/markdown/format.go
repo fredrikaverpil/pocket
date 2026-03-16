@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/prettier"
 )
@@ -24,7 +25,7 @@ var Format = &pk.Task{
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[FormatFlags](ctx)
+		f := run.GetFlags[FormatFlags](ctx)
 		configPath := f.Config
 		if configPath == "" && !prettier.HasProjectConfig() {
 			configPath = prettier.EnsureDefaultConfig()

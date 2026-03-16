@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // PprofFlags holds flags for the Pprof task.
@@ -25,7 +26,7 @@ var Pprof = &pk.Task{
 				"graphviz is required for pprof web UI\n  brew install graphviz\n  nix shell nixpkgs#graphviz",
 			)
 		}
-		f := pk.GetFlags[PprofFlags](ctx)
-		return pk.Exec(ctx, "go", "tool", "pprof", "-http=:"+f.Port, f.File)
+		f := run.GetFlags[PprofFlags](ctx)
+		return run.Exec(ctx, "go", "tool", "pprof", "-http=:"+f.Port, f.File)
 	},
 }

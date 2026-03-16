@@ -9,6 +9,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
@@ -129,7 +130,7 @@ func createSymlink(binaryPath, version string) pk.Runnable {
 		// On Windows, neovim can't be symlinked because it needs its runtime files
 		// relative to the executable. Register the bin directory in PATH instead.
 		if platform.HostOS() == platform.Windows {
-			pk.RegisterPATH(binDir)
+			run.RegisterPATH(binDir)
 			return nil
 		}
 

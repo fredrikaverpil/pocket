@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
@@ -24,9 +25,9 @@ var Lint = &pk.Task{
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[LintFlags](ctx)
+		f := run.GetFlags[LintFlags](ctx)
 		args := []string{"run"}
-		if pk.Verbose(ctx) {
+		if run.Verbose(ctx) {
 			args = append(args, "-v")
 		}
 
@@ -42,6 +43,6 @@ func lintCmd() pk.Runnable {
 			args = append(args, "--fix")
 		}
 		args = append(args, "./...")
-		return pk.Exec(ctx, golangcilint.Name, args...)
+		return run.Exec(ctx, golangcilint.Name, args...)
 	})
 }

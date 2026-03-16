@@ -12,6 +12,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
@@ -120,7 +121,7 @@ func InstallFromLockfile(ctx context.Context, dir string) error {
 		return fmt.Errorf("bun.lock not found in %s: %w", dir, err)
 	}
 
-	return pk.Exec(ctx, Name, "install", "--cwd", dir, "--frozen-lockfile")
+	return run.Exec(ctx, Name, "install", "--cwd", dir, "--frozen-lockfile")
 }
 
 // Run executes a package installed via bun.
@@ -128,5 +129,5 @@ func Run(ctx context.Context, installDir, packageName string, args ...string) er
 	runArgs := make([]string, 0, 4+len(args))
 	runArgs = append(runArgs, "run", "--cwd", installDir, packageName)
 	runArgs = append(runArgs, args...)
-	return pk.Exec(ctx, Name, runArgs...)
+	return run.Exec(ctx, Name, runArgs...)
 }

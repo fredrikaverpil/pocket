@@ -36,6 +36,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
@@ -107,12 +108,12 @@ func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
 		pythonVersion = DefaultPythonVersion
 	}
 	args := []string{"venv", "--python", pythonVersion, venvPath}
-	return pk.Exec(ctx, Name, args...)
+	return run.Exec(ctx, Name, args...)
 }
 
 // PipInstall installs a package into a virtual environment.
 func PipInstall(ctx context.Context, venvPath, pkg string) error {
-	return pk.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
+	return run.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
 }
 
 // venvPython returns the path to the Python executable in a venv.
@@ -136,8 +137,8 @@ func removeStaleVenv(ctx context.Context, venvPath string) error {
 	if _, err := os.Stat(home); err == nil {
 		return nil // Base Python exists, venv is fine.
 	}
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Removing stale venv %s (Python home %s no longer exists)\n", venvPath, home)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Removing stale venv %s (Python home %s no longer exists)\n", venvPath, home)
 	}
 	return os.RemoveAll(venvPath)
 }
@@ -215,7 +216,7 @@ func ExecTool(ctx context.Context, venvDir, name string, args ...string) error {
 	python := venvPython(venvDir)
 	script := BinaryPath(venvDir, name)
 	execArgs := append([]string{script}, args...)
-	return pk.Exec(ctx, python, execArgs...)
+	return run.Exec(ctx, python, execArgs...)
 }
 
 // DefaultVenvPattern is the naming pattern for venvs. %s is replaced with the Python version.
@@ -278,7 +279,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = run.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -290,8 +291,8 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		return fmt.Errorf("remove stale venv: %w", err)
 	}
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
 	args := []string{"sync", "--frozen", "--python", pythonVersion}
@@ -299,11 +300,11 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		args = append(args, "--all-groups")
 	}
 
-	ctx = pk.ContextWithPath(ctx, projectDir)
-	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = run.ContextWithPath(ctx, projectDir)
+	ctx = run.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = run.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	return pk.Exec(ctx, Name, args...)
+	return run.Exec(ctx, Name, args...)
 }
 
 // Run executes a command using uv run.
@@ -316,7 +317,7 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = run.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -328,17 +329,17 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		return fmt.Errorf("remove stale venv: %w", err)
 	}
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
 	uvArgs := make([]string, 0, 5+len(args))
 	uvArgs = append(uvArgs, "run", "--frozen", "--python", pythonVersion, cmdName)
 	uvArgs = append(uvArgs, args...)
 
-	ctx = pk.ContextWithPath(ctx, projectDir)
-	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = run.ContextWithPath(ctx, projectDir)
+	ctx = run.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = run.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	return pk.Exec(ctx, Name, uvArgs...)
+	return run.Exec(ctx, Name, uvArgs...)
 }

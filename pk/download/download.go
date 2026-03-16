@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Opt configures [Download] behavior.
@@ -59,7 +60,7 @@ func WithExtract(opt ExtractOpt) Opt {
 }
 
 // WithSymlink creates a symlink in .pocket/bin/ pointing to the extracted binary.
-// This makes the tool available to [pk.Exec] by name.
+// This makes the tool available to [run.Exec] by name.
 func WithSymlink() Opt {
 	return func(cfg *downloadConfig) {
 		cfg.symlink = true
@@ -115,7 +116,7 @@ func download(ctx context.Context, url string, opts ...Opt) error {
 		}
 	}
 
-	pk.Printf(ctx, "  Downloading %s\n", url)
+	run.Printf(ctx, "  Downloading %s\n", url)
 
 	// Download to temp file.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

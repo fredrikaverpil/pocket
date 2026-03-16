@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/tools/stylua"
 )
@@ -23,16 +24,16 @@ var Format = &pk.Task{
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[FormatFlags](ctx)
+		f := run.GetFlags[FormatFlags](ctx)
 		configPath := f.Config
 		if configPath == "" && !stylua.HasProjectConfig() {
 			configPath = stylua.EnsureDefaultConfig()
 		}
 
-		absDir := repopath.FromGitRoot(pk.PathFromContext(ctx))
+		absDir := repopath.FromGitRoot(run.PathFromContext(ctx))
 
 		args := []string{}
-		if pk.Verbose(ctx) {
+		if run.Verbose(ctx) {
 			args = append(args, "--verbose")
 		}
 		if configPath != "" {
@@ -40,6 +41,6 @@ func formatCmd() pk.Runnable {
 		}
 		args = append(args, absDir)
 
-		return pk.Exec(ctx, stylua.Name, args...)
+		return run.Exec(ctx, stylua.Name, args...)
 	})
 }

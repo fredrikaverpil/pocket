@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
@@ -50,14 +50,14 @@ func installParser(ctx context.Context, name, dir string) error {
 	defer os.RemoveAll(tmpDir)
 
 	repoURL := fmt.Sprintf("https://github.com/tree-sitter/tree-sitter-%s", name)
-	pk.Printf(ctx, "  Cloning %s\n", repoURL)
-	if err := pk.Exec(ctx, "git", "clone", "--depth", "1", "--quiet", repoURL, tmpDir); err != nil {
+	run.Printf(ctx, "  Cloning %s\n", repoURL)
+	if err := run.Exec(ctx, "git", "clone", "--depth", "1", "--quiet", repoURL, tmpDir); err != nil {
 		return fmt.Errorf("clone %s: %w", repoURL, err)
 	}
 
 	// Build the parser shared library.
-	pk.Printf(ctx, "  Building tree-sitter-%s parser\n", name)
-	if err := pk.Exec(ctx, "tree-sitter", "build", "-o", outFile, tmpDir); err != nil {
+	run.Printf(ctx, "  Building tree-sitter-%s parser\n", name)
+	if err := run.Exec(ctx, "tree-sitter", "build", "-o", outFile, tmpDir); err != nil {
 		return fmt.Errorf("build %s: %w", name, err)
 	}
 

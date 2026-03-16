@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // TestFlags holds flags for the Test task.
@@ -28,7 +29,7 @@ var Test = &pk.Task{
 	Usage: "run go tests",
 	Flags: TestFlags{Race: true, Pkg: "./..."},
 	Do: func(ctx context.Context) error {
-		f := pk.GetFlags[TestFlags](ctx)
+		f := run.GetFlags[TestFlags](ctx)
 		args := []string{"test"}
 		if f.Race {
 			args = append(args, "-race")
@@ -58,11 +59,11 @@ var Test = &pk.Task{
 			args = append(args, strings.Fields(f.Args)...)
 		}
 		args = append(args, f.Pkg)
-		if err := pk.Exec(ctx, "go", args...); err != nil {
+		if err := run.Exec(ctx, "go", args...); err != nil {
 			return err
 		}
 		if f.CoverageHTML {
-			return pk.Exec(ctx, "go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html")
+			return run.Exec(ctx, "go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html")
 		}
 		return nil
 	},

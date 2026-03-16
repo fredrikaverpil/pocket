@@ -22,6 +22,7 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/platform"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
@@ -59,14 +60,14 @@ func install(ctx context.Context, pkg, version string) error {
 			if _, err := download.CreateSymlink(toolBinPath); err != nil {
 				return err
 			}
-			if pk.Verbose(ctx) {
-				pk.Printf(ctx, "  [install] %s@%s already installed\n", binaryName, version)
+			if run.Verbose(ctx) {
+				run.Printf(ctx, "  [install] %s@%s already installed\n", binaryName, version)
 			}
 			return nil
 		}
 		// Binary was built with a different Go version. Rebuild it.
-		if pk.Verbose(ctx) {
-			pk.Printf(ctx, "  [install] %s@%s rebuilding (Go version changed)\n", binaryName, version)
+		if run.Verbose(ctx) {
+			run.Printf(ctx, "  [install] %s@%s rebuilding (Go version changed)\n", binaryName, version)
 		}
 		if err := os.RemoveAll(toolDir); err != nil {
 			return fmt.Errorf("remove stale tool: %w", err)
@@ -83,8 +84,8 @@ func install(ctx context.Context, pkg, version string) error {
 	cmd := exec.CommandContext(ctx, "go", "install", pkgWithVersion)
 	cmd.Env = append(os.Environ(), "GOBIN="+toolDir)
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "  [install] go install %s\n", pkgWithVersion)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "  [install] go install %s\n", pkgWithVersion)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("go install %s: %w", pkgWithVersion, err)
 		}
@@ -99,8 +100,8 @@ func install(ctx context.Context, pkg, version string) error {
 		return err
 	}
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "  [install] linked %s\n", toolBinPath)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "  [install] linked %s\n", toolBinPath)
 	}
 
 	return nil
