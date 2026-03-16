@@ -3,29 +3,31 @@ package pk
 import (
 	"context"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 func TestContextWithNameSuffix(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
-		ctx := contextWithNameSuffix(context.Background(), "3.9")
-		if got := nameSuffixFromContext(ctx); got != "3.9" {
+		ctx := engine.ContextWithNameSuffix(context.Background(), "3.9")
+		if got := engine.NameSuffixFromContext(ctx); got != "3.9" {
 			t.Errorf("expected %q, got %q", "3.9", got)
 		}
 	})
 
 	t.Run("Accumulation", func(t *testing.T) {
-		ctx := contextWithNameSuffix(context.Background(), "a")
-		ctx = contextWithNameSuffix(ctx, "b")
-		if got := nameSuffixFromContext(ctx); got != "a:b" {
+		ctx := engine.ContextWithNameSuffix(context.Background(), "a")
+		ctx = engine.ContextWithNameSuffix(ctx, "b")
+		if got := engine.NameSuffixFromContext(ctx); got != "a:b" {
 			t.Errorf("expected %q, got %q", "a:b", got)
 		}
 	})
 
 	t.Run("TripleNesting", func(t *testing.T) {
-		ctx := contextWithNameSuffix(context.Background(), "x")
-		ctx = contextWithNameSuffix(ctx, "y")
-		ctx = contextWithNameSuffix(ctx, "z")
-		if got := nameSuffixFromContext(ctx); got != "x:y:z" {
+		ctx := engine.ContextWithNameSuffix(context.Background(), "x")
+		ctx = engine.ContextWithNameSuffix(ctx, "y")
+		ctx = engine.ContextWithNameSuffix(ctx, "z")
+		if got := engine.NameSuffixFromContext(ctx); got != "x:y:z" {
 			t.Errorf("expected %q, got %q", "x:y:z", got)
 		}
 	})
@@ -118,7 +120,7 @@ func TestVerbose(t *testing.T) {
 	})
 
 	t.Run("SetTrue", func(t *testing.T) {
-		ctx := contextWithVerbose(context.Background(), true)
+		ctx := engine.ContextWithVerbose(context.Background(), true)
 		if !Verbose(ctx) {
 			t.Error("expected true after setting")
 		}
@@ -127,14 +129,14 @@ func TestVerbose(t *testing.T) {
 
 func TestIsAutoExec(t *testing.T) {
 	t.Run("DefaultFalse", func(t *testing.T) {
-		if isAutoExec(context.Background()) {
+		if engine.IsAutoExec(context.Background()) {
 			t.Error("expected false by default")
 		}
 	})
 
 	t.Run("SetTrue", func(t *testing.T) {
-		ctx := contextWithAutoExec(context.Background())
-		if !isAutoExec(ctx) {
+		ctx := engine.ContextWithAutoExec(context.Background())
+		if !engine.IsAutoExec(ctx) {
 			t.Error("expected true after setting")
 		}
 	})

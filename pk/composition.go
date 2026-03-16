@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,18 +69,20 @@ func (p *parallel) run(ctx context.Context) error {
 	}
 
 	// Multiple items: use errgroup and buffered output.
-	// Deduplication is handled by Task.run() - no pre-filtering needed.
-	parentOut := outputFromContext(ctx)
-	buffers := make([]*bufferedOutput, len(p.runnables))
+	parentOut := engine.OutputFromContext(ctx)
+	if parentOut == nil {
+		parentOut = engine.StdOutput()
+	}
+	buffers := make([]*engine.BufferedOutput, len(p.runnables))
 	for i := range p.runnables {
-		buffers[i] = newBufferedOutput(parentOut)
+		buffers[i] = engine.NewBufferedOutput(parentOut)
 	}
 	var flushMu sync.Mutex
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for i, r := range p.runnables {
 		g.Go(func() error {
-			childCtx := context.WithValue(gCtx, outputKey{}, buffers[i].Output())
+			childCtx := engine.SetOutput(gCtx, buffers[i].Output())
 			err := r.run(childCtx)
 
 			// Flush immediately on completion (first-to-complete flushes first).

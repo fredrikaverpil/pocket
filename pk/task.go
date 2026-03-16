@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 // Task represents a named, executable unit of work.
@@ -56,48 +58,10 @@ type Task struct {
 	flagSet *flag.FlagSet
 }
 
-// taskFlagsKey is the context key for resolved task flag values.
-type taskFlagsKey struct{}
-
-// withTaskFlags stores resolved flag values in context.
-func withTaskFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, taskFlagsKey{}, flags)
-}
-
-// taskFlagsFromContext retrieves resolved flag values from context.
-func taskFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(taskFlagsKey{}).(map[string]any); ok {
-		return flags
-	}
-	return nil
-}
-
-// cliFlagsKey is the context key for CLI-provided flag overrides.
-type cliFlagsKey struct{}
-
-// withCLIFlags stores CLI-provided flag values in context.
-func withCLIFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, cliFlagsKey{}, flags)
-}
-
-// cliFlagsFromContext retrieves CLI-provided flag values from context.
-func cliFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(cliFlagsKey{}).(map[string]any); ok {
-		return flags
-	}
-	return nil
-}
-
-// flagError is a sentinel type for GetFlag panics.
-// task.run() recovers this specific type and converts it to a returned error.
-type flagError struct {
-	err error
-}
-
 // buildFlagSet constructs the internal *flag.FlagSet from the Flags struct.
 // Flags are registered in sorted order for deterministic -h output.
 func (t *Task) buildFlagSet() error {
-	fs, err := buildFlagSetFromStruct(t.Name, t.Flags)
+	fs, err := engine.BuildFlagSetFromStruct(t.Name, t.Flags)
 	if err != nil {
 		return err
 	}
@@ -113,14 +77,14 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Build effective name using suffix from context (e.g., "py-test:3.9").
 	effectiveName := t.Name
-	if suffix := nameSuffixFromContext(ctx); suffix != "" {
+	if suffix := engine.NameSuffixFromContext(ctx); suffix != "" {
 		effectiveName = t.Name + ":" + suffix
 	}
 
 	// Check manual status via Plan.
-	if plan := PlanFromContext(ctx); plan != nil {
+	if plan := planFromContext(ctx); plan != nil {
 		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
-			if instance.isManual && isAutoExec(ctx) {
+			if instance.isManual && engine.IsAutoExec(ctx) {
 				return nil
 			}
 		}
@@ -130,30 +94,30 @@ func (t *Task) run(ctx context.Context) error {
 	// This avoids mutating the shared flagSet, preventing races when the same
 	// task runs in parallel with different WithNameSuffix variants.
 	if t.Flags != nil {
-		resolved, err := structToMap(t.Flags)
+		resolved, err := engine.StructToMap(t.Flags)
 		if err != nil {
 			return fmt.Errorf("task %q: %w", t.Name, err)
 		}
 		// Apply plan-level overrides (from WithFlag).
-		if plan := PlanFromContext(ctx); plan != nil {
+		if plan := planFromContext(ctx); plan != nil {
 			if instance := plan.taskInstanceByName(effectiveName); instance != nil {
 				maps.Copy(resolved, instance.flags)
 			}
 		}
 		// Apply CLI overrides (highest priority).
-		if cliFlags := cliFlagsFromContext(ctx); cliFlags != nil {
+		if cliFlags := engine.CLIFlagsFromContext(ctx); cliFlags != nil {
 			maps.Copy(resolved, cliFlags)
 		}
-		ctx = withTaskFlags(ctx, resolved)
+		ctx = engine.WithTaskFlags(ctx, resolved)
 	}
 
 	// Check deduplication unless forceRun is set in context.
 	// Deduplication uses taskID (effective name + path), or base name + "." for global tasks.
 	// Global tasks use base name only (ignoring suffix) to ensure install tasks run once.
-	if !forceRunFromContext(ctx) {
+	if !engine.ForceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
+			id := taskID{Name: effectiveName, Path: engine.PathFromContext(ctx)}
 			if t.Global {
 				id = taskID{Name: t.Name, Path: "."} // Global tasks deduplicate by base name only.
 			}
@@ -165,9 +129,9 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Check if this task should run at this path based on the Plan's pathMappings.
 	// This handles task-specific excludes (WithSkipTask with patterns).
-	if plan := PlanFromContext(ctx); plan != nil {
+	if plan := planFromContext(ctx); plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
-			path := PathFromContext(ctx)
+			path := engine.PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
 				return nil // Task is excluded from this path.
 			}
@@ -176,11 +140,11 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Print task header before execution (unless header is hidden).
 	if !t.HideHeader {
-		path := PathFromContext(ctx)
+		path := engine.PathFromContext(ctx)
 		if path != "" && path != "." {
-			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
+			engine.Printf(ctx, ":: %s [%s]\n", effectiveName, path)
 		} else {
-			Printf(ctx, ":: %s\n", effectiveName)
+			engine.Printf(ctx, ":: %s\n", effectiveName)
 		}
 	}
 
@@ -191,8 +155,8 @@ func (t *Task) run(ctx context.Context) error {
 func (t *Task) execute(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if fe, ok := r.(flagError); ok {
-				err = fmt.Errorf("task %q: %w", t.Name, fe.err)
+			if fe, ok := r.(engine.FlagError); ok {
+				err = fmt.Errorf("task %q: %w", t.Name, fe.Err)
 			} else {
 				panic(r) // Re-panic for unrelated panics.
 			}

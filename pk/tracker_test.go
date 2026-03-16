@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 func TestExecutionTracker_MarkDone(t *testing.T) {
@@ -82,14 +84,14 @@ func TestForceRunContext(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false.
-	if forceRunFromContext(ctx) {
+	if engine.ForceRunFromContext(ctx) {
 		t.Error("expected forceRun to be false by default")
 	}
 
 	// Set forceRun and check.
-	ctx = withForceRun(ctx)
-	if !forceRunFromContext(ctx) {
-		t.Error("expected forceRun to be true after withForceRun")
+	ctx = engine.WithForceRun(ctx)
+	if !engine.ForceRunFromContext(ctx) {
+		t.Error("expected forceRun to be true after WithForceRun")
 	}
 }
 
@@ -132,10 +134,10 @@ func TestExecutionTracker_MarkWarning(t *testing.T) {
 		t.Error("expected no warnings initially")
 	}
 
-	tracker.markWarning()
+	tracker.MarkWarning()
 
 	if !tracker.warnings() {
-		t.Error("expected warnings after markWarning")
+		t.Error("expected warnings after MarkWarning")
 	}
 }
 
@@ -145,7 +147,7 @@ func TestExecutionTracker_MarkWarning_Concurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 50 {
 		wg.Go(func() {
-			tracker.markWarning()
+			tracker.MarkWarning()
 		})
 	}
 	wg.Wait()

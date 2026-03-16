@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 type testFlags struct {
@@ -32,7 +34,7 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 			Dur:     5 * time.Second,
 		}
 
-		fs, err := buildFlagSetFromStruct("test", flags)
+		fs, err := engine.BuildFlagSetFromStruct("test", flags)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -46,7 +48,7 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 	})
 
 	t.Run("NotAStruct", func(t *testing.T) {
-		_, err := buildFlagSetFromStruct("test", "not a struct")
+		_, err := engine.BuildFlagSetFromStruct("test", "not a struct")
 		if err == nil {
 			t.Error("expected error for non-struct")
 		}
@@ -57,7 +59,7 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 			Name  string   `flag:"name" usage:"a name"`
 			Items []string // no flag tag — programmatic-only
 		}
-		fs, err := buildFlagSetFromStruct("test", mixed{Name: "default"})
+		fs, err := engine.BuildFlagSetFromStruct("test", mixed{Name: "default"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -73,7 +75,7 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 		type flags struct {
 			Enable *bool `flag:"enable" usage:"enable feature"`
 		}
-		fs, err := buildFlagSetFromStruct("test", flags{Enable: new(true)})
+		fs, err := engine.BuildFlagSetFromStruct("test", flags{Enable: new(true)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +92,7 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 		type flags struct {
 			Enable *bool `flag:"enable" usage:"enable feature"`
 		}
-		fs, err := buildFlagSetFromStruct("test", flags{Enable: nil})
+		fs, err := engine.BuildFlagSetFromStruct("test", flags{Enable: nil})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,14 +109,14 @@ func TestBuildFlagSetFromStruct(t *testing.T) {
 		type bad struct {
 			Names []string `flag:"names" usage:"list of names"`
 		}
-		_, err := buildFlagSetFromStruct("test", bad{})
+		_, err := engine.BuildFlagSetFromStruct("test", bad{})
 		if err == nil {
 			t.Error("expected error for unsupported field type")
 		}
 	})
 
 	t.Run("NilFlags", func(t *testing.T) {
-		fs, err := buildFlagSetFromStruct("test", nil)
+		fs, err := engine.BuildFlagSetFromStruct("test", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,7 +137,7 @@ func TestStructToMap(t *testing.T) {
 		Rate:    1.5,
 	}
 
-	m, err := structToMap(flags)
+	m, err := engine.StructToMap(flags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +169,7 @@ func TestMapToStruct(t *testing.T) {
 	}
 
 	var result testFlags
-	if err := mapToStruct(m, &result); err != nil {
+	if err := engine.MapToStruct(m, &result); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +202,7 @@ func TestDiffStructs(t *testing.T) {
 		Rate:    2.0,      // differs
 	}
 
-	diff, err := diffStructs(defaults, overrides)
+	diff, err := engine.DiffStructs(defaults, overrides)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +234,7 @@ func TestGetFlags(t *testing.T) {
 			"rate":    0.0,
 			"dur":     time.Duration(0),
 		}
-		ctx := withTaskFlags(context.Background(), m)
+		ctx := engine.WithTaskFlags(context.Background(), m)
 
 		flags := GetFlags[testFlags](ctx)
 		if flags.Name != "hello" {
@@ -410,7 +412,7 @@ func TestDiffStructs_PointerFields(t *testing.T) {
 		defaults := flags{Enable: new(true), Verbose: new(false), Name: "default"}
 		overrides := flags{Enable: nil, Verbose: nil, Name: "custom"}
 
-		diff, err := diffStructs(defaults, overrides)
+		diff, err := engine.DiffStructs(defaults, overrides)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -430,7 +432,7 @@ func TestDiffStructs_PointerFields(t *testing.T) {
 		defaults := flags{Enable: new(true), Verbose: new(false)}
 		overrides := flags{Enable: new(false), Verbose: nil}
 
-		diff, err := diffStructs(defaults, overrides)
+		diff, err := engine.DiffStructs(defaults, overrides)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -448,7 +450,7 @@ func TestDiffStructs_PointerFields(t *testing.T) {
 		defaults := flags{Enable: new(true)}
 		overrides := flags{Enable: new(true)}
 
-		diff, err := diffStructs(defaults, overrides)
+		diff, err := engine.DiffStructs(defaults, overrides)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -467,7 +469,7 @@ func TestStructToMap_PointerFields(t *testing.T) {
 
 	t.Run("NonNilDereferenced", func(t *testing.T) {
 		name := "hello"
-		m, err := structToMap(flags{Enable: new(true), Name: &name, Count: 5})
+		m, err := engine.StructToMap(flags{Enable: new(true), Name: &name, Count: 5})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -483,7 +485,7 @@ func TestStructToMap_PointerFields(t *testing.T) {
 	})
 
 	t.Run("NilSkipped", func(t *testing.T) {
-		m, err := structToMap(flags{Enable: nil, Name: nil, Count: 5})
+		m, err := engine.StructToMap(flags{Enable: nil, Name: nil, Count: 5})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -512,7 +514,7 @@ func TestMapToStruct_PointerFields(t *testing.T) {
 		"count":  42,
 	}
 	var result flags
-	if err := mapToStruct(m, &result); err != nil {
+	if err := engine.MapToStruct(m, &result); err != nil {
 		t.Fatal(err)
 	}
 	if result.Enable == nil || *result.Enable != true {

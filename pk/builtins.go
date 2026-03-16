@@ -14,17 +14,17 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
 	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
-// ErrGitDiffUncommitted is returned when git diff detects uncommitted changes.
-var ErrGitDiffUncommitted = errors.New("uncommitted changes detected")
+// errGitDiffUncommitted is returned when git diff detects uncommitted changes.
+var errGitDiffUncommitted = errors.New("uncommitted changes detected")
 
-// ErrCommitsInvalid is returned when commit messages fail conventional commit validation.
-var ErrCommitsInvalid = errors.New("invalid commit messages")
+// errCommitsInvalid is returned when commit messages fail conventional commit validation.
+var errCommitsInvalid = errors.New("invalid commit messages")
 
 // builtins is the single source of truth for builtin tasks.
-// Used for: lookup, help generation, name conflict checking.
 var builtins = []*Task{
 	shimsTask,
 	planTask,
@@ -53,12 +53,11 @@ var shimsTask = &Task{
 		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		p := PlanFromContext(ctx)
+		p := planFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
 		}
 
-		// Use shim config from plan (defaults to POSIX only if not configured).
 		cfg := p.ShimConfig()
 		shims, err := shim.GenerateShims(
 			ctx,
@@ -75,9 +74,9 @@ var shimsTask = &Task{
 			return fmt.Errorf("generating shims: %w", err)
 		}
 
-		if Verbose(ctx) {
+		if engine.Verbose(ctx) {
 			for _, s := range shims {
-				Printf(ctx, "  generated: %s\n", s)
+				engine.Printf(ctx, "  generated: %s\n", s)
 			}
 		}
 
@@ -97,90 +96,80 @@ var planTask = &Task{
 	HideHeader: true,
 	Flags:      planFlags{},
 	Do: func(ctx context.Context) error {
-		p := PlanFromContext(ctx)
+		p := planFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
 		}
 
-		if GetFlags[planFlags](ctx).JSON {
+		if engine.GetFlags[planFlags](ctx).JSON {
 			return printPlanJSON(ctx, p.tree, p)
 		}
 
 		// Text output.
-		Printf(ctx, "Execution Plan\n")
-		Printf(ctx, "==============\n\n")
+		engine.Printf(ctx, "Execution Plan\n")
+		engine.Printf(ctx, "==============\n\n")
 
-		// Show module directories where shims will be generated.
 		if len(p.moduleDirectories) > 0 {
-			Printf(ctx, "Shim Generation:\n")
+			engine.Printf(ctx, "Shim Generation:\n")
 			for _, dir := range p.moduleDirectories {
 				if dir == "." {
-					Printf(ctx, "  • root\n")
+					engine.Printf(ctx, "  • root\n")
 				} else {
-					Printf(ctx, "  • %s\n", dir)
+					engine.Printf(ctx, "  • %s\n", dir)
 				}
 			}
-			Println(ctx)
+			engine.Println(ctx)
 		}
 
-		// Show composition tree.
-		Printf(ctx, "Composition Tree:\n")
+		engine.Printf(ctx, "Composition Tree:\n")
 		printTree(ctx, p.tree, "", true, "", p)
 
-		Println(ctx)
-		Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
+		engine.Println(ctx)
+		engine.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 
 		return nil
 	},
 }
 
 // gitDiffTask checks for uncommitted changes.
-// Hidden because it's controlled via the -g flag, not direct invocation.
 var gitDiffTask = &Task{
 	Name:       "git-diff",
 	Usage:      "check for uncommitted changes",
 	Hidden:     true,
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		// Only run if -g flag was passed.
-		if !gitDiffEnabledFromContext(ctx) {
+		if !engine.GitDiffEnabledFromContext(ctx) {
 			return nil
 		}
 
-		Printf(ctx, ":: git-diff\n")
-		if err := Exec(ctx, "git", "diff", "--exit-code"); err != nil {
-			return ErrGitDiffUncommitted
+		engine.Printf(ctx, ":: git-diff\n")
+		if err := engine.Exec(ctx, "git", "diff", "--exit-code"); err != nil {
+			return errGitDiffUncommitted
 		}
 		return nil
 	},
 }
 
 // commitsCheckTask validates commit messages against conventional commits.
-// Hidden because it's controlled via the -c flag, not direct invocation.
 var commitsCheckTask = &Task{
 	Name:       "commits-check",
 	Usage:      "validate conventional commits after execution",
 	Hidden:     true,
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		// Only run if -c flag was passed.
-		if !commitsCheckEnabledFromContext(ctx) {
+		if !engine.CommitsCheckEnabledFromContext(ctx) {
 			return nil
 		}
 
-		Printf(ctx, ":: commits-check\n")
+		engine.Printf(ctx, ":: commits-check\n")
 
-		// Determine commit range: upstream tracking branch or origin/main.
 		commitRange, err := resolveCommitRange(ctx)
 		if err != nil {
 			return fmt.Errorf("resolve commit range: %w", err)
 		}
 		if commitRange == "" {
-			return nil // No commits to validate.
+			return nil
 		}
-
-		// Get commit messages using exec.CommandContext directly
-		// (pk.Exec buffers output internally and only surfaces it on error).
 
 		cmd := exec.CommandContext(ctx, "git", "log", "--format=%H %s", commitRange)
 		cmd.Dir = repopath.GitRoot()
@@ -191,7 +180,6 @@ var commitsCheckTask = &Task{
 			return fmt.Errorf("git log %s: %w\n%s", commitRange, err, out.String())
 		}
 
-		// Validate each commit message.
 		var invalid []string
 		for line := range strings.SplitSeq(out.String(), "\n") {
 			line = strings.TrimSpace(line)
@@ -210,9 +198,9 @@ var commitsCheckTask = &Task{
 
 		if len(invalid) > 0 {
 			for _, line := range invalid {
-				Printf(ctx, "%s\n", line)
+				engine.Printf(ctx, "%s\n", line)
 			}
-			return ErrCommitsInvalid
+			return errCommitsInvalid
 		}
 
 		return nil
@@ -220,11 +208,9 @@ var commitsCheckTask = &Task{
 }
 
 // resolveCommitRange determines the git log range for commit validation.
-// Returns empty string if there are no commits to validate.
 func resolveCommitRange(ctx context.Context) (string, error) {
 	gitRoot := repopath.GitRoot()
 
-	// Try upstream tracking branch first.
 	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
 	cmd := exec.CommandContext(ctx, "git", "log", "--oneline", "@{push}..HEAD")
 	cmd.Dir = gitRoot
@@ -233,15 +219,13 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 	cmd.Stderr = &out
 	if err := cmd.Run(); err == nil {
 		if strings.TrimSpace(out.String()) == "" {
-			return "", nil // Zero commits in range.
+			return "", nil
 		}
 		return "@{push}..HEAD", nil
 	}
 
-	// Fall back to origin's default branch.
 	defaultBranch := resolveDefaultBranch(ctx, gitRoot)
 	if defaultBranch == "" {
-		// Cannot determine default branch (e.g. shallow clone in CI) — silent no-op.
 		return "", nil
 	}
 
@@ -252,7 +236,6 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 	out.Reset()
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	// Ref may not be available (e.g. shallow clone in CI) — treat as no-op.
 	if cmd.Run() == nil && strings.TrimSpace(out.String()) != "" {
 		return ref, nil
 	}
@@ -260,9 +243,7 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 }
 
 // resolveDefaultBranch returns the default branch name of the origin remote.
-// Returns empty string if it cannot be determined.
 func resolveDefaultBranch(ctx context.Context, gitRoot string) string {
-	// Use git symbolic-ref to find what origin/HEAD points to.
 	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
 	cmd := exec.CommandContext(ctx, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = gitRoot
@@ -272,7 +253,6 @@ func resolveDefaultBranch(ctx context.Context, gitRoot string) string {
 	if err := cmd.Run(); err != nil {
 		return ""
 	}
-	// Output is e.g. "refs/remotes/origin/main\n".
 	ref := strings.TrimSpace(out.String())
 	return strings.TrimPrefix(ref, "refs/remotes/origin/")
 }
@@ -291,45 +271,39 @@ var selfUpdateTask = &Task{
 		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		// Set working directory to .pocket for all commands.
-		ctx = ContextWithPath(ctx, pocketDir)
+		ctx = engine.ContextWithPath(ctx, pocketDir)
 
-		// 1. go get latest.
-		if GetFlags[selfUpdateFlags](ctx).Force {
-			// Bypass proxy cache to guarantee absolute latest.
-			if Verbose(ctx) {
-				Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
+		if engine.GetFlags[selfUpdateFlags](ctx).Force {
+			if engine.Verbose(ctx) {
+				engine.Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-			ctx := ContextWithEnv(ctx, "GOPROXY=direct")
-			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+			ctx := engine.ContextWithEnv(ctx, "GOPROXY=direct")
+			if err := engine.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
 		} else {
-			if Verbose(ctx) {
-				Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+			if engine.Verbose(ctx) {
+				engine.Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-			if err := Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+			if err := engine.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
 		}
 
-		// 2. go mod tidy.
-		if Verbose(ctx) {
-			Printf(ctx, "  running: go mod tidy\n")
+		if engine.Verbose(ctx) {
+			engine.Printf(ctx, "  running: go mod tidy\n")
 		}
-		if err := Exec(ctx, "go", "mod", "tidy"); err != nil {
+		if err := engine.Exec(ctx, "go", "mod", "tidy"); err != nil {
 			return fmt.Errorf("tidying pocket module: %w", err)
 		}
 
-		// 3. Regenerate main.go.
-		if Verbose(ctx) {
-			Printf(ctx, "  regenerating main.go\n")
+		if engine.Verbose(ctx) {
+			engine.Printf(ctx, "  regenerating main.go\n")
 		}
 		if err := scaffold.RegenerateMain(pocketDir); err != nil {
 			return fmt.Errorf("regenerating main.go: %w", err)
 		}
 
-		// 4. Regenerate shims.
 		return shimsTask.run(ctx)
 	},
 }
@@ -352,8 +326,8 @@ var purgeTask = &Task{
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
-			if Verbose(ctx) {
-				Printf(ctx, "  removed: %s\n", dir)
+			if engine.Verbose(ctx) {
+				engine.Printf(ctx, "  removed: %s\n", dir)
 			}
 		}
 
@@ -369,17 +343,19 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"version":           version(),
 		"moduleDirectories": p.moduleDirectories,
 		"tree":              buildJSONTree(tree, "", p),
-		"tasks":             p.Tasks(), // Use public API - TaskInfo has JSON tags.
+		"tasks":             p.Tasks(),
 	}
 
-	encoder := json.NewEncoder(outputFromContext(ctx).Stdout)
+	out := engine.OutputFromContext(ctx)
+	if out == nil {
+		out = engine.StdOutput()
+	}
+	encoder := json.NewEncoder(out.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(output)
 }
 
 // buildJSONTree recursively builds a JSON representation of the composition tree.
-// The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
-// This must match the suffix accumulation logic in plan.go's taskCollector.walk().
 func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
 	if r == nil {
 		return nil
@@ -435,7 +411,6 @@ func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
 		}
 
 	case *pathFilter:
-		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b").
 		childSuffix := nameSuffix
 		if v.nameSuffix != "" {
 			if nameSuffix != "" {
@@ -460,8 +435,6 @@ func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
 }
 
 // printTree recursively prints the composition tree structure.
-// The nameSuffix parameter tracks accumulated name suffixes from WithNameSuffix() wrappers.
-// This must match the suffix accumulation logic in plan.go's taskCollector.walk().
 func printTree(
 	ctx context.Context,
 	r Runnable,
@@ -509,16 +482,16 @@ func printTree(
 			}
 		}
 
-		Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
+		engine.Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
 
 		continuation := "│   "
 		if isLast {
 			continuation = "    "
 		}
-		Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
+		engine.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
 
 	case *serial:
-		Printf(ctx, "%s%s[→] Serial\n", prefix, branch)
+		engine.Printf(ctx, "%s%s[→] Serial\n", prefix, branch)
 		childPrefix := prefix
 		if isLast {
 			childPrefix += "    "
@@ -530,7 +503,7 @@ func printTree(
 		}
 
 	case *parallel:
-		Printf(ctx, "%s%s[⚡] Parallel\n", prefix, branch)
+		engine.Printf(ctx, "%s%s[⚡] Parallel\n", prefix, branch)
 		childPrefix := prefix
 		if isLast {
 			childPrefix += "    "
@@ -542,7 +515,6 @@ func printTree(
 		}
 
 	case *pathFilter:
-		// Accumulate suffix (matches plan.go logic: "a" + "b" → "a:b").
 		childSuffix := nameSuffix
 		if v.nameSuffix != "" {
 			if nameSuffix != "" {
@@ -552,11 +524,10 @@ func printTree(
 			}
 		}
 
-		// Only show "With paths" wrapper if there are actual path options.
 		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
 			v.detectFunc != nil
 		if hasPathOptions {
-			Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
+			engine.Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
 			childPrefix := prefix
 			if isLast {
 				childPrefix += "    "
@@ -564,21 +535,19 @@ func printTree(
 				childPrefix += "│   "
 			}
 			if len(v.includePaths) > 0 {
-				Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
+				engine.Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
 			}
 			if len(v.excludePaths) > 0 {
-				Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
+				engine.Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
 			}
 			printTree(ctx, v.inner, childPrefix, true, childSuffix, p)
 		} else {
-			// No path options - pass through to inner without wrapper.
 			printTree(ctx, v.inner, prefix, isLast, childSuffix, p)
 		}
 	}
 }
 
 // formatPaths formats a path list for display.
-// Shows full list if <= 3 paths, otherwise shows count.
 func formatPaths(paths []string) string {
 	if len(paths) == 0 {
 		return "[root]"

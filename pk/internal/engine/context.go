@@ -209,6 +209,11 @@ func SetOutput(ctx context.Context, out *Output) context.Context {
 	return context.WithValue(ctx, outputKey{}, out)
 }
 
+// SetNoticePatterns stores custom notice patterns in the context.
+func SetNoticePatterns(ctx context.Context, patterns []string) context.Context {
+	return context.WithValue(ctx, noticePatternsKey{}, patterns)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Environment Configuration
 // ═══════════════════════════════════════════════════════════════════════════════

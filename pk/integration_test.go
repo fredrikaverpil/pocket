@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 // integrationCtx creates a context suitable for integration tests with
@@ -18,8 +20,8 @@ func integrationCtx(t *testing.T, plan *Plan) (context.Context, *bytes.Buffer) {
 
 	ctx := context.Background()
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	ctx = context.WithValue(ctx, planKey{}, plan)
-	ctx = context.WithValue(ctx, outputKey{}, out)
+	ctx = engine.SetPlan(ctx, plan)
+	ctx = engine.SetOutput(ctx, out)
 	return ctx, &stdout
 }
 
@@ -169,7 +171,7 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 		Flags: pyTestIntFlags{Python: "unset"},
 		Do: func(ctx context.Context) error {
 			ver := GetFlags[pyTestIntFlags](ctx).Python
-			suffix := nameSuffixFromContext(ctx)
+			suffix := engine.NameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
 				captured39 = ver
@@ -309,7 +311,7 @@ func TestIntegration_ManualTaskSkippedInAutoExec(t *testing.T) {
 
 	// Simulate auto execution (bare `./pok` invocation).
 	ctx, _ := integrationCtx(t, plan)
-	ctx = contextWithAutoExec(ctx)
+	ctx = engine.ContextWithAutoExec(ctx)
 
 	// Run auto tree.
 	if err := cfg.Auto.run(ctx); err != nil {

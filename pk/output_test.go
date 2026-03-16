@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"context"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 func TestBufferedOutput_Flush(t *testing.T) {
 	var parentStdout, parentStderr bytes.Buffer
 	parent := &Output{Stdout: &parentStdout, Stderr: &parentStderr}
 
-	buf := newBufferedOutput(parent)
+	buf := engine.NewBufferedOutput(parent)
 	out := buf.Output()
 
 	_, _ = out.Stdout.Write([]byte("hello stdout"))
@@ -30,7 +32,7 @@ func TestBufferedOutput_FlushEmpty(t *testing.T) {
 	var parentStdout, parentStderr bytes.Buffer
 	parent := &Output{Stdout: &parentStdout, Stderr: &parentStderr}
 
-	buf := newBufferedOutput(parent)
+	buf := engine.NewBufferedOutput(parent)
 	buf.Flush() // Should be a no-op.
 
 	if parentStdout.Len() != 0 {
@@ -45,22 +47,18 @@ func TestOutputFromContext(t *testing.T) {
 	t.Run("ReturnsSetOutput", func(t *testing.T) {
 		var buf bytes.Buffer
 		out := &Output{Stdout: &buf, Stderr: &buf}
-		ctx := context.WithValue(context.Background(), outputKey{}, out)
+		ctx := engine.SetOutput(context.Background(), out)
 
-		got := outputFromContext(ctx)
+		got := engine.OutputFromContext(ctx)
 		if got != out {
 			t.Error("expected to get the same output back")
 		}
 	})
 
-	t.Run("FallsBackToStdOutput", func(t *testing.T) {
-		got := outputFromContext(context.Background())
-		if got == nil {
-			t.Fatal("expected non-nil fallback output")
-		}
-		// StdOutput should have os.Stdout and os.Stderr.
-		if got.Stdout == nil || got.Stderr == nil {
-			t.Error("expected non-nil Stdout and Stderr")
+	t.Run("ReturnsNilWhenNotSet", func(t *testing.T) {
+		got := engine.OutputFromContext(context.Background())
+		if got != nil {
+			t.Error("expected nil when no output set in context")
 		}
 	})
 }
@@ -68,7 +66,7 @@ func TestOutputFromContext(t *testing.T) {
 func TestPrintf(t *testing.T) {
 	var buf bytes.Buffer
 	out := &Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	ctx := engine.SetOutput(context.Background(), out)
 
 	Printf(ctx, "hello %s", "world")
 
@@ -80,7 +78,7 @@ func TestPrintf(t *testing.T) {
 func TestErrorf(t *testing.T) {
 	var buf bytes.Buffer
 	out := &Output{Stdout: &bytes.Buffer{}, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	ctx := engine.SetOutput(context.Background(), out)
 
 	Errorf(ctx, "error: %d", 42)
 
@@ -92,7 +90,7 @@ func TestErrorf(t *testing.T) {
 func TestPrintln(t *testing.T) {
 	var buf bytes.Buffer
 	out := &Output{Stdout: &buf, Stderr: &bytes.Buffer{}}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	ctx := engine.SetOutput(context.Background(), out)
 
 	Println(ctx, "hello")
 

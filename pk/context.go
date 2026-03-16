@@ -2,89 +2,20 @@ package pk
 
 import (
 	"context"
-	"maps"
-	"slices"
-	"strings"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Context Keys
-// ═══════════════════════════════════════════════════════════════════════════════
-
-type (
-	pathKey         struct{} // Current execution path.
-	forceRunKey     struct{} // Forcing task execution.
-	verboseKey      struct{} // Verbose mode.
-	gitDiffKey      struct{} // Git diff enabled flag.
-	commitsCheckKey struct{} // Commits check enabled flag.
-	envKey          struct{} // Environment variable overrides.
-	nameSuffixKey   struct{} // Task name suffix.
-	autoExecKey     struct{} // Auto execution mode (manual tasks are skipped).
-)
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Context Accessors (Getters)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // PathFromContext returns the current execution path from the context.
 // Returns "." if no path is set (meaning git root).
 func PathFromContext(ctx context.Context) string {
-	if path, ok := ctx.Value(pathKey{}).(string); ok {
-		return path
-	}
-	return "."
+	return engine.PathFromContext(ctx)
 }
 
 // Verbose returns whether verbose mode is enabled in the context.
 func Verbose(ctx context.Context) bool {
-	if v, ok := ctx.Value(verboseKey{}).(bool); ok {
-		return v
-	}
-	return false
+	return engine.Verbose(ctx)
 }
-
-// gitDiffEnabledFromContext returns whether git diff is enabled in the context.
-func gitDiffEnabledFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(gitDiffKey{}).(bool); ok {
-		return v
-	}
-	return false
-}
-
-// commitsCheckEnabledFromContext returns whether commits check is enabled in the context.
-func commitsCheckEnabledFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(commitsCheckKey{}).(bool); ok {
-		return v
-	}
-	return false
-}
-
-// isAutoExec returns whether auto execution mode is active.
-func isAutoExec(ctx context.Context) bool {
-	v, _ := ctx.Value(autoExecKey{}).(bool)
-	return v
-}
-
-// nameSuffixFromContext returns the name suffix from the context.
-// Returns empty string if no suffix is set.
-func nameSuffixFromContext(ctx context.Context) string {
-	if s, ok := ctx.Value(nameSuffixKey{}).(string); ok {
-		return s
-	}
-	return ""
-}
-
-// forceRunFromContext returns whether forceRun is set in the context.
-func forceRunFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(forceRunKey{}).(bool); ok {
-		return v
-	}
-	return false
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Context Modifiers (Setters)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // ContextWithPath returns a new context with the given execution path.
 // The path affects where Exec runs commands. Relative paths are resolved
@@ -93,57 +24,12 @@ func forceRunFromContext(ctx context.Context) bool {
 //	ctx = pk.ContextWithPath(ctx, "services/api")
 //	ctx = pk.ContextWithPath(ctx, repopath.FromPocketDir("tools", "mytool", "v1.0"))
 func ContextWithPath(ctx context.Context, path string) context.Context {
-	return context.WithValue(ctx, pathKey{}, path)
+	return engine.ContextWithPath(ctx, path)
 }
-
-// contextWithVerbose returns a new context with verbose mode set.
-func contextWithVerbose(ctx context.Context, verbose bool) context.Context {
-	return context.WithValue(ctx, verboseKey{}, verbose)
-}
-
-// contextWithGitDiffEnabled returns a new context with git diff enabled flag set.
-func contextWithGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
-	return context.WithValue(ctx, gitDiffKey{}, enabled)
-}
-
-// contextWithCommitsCheckEnabled returns a new context with commits check enabled flag set.
-func contextWithCommitsCheckEnabled(ctx context.Context, enabled bool) context.Context {
-	return context.WithValue(ctx, commitsCheckKey{}, enabled)
-}
-
-// contextWithAutoExec returns a new context with auto execution mode enabled.
-// When auto exec is active, manual tasks are skipped.
-func contextWithAutoExec(ctx context.Context) context.Context {
-	return context.WithValue(ctx, autoExecKey{}, true)
-}
-
-// withForceRun returns a new context with forceRun set to true.
-func withForceRun(ctx context.Context) context.Context {
-	return context.WithValue(ctx, forceRunKey{}, true)
-}
-
-// contextWithNameSuffix returns a new context with the given name suffix.
-// Name suffixes are accumulated (e.g., nested calls combine).
-func contextWithNameSuffix(ctx context.Context, suffix string) context.Context {
-	existing := nameSuffixFromContext(ctx)
-	if existing != "" {
-		suffix = existing + ":" + suffix
-	}
-	return context.WithValue(ctx, nameSuffixKey{}, suffix)
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Environment Configuration
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // EnvConfig holds environment variable overrides applied to [Exec] calls.
 // Built up via [ContextWithEnv] and [ContextWithoutEnv].
-type EnvConfig struct {
-	// Set contains environment variables to set (or replace). Keys are variable names.
-	Set map[string]string
-	// Filter contains prefixes of environment variables to remove.
-	Filter []string
-}
+type EnvConfig = engine.EnvConfig
 
 // ContextWithEnv returns a new context that sets an environment variable for Exec calls.
 // The keyValue must be in "KEY=value" format.
@@ -152,16 +38,7 @@ type EnvConfig struct {
 //	ctx = pk.ContextWithEnv(ctx, "MY_VAR=value")
 //	pk.Exec(ctx, "mycmd", "arg1") // runs with MY_VAR set
 func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
-	key, value, ok := strings.Cut(keyValue, "=")
-	if !ok {
-		return ctx // invalid format, ignore
-	}
-	cfg := EnvConfigFromContext(ctx)
-	if cfg.Set == nil {
-		cfg.Set = make(map[string]string)
-	}
-	cfg.Set[key] = value
-	return context.WithValue(ctx, envKey{}, cfg)
+	return engine.ContextWithEnv(ctx, keyValue)
 }
 
 // ContextWithoutEnv returns a new context that filters out environment variables
@@ -170,20 +47,11 @@ func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 //	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
 //	pk.Exec(ctx, "python", "script.py") // runs without VIRTUAL_ENV
 func ContextWithoutEnv(ctx context.Context, prefix string) context.Context {
-	cfg := EnvConfigFromContext(ctx)
-	cfg.Filter = append(cfg.Filter, prefix)
-	return context.WithValue(ctx, envKey{}, cfg)
+	return engine.ContextWithoutEnv(ctx, prefix)
 }
 
 // EnvConfigFromContext returns a copy of the environment config from the context.
 // Useful for inspecting what environment overrides are in effect.
 func EnvConfigFromContext(ctx context.Context) EnvConfig {
-	cfg, ok := ctx.Value(envKey{}).(EnvConfig)
-	if !ok {
-		return EnvConfig{}
-	}
-	return EnvConfig{
-		Set:    maps.Clone(cfg.Set),
-		Filter: slices.Clone(cfg.Filter),
-	}
+	return engine.EnvConfigFromContext(ctx)
 }

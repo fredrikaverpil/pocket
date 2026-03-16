@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 )
 
 func TestSerial_RunsInOrder(t *testing.T) {
@@ -76,7 +78,7 @@ func TestParallel_RunsConcurrently(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, outputKey{}, testOutput())
+	ctx = engine.SetOutput(ctx, testOutput())
 
 	if err := p.run(ctx); err != nil {
 		t.Fatal(err)
@@ -109,7 +111,7 @@ func TestParallel_ReturnsError(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, outputKey{}, testOutput())
+	ctx = engine.SetOutput(ctx, testOutput())
 
 	err := p.run(ctx)
 	if err == nil {
@@ -148,14 +150,20 @@ func TestParallel_OutputBuffering(t *testing.T) {
 	// Two tasks that write to output.
 	p := Parallel(
 		Do(func(ctx context.Context) error {
-			o := outputFromContext(ctx)
+			o := engine.OutputFromContext(ctx)
+			if o == nil {
+				o = engine.StdOutput()
+			}
 			for range 50 {
 				_, _ = o.Stdout.Write([]byte("A"))
 			}
 			return nil
 		}),
 		Do(func(ctx context.Context) error {
-			o := outputFromContext(ctx)
+			o := engine.OutputFromContext(ctx)
+			if o == nil {
+				o = engine.StdOutput()
+			}
 			for range 50 {
 				_, _ = o.Stdout.Write([]byte("B"))
 			}
@@ -163,7 +171,7 @@ func TestParallel_OutputBuffering(t *testing.T) {
 		}),
 	)
 
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	ctx := engine.SetOutput(context.Background(), out)
 	if err := p.run(ctx); err != nil {
 		t.Fatal(err)
 	}

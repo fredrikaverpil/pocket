@@ -6,19 +6,23 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/fredrikaverpil/pocket/pk/internal/engine"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
-
-// planKey is the context key for the execution plan.
-type planKey struct{}
 
 // PlanFromContext returns the Plan from the context.
 // Returns nil if no plan is set.
 func PlanFromContext(ctx context.Context) *Plan {
-	if p, ok := ctx.Value(planKey{}).(*Plan); ok {
-		return p
+	v := engine.PlanFromContext(ctx)
+	if v == nil {
+		return nil
 	}
-	return nil
+	return v.(*Plan)
+}
+
+// planFromContext is an unexported typed wrapper for internal use.
+func planFromContext(ctx context.Context) *Plan {
+	return PlanFromContext(ctx)
 }
 
 // Plan represents the execution plan created from a [Config].
