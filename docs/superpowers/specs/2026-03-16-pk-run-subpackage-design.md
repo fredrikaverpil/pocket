@@ -33,14 +33,14 @@ task-authoring utilities. Task and tool authors import both `pk` (for types like
 
 A shared implementation package that holds context key types, exec
 implementation, output handling, and flag machinery. Both `pk` and `pk/run`
-import it. This breaks what would otherwise be a circular dependency between `pk`
-and `pk/run`.
+import it. This breaks what would otherwise be a circular dependency between
+`pk` and `pk/run`.
 
 ### `internal/scaffold` and `internal/shim` stay at `internal/`
 
 These packages are used by both `pk` (in `cli.go` and `builtins.go`) and
-`cmd/pocket/main.go`. Go's `internal` visibility rules require them to remain
-at the module root level to be accessible to both.
+`cmd/pocket/main.go`. Go's `internal` visibility rules require them to remain at
+the module root level to be accessible to both.
 
 ## Package Structure After
 
@@ -58,23 +58,23 @@ pk/conventionalcommits/      Unchanged
 
 ## What Moves to `pk/run`
 
-| Symbol | Type | Notes |
-|--------|------|-------|
-| `Exec` | func | Command execution |
-| `Printf` | func | Context-aware stdout |
-| `Println` | func | Context-aware stdout |
-| `Errorf` | func | Context-aware stderr |
-| `GetFlags[T]` | func | Generic flag access from context |
-| `PathFromContext` | func | Returns current execution path |
-| `Verbose` | func | Returns verbose mode status |
-| `ContextWithPath` | func | Sets execution path in context |
-| `ContextWithEnv` | func | Sets env variable in context |
-| `ContextWithoutEnv` | func | Filters env variable in context |
-| `EnvConfig` | type | Environment variable overrides |
-| `EnvConfigFromContext` | func | Returns env config from context |
-| `PlanFromContext` | func | Returns `*pk.Plan` from context |
-| `RegisterPATH` | func | Adds directory to PATH for Exec |
-| `DefaultNoticePatterns` | var | Warning detection patterns |
+| Symbol                  | Type | Notes                            |
+| ----------------------- | ---- | -------------------------------- |
+| `Exec`                  | func | Command execution                |
+| `Printf`                | func | Context-aware stdout             |
+| `Println`               | func | Context-aware stdout             |
+| `Errorf`                | func | Context-aware stderr             |
+| `GetFlags[T]`           | func | Generic flag access from context |
+| `PathFromContext`       | func | Returns current execution path   |
+| `Verbose`               | func | Returns verbose mode status      |
+| `ContextWithPath`       | func | Sets execution path in context   |
+| `ContextWithEnv`        | func | Sets env variable in context     |
+| `ContextWithoutEnv`     | func | Filters env variable in context  |
+| `EnvConfig`             | type | Environment variable overrides   |
+| `EnvConfigFromContext`  | func | Returns env config from context  |
+| `PlanFromContext`       | func | Returns `*pk.Plan` from context  |
+| `RegisterPATH`          | func | Adds directory to PATH for Exec  |
+| `DefaultNoticePatterns` | var  | Warning detection patterns       |
 
 ### `Do` stays in `pk`
 
@@ -108,14 +108,14 @@ RunMain
 These symbols are only used internally within `pk` and should not be part of the
 public API:
 
-| Symbol | Reason |
-|--------|--------|
-| `NewPlan` | Only called by `RunMain` |
-| `ExecuteTask` | Only called internally by CLI dispatch |
-| `Output` | Internal output plumbing |
-| `StdOutput` | Internal output plumbing |
+| Symbol                  | Reason                                               |
+| ----------------------- | ---------------------------------------------------- |
+| `NewPlan`               | Only called by `RunMain`                             |
+| `ExecuteTask`           | Only called internally by CLI dispatch               |
+| `Output`                | Internal output plumbing                             |
+| `StdOutput`             | Internal output plumbing                             |
 | `ErrGitDiffUncommitted` | Only used by builtin task (update docs/reference.md) |
-| `ErrCommitsInvalid` | Only used by builtin task |
+| `ErrCommitsInvalid`     | Only used by builtin task                            |
 
 Note: `ErrGitDiffUncommitted` is currently referenced in `docs/reference.md` as
 a public API example. Since the project is pre-v1, unexporting it is acceptable.
@@ -132,20 +132,20 @@ pk/internal/engine       (imports pk/repopath, stdlib, golang.org/x)
 
 - **`pk/internal/engine`**: Contains context key types, context
   accessors/modifiers, exec implementation, output implementation, flag
-  handling, env config, and notice pattern detection. Imports `pk/repopath`
-  (a leaf package with no pk-tree imports), stdlib, and `golang.org/x`
-  packages (`golang.org/x/term` for TTY detection, `golang.org/x/sync` is
-  NOT needed here — `errgroup` is only used in `pk/composition.go`).
-  Does NOT import `pk` or `pk/run`.
+  handling, env config, and notice pattern detection. Imports `pk/repopath` (a
+  leaf package with no pk-tree imports), stdlib, and `golang.org/x` packages
+  (`golang.org/x/term` for TTY detection, `golang.org/x/sync` is NOT needed here
+  — `errgroup` is only used in `pk/composition.go`). Does NOT import `pk` or
+  `pk/run`.
 - **`pk`**: Imports `pk/internal/engine` for internal use in builtins and core
   engine (`Task.run`, `pathFilter.run`, `parallel.run`). The `parallel.run`
   method in `composition.go` uses engine's output types (`outputFromContext`,
-  `bufferedOutput`) to set up buffered output per goroutine.
-  Does NOT import `pk/run`.
+  `bufferedOutput`) to set up buffered output per goroutine. Does NOT import
+  `pk/run`.
 - **`pk/run`**: Imports `pk/internal/engine` for implementations and `pk` for
-  types (`Runnable`, `Plan`). Exported functions are thin wrappers that add
-  type assertions where needed (e.g., `PlanFromContext` casts engine's `any`
-  return to `*pk.Plan`).
+  types (`Runnable`, `Plan`). Exported functions are thin wrappers that add type
+  assertions where needed (e.g., `PlanFromContext` casts engine's `any` return
+  to `*pk.Plan`).
 
 No circular dependencies.
 
@@ -167,8 +167,10 @@ All context key types and their accessor/modifier functions:
 - `taskFlagsKey{}` — resolved task flag values
 - `cliFlagsKey{}` — CLI-provided flag overrides
 - `noticePatternsKey{}` — custom notice patterns
-- `planKey{}` — execution plan (stored as `any`, typed accessors in `pk` and `pk/run`)
-- `trackerKey{}` — execution tracker (stored as `any`, typed accessor in `pk` only)
+- `planKey{}` — execution plan (stored as `any`, typed accessors in `pk` and
+  `pk/run`)
+- `trackerKey{}` — execution tracker (stored as `any`, typed accessor in `pk`
+  only)
 
 For context values whose types are defined in `pk` (like `*Plan` and
 `*executionTracker`), the engine stores and retrieves them as `any`. The typed
@@ -190,8 +192,7 @@ Command execution, PATH prepending (`prependBinToPath`), env config application
 ### Output implementation
 
 `Output` struct (stdout/stderr writers), `StdOutput` constructor,
-`Printf`/`Println`/`Errorf` functions, `bufferedOutput` type with `Flush`
-logic.
+`Printf`/`Println`/`Errorf` functions, `bufferedOutput` type with `Flush` logic.
 
 ### Flag handling
 
@@ -295,13 +296,12 @@ Mechanical migration: add `pk/run` import, change `pk.Exec` to `run.Exec`,
 `pk.Printf` to `run.Printf`, etc. No logic changes.
 
 Affected packages: `tasks/golang`, `tasks/python`, `tasks/github`,
-`tasks/markdown`, `tasks/lua`, `tasks/claude`, `tasks/docs`,
-`tasks/treesitter`.
+`tasks/markdown`, `tasks/lua`, `tasks/claude`, `tasks/docs`, `tasks/treesitter`.
 
 ### Tool packages (`tools/*`)
 
-Same mechanical migration for any tool that uses `pk.Exec`, `pk.Do`, etc.
-Note: `pk.Do` stays in `pk`, so only `Exec`/`Printf`/etc. references change.
+Same mechanical migration for any tool that uses `pk.Exec`, `pk.Do`, etc. Note:
+`pk.Do` stays in `pk`, so only `Exec`/`Printf`/etc. references change.
 
 Affected packages: `tools/bun`, `tools/golang`, `tools/uv`, `tools/prettier`,
 `tools/mdformat`, `tools/neovim`, and others that call `pk.Exec`.
@@ -321,15 +321,15 @@ All documentation must be reviewed and updated to reflect the new structure:
 - `pk/run/doc.go`: New package doc describing `pk/run` as the task-authoring
   package with examples.
 - `pk/internal/engine/doc.go`: Internal package doc.
-- All moved functions: Update godoc comments, especially cross-references
-  (e.g., `[Exec]` links, `[Printf]` references).
+- All moved functions: Update godoc comments, especially cross-references (e.g.,
+  `[Exec]` links, `[Printf]` references).
 - All functions remaining in `pk` that reference moved symbols in their docs
   (e.g., `Task.Do` doc mentioning `Exec` should reference `run.Exec`).
 
 ### Markdown docs
 
-- `README.md`: Update quickstart example, code examples, and any references
-  to `pk.Exec`, `pk.Printf`, etc.
+- `README.md`: Update quickstart example, code examples, and any references to
+  `pk.Exec`, `pk.Printf`, etc.
 - `docs/guide.md`: Update all code examples and import paths.
 - `docs/reference.md`: Update API reference to reflect the split. Add `pk/run`
   section. Remove `ErrGitDiffUncommitted` / `ErrCommitsInvalid` examples.
@@ -345,9 +345,8 @@ All documentation must be reviewed and updated to reflect the new structure:
 
 ### Parallelizable with subagents
 
-The migration of `tasks/*` and `tools/*` packages is mechanical and
-independent per package. Each package can be migrated by a separate subagent
-in parallel:
+The migration of `tasks/*` and `tools/*` packages is mechanical and independent
+per package. Each package can be migrated by a separate subagent in parallel:
 
 - One subagent per `tasks/*` package (8 packages)
 - One subagent per `tools/*` package (~13 packages)

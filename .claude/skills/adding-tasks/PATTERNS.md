@@ -16,19 +16,19 @@ var Vulncheck = &pk.Task{
 func vulncheckCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
         args := []string{}
-        if pk.Verbose(ctx) {
+        if run.Verbose(ctx) {
             args = append(args, "-show", "verbose")
         }
         args = append(args, "./...")
-        return pk.Exec(ctx, govulncheck.Name, args...)
+        return run.Exec(ctx,govulncheck.Name, args...)
     })
 }
 ```
 
 **Key points:**
 - `pk.Serial(tool.Install, cmd())` chains install then execute
-- `pk.Verbose(ctx)` maps to the tool's own verbose flag
-- `pk.Exec(ctx, name, args...)` runs the tool with `.pocket/bin` on PATH
+- `run.Verbose(ctx)` maps to the tool's own verbose flag
+- `run.Exec(ctx,name, args...)` runs the tool with `.pocket/bin` on PATH
 
 ---
 
@@ -54,9 +54,9 @@ var Lint = &pk.Task{
 
 func lintCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        f := pk.GetFlags[LintFlags](ctx)
+        f := run.GetFlags[LintFlags](ctx)
         args := []string{"run"}
-        if pk.Verbose(ctx) {
+        if run.Verbose(ctx) {
             args = append(args, "-v")
         }
         if f.Config != "" {
@@ -66,12 +66,12 @@ func lintCmd() pk.Runnable {
             args = append(args, "--fix")
         }
         args = append(args, "./...")
-        return pk.Exec(ctx, golangcilint.Name, args...)
+        return run.Exec(ctx,golangcilint.Name, args...)
     })
 }
 ```
 
-**Flag access:** `pk.GetFlags[LintFlags](ctx)` returns the resolved struct.
+**Flag access:** `run.GetFlags[LintFlags](ctx)` returns the resolved struct.
 Access fields directly: `f.Fix`, `f.Config`.
 
 ---
@@ -89,11 +89,11 @@ var Fix = &pk.Task{
     Usage: "update code for newer Go versions",
     Body: pk.Do(func(ctx context.Context) error {
         args := []string{"fix"}
-        if pk.Verbose(ctx) {
+        if run.Verbose(ctx) {
             args = append(args, "-v")
         }
         args = append(args, "./...")
-        return pk.Exec(ctx, "go", args...)
+        return run.Exec(ctx,"go", args...)
     }),
 }
 ```
@@ -103,7 +103,7 @@ var Fix = &pk.Task{
 ## Task using tool.Exec (Python/Node tools)
 
 Python and Node tools don't symlink into `.pocket/bin/`. Instead, they expose
-an `Exec()` function. Use that instead of `pk.Exec`.
+an `Exec()` function. Use that instead of `run.Exec`.
 
 **Example: md-format** (`tasks/markdown/format.go`)
 
@@ -123,7 +123,7 @@ var Format = &pk.Task{
 
 func formatCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        f := pk.GetFlags[FormatFlags](ctx)
+        f := run.GetFlags[FormatFlags](ctx)
         configPath := f.Config
         if configPath == "" {
             configPath = prettier.EnsureDefaultConfig()
@@ -149,7 +149,7 @@ func formatCmd() pk.Runnable {
 }
 ```
 
-**Key difference:** `prettier.Exec(ctx, args...)` instead of `pk.Exec(ctx, ...)`.
+**Key difference:** `prettier.Exec(ctx, args...)` instead of `run.Exec(ctx,...)`.
 
 ---
 
@@ -176,7 +176,7 @@ var Lint = &pk.Task{
 
 func lintSyncCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        f := pk.GetFlags[LintFlags](ctx)
+        f := run.GetFlags[LintFlags](ctx)
         version := resolveVersion(ctx, f.Python)
         return uv.Sync(ctx, uv.SyncOptions{
             PythonVersion: version,
@@ -187,7 +187,7 @@ func lintSyncCmd() pk.Runnable {
 
 func lintCmd() pk.Runnable {
     return pk.Do(func(ctx context.Context) error {
-        f := pk.GetFlags[LintFlags](ctx)
+        f := run.GetFlags[LintFlags](ctx)
         version := resolveVersion(ctx, f.Python)
         return runLint(ctx, version, f.SkipFix)
     })
@@ -195,7 +195,7 @@ func lintCmd() pk.Runnable {
 
 func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
     args := []string{"check", "--exclude", ".pocket"}
-    if pk.Verbose(ctx) {
+    if run.Verbose(ctx) {
         args = append(args, "--verbose")
     }
     if !skipFix {
@@ -204,7 +204,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
     if pythonVersion != "" {
         args = append(args, "--target-version", pythonVersionToRuff(pythonVersion))
     }
-    args = append(args, pk.PathFromContext(ctx))
+    args = append(args, run.PathFromContext(ctx))
     return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }
 ```
@@ -373,7 +373,7 @@ var Build = &pk.Task{
     Body: pk.Serial(
         bun.Install,
         pk.Do(func(ctx context.Context) error {
-            projectDir := pk.FromGitRoot(pk.PathFromContext(ctx))
+            projectDir := pk.FromGitRoot(run.PathFromContext(ctx))
 
             if err := bun.InstallFromLockfile(ctx, projectDir); err != nil {
                 return err
@@ -407,10 +407,10 @@ Use Pocket helpers instead of hardcoded paths:
 ```go
 // Absolute path from git root
 pattern := pk.FromGitRoot("**/*.md")
-absDir := pk.FromGitRoot(pk.PathFromContext(ctx))
+absDir := pk.FromGitRoot(run.PathFromContext(ctx))
 
 // Context-relative path (set by detection/path filtering)
-dir := pk.PathFromContext(ctx)
+dir := run.PathFromContext(ctx)
 ```
 
 Avoid shell-specific constructs (`&&`, pipes, backticks). Use Go code for any
@@ -420,7 +420,7 @@ logic that would otherwise need shell features.
 
 ## Verbose handling reference
 
-Map `pk.Verbose(ctx)` to the underlying tool's verbose flag. Each tool uses
+Map `run.Verbose(ctx)` to the underlying tool's verbose flag. Each tool uses
 different flags:
 
 | Tool           | Verbose flag              |
@@ -433,10 +433,10 @@ different flags:
 | mypy           | `-v`                      |
 | stylua         | `--verbose`               |
 
-When no tool flag exists, use `pk.Printf` for informational output:
+When no tool flag exists, use `run.Printf` for informational output:
 
 ```go
-if pk.Verbose(ctx) {
-    pk.Printf(ctx, "  no query directories found\n")
+if run.Verbose(ctx) {
+    run.Printf(ctx,"  no query directories found\n")
 }
 ```

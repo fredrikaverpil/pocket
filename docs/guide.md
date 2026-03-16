@@ -127,7 +127,7 @@ var Config = &pk.Config{
 ### Task Flags
 
 Flags are defined as a struct with `flag` and `usage` struct tags, and accessed
-at runtime with `pk.GetFlags[T]`:
+at runtime with `run.GetFlags[T]`:
 
 ```go
 type DeployFlags struct {
@@ -139,7 +139,7 @@ var Deploy = &pk.Task{
     Usage: "deploy the app",
     Flags: DeployFlags{Env: "staging"},
     Do: func(ctx context.Context) error {
-        f := pk.GetFlags[DeployFlags](ctx)
+        f := run.GetFlags[DeployFlags](ctx)
         fmt.Printf("Deploying to %s...\n", f.Env)
         return nil
     },
@@ -183,18 +183,18 @@ var Export = &pk.Task{
 
 ### The Exec Helper
 
-`pk.Exec` runs external commands with proper output handling:
+`run.Exec` runs external commands with proper output handling:
 
 ```go
 pk.Do(func(ctx context.Context) error {
-    return pk.Exec(ctx, "go", "test", "./...")
+    return run.Exec(ctx, "go", "test", "./...")
 })
 ```
 
 **Output behavior:**
 
-- **With `-v` flag:** Output streams to stdout/stderr in real-time
-- **Without `-v` flag:** Output is captured and shown if:
+- **With `-v` flag:** output streams to stdout/stderr in real-time
+- **Without `-v` flag:** output is captured and shown if:
   - The command fails, OR
   - The output contains warnings (detects: `warn`, `deprecat`, `notice`,
     `caution`, `error`)
@@ -223,15 +223,15 @@ pk.WithOptions(
 Use these instead of `fmt.Print*` to ensure correct output handling in parallel
 contexts:
 
-| Function                          | Description                |
-| :-------------------------------- | :------------------------- |
-| `pk.Printf(ctx, format, args...)` | Formatted output to stdout |
-| `pk.Println(ctx, args...)`        | Line output to stdout      |
-| `pk.Errorf(ctx, format, args...)` | Formatted output to stderr |
+| Function                           | Description                |
+| :--------------------------------- | :------------------------- |
+| `run.Printf(ctx, format, args...)` | Formatted output to stdout |
+| `run.Println(ctx, args...)`        | Line output to stdout      |
+| `run.Errorf(ctx, format, args...)` | Formatted output to stderr |
 
 ```go
 pk.Do(func(ctx context.Context) error {
-    pk.Printf(ctx, "Processing %d items...\n", count)
+    run.Printf(ctx, "Processing %d items...\n", count)
     return nil
 })
 ```
@@ -250,13 +250,13 @@ Tools make themselves available through one of three patterns:
 
 | Pattern         | When to use                                          | How tasks invoke                 |
 | :-------------- | :--------------------------------------------------- | :------------------------------- |
-| **Symlink**     | Native binaries (Go, Rust, C)                        | `pk.Exec(ctx, "tool", ...)`      |
+| **Symlink**     | Native binaries (Go, Rust, C)                        | `run.Exec(ctx, "tool", ...)`     |
 | **Tool Exec**   | Standalone runtime-dependent tools                   | `tool.Exec(ctx, ...)`            |
 | **Runtime Run** | Project-managed tools (pyproject.toml, package.json) | `uv.Run(ctx, opts, "tool", ...)` |
 
 **Symlink pattern:** The tool downloads a self-contained binary to
 `.pocket/tools/<tool>/<version>/` and symlinks it to `.pocket/bin/`. Since
-`pk.Exec` adds `.pocket/bin/` to PATH, tasks can invoke it by name.
+`run.Exec` adds `.pocket/bin/` to PATH, tasks can invoke it by name.
 
 **Tool Exec pattern:** For tools that require a runtime (Node.js, Python), the
 tool package exposes an `Exec()` function that handles runtime invocation
@@ -272,7 +272,10 @@ project controls tool versions, not Pocket.
 Use `golang.Install` for Go-based tools:
 
 ```go
-import "github.com/fredrikaverpil/pocket/tools/golang"
+import (
+    "github.com/fredrikaverpil/pocket/pk/run"
+    "github.com/fredrikaverpil/pocket/tools/golang"
+)
 
 var installLint = &pk.Task{
     Name:   "install:golangci-lint",
@@ -288,7 +291,7 @@ var Lint = &pk.Task{
     Body: pk.Serial(
         installLint,
         pk.Do(func(ctx context.Context) error {
-            return pk.Exec(ctx, "golangci-lint", "run")
+            return run.Exec(ctx, "golangci-lint", "run")
         }),
     ),
 }
@@ -497,7 +500,7 @@ var Docs = &pk.Task{
 | :-------------- | :------------------------------------------------------ |
 | `PythonVersion` | Python version (default: `uv.DefaultPythonVersion`)     |
 | `VenvPath`      | Explicit venv path (default: auto-computed)             |
-| `ProjectDir`    | Where pyproject.toml lives (default: `PathFromContext`) |
+| `ProjectDir`    | Where pyproject.toml lives (default: `run.PathFromContext`) |
 | `AllGroups`     | Install all dependency groups                           |
 
 > [!IMPORTANT]
@@ -610,7 +613,7 @@ var Docs = &pk.Task{
 ```
 
 When `ProjectDir` is left empty, both `uv.Sync` and `uv.Run` default to
-`PathFromContext(ctx)`—the directory containing the project's `pyproject.toml`.
+`run.PathFromContext(ctx)`—the directory containing the project's `pyproject.toml`.
 The venv is stored at `.pocket/venvs/<project-path>/venv-<version>/`, keeping it
 out of the project tree.
 
@@ -1107,7 +1110,7 @@ runtime for advanced use cases like CI workflow generation.
 
 ```go
 pk.Do(func(ctx context.Context) error {
-    plan := pk.PlanFromContext(ctx)
+    plan := run.PlanFromContext(ctx)
     if plan == nil {
         return errors.New("no plan in context")
     }
@@ -1132,13 +1135,13 @@ func (p *Plan) Tasks() []TaskInfo        // All tasks in the plan
 func (p *Plan) ShimConfig() *ShimConfig  // Resolved shim configuration
 ```
 
-**Context accessors:**
+**Context accessors** (from the `pk/run` package):
 
-| Function               | Description                                 |
-| :--------------------- | :------------------------------------------ |
-| `PlanFromContext(ctx)` | Get the Plan from context (nil if not set)  |
-| `PathFromContext(ctx)` | Current execution path relative to git root |
-| `Verbose(ctx)`         | Whether `-v` flag was provided              |
+| Function                   | Description                                 |
+| :------------------------- | :------------------------------------------ |
+| `run.PlanFromContext(ctx)` | Get the Plan from context (nil if not set)  |
+| `run.PathFromContext(ctx)` | Current execution path relative to git root |
+| `run.Verbose(ctx)`         | Whether `-v` flag was provided              |
 
 **Path helpers:**
 

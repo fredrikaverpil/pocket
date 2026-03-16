@@ -1,6 +1,7 @@
 # API Reference
 
-Technical reference for the `github.com/fredrikaverpil/pocket/pk` package.
+Technical reference for the `github.com/fredrikaverpil/pocket/pk` and
+`github.com/fredrikaverpil/pocket/pk/run` packages.
 
 ## Table of Contents
 
@@ -118,14 +119,14 @@ var Lint = &pk.Task{
     Name:  "lint",
     Usage: "run linters",
     Do: func(ctx context.Context) error {
-        return pk.Exec(ctx, "golangci-lint", "run")
+        return run.Exec(ctx, "golangci-lint", "run")
     },
 }
 ```
 
 ### Task Flags
 
-Flags are declared as a struct on the task and accessed via `GetFlags[T]`:
+Flags are declared as a struct on the task and accessed via `run.GetFlags[T]`:
 
 ```go
 func GetFlags[T any](ctx context.Context) T
@@ -149,7 +150,7 @@ var Deploy = &pk.Task{
     Usage: "deploy the app",
     Flags: DeployFlags{Env: "staging"},
     Do: func(ctx context.Context) error {
-        f := pk.GetFlags[DeployFlags](ctx)
+        f := run.GetFlags[DeployFlags](ctx)
         // f.Env, f.DryRun
         // ...
     },
@@ -309,46 +310,46 @@ pk.WithOptions(CleanupTask, pk.WithForceRun())
 
 ### Running Code
 
-| Function       | Description                                          |
-| :------------- | :--------------------------------------------------- |
-| `Do`           | Wrap a `func(context.Context) error` as a `Runnable` |
-| `Exec`         | Execute external command with proper output handling |
-| `RegisterPATH` | Register a directory to be added to PATH for Exec    |
+| Function           | Description                                          |
+| :----------------- | :--------------------------------------------------- |
+| `pk.Do`            | Wrap a `func(context.Context) error` as a `Runnable` |
+| `run.Exec`         | Execute external command with proper output handling |
+| `run.RegisterPATH` | Register a directory to be added to PATH for Exec    |
 
 ```go
 pk.Do(func(ctx context.Context) error {
-    return pk.Exec(ctx, "go", "test", "./...")
+    return run.Exec(ctx, "go", "test", "./...")
 })
 ```
 
-`Exec` behavior:
+`run.Exec` behavior:
 
 - **With `-v`:** Output streams to stdout/stderr in real-time
 - **Without `-v`:** Output captured, shown on error or if warnings detected
-- Detects warnings via `DefaultNoticePatterns`: `warn`, `deprecat`, `notice`,
+- Detects warnings via `run.DefaultNoticePatterns`: `warn`, `deprecat`, `notice`,
   `caution`, `error` (case-insensitive)
 - Override with `WithNoticePatterns(...)`, or pass no patterns to disable
 - Adds `.pocket/bin` to PATH
 - Sends SIGINT for graceful shutdown (Unix)
 
-`RegisterPATH` adds directories to PATH for all subsequent `Exec` calls. Use
-this for tools that can't be symlinked (e.g., neovim on Windows needs its
+`run.RegisterPATH` adds directories to PATH for all subsequent `run.Exec` calls.
+Use this for tools that can't be symlinked (e.g., neovim on Windows needs its
 runtime files):
 
 ```go
-pk.RegisterPATH("/path/to/nvim/bin")
+run.RegisterPATH("/path/to/nvim/bin")
 ```
 
 ### Output Functions
 
-| Function  | Description                        |
-| :-------- | :--------------------------------- |
-| `Printf`  | Formatted output to context stdout |
-| `Println` | Line output to context stdout      |
-| `Errorf`  | Formatted output to context stderr |
+| Function      | Description                        |
+| :------------ | :--------------------------------- |
+| `run.Printf`  | Formatted output to context stdout |
+| `run.Println` | Line output to context stdout      |
+| `run.Errorf`  | Formatted output to context stderr |
 
 ```go
-pk.Printf(ctx, "Processing %d items...\n", count)
+run.Printf(ctx, "Processing %d items...\n", count)
 ```
 
 ---
@@ -362,12 +363,12 @@ making itself available for execution.
 
 | Pattern         | When to use                        | How tasks invoke                 |
 | :-------------- | :--------------------------------- | :------------------------------- |
-| **Symlink**     | Native binaries (Go, Rust, C)      | `pk.Exec(ctx, "tool", ...)`      |
+| **Symlink**     | Native binaries (Go, Rust, C)      | `run.Exec(ctx, "tool", ...)`     |
 | **Tool Exec**   | Standalone runtime-dependent tools | `tool.Exec(ctx, ...)`            |
 | **Runtime Run** | Project-managed tools              | `uv.Run(ctx, opts, "tool", ...)` |
 
 **Symlink:** Binary symlinked to `.pocket/bin/`, tasks invoke by name via
-`pk.Exec`.
+`run.Exec`.
 
 **Tool Exec:** Tool package exposes `Exec()` function that handles runtime
 invocation internally. No symlink (shebangs fail without runtime on PATH).
@@ -520,56 +521,49 @@ pk.X64     // "x64"
 
 ## Context
 
-Context accessors and modifiers are available from the `pk` package.
+Context accessors and modifiers are available from the `pk/run` package
+(imported as `"github.com/fredrikaverpil/pocket/pk/run"`).
 
 ### Accessors (Getters)
 
-| Function             | Description                                     |
-| :------------------- | :---------------------------------------------- |
-| `pk.GetFlags[T]`     | Retrieve the resolved flags struct from context |
-| `pk.PathFromContext` | Current execution path relative to git root     |
-| `pk.PlanFromContext` | The `*Plan` from context (nil if not set)       |
-| `pk.Verbose`         | Whether `-v` flag was provided                  |
+| Function              | Description                                     |
+| :-------------------- | :---------------------------------------------- |
+| `run.GetFlags[T]`     | Retrieve the resolved flags struct from context |
+| `run.PathFromContext` | Current execution path relative to git root     |
+| `run.PlanFromContext` | The `*Plan` from context (nil if not set)       |
+| `run.Verbose`         | Whether `-v` flag was provided                  |
 
 ### Modifiers (Setters)
 
 Context modifiers use the `ContextWith*` naming convention to distinguish them
 from `Option` functions (which use `With*`).
 
-| Function               | Description                                      |
-| :--------------------- | :----------------------------------------------- |
-| `pk.ContextWithEnv`    | Set an environment variable for `Exec` calls     |
-| `pk.ContextWithoutEnv` | Filter out environment variables matching prefix |
-| `pk.ContextWithPath`   | Set the execution path for `Exec` calls          |
+| Function                | Description                                      |
+| :---------------------- | :----------------------------------------------- |
+| `run.ContextWithEnv`    | Set an environment variable for `Exec` calls     |
+| `run.ContextWithoutEnv` | Filter out environment variables matching prefix |
+| `run.ContextWithPath`   | Set the execution path for `Exec` calls          |
 
 ```go
 // Set an environment variable
-ctx = pk.ContextWithEnv(ctx, "MY_VAR=value")
+ctx = run.ContextWithEnv(ctx, "MY_VAR=value")
 
 // Remove environment variables matching prefix
-ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+ctx = run.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
 
 // Change execution directory
-ctx = pk.ContextWithPath(ctx, "services/api")
+ctx = run.ContextWithPath(ctx, "services/api")
 
 // Use with Exec
-pk.Exec(ctx, "mycmd", "arg1") // runs with modified environment/path
+run.Exec(ctx, "mycmd", "arg1") // runs with modified environment/path
 ```
 
 ---
 
 ## Output
 
-```go
-type Output struct {
-    Stdout io.Writer
-    Stderr io.Writer
-}
-```
-
-| Function    | Description                                       |
-| :---------- | :------------------------------------------------ |
-| `StdOutput` | Returns Output writing to os.Stdout and os.Stderr |
+The `Output` type and `StdOutput` function are internal to the engine
+(`pk/internal/engine`) and not part of the public API.
 
 ---
 
@@ -608,14 +602,13 @@ type TaskInfo struct {
 }
 ```
 
-| Function/Method   | Description                                     |
-| :---------------- | :---------------------------------------------- |
-| `NewPlan`         | Create plan from Config (walks filesystem once) |
-| `Plan.Tasks`      | Returns `[]TaskInfo` with effective names       |
-| `Plan.ShimConfig` | Returns resolved `*ShimConfig`                  |
+| Function/Method   | Description                               |
+| :---------------- | :---------------------------------------- |
+| `Plan.Tasks`      | Returns `[]TaskInfo` with effective names |
+| `Plan.ShimConfig` | Returns resolved `*ShimConfig`            |
 
 ```go
-plan := pk.PlanFromContext(ctx)
+plan := run.PlanFromContext(ctx)
 for _, info := range plan.Tasks() {
     fmt.Printf("Task: %s - %s (paths: %v)\n", info.Name, info.Usage, info.Paths)
 }

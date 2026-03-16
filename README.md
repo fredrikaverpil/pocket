@@ -54,6 +54,7 @@ import (
     "context"
     "fmt"
     "github.com/fredrikaverpil/pocket/pk"
+    "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 type HelloFlags struct {
@@ -65,7 +66,7 @@ var Hello = &pk.Task{
     Usage: "say hello",
     Flags: HelloFlags{Name: "World"},
     Do: func(ctx context.Context) error {
-        f := pk.GetFlags[HelloFlags](ctx)
+        f := run.GetFlags[HelloFlags](ctx)
         fmt.Printf("Hello, %s, from Pocket!\n", f.Name)
         return nil
     },
@@ -201,7 +202,7 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 ### Programmatic Plan Access
 
 Tasks can access the full execution plan at runtime via
-`pk.PlanFromContext(ctx)`. This enables powerful workflows like **automatic CI
+`run.PlanFromContext(ctx)`. This enables powerful workflows like **automatic CI
 workflow generation** -- instead of manually syncing your CI configuration with
 your tasks, let Pocket generate it.
 
