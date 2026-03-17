@@ -157,7 +157,7 @@ func TestStructToMap(t *testing.T) {
 	}
 }
 
-func TestMapToStruct(t *testing.T) {
+func TestGetFlags_AllTypes(t *testing.T) {
 	m := map[string]any{
 		"name":    "world",
 		"verbose": false,
@@ -168,11 +168,9 @@ func TestMapToStruct(t *testing.T) {
 		"rate":    2.5,
 		"dur":     5 * time.Second,
 	}
+	ctx := context.WithValue(context.Background(), ctxkey.TaskFlags{}, m)
 
-	var result testFlags
-	if err := mapToStruct(m, &result); err != nil {
-		t.Fatal(err)
-	}
+	result := pkrun.GetFlags[testFlags](ctx)
 
 	if result.Name != "world" {
 		t.Errorf("expected name=world, got %q", result.Name)
@@ -502,7 +500,7 @@ func TestStructToMap_PointerFields(t *testing.T) {
 	})
 }
 
-func TestMapToStruct_PointerFields(t *testing.T) {
+func TestGetFlags_PointerFields(t *testing.T) {
 	type flags struct {
 		Enable *bool   `flag:"enable"`
 		Name   *string `flag:"name"`
@@ -514,10 +512,10 @@ func TestMapToStruct_PointerFields(t *testing.T) {
 		"name":   "hello",
 		"count":  42,
 	}
-	var result flags
-	if err := mapToStruct(m, &result); err != nil {
-		t.Fatal(err)
-	}
+	ctx := context.WithValue(context.Background(), ctxkey.TaskFlags{}, m)
+
+	result := pkrun.GetFlags[flags](ctx)
+
 	if result.Enable == nil || *result.Enable != true {
 		t.Errorf("expected enable=true, got %v", result.Enable)
 	}
