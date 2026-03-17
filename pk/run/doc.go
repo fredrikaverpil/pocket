@@ -1,4 +1,4 @@
-// Package run provides task-authoring utilities for Pocket.
+// Package run provides the task-authoring API for Pocket.
 //
 // Task and tool authors use this package for command execution, output,
 // flag handling, and context accessors. Config authors typically only
@@ -32,4 +32,6 @@
 //	if run.Verbose(ctx) {
 //	    run.Printf(ctx, "  verbose output\n")
 //	}
+//
+// For plan introspection, use [github.com/fredrikaverpil/pocket/pk.PlanFromContext].
 package run

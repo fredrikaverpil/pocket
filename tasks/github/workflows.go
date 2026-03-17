@@ -245,7 +245,7 @@ type perTaskData struct {
 }
 
 func generatePerTaskWorkflow(ctx context.Context, workflowDir string, verbose bool) error {
-	plan := run.PlanFromContext(ctx)
+	plan := pk.PlanFromContext(ctx)
 	if plan == nil {
 		return fmt.Errorf("plan not available in context")
 	}
