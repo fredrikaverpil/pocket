@@ -14,8 +14,8 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
 	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
-	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // errGitDiffUncommitted is returned when git diff detects uncommitted changes.

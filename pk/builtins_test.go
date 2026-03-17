@@ -12,7 +12,7 @@ import (
 
 func TestGitDiffTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, ctxkey.GitDiff{},false)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, false)
 	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when git diff is disabled
@@ -32,7 +32,7 @@ func TestGitDiffEnabledFromContext_Default(t *testing.T) {
 
 func TestGitDiffEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, ctxkey.GitDiff{},true)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, true)
 
 	if !gitDiffEnabled(ctx) {
 		t.Error("expected gitDiffEnabled to be true after setting")
@@ -65,7 +65,7 @@ func TestIsBuiltinName(t *testing.T) {
 
 func TestCommitsCheckTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{},false)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, false)
 	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when commits check is disabled.
@@ -85,7 +85,7 @@ func TestCommitsCheckEnabledFromContext_Default(t *testing.T) {
 
 func TestCommitsCheckEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{},true)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, true)
 
 	if !commitsCheckEnabled(ctx) {
 		t.Error("expected commitsCheckEnabled to be true after setting")

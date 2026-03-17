@@ -257,8 +257,8 @@ func TestE2E_ExecuteTask_EnvPropagation(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = pkrun.ContextWithEnv(ctx,"MY_VAR=hello")
-	ctx = pkrun.ContextWithEnv(ctx,"OTHER=world")
+	ctx = pkrun.ContextWithEnv(ctx, "MY_VAR=hello")
+	ctx = pkrun.ContextWithEnv(ctx, "OTHER=world")
 
 	if err := ExecuteTask(ctx, "env-task", plan); err != nil {
 		t.Fatal(err)

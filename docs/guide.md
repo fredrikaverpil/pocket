@@ -496,12 +496,12 @@ var Docs = &pk.Task{
 
 **SyncOptions fields:**
 
-| Field           | Description                                             |
-| :-------------- | :------------------------------------------------------ |
-| `PythonVersion` | Python version (default: `uv.DefaultPythonVersion`)     |
-| `VenvPath`      | Explicit venv path (default: auto-computed)             |
+| Field           | Description                                                 |
+| :-------------- | :---------------------------------------------------------- |
+| `PythonVersion` | Python version (default: `uv.DefaultPythonVersion`)         |
+| `VenvPath`      | Explicit venv path (default: auto-computed)                 |
 | `ProjectDir`    | Where pyproject.toml lives (default: `run.PathFromContext`) |
-| `AllGroups`     | Install all dependency groups                           |
+| `AllGroups`     | Install all dependency groups                               |
 
 > [!IMPORTANT]
 >
@@ -613,9 +613,10 @@ var Docs = &pk.Task{
 ```
 
 When `ProjectDir` is left empty, both `uv.Sync` and `uv.Run` default to
-`run.PathFromContext(ctx)`—the directory containing the project's `pyproject.toml`.
-The venv is stored at `.pocket/venvs/<project-path>/venv-<version>/`, keeping it
-out of the project tree.
+`run.PathFromContext(ctx)`—the directory containing the project's
+`pyproject.toml`. The venv is stored at
+`.pocket/venvs/<project-path>/venv-<version>/`, keeping it out of the project
+tree.
 
 No tool package under `tools/` is needed—the project's lockfile controls the
 version. Only `uv.Install` is required to ensure the `uv` binary is available.

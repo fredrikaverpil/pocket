@@ -13,8 +13,8 @@ import (
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
-	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // RunMain is the CLI entry point for Pocket. It parses arguments, builds

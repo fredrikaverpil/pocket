@@ -326,8 +326,8 @@ pk.Do(func(ctx context.Context) error {
 
 - **With `-v`:** Output streams to stdout/stderr in real-time
 - **Without `-v`:** Output captured, shown on error or if warnings detected
-- Detects warnings via `run.DefaultNoticePatterns`: `warn`, `deprecat`, `notice`,
-  `caution`, `error` (case-insensitive)
+- Detects warnings via `run.DefaultNoticePatterns`: `warn`, `deprecat`,
+  `notice`, `caution`, `error` (case-insensitive)
 - Override with `WithNoticePatterns(...)`, or pass no patterns to disable
 - Adds `.pocket/bin` to PATH
 - Sends SIGINT for graceful shutdown (Unix)

@@ -1,17 +1,19 @@
 // Package ctxkey defines context key types shared between pk and pk/run.
 package ctxkey
 
-type Path struct{}           // Current execution path.
-type ForceRun struct{}       // Forcing task execution.
-type Verbose struct{}        // Verbose mode.
-type GitDiff struct{}        // Git diff enabled flag.
-type CommitsCheck struct{}   // Commits check enabled flag.
-type Env struct{}            // Environment variable overrides.
-type NameSuffix struct{}     // Task name suffix.
-type AutoExec struct{}       // Auto execution mode.
-type TaskFlags struct{}      // Resolved task flag values.
-type CLIFlags struct{}       // CLI-provided flag overrides.
-type NoticePatterns struct{} // Custom notice patterns.
-type Plan struct{}           // Execution plan.
-type Tracker struct{}        // Execution tracker.
-type Output struct{}         // Output writers.
+type (
+	Path           struct{} // Current execution path.
+	ForceRun       struct{} // Forcing task execution.
+	Verbose        struct{} // Verbose mode.
+	GitDiff        struct{} // Git diff enabled flag.
+	CommitsCheck   struct{} // Commits check enabled flag.
+	Env            struct{} // Environment variable overrides.
+	NameSuffix     struct{} // Task name suffix.
+	AutoExec       struct{} // Auto execution mode.
+	TaskFlags      struct{} // Resolved task flag values.
+	CLIFlags       struct{} // CLI-provided flag overrides.
+	NoticePatterns struct{} // Custom notice patterns.
+	Plan           struct{} // Execution plan.
+	Tracker        struct{} // Execution tracker.
+	Output         struct{} // Output writers.
+)
