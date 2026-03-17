@@ -420,6 +420,12 @@ func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
 			}
 		}
 
+		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
+			v.detectFunc != nil
+		if !hasPathOptions {
+			return buildJSONTree(v.inner, childSuffix, p)
+		}
+
 		node := map[string]any{
 			"type":    "pathFilter",
 			"include": v.includePaths,

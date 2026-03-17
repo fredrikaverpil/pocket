@@ -184,9 +184,9 @@ func TestBuildJSONTree(t *testing.T) {
 
 		pf := WithOptions(task, WithNameSuffix("v2"))
 		result := buildJSONTree(pf, "", plan)
-		inner := result["inner"].(map[string]any)
-		if inner["name"] != "test:v2" {
-			t.Errorf("expected name=test:v2, got %v", inner["name"])
+		// No path options, so pathFilter wrapper is omitted; the inner task is returned directly.
+		if result["name"] != "test:v2" {
+			t.Errorf("expected name=test:v2, got %v", result["name"])
 		}
 	})
 }
