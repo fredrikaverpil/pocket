@@ -41,10 +41,11 @@ type EnvConfig struct {
 
 // ContextWithEnv returns a new context that sets an environment variable
 // for [Exec] calls. The keyValue must be in "KEY=value" format.
+// Panics if keyValue does not contain "=".
 func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 	key, value, ok := strings.Cut(keyValue, "=")
 	if !ok {
-		return ctx
+		panic("run.ContextWithEnv: keyValue must be in \"KEY=value\" format, got " + keyValue)
 	}
 	cfg := EnvConfigFromContext(ctx)
 	if cfg.Set == nil {

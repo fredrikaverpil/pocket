@@ -61,12 +61,14 @@ func TestContextWithEnv(t *testing.T) {
 		}
 	})
 
-	t.Run("InvalidFormat", func(t *testing.T) {
-		ctx := pkrun.ContextWithEnv(context.Background(), "NOEQUALSSIGN")
-		cfg := pkrun.EnvConfigFromContext(ctx)
-		if len(cfg.Set) != 0 {
-			t.Errorf("expected empty set for invalid format, got %v", cfg.Set)
-		}
+	t.Run("InvalidFormatPanics", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected panic for invalid format")
+			}
+		}()
+		pkrun.ContextWithEnv(context.Background(), "NOEQUALSSIGN")
 	})
 }
 
