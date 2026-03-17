@@ -42,6 +42,15 @@
 - [ ] Explore Nix as a package manager backend for tool installation. See
       [Nix exploration notes](#nix-as-a-package-manager-backend) below.
 
+## The built in commit checker
+
+Currently, the commit checker only runs on `./pok -c` but it might be better to
+be able to configure this so it gets run automatically, differing from how `-g`
+works, which is explicitly required (not configurable by Config).
+
+- I feel `-g` is rarely wanted locally when running `./pok` but good in CI.
+- I feel `-c` is wanted for `./pok` all the time locally and in CI.
+
 ## API UX friction
 
 ```go
