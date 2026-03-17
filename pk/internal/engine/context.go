@@ -5,27 +5,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
-)
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Context Keys
-// ═══════════════════════════════════════════════════════════════════════════════
-
-type (
-	pathKey           struct{} // Current execution path.
-	forceRunKey       struct{} // Forcing task execution.
-	verboseKey        struct{} // Verbose mode.
-	gitDiffKey        struct{} // Git diff enabled flag.
-	commitsCheckKey   struct{} // Commits check enabled flag.
-	envKey            struct{} // Environment variable overrides.
-	nameSuffixKey     struct{} // Task name suffix.
-	autoExecKey       struct{} // Auto execution mode (manual tasks are skipped).
-	taskFlagsKey      struct{} // Resolved task flag values.
-	cliFlagsKey       struct{} // CLI-provided flag overrides.
-	noticePatternsKey struct{} // Custom notice patterns.
-	planKey           struct{} // Execution plan (stored as any).
-	trackerKey        struct{} // Execution tracker (stored as any).
-	outputKey         struct{} // Output writers.
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 )
 
 // WarningMarker is implemented by types that can record warnings.
@@ -41,7 +22,7 @@ type WarningMarker interface {
 // PathFromContext returns the current execution path from the context.
 // Returns "." if no path is set (meaning git root).
 func PathFromContext(ctx context.Context) string {
-	if path, ok := ctx.Value(pathKey{}).(string); ok {
+	if path, ok := ctx.Value(ctxkey.Path{}).(string); ok {
 		return path
 	}
 	return "."
@@ -49,7 +30,7 @@ func PathFromContext(ctx context.Context) string {
 
 // Verbose returns whether verbose mode is enabled in the context.
 func Verbose(ctx context.Context) bool {
-	if v, ok := ctx.Value(verboseKey{}).(bool); ok {
+	if v, ok := ctx.Value(ctxkey.Verbose{}).(bool); ok {
 		return v
 	}
 	return false
@@ -57,7 +38,7 @@ func Verbose(ctx context.Context) bool {
 
 // GitDiffEnabledFromContext returns whether git diff is enabled in the context.
 func GitDiffEnabledFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(gitDiffKey{}).(bool); ok {
+	if v, ok := ctx.Value(ctxkey.GitDiff{}).(bool); ok {
 		return v
 	}
 	return false
@@ -65,7 +46,7 @@ func GitDiffEnabledFromContext(ctx context.Context) bool {
 
 // CommitsCheckEnabledFromContext returns whether commits check is enabled in the context.
 func CommitsCheckEnabledFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(commitsCheckKey{}).(bool); ok {
+	if v, ok := ctx.Value(ctxkey.CommitsCheck{}).(bool); ok {
 		return v
 	}
 	return false
@@ -73,14 +54,14 @@ func CommitsCheckEnabledFromContext(ctx context.Context) bool {
 
 // IsAutoExec returns whether auto execution mode is active.
 func IsAutoExec(ctx context.Context) bool {
-	v, _ := ctx.Value(autoExecKey{}).(bool)
+	v, _ := ctx.Value(ctxkey.AutoExec{}).(bool)
 	return v
 }
 
 // NameSuffixFromContext returns the name suffix from the context.
 // Returns empty string if no suffix is set.
 func NameSuffixFromContext(ctx context.Context) string {
-	if s, ok := ctx.Value(nameSuffixKey{}).(string); ok {
+	if s, ok := ctx.Value(ctxkey.NameSuffix{}).(string); ok {
 		return s
 	}
 	return ""
@@ -88,7 +69,7 @@ func NameSuffixFromContext(ctx context.Context) string {
 
 // ForceRunFromContext returns whether forceRun is set in the context.
 func ForceRunFromContext(ctx context.Context) bool {
-	if v, ok := ctx.Value(forceRunKey{}).(bool); ok {
+	if v, ok := ctx.Value(ctxkey.ForceRun{}).(bool); ok {
 		return v
 	}
 	return false
@@ -96,7 +77,7 @@ func ForceRunFromContext(ctx context.Context) bool {
 
 // TaskFlagsFromContext retrieves resolved flag values from context.
 func TaskFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(taskFlagsKey{}).(map[string]any); ok {
+	if flags, ok := ctx.Value(ctxkey.TaskFlags{}).(map[string]any); ok {
 		return flags
 	}
 	return nil
@@ -104,7 +85,7 @@ func TaskFlagsFromContext(ctx context.Context) map[string]any {
 
 // CLIFlagsFromContext retrieves CLI-provided flag values from context.
 func CLIFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(cliFlagsKey{}).(map[string]any); ok {
+	if flags, ok := ctx.Value(ctxkey.CLIFlags{}).(map[string]any); ok {
 		return flags
 	}
 	return nil
@@ -113,7 +94,7 @@ func CLIFlagsFromContext(ctx context.Context) map[string]any {
 // NoticePatternsFromContext returns the notice patterns from context.
 // Returns nil if not set (caller should use DefaultNoticePatterns).
 func NoticePatternsFromContext(ctx context.Context) []string {
-	if patterns, ok := ctx.Value(noticePatternsKey{}).([]string); ok {
+	if patterns, ok := ctx.Value(ctxkey.NoticePatterns{}).([]string); ok {
 		return patterns
 	}
 	return nil
@@ -122,19 +103,19 @@ func NoticePatternsFromContext(ctx context.Context) []string {
 // PlanFromContext returns the plan from the context as any.
 // Returns nil if no plan is set.
 func PlanFromContext(ctx context.Context) any {
-	return ctx.Value(planKey{})
+	return ctx.Value(ctxkey.Plan{})
 }
 
 // TrackerFromContext returns the tracker from the context as any.
 // Returns nil if no tracker is set.
 func TrackerFromContext(ctx context.Context) any {
-	return ctx.Value(trackerKey{})
+	return ctx.Value(ctxkey.Tracker{})
 }
 
 // OutputFromContext returns the Output from the context.
 // Returns nil if no output is set (caller should use StdOutput).
 func OutputFromContext(ctx context.Context) *Output {
-	if out, ok := ctx.Value(outputKey{}).(*Output); ok {
+	if out, ok := ctx.Value(ctxkey.Output{}).(*Output); ok {
 		return out
 	}
 	return nil
@@ -146,32 +127,32 @@ func OutputFromContext(ctx context.Context) *Output {
 
 // ContextWithPath returns a new context with the given execution path.
 func ContextWithPath(ctx context.Context, path string) context.Context {
-	return context.WithValue(ctx, pathKey{}, path)
+	return context.WithValue(ctx, ctxkey.Path{}, path)
 }
 
 // ContextWithVerbose returns a new context with verbose mode set.
 func ContextWithVerbose(ctx context.Context, verbose bool) context.Context {
-	return context.WithValue(ctx, verboseKey{}, verbose)
+	return context.WithValue(ctx, ctxkey.Verbose{}, verbose)
 }
 
 // ContextWithGitDiffEnabled returns a new context with git diff enabled flag set.
 func ContextWithGitDiffEnabled(ctx context.Context, enabled bool) context.Context {
-	return context.WithValue(ctx, gitDiffKey{}, enabled)
+	return context.WithValue(ctx, ctxkey.GitDiff{}, enabled)
 }
 
 // ContextWithCommitsCheckEnabled returns a new context with commits check enabled flag set.
 func ContextWithCommitsCheckEnabled(ctx context.Context, enabled bool) context.Context {
-	return context.WithValue(ctx, commitsCheckKey{}, enabled)
+	return context.WithValue(ctx, ctxkey.CommitsCheck{}, enabled)
 }
 
 // ContextWithAutoExec returns a new context with auto execution mode enabled.
 func ContextWithAutoExec(ctx context.Context) context.Context {
-	return context.WithValue(ctx, autoExecKey{}, true)
+	return context.WithValue(ctx, ctxkey.AutoExec{}, true)
 }
 
 // WithForceRun returns a new context with forceRun set to true.
 func WithForceRun(ctx context.Context) context.Context {
-	return context.WithValue(ctx, forceRunKey{}, true)
+	return context.WithValue(ctx, ctxkey.ForceRun{}, true)
 }
 
 // ContextWithNameSuffix returns a new context with the given name suffix.
@@ -181,37 +162,37 @@ func ContextWithNameSuffix(ctx context.Context, suffix string) context.Context {
 	if existing != "" {
 		suffix = existing + ":" + suffix
 	}
-	return context.WithValue(ctx, nameSuffixKey{}, suffix)
+	return context.WithValue(ctx, ctxkey.NameSuffix{}, suffix)
 }
 
 // WithTaskFlags stores resolved flag values in context.
 func WithTaskFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, taskFlagsKey{}, flags)
+	return context.WithValue(ctx, ctxkey.TaskFlags{}, flags)
 }
 
 // WithCLIFlags stores CLI-provided flag values in context.
 func WithCLIFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, cliFlagsKey{}, flags)
+	return context.WithValue(ctx, ctxkey.CLIFlags{}, flags)
 }
 
 // SetPlan stores the plan in the context.
 func SetPlan(ctx context.Context, plan any) context.Context {
-	return context.WithValue(ctx, planKey{}, plan)
+	return context.WithValue(ctx, ctxkey.Plan{}, plan)
 }
 
 // SetTracker stores the tracker in the context.
 func SetTracker(ctx context.Context, tracker any) context.Context {
-	return context.WithValue(ctx, trackerKey{}, tracker)
+	return context.WithValue(ctx, ctxkey.Tracker{}, tracker)
 }
 
 // SetOutput stores the output in the context.
 func SetOutput(ctx context.Context, out *Output) context.Context {
-	return context.WithValue(ctx, outputKey{}, out)
+	return context.WithValue(ctx, ctxkey.Output{}, out)
 }
 
 // SetNoticePatterns stores custom notice patterns in the context.
 func SetNoticePatterns(ctx context.Context, patterns []string) context.Context {
-	return context.WithValue(ctx, noticePatternsKey{}, patterns)
+	return context.WithValue(ctx, ctxkey.NoticePatterns{}, patterns)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -238,7 +219,7 @@ func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 		cfg.Set = make(map[string]string)
 	}
 	cfg.Set[key] = value
-	return context.WithValue(ctx, envKey{}, cfg)
+	return context.WithValue(ctx, ctxkey.Env{}, cfg)
 }
 
 // ContextWithoutEnv returns a new context that filters out environment variables
@@ -246,12 +227,12 @@ func ContextWithEnv(ctx context.Context, keyValue string) context.Context {
 func ContextWithoutEnv(ctx context.Context, prefix string) context.Context {
 	cfg := EnvConfigFromContext(ctx)
 	cfg.Filter = append(cfg.Filter, prefix)
-	return context.WithValue(ctx, envKey{}, cfg)
+	return context.WithValue(ctx, ctxkey.Env{}, cfg)
 }
 
 // EnvConfigFromContext returns a copy of the environment config from the context.
 func EnvConfigFromContext(ctx context.Context) EnvConfig {
-	cfg, ok := ctx.Value(envKey{}).(EnvConfig)
+	cfg, ok := ctx.Value(ctxkey.Env{}).(EnvConfig)
 	if !ok {
 		return EnvConfig{}
 	}
