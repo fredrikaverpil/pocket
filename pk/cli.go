@@ -12,7 +12,8 @@ import (
 	"syscall"
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
@@ -58,14 +59,14 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Set up base context with verbose and output
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx = engine.ContextWithVerbose(ctx, verbose)
-	ctx = engine.ContextWithGitDiffEnabled(ctx, gitDiff)
-	ctx = engine.ContextWithCommitsCheckEnabled(ctx, commitsCheck)
-	ctx = engine.SetOutput(ctx, engine.StdOutput())
+	ctx = context.WithValue(ctx, ctxkey.Verbose{}, verbose)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, gitDiff)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, commitsCheck)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, pkrun.StdOutput())
 
 	// Handle version flag
 	if showVersion {
-		engine.Printf(ctx, "pocket %s\n", version())
+		pkrun.Printf(ctx, "pocket %s\n", version())
 		return nil, nil
 	}
 
@@ -74,7 +75,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("building plan: %w", err)
 	}
-	ctx = engine.SetPlan(ctx, plan)
+	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
 
 	// Handle help flag
 	if showHelp {
@@ -113,7 +114,7 @@ func run(cfg *Config) (*executionTracker, error) {
 				}
 			})
 			if len(cliFlags) > 0 {
-				ctx = engine.WithCLIFlags(ctx, cliFlags)
+				ctx = context.WithValue(ctx, ctxkey.CLIFlags{}, cliFlags)
 			}
 		}
 
@@ -148,7 +149,7 @@ func findTask(plan *Plan, name string) *taskInstance {
 
 // printFinalStatus prints success, warning, or error message with TTY-aware emojis.
 func printFinalStatus(tracker *executionTracker, err error) {
-	isTTY := engine.IsTerminal(os.Stdout)
+	isTTY := pkrun.IsTerminal(os.Stdout)
 
 	var emoji, message string
 
@@ -184,13 +185,13 @@ func findTaskByName(p *Plan, name string) *taskInstance {
 
 // printTaskHelp prints help for a specific task.
 func printTaskHelp(ctx context.Context, task *Task) {
-	engine.Printf(ctx, "%s - %s\n", task.Name, task.Usage)
-	engine.Println(ctx)
-	engine.Printf(ctx, "Usage: pok %s [flags]\n", task.Name)
+	pkrun.Printf(ctx, "%s - %s\n", task.Name, task.Usage)
+	pkrun.Println(ctx)
+	pkrun.Printf(ctx, "Usage: pok %s [flags]\n", task.Name)
 
 	if task.flagSet == nil {
-		engine.Println(ctx)
-		engine.Println(ctx, "This task accepts no flags.")
+		pkrun.Println(ctx)
+		pkrun.Println(ctx, "This task accepts no flags.")
 		return
 	}
 
@@ -198,16 +199,16 @@ func printTaskHelp(ctx context.Context, task *Task) {
 	task.flagSet.VisitAll(func(*flag.Flag) { hasFlags = true })
 
 	if !hasFlags {
-		engine.Println(ctx)
-		engine.Println(ctx, "This task accepts no flags.")
+		pkrun.Println(ctx)
+		pkrun.Println(ctx, "This task accepts no flags.")
 		return
 	}
 
-	engine.Println(ctx)
-	engine.Println(ctx, "Flags:")
-	out := engine.OutputFromContext(ctx)
+	pkrun.Println(ctx)
+	pkrun.Println(ctx, "Flags:")
+	out := pkrun.OutputFromContext(ctx)
 	if out == nil {
-		out = engine.StdOutput()
+		out = pkrun.StdOutput()
 	}
 	task.flagSet.SetOutput(out.Stdout)
 	task.flagSet.PrintDefaults()
@@ -249,7 +250,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	baseName := inst.task.Name
 	if len(inst.name) > len(baseName) && inst.name[:len(baseName)] == baseName && inst.name[len(baseName)] == ':' {
 		suffix := inst.name[len(baseName)+1:]
-		ctx = engine.ContextWithNameSuffix(ctx, suffix)
+		ctx = contextWithNameSuffix(ctx, suffix)
 	}
 
 	// Determine execution paths.
@@ -265,7 +266,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Execute task for each path.
 	for _, path := range paths {
-		pathCtx := engine.ContextWithPath(ctx, path)
+		pathCtx := pkrun.ContextWithPath(ctx, path)
 		if err := inst.task.run(pathCtx); err != nil {
 			return fmt.Errorf("task %s in %s: %w", inst.name, path, err)
 		}
@@ -286,7 +287,7 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	// Execute with Plan and execution tracker in context.
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := c.Auto.run(ctx); err != nil {
 		return tracker, err
 	}
@@ -296,10 +297,10 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 
 // printHelp prints help information including available tasks.
 func printHelp(ctx context.Context, _ *Config, plan *Plan) {
-	engine.Printf(ctx, "pocket %s\n\n", version())
-	engine.Println(ctx, "Usage:")
-	engine.Println(ctx, "  pok [flags]")
-	engine.Println(ctx, "  pok <task> [flags]")
+	pkrun.Printf(ctx, "pocket %s\n\n", version())
+	pkrun.Println(ctx, "Usage:")
+	pkrun.Println(ctx, "  pok [flags]")
+	pkrun.Println(ctx, "  pok <task> [flags]")
 
 	var regularTasks []taskInstance
 	var manualTasks []taskInstance
@@ -340,22 +341,22 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 		}
 	}
 
-	engine.Println(ctx)
-	engine.Println(ctx, "Flags:")
-	engine.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
-	engine.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
-	engine.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
-	engine.Printf(ctx, "  %-*s  %s\n", maxWidth, "-v, --verbose", "verbose mode")
-	engine.Printf(ctx, "  %-*s  %s\n", maxWidth, "--version", "show version")
+	pkrun.Println(ctx)
+	pkrun.Println(ctx, "Flags:")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-v, --verbose", "verbose mode")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "--version", "show version")
 
 	printTaskSection(ctx, "Auto tasks:", regularTasks, maxWidth)
 	printTaskSection(ctx, "Manual tasks:", manualTasks, maxWidth)
 
-	engine.Println(ctx)
-	engine.Println(ctx, "Builtin tasks:")
+	pkrun.Println(ctx)
+	pkrun.Println(ctx, "Builtin tasks:")
 	for _, t := range builtins {
 		if !t.Hidden {
-			engine.Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name, t.Usage)
+			pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name, t.Usage)
 		}
 	}
 }
@@ -366,17 +367,17 @@ func printTaskSection(ctx context.Context, header string, instances []taskInstan
 		return
 	}
 
-	engine.Println(ctx)
+	pkrun.Println(ctx)
 	sort.Slice(instances, func(i, j int) bool {
 		return instances[i].name < instances[j].name
 	})
 
-	engine.Println(ctx, header)
+	pkrun.Println(ctx, header)
 	for _, instance := range instances {
 		if instance.task.Usage != "" {
-			engine.Printf(ctx, "  %-*s  %s\n", width, instance.name, instance.task.Usage)
+			pkrun.Printf(ctx, "  %-*s  %s\n", width, instance.name, instance.task.Usage)
 		} else {
-			engine.Printf(ctx, "  %s\n", instance.name)
+			pkrun.Printf(ctx, "  %s\n", instance.name)
 		}
 	}
 }

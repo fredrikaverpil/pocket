@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 )
 
 // taskID uniquely identifies a task execution for deduplication.
@@ -67,21 +67,18 @@ func (t *executionTracker) executed() []executedTaskPath {
 
 // withExecutionTracker returns a new context with the given tracker set.
 func withExecutionTracker(ctx context.Context, t *executionTracker) context.Context {
-	return engine.SetTracker(ctx, t)
+	return context.WithValue(ctx, ctxkey.Tracker{}, t)
 }
 
 // executionTrackerFromContext returns the execution tracker from the context.
 // Returns nil if no tracker is set.
 func executionTrackerFromContext(ctx context.Context) *executionTracker {
-	v := engine.TrackerFromContext(ctx)
-	if v == nil {
-		return nil
-	}
-	return v.(*executionTracker)
+	t, _ := ctx.Value(ctxkey.Tracker{}).(*executionTracker)
+	return t
 }
 
 // MarkWarning records that a warning was detected during execution.
-// Satisfies the engine.WarningMarker interface.
+// Satisfies the run.WarningMarker interface.
 func (t *executionTracker) MarkWarning() {
 	t.mu.Lock()
 	t.hadWarnings = true

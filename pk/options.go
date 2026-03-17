@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Option configures execution behavior for a Runnable within a [WithOptions] scope.
@@ -212,22 +213,22 @@ type flagOverride struct {
 func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
 	if pf.forceRun {
-		ctx = engine.WithForceRun(ctx)
+		ctx = context.WithValue(ctx, ctxkey.ForceRun{}, true)
 	}
 
 	// Apply name suffix to context.
 	if pf.nameSuffix != "" {
-		ctx = engine.ContextWithNameSuffix(ctx, pf.nameSuffix)
+		ctx = contextWithNameSuffix(ctx, pf.nameSuffix)
 	}
 
 	// Apply notice patterns to context (nil means use default, empty slice disables).
 	if pf.noticePatterns != nil {
-		ctx = engine.SetNoticePatterns(ctx, pf.noticePatterns)
+		ctx = context.WithValue(ctx, ctxkey.NoticePatterns{}, pf.noticePatterns)
 	}
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		pathCtx := engine.ContextWithPath(ctx, path)
+		pathCtx := pkrun.ContextWithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err
 		}
@@ -254,7 +255,7 @@ func resolveTypedFlags(flags []flagOverride, inner Runnable) ([]flagOverride, er
 		}
 
 		// Compute diff and expand to individual flag overrides.
-		diff, err := engine.DiffStructs(task.Flags, f.flags)
+		diff, err := diffStructs(task.Flags, f.flags)
 		if err != nil {
 			return nil, fmt.Errorf("pk.WithFlags: %v", err)
 		}

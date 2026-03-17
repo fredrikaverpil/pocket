@@ -6,18 +6,15 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // PlanFromContext returns the Plan from the context.
 // Returns nil if no plan is set.
 func PlanFromContext(ctx context.Context) *Plan {
-	v := engine.PlanFromContext(ctx)
-	if v == nil {
-		return nil
-	}
-	return v.(*Plan)
+	p, _ := ctx.Value(ctxkey.Plan{}).(*Plan)
+	return p
 }
 
 // planFromContext is an unexported typed wrapper for internal use.

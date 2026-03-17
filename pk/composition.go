@@ -4,7 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -69,25 +70,25 @@ func (p *parallel) run(ctx context.Context) error {
 	}
 
 	// Multiple items: use errgroup and buffered output.
-	parentOut := engine.OutputFromContext(ctx)
+	parentOut := pkrun.OutputFromContext(ctx)
 	if parentOut == nil {
-		parentOut = engine.StdOutput()
+		parentOut = pkrun.StdOutput()
 	}
-	buffers := make([]*engine.BufferedOutput, len(p.runnables))
+	buffers := make([]*bufferedOutput, len(p.runnables))
 	for i := range p.runnables {
-		buffers[i] = engine.NewBufferedOutput(parentOut)
+		buffers[i] = newBufferedOutput(parentOut)
 	}
 	var flushMu sync.Mutex
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for i, r := range p.runnables {
 		g.Go(func() error {
-			childCtx := engine.SetOutput(gCtx, buffers[i].Output())
+			childCtx := context.WithValue(gCtx, ctxkey.Output{}, buffers[i].output())
 			err := r.run(childCtx)
 
 			// Flush immediately on completion (first-to-complete flushes first).
 			flushMu.Lock()
-			buffers[i].Flush()
+			buffers[i].flush()
 			flushMu.Unlock()
 
 			return err

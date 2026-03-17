@@ -14,7 +14,7 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
 	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
@@ -74,9 +74,9 @@ var shimsTask = &Task{
 			return fmt.Errorf("generating shims: %w", err)
 		}
 
-		if engine.Verbose(ctx) {
+		if pkrun.Verbose(ctx) {
 			for _, s := range shims {
-				engine.Printf(ctx, "  generated: %s\n", s)
+				pkrun.Printf(ctx, "  generated: %s\n", s)
 			}
 		}
 
@@ -101,31 +101,31 @@ var planTask = &Task{
 			return fmt.Errorf("plan not found in context")
 		}
 
-		if engine.GetFlags[planFlags](ctx).JSON {
+		if pkrun.GetFlags[planFlags](ctx).JSON {
 			return printPlanJSON(ctx, p.tree, p)
 		}
 
 		// Text output.
-		engine.Printf(ctx, "Execution Plan\n")
-		engine.Printf(ctx, "==============\n\n")
+		pkrun.Printf(ctx, "Execution Plan\n")
+		pkrun.Printf(ctx, "==============\n\n")
 
 		if len(p.moduleDirectories) > 0 {
-			engine.Printf(ctx, "Shim Generation:\n")
+			pkrun.Printf(ctx, "Shim Generation:\n")
 			for _, dir := range p.moduleDirectories {
 				if dir == "." {
-					engine.Printf(ctx, "  • root\n")
+					pkrun.Printf(ctx, "  • root\n")
 				} else {
-					engine.Printf(ctx, "  • %s\n", dir)
+					pkrun.Printf(ctx, "  • %s\n", dir)
 				}
 			}
-			engine.Println(ctx)
+			pkrun.Println(ctx)
 		}
 
-		engine.Printf(ctx, "Composition Tree:\n")
+		pkrun.Printf(ctx, "Composition Tree:\n")
 		printTree(ctx, p.tree, "", true, "", p)
 
-		engine.Println(ctx)
-		engine.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
+		pkrun.Println(ctx)
+		pkrun.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 
 		return nil
 	},
@@ -138,12 +138,12 @@ var gitDiffTask = &Task{
 	Hidden:     true,
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		if !engine.GitDiffEnabledFromContext(ctx) {
+		if !gitDiffEnabled(ctx) {
 			return nil
 		}
 
-		engine.Printf(ctx, ":: git-diff\n")
-		if err := engine.Exec(ctx, "git", "diff", "--exit-code"); err != nil {
+		pkrun.Printf(ctx, ":: git-diff\n")
+		if err := pkrun.Exec(ctx, "git", "diff", "--exit-code"); err != nil {
 			return errGitDiffUncommitted
 		}
 		return nil
@@ -157,11 +157,11 @@ var commitsCheckTask = &Task{
 	Hidden:     true,
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		if !engine.CommitsCheckEnabledFromContext(ctx) {
+		if !commitsCheckEnabled(ctx) {
 			return nil
 		}
 
-		engine.Printf(ctx, ":: commits-check\n")
+		pkrun.Printf(ctx, ":: commits-check\n")
 
 		commitRange, err := resolveCommitRange(ctx)
 		if err != nil {
@@ -198,7 +198,7 @@ var commitsCheckTask = &Task{
 
 		if len(invalid) > 0 {
 			for _, line := range invalid {
-				engine.Printf(ctx, "%s\n", line)
+				pkrun.Printf(ctx, "%s\n", line)
 			}
 			return errCommitsInvalid
 		}
@@ -271,34 +271,34 @@ var selfUpdateTask = &Task{
 		gitRoot := repopath.GitRoot()
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
-		ctx = engine.ContextWithPath(ctx, pocketDir)
+		ctx = pkrun.ContextWithPath(ctx, pocketDir)
 
-		if engine.GetFlags[selfUpdateFlags](ctx).Force {
-			if engine.Verbose(ctx) {
-				engine.Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
+		if pkrun.GetFlags[selfUpdateFlags](ctx).Force {
+			if pkrun.Verbose(ctx) {
+				pkrun.Printf(ctx, "  running: GOPROXY=direct go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-			ctx := engine.ContextWithEnv(ctx, "GOPROXY=direct")
-			if err := engine.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+			ctx := pkrun.ContextWithEnv(ctx, "GOPROXY=direct")
+			if err := pkrun.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
 		} else {
-			if engine.Verbose(ctx) {
-				engine.Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
+			if pkrun.Verbose(ctx) {
+				pkrun.Printf(ctx, "  running: go get github.com/fredrikaverpil/pocket@latest\n")
 			}
-			if err := engine.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
+			if err := pkrun.Exec(ctx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
 		}
 
-		if engine.Verbose(ctx) {
-			engine.Printf(ctx, "  running: go mod tidy\n")
+		if pkrun.Verbose(ctx) {
+			pkrun.Printf(ctx, "  running: go mod tidy\n")
 		}
-		if err := engine.Exec(ctx, "go", "mod", "tidy"); err != nil {
+		if err := pkrun.Exec(ctx, "go", "mod", "tidy"); err != nil {
 			return fmt.Errorf("tidying pocket module: %w", err)
 		}
 
-		if engine.Verbose(ctx) {
-			engine.Printf(ctx, "  regenerating main.go\n")
+		if pkrun.Verbose(ctx) {
+			pkrun.Printf(ctx, "  regenerating main.go\n")
 		}
 		if err := scaffold.RegenerateMain(pocketDir); err != nil {
 			return fmt.Errorf("regenerating main.go: %w", err)
@@ -326,8 +326,8 @@ var purgeTask = &Task{
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
-			if engine.Verbose(ctx) {
-				engine.Printf(ctx, "  removed: %s\n", dir)
+			if pkrun.Verbose(ctx) {
+				pkrun.Printf(ctx, "  removed: %s\n", dir)
 			}
 		}
 
@@ -346,9 +346,9 @@ func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
 		"tasks":             p.Tasks(),
 	}
 
-	out := engine.OutputFromContext(ctx)
+	out := pkrun.OutputFromContext(ctx)
 	if out == nil {
-		out = engine.StdOutput()
+		out = pkrun.StdOutput()
 	}
 	encoder := json.NewEncoder(out.Stdout)
 	encoder.SetIndent("", "  ")
@@ -482,16 +482,16 @@ func printTree(
 			}
 		}
 
-		engine.Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
+		pkrun.Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
 
 		continuation := "│   "
 		if isLast {
 			continuation = "    "
 		}
-		engine.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
+		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
 
 	case *serial:
-		engine.Printf(ctx, "%s%s[→] Serial\n", prefix, branch)
+		pkrun.Printf(ctx, "%s%s[→] Serial\n", prefix, branch)
 		childPrefix := prefix
 		if isLast {
 			childPrefix += "    "
@@ -503,7 +503,7 @@ func printTree(
 		}
 
 	case *parallel:
-		engine.Printf(ctx, "%s%s[⚡] Parallel\n", prefix, branch)
+		pkrun.Printf(ctx, "%s%s[⚡] Parallel\n", prefix, branch)
 		childPrefix := prefix
 		if isLast {
 			childPrefix += "    "
@@ -527,7 +527,7 @@ func printTree(
 		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
 			v.detectFunc != nil
 		if hasPathOptions {
-			engine.Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
+			pkrun.Printf(ctx, "%s%s[📁] With paths:\n", prefix, branch)
 			childPrefix := prefix
 			if isLast {
 				childPrefix += "    "
@@ -535,10 +535,10 @@ func printTree(
 				childPrefix += "│   "
 			}
 			if len(v.includePaths) > 0 {
-				engine.Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
+				pkrun.Printf(ctx, "%s    include: %v\n", childPrefix, v.includePaths)
 			}
 			if len(v.excludePaths) > 0 {
-				engine.Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
+				pkrun.Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
 			}
 			printTree(ctx, v.inner, childPrefix, true, childSuffix, p)
 		} else {
