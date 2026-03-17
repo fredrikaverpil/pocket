@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 )
 
 func TestExecutionTracker_MarkDone(t *testing.T) {
@@ -84,13 +84,13 @@ func TestForceRunContext(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false.
-	if engine.ForceRunFromContext(ctx) {
+	if forceRunFromContext(ctx) {
 		t.Error("expected forceRun to be false by default")
 	}
 
 	// Set forceRun and check.
-	ctx = engine.WithForceRun(ctx)
-	if !engine.ForceRunFromContext(ctx) {
+	ctx = context.WithValue(ctx, ctxkey.ForceRun{}, true)
+	if !forceRunFromContext(ctx) {
 		t.Error("expected forceRun to be true after WithForceRun")
 	}
 }

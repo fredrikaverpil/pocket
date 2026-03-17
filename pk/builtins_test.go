@@ -6,13 +6,14 @@ import (
 	"io"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestGitDiffTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = engine.ContextWithGitDiffEnabled(ctx, false)
-	ctx = engine.SetOutput(ctx, &engine.Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{},false)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when git diff is disabled
 	if err := gitDiffTask.run(ctx); err != nil {
@@ -24,16 +25,16 @@ func TestGitDiffEnabledFromContext_Default(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false (git diff disabled)
-	if engine.GitDiffEnabledFromContext(ctx) {
+	if gitDiffEnabled(ctx) {
 		t.Error("expected gitDiffEnabled to be false by default")
 	}
 }
 
 func TestGitDiffEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = engine.ContextWithGitDiffEnabled(ctx, true)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{},true)
 
-	if !engine.GitDiffEnabledFromContext(ctx) {
+	if !gitDiffEnabled(ctx) {
 		t.Error("expected gitDiffEnabled to be true after setting")
 	}
 }
@@ -64,8 +65,8 @@ func TestIsBuiltinName(t *testing.T) {
 
 func TestCommitsCheckTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = engine.ContextWithCommitsCheckEnabled(ctx, false)
-	ctx = engine.SetOutput(ctx, &engine.Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{},false)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when commits check is disabled.
 	if err := commitsCheckTask.run(ctx); err != nil {
@@ -77,16 +78,16 @@ func TestCommitsCheckEnabledFromContext_Default(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false (commits check disabled).
-	if engine.CommitsCheckEnabledFromContext(ctx) {
+	if commitsCheckEnabled(ctx) {
 		t.Error("expected commitsCheckEnabled to be false by default")
 	}
 }
 
 func TestCommitsCheckEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = engine.ContextWithCommitsCheckEnabled(ctx, true)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{},true)
 
-	if !engine.CommitsCheckEnabledFromContext(ctx) {
+	if !commitsCheckEnabled(ctx) {
 		t.Error("expected commitsCheckEnabled to be true after setting")
 	}
 }
@@ -203,8 +204,8 @@ func TestPrintTaskHelp(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &engine.Output{Stdout: &buf, Stderr: &buf}
-	ctx := engine.SetOutput(context.Background(), out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTaskHelp(ctx, task)
 
@@ -224,8 +225,8 @@ func TestPrintTaskHelp_NoFlags(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &engine.Output{Stdout: &buf, Stderr: &buf}
-	ctx := engine.SetOutput(context.Background(), out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTaskHelp(ctx, task)
 
@@ -244,8 +245,8 @@ func TestPrintHelp(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &engine.Output{Stdout: &buf, Stderr: &buf}
-	ctx := engine.SetOutput(context.Background(), out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printHelp(ctx, cfg, plan)
 
@@ -267,8 +268,8 @@ func TestPrintPlanJSON(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &engine.Output{Stdout: &buf, Stderr: &buf}
-	ctx := engine.SetOutput(context.Background(), out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	if err := printPlanJSON(ctx, plan.tree, plan); err != nil {
 		t.Fatal(err)
@@ -292,8 +293,8 @@ func TestPrintTree(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &engine.Output{Stdout: &buf, Stderr: &buf}
-	ctx := engine.SetOutput(context.Background(), out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTree(ctx, plan.tree, "", true, "", plan)
 

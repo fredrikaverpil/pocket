@@ -5,7 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestTask_Run_Deduplication(t *testing.T) {
@@ -38,7 +39,7 @@ func TestTask_Run_Deduplication(t *testing.T) {
 	}
 
 	// Run with different path context should execute (different path).
-	ctxServices := engine.ContextWithPath(ctx, "services")
+	ctxServices := pkrun.ContextWithPath(ctx, "services")
 	if err := task.run(ctxServices); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -85,7 +86,7 @@ func TestTask_Run_ForceRun(t *testing.T) {
 	}
 
 	// Run with forceRun should execute.
-	ctxForce := engine.WithForceRun(ctx)
+	ctxForce := context.WithValue(ctx, ctxkey.ForceRun{}, true)
 	if err := task.run(ctxForce); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -223,7 +224,7 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	t.Run("DefaultValue", func(t *testing.T) {
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
+			captured = pkrun.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -239,11 +240,11 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	t.Run("WithOverride", func(t *testing.T) {
 		ctx := context.Background()
 		plan := planWithFlags(map[string]any{"myflag": "overridden"})
-		ctx = engine.SetPlan(ctx, plan)
+		ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
 
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
+			captured = pkrun.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -258,11 +259,11 @@ func TestTask_Run_FlagOverrides(t *testing.T) {
 	t.Run("PreMergedOverrides", func(t *testing.T) {
 		ctx := context.Background()
 		plan := planWithFlags(map[string]any{"myflag": "inner"})
-		ctx = engine.SetPlan(ctx, plan)
+		ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
 
 		var captured string
 		task.Do = func(ctx context.Context) error {
-			captured = engine.GetFlags[flagTaskFlags](ctx).Myflag
+			captured = pkrun.GetFlags[flagTaskFlags](ctx).Myflag
 			return nil
 		}
 
@@ -291,7 +292,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := engine.ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -300,7 +301,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should also execute (different effective name).
-	ctx310 := engine.ContextWithNameSuffix(ctx, "3.10")
+	ctx310 := contextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -317,7 +318,7 @@ func TestTask_Run_NameSuffixDeduplication(t *testing.T) {
 	}
 
 	// Run with suffix "3.11" - should execute.
-	ctx311 := engine.ContextWithNameSuffix(ctx, "3.11")
+	ctx311 := contextWithNameSuffix(ctx, "3.11")
 	if err := task.run(ctx311); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -349,7 +350,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// Run with suffix "3.9" - should execute.
-	ctx39 := engine.ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -358,7 +359,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with suffix "3.10" - should be skipped (global uses base name only).
-	ctx310 := engine.ContextWithNameSuffix(ctx, "3.10")
+	ctx310 := contextWithNameSuffix(ctx, "3.10")
 	if err := task.run(ctx310); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -367,7 +368,7 @@ func TestTask_Run_GlobalDeduplicationIgnoresSuffix(t *testing.T) {
 	}
 
 	// Run with different path - should still be skipped (global ignores path too).
-	ctx39Services := engine.ContextWithPath(ctx39, "services")
+	ctx39Services := pkrun.ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -391,7 +392,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	ctx = withExecutionTracker(ctx, tracker)
 
 	// test:3.9 at root - should execute.
-	ctx39 := engine.ContextWithNameSuffix(ctx, "3.9")
+	ctx39 := contextWithNameSuffix(ctx, "3.9")
 	if err := task.run(ctx39); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -400,7 +401,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.9 at services - should execute (different path).
-	ctx39Services := engine.ContextWithPath(ctx39, "services")
+	ctx39Services := pkrun.ContextWithPath(ctx39, "services")
 	if err := task.run(ctx39Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -409,7 +410,7 @@ func TestTask_Run_NonGlobalWithSuffixAndPath(t *testing.T) {
 	}
 
 	// test:3.10 at services - should execute (different suffix).
-	ctx310Services := engine.ContextWithPath(engine.ContextWithNameSuffix(ctx, "3.10"), "services")
+	ctx310Services := pkrun.ContextWithPath(contextWithNameSuffix(ctx, "3.10"), "services")
 	if err := task.run(ctx310Services); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -436,7 +437,7 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		ctx := context.Background()
 		// Effective name should be base name when no suffix.
 		effectiveName := task.Name
-		if suffix := engine.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "test" {
@@ -448,9 +449,9 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := &Task{Name: "py-test", Usage: "test task", Do: func(_ context.Context) error {
 			return nil
 		}}
-		ctx := engine.ContextWithNameSuffix(context.Background(), "3.9")
+		ctx := contextWithNameSuffix(context.Background(), "3.9")
 		effectiveName := task.Name
-		if suffix := engine.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "py-test:3.9" {
@@ -462,10 +463,10 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 		task := &Task{Name: "test", Usage: "test task", Do: func(_ context.Context) error {
 			return nil
 		}}
-		ctx := engine.ContextWithNameSuffix(context.Background(), "a")
-		ctx = engine.ContextWithNameSuffix(ctx, "b")
+		ctx := contextWithNameSuffix(context.Background(), "a")
+		ctx = contextWithNameSuffix(ctx, "b")
 		effectiveName := task.Name
-		if suffix := engine.NameSuffixFromContext(ctx); suffix != "" {
+		if suffix := nameSuffixFromContext(ctx); suffix != "" {
 			effectiveName = task.Name + ":" + suffix
 		}
 		if effectiveName != "test:a:b" {
@@ -474,7 +475,7 @@ func TestTask_Run_EffectiveName(t *testing.T) {
 	})
 }
 
-// assertFlagPanic asserts that fn panics with an engine.FlagError containing wantMsg.
+// assertFlagPanic asserts that fn panics with a pkrun.FlagError containing wantMsg.
 func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {
 	t.Helper()
 	defer func() {
@@ -482,9 +483,9 @@ func assertFlagPanic(t *testing.T, fn func(), wantMsg string) {
 		if r == nil {
 			t.Fatal("expected panic, got none")
 		}
-		fe, ok := r.(engine.FlagError)
+		fe, ok := r.(pkrun.FlagError)
 		if !ok {
-			t.Fatalf("expected engine.FlagError panic, got %T: %v", r, r)
+			t.Fatalf("expected pkrun.FlagError panic, got %T: %v", r, r)
 		}
 		if got := fe.Err.Error(); got != wantMsg {
 			t.Errorf("expected error %q, got %q", wantMsg, got)
@@ -576,8 +577,8 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 		Usage: "test task",
 		Flags: multiVerFlags{Version: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := engine.GetFlags[multiVerFlags](ctx).Version
-			suffix := engine.NameSuffixFromContext(ctx)
+			ver := pkrun.GetFlags[multiVerFlags](ctx).Version
+			suffix := nameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
 				captured39 = ver
@@ -602,8 +603,8 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 
 	ctx := context.Background()
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	ctx = engine.SetPlan(ctx, plan)
-	ctx = engine.SetOutput(ctx, engine.StdOutput())
+	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, pkrun.StdOutput())
 
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
@@ -621,7 +622,7 @@ func TestGetFlags_RecoveredByTaskRun(t *testing.T) {
 	task := &Task{
 		Name: "bad-flag",
 		Do: func(ctx context.Context) error {
-			_ = engine.GetFlags[flagTaskFlags](ctx) // This will panic (no flags in context).
+			_ = pkrun.GetFlags[flagTaskFlags](ctx) // This will panic (no flags in context).
 			return nil
 		},
 	}

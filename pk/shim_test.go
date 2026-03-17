@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestShimDirectories_OnlyIncludePaths(t *testing.T) {
@@ -184,7 +184,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 
 	task := &Task{Name: "scoped-task", Usage: "test task", Do: func(ctx context.Context) error {
 		runCount.Add(1)
-		executedPaths = append(executedPaths, engine.PathFromContext(ctx))
+		executedPaths = append(executedPaths, pkrun.PathFromContext(ctx))
 		return nil
 	}}
 

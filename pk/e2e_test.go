@@ -9,8 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Flag struct types for test tasks.
@@ -32,7 +33,7 @@ type execRecord struct {
 	TaskName string
 	Path     string
 	Flags    map[string]any
-	Env      engine.EnvConfig
+	Env      pkrun.EnvConfig
 }
 
 // recorder collects execution records from spy tasks.
@@ -55,8 +56,8 @@ func (r *recorder) task(name string) *Task {
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     engine.PathFromContext(ctx),
-				Env:      engine.EnvConfigFromContext(ctx),
+				Path:     pkrun.PathFromContext(ctx),
+				Env:      pkrun.EnvConfigFromContext(ctx),
 			})
 			return nil
 		},
@@ -73,7 +74,7 @@ func (r *recorder) failTask(name string) *Task {
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     engine.PathFromContext(ctx),
+				Path:     pkrun.PathFromContext(ctx),
 			})
 			return fmt.Errorf("task %s failed", name)
 		},
@@ -87,16 +88,16 @@ func (r *recorder) taskWithFlags(name string, flags any) *Task {
 		Usage: name,
 		Flags: flags,
 		Do: func(ctx context.Context) error {
-			resolved := engine.TaskFlagsFromContext(ctx)
+			resolved := ctx.Value(ctxkey.TaskFlags{}).(map[string]any)
 			captured := make(map[string]any, len(resolved))
 			maps.Copy(captured, resolved)
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			r.records = append(r.records, execRecord{
 				TaskName: name,
-				Path:     engine.PathFromContext(ctx),
+				Path:     pkrun.PathFromContext(ctx),
 				Flags:    captured,
-				Env:      engine.EnvConfigFromContext(ctx),
+				Env:      pkrun.EnvConfigFromContext(ctx),
 			})
 			return nil
 		},
@@ -230,7 +231,7 @@ func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	// CLI flags have highest priority.
-	ctx = engine.WithCLIFlags(ctx, map[string]any{"mode": "cli-value"})
+	ctx = context.WithValue(ctx, ctxkey.CLIFlags{}, map[string]any{"mode": "cli-value"})
 
 	if err := ExecuteTask(ctx, "cli-flagged", plan); err != nil {
 		t.Fatal(err)
@@ -256,8 +257,8 @@ func TestE2E_ExecuteTask_EnvPropagation(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithEnv(ctx, "MY_VAR=hello")
-	ctx = engine.ContextWithEnv(ctx, "OTHER=world")
+	ctx = pkrun.ContextWithEnv(ctx,"MY_VAR=hello")
+	ctx = pkrun.ContextWithEnv(ctx,"OTHER=world")
 
 	if err := ExecuteTask(ctx, "env-task", plan); err != nil {
 		t.Fatal(err)
@@ -334,7 +335,7 @@ func TestE2E_AutoExec_SerialOrder(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +362,7 @@ func TestE2E_AutoExec_ParallelAll(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -392,7 +393,7 @@ func TestE2E_AutoExec_MixedComposition(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +429,7 @@ func TestE2E_AutoExec_SerialStopsOnError(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	err = cfg.Auto.run(ctx)
 	if err == nil {
 		t.Fatal("expected error from failing task")
@@ -466,7 +467,7 @@ func TestE2E_AutoExec_ManualSkipped(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 
 	// Run auto tree.
 	if err := cfg.Auto.run(ctx); err != nil {
@@ -502,7 +503,7 @@ func TestE2E_AutoExec_Deduplication(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +545,7 @@ func TestE2E_AutoExec_PathFilterWithDetect(t *testing.T) {
 	}
 
 	ctx := e2eCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 	if err := cfg.Auto.run(ctx); err != nil {
 		t.Fatal(err)
 	}

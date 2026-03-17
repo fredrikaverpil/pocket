@@ -8,7 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/fredrikaverpil/pocket/pk/internal/engine"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // integrationCtx creates a context suitable for integration tests with
@@ -16,12 +17,12 @@ import (
 func integrationCtx(t *testing.T, plan *Plan) (context.Context, *bytes.Buffer) {
 	t.Helper()
 	var stdout bytes.Buffer
-	out := &engine.Output{Stdout: &stdout, Stderr: &stdout}
+	out := &pkrun.Output{Stdout: &stdout, Stderr: &stdout}
 
 	ctx := context.Background()
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	ctx = engine.SetPlan(ctx, plan)
-	ctx = engine.SetOutput(ctx, out)
+	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, out)
 	return ctx, &stdout
 }
 
@@ -108,7 +109,7 @@ func TestIntegration_PathFilterWithDetect(t *testing.T) {
 
 	var ranPaths []string
 	task := &Task{Name: "test", Usage: "test", Do: func(ctx context.Context) error {
-		ranPaths = append(ranPaths, engine.PathFromContext(ctx))
+		ranPaths = append(ranPaths, pkrun.PathFromContext(ctx))
 		return nil
 	}}
 
@@ -170,8 +171,8 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 		Usage: "python test",
 		Flags: pyTestIntFlags{Python: "unset"},
 		Do: func(ctx context.Context) error {
-			ver := engine.GetFlags[pyTestIntFlags](ctx).Python
-			suffix := engine.NameSuffixFromContext(ctx)
+			ver := pkrun.GetFlags[pyTestIntFlags](ctx).Python
+			suffix := nameSuffixFromContext(ctx)
 			switch suffix {
 			case "3.9":
 				captured39 = ver
@@ -211,11 +212,11 @@ func TestIntegration_WithSkipTaskPattern(t *testing.T) {
 	var lintPaths, testPaths []string
 
 	lint := &Task{Name: "lint", Usage: "lint", Do: func(ctx context.Context) error {
-		lintPaths = append(lintPaths, engine.PathFromContext(ctx))
+		lintPaths = append(lintPaths, pkrun.PathFromContext(ctx))
 		return nil
 	}}
 	test := &Task{Name: "test", Usage: "test", Do: func(ctx context.Context) error {
-		testPaths = append(testPaths, engine.PathFromContext(ctx))
+		testPaths = append(testPaths, pkrun.PathFromContext(ctx))
 		return nil
 	}}
 
@@ -311,7 +312,7 @@ func TestIntegration_ManualTaskSkippedInAutoExec(t *testing.T) {
 
 	// Simulate auto execution (bare `./pok` invocation).
 	ctx, _ := integrationCtx(t, plan)
-	ctx = engine.ContextWithAutoExec(ctx)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 
 	// Run auto tree.
 	if err := cfg.Auto.run(ctx); err != nil {
@@ -342,7 +343,7 @@ func TestIntegration_FlagOverrideViaWithFlag(t *testing.T) {
 		Usage: "test",
 		Flags: modeIntFlags{Mode: "default"},
 		Do: func(ctx context.Context) error {
-			captured = engine.GetFlags[modeIntFlags](ctx).Mode
+			captured = pkrun.GetFlags[modeIntFlags](ctx).Mode
 			return nil
 		},
 	}
