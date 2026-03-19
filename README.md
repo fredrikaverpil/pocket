@@ -178,8 +178,8 @@ var Config = &pk.Config{
 
 Wrap tasks with `WithOptions` to customize behavior:
 
-- **Auto-detection**: `WithDetect(golang.Detect())` finds all `go.mod`
-  directories
+- **Auto-detection**: `WithDetect` scans for marker files (e.g. `go.mod`,
+  `pyproject.toml`) to run tasks only in matching directories
 - **Path filtering**: `WithPath("services/*")` runs only in matching paths
 - **Path exclusion**: `WithSkipPath("vendor")` skips specific directories
 - **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets task-specific
