@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestWithForceRun(t *testing.T) {
@@ -58,7 +60,7 @@ func TestPathFilter_MultiplePaths(t *testing.T) {
 	var paths []string
 
 	task := &Task{Name: "multi-path-task", Usage: "test task", Do: func(ctx context.Context) error {
-		paths = append(paths, PathFromContext(ctx))
+		paths = append(paths, pkrun.PathFromContext(ctx))
 		return nil
 	}}
 

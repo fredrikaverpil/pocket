@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 )
 
@@ -18,7 +20,7 @@ func ensureParsers(ctx context.Context, parsers []string) (string, error) {
 		return "", nil
 	}
 
-	dir := pk.FromToolsDir("treesitter-parsers", treesitterCLI.Version)
+	dir := repopath.FromToolsDir("treesitter-parsers", treesitterCLI.Version)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create parser directory: %w", err)
 	}
@@ -48,14 +50,14 @@ func installParser(ctx context.Context, name, dir string) error {
 	defer os.RemoveAll(tmpDir)
 
 	repoURL := fmt.Sprintf("https://github.com/tree-sitter/tree-sitter-%s", name)
-	pk.Printf(ctx, "  Cloning %s\n", repoURL)
-	if err := pk.Exec(ctx, "git", "clone", "--depth", "1", "--quiet", repoURL, tmpDir); err != nil {
+	run.Printf(ctx, "  Cloning %s\n", repoURL)
+	if err := run.Exec(ctx, "git", "clone", "--depth", "1", "--quiet", repoURL, tmpDir); err != nil {
 		return fmt.Errorf("clone %s: %w", repoURL, err)
 	}
 
 	// Build the parser shared library.
-	pk.Printf(ctx, "  Building tree-sitter-%s parser\n", name)
-	if err := pk.Exec(ctx, "tree-sitter", "build", "-o", outFile, tmpDir); err != nil {
+	run.Printf(ctx, "  Building tree-sitter-%s parser\n", name)
+	if err := run.Exec(ctx, "tree-sitter", "build", "-o", outFile, tmpDir); err != nil {
 		return fmt.Errorf("build %s: %w", name, err)
 	}
 
@@ -64,10 +66,10 @@ func installParser(ctx context.Context, name, dir string) error {
 
 // parserExt returns the platform-specific shared library extension.
 func parserExt() string {
-	switch pk.HostOS() {
-	case pk.Darwin:
+	switch platform.HostOS() {
+	case platform.Darwin:
 		return ".dylib"
-	case pk.Windows:
+	case platform.Windows:
 		return ".dll"
 	default:
 		return ".so"

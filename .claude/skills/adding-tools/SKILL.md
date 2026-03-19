@@ -149,7 +149,7 @@ Two approaches depending on tool type:
 
 **Symlinked binaries** (native/Go tools): Use `download.WithSymlink()` or
 `download.CreateSymlink()`. The binary is symlinked into `.pocket/bin/` which
-is on PATH during task execution. Invoke with `pk.Exec(ctx, Name, args...)`.
+is on PATH during task execution. Invoke with `run.Exec(ctx,Name, args...)`.
 
 **Exec function** (Python/Node tools): No symlink. Expose a public
 `Exec(ctx, args...)` function that invokes the tool through its runtime.
@@ -163,7 +163,7 @@ var Lint = &pk.Task{
     Body: pk.Serial(
         mytool.Install,
         pk.Do(func(ctx context.Context) error {
-            return pk.Exec(ctx, mytool.Name, "run", "./...")
+            return run.Exec(ctx,mytool.Name, "run", "./...")
         }),
     ),
 }

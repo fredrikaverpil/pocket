@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Task represents a named, executable unit of work.
@@ -56,44 +59,6 @@ type Task struct {
 	flagSet *flag.FlagSet
 }
 
-// taskFlagsKey is the context key for resolved task flag values.
-type taskFlagsKey struct{}
-
-// withTaskFlags stores resolved flag values in context.
-func withTaskFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, taskFlagsKey{}, flags)
-}
-
-// taskFlagsFromContext retrieves resolved flag values from context.
-func taskFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(taskFlagsKey{}).(map[string]any); ok {
-		return flags
-	}
-	return nil
-}
-
-// cliFlagsKey is the context key for CLI-provided flag overrides.
-type cliFlagsKey struct{}
-
-// withCLIFlags stores CLI-provided flag values in context.
-func withCLIFlags(ctx context.Context, flags map[string]any) context.Context {
-	return context.WithValue(ctx, cliFlagsKey{}, flags)
-}
-
-// cliFlagsFromContext retrieves CLI-provided flag values from context.
-func cliFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(cliFlagsKey{}).(map[string]any); ok {
-		return flags
-	}
-	return nil
-}
-
-// flagError is a sentinel type for GetFlag panics.
-// task.run() recovers this specific type and converts it to a returned error.
-type flagError struct {
-	err error
-}
-
 // buildFlagSet constructs the internal *flag.FlagSet from the Flags struct.
 // Flags are registered in sorted order for deterministic -h output.
 func (t *Task) buildFlagSet() error {
@@ -118,7 +83,7 @@ func (t *Task) run(ctx context.Context) error {
 	}
 
 	// Check manual status via Plan.
-	if plan := PlanFromContext(ctx); plan != nil {
+	if plan := planFromContext(ctx); plan != nil {
 		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
 			if instance.isManual && isAutoExec(ctx) {
 				return nil
@@ -135,7 +100,7 @@ func (t *Task) run(ctx context.Context) error {
 			return fmt.Errorf("task %q: %w", t.Name, err)
 		}
 		// Apply plan-level overrides (from WithFlag).
-		if plan := PlanFromContext(ctx); plan != nil {
+		if plan := planFromContext(ctx); plan != nil {
 			if instance := plan.taskInstanceByName(effectiveName); instance != nil {
 				maps.Copy(resolved, instance.flags)
 			}
@@ -144,7 +109,7 @@ func (t *Task) run(ctx context.Context) error {
 		if cliFlags := cliFlagsFromContext(ctx); cliFlags != nil {
 			maps.Copy(resolved, cliFlags)
 		}
-		ctx = withTaskFlags(ctx, resolved)
+		ctx = context.WithValue(ctx, ctxkey.TaskFlags{}, resolved)
 	}
 
 	// Check deduplication unless forceRun is set in context.
@@ -153,7 +118,7 @@ func (t *Task) run(ctx context.Context) error {
 	if !forceRunFromContext(ctx) {
 		tracker := executionTrackerFromContext(ctx)
 		if tracker != nil {
-			id := taskID{Name: effectiveName, Path: PathFromContext(ctx)}
+			id := taskID{Name: effectiveName, Path: pkrun.PathFromContext(ctx)}
 			if t.Global {
 				id = taskID{Name: t.Name, Path: "."} // Global tasks deduplicate by base name only.
 			}
@@ -165,9 +130,9 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Check if this task should run at this path based on the Plan's pathMappings.
 	// This handles task-specific excludes (WithSkipTask with patterns).
-	if plan := PlanFromContext(ctx); plan != nil {
+	if plan := planFromContext(ctx); plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
-			path := PathFromContext(ctx)
+			path := pkrun.PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
 				return nil // Task is excluded from this path.
 			}
@@ -176,11 +141,11 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Print task header before execution (unless header is hidden).
 	if !t.HideHeader {
-		path := PathFromContext(ctx)
+		path := pkrun.PathFromContext(ctx)
 		if path != "" && path != "." {
-			Printf(ctx, ":: %s [%s]\n", effectiveName, path)
+			pkrun.Printf(ctx, ":: %s [%s]\n", effectiveName, path)
 		} else {
-			Printf(ctx, ":: %s\n", effectiveName)
+			pkrun.Printf(ctx, ":: %s\n", effectiveName)
 		}
 	}
 
@@ -191,8 +156,8 @@ func (t *Task) run(ctx context.Context) error {
 func (t *Task) execute(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if fe, ok := r.(flagError); ok {
-				err = fmt.Errorf("task %q: %w", t.Name, fe.err)
+			if fe, ok := r.(pkrun.FlagError); ok {
+				err = fmt.Errorf("task %q: %w", t.Name, fe.Err)
 			} else {
 				panic(r) // Re-panic for unrelated panics.
 			}

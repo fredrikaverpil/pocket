@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Config is the Pocket configuration for this project.
@@ -36,7 +37,7 @@ var Hello = &pk.Task{
 	Name:  "hello",
 	Usage: "print a greeting message",
 	Do: func(ctx context.Context) error {
-		pk.Println(ctx, "Hello from Pocket!")
+		run.Println(ctx, "Hello from Pocket!")
 		return nil
 	},
 }

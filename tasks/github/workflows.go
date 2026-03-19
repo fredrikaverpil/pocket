@@ -13,6 +13,9 @@ import (
 	"text/template"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/goreleaser"
 )
 
@@ -103,16 +106,16 @@ var Workflows = &pk.Task{
 }
 
 func runWorkflows(ctx context.Context) error {
-	verbose := pk.Verbose(ctx)
+	verbose := run.Verbose(ctx)
 
 	// Ensure .github/workflows directory exists
-	workflowDir := pk.FromGitRoot(".github", "workflows")
+	workflowDir := repopath.FromGitRoot(".github", "workflows")
 	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
 		return fmt.Errorf("create workflows dir: %w", err)
 	}
 
 	if verbose {
-		pk.Printf(ctx, "  Target directory: %s\n", workflowDir)
+		run.Printf(ctx, "  Target directory: %s\n", workflowDir)
 	}
 
 	// Define workflows to process
@@ -123,7 +126,7 @@ func runWorkflows(ctx context.Context) error {
 		include  bool
 	}
 
-	f := pk.GetFlags[WorkflowFlags](ctx)
+	f := run.GetFlags[WorkflowFlags](ctx)
 
 	pocketConfig := DefaultPocketConfig()
 	if len(f.Platforms) > 0 {
@@ -144,7 +147,7 @@ func runWorkflows(ctx context.Context) error {
 		{
 			"pr.yml.tmpl",
 			"pr.yml",
-			struct{ Types []string }{Types: pk.ConventionalCommitTypes},
+			struct{ Types []string }{Types: conventionalcommits.Types},
 			boolVal(f.ConventionalCommitWorkflow),
 		},
 		{"release.yml.tmpl", "release.yml", releaseConfig, boolVal(f.ReleasePleaseWorkflow)},
@@ -205,7 +208,7 @@ func runWorkflows(ctx context.Context) error {
 		}
 
 		if verbose {
-			pk.Printf(ctx, "  Created %s\n", destPath)
+			run.Printf(ctx, "  Created %s\n", destPath)
 		}
 		copied++
 	}
@@ -217,7 +220,7 @@ func runWorkflows(ctx context.Context) error {
 			return fmt.Errorf("write goreleaser config: %w", err)
 		}
 		if verbose {
-			pk.Printf(ctx, "  Goreleaser config: %s\n", cfgPath)
+			run.Printf(ctx, "  Goreleaser config: %s\n", cfgPath)
 		}
 	}
 
@@ -230,7 +233,7 @@ func runWorkflows(ctx context.Context) error {
 	}
 
 	if verbose && copied > 0 {
-		pk.Printf(ctx, "  Bootstrapped %d workflow(s)\n", copied)
+		run.Printf(ctx, "  Bootstrapped %d workflow(s)\n", copied)
 	}
 
 	return nil
@@ -247,7 +250,7 @@ func generatePerTaskWorkflow(ctx context.Context, workflowDir string, verbose bo
 		return fmt.Errorf("plan not available in context")
 	}
 
-	flags := pk.GetFlags[WorkflowFlags](ctx)
+	flags := run.GetFlags[WorkflowFlags](ctx)
 	jobs := GenerateStaticJobs(plan.Tasks(), flags)
 
 	// Read template
@@ -274,7 +277,7 @@ func generatePerTaskWorkflow(ctx context.Context, workflowDir string, verbose bo
 	}
 
 	if verbose {
-		pk.Printf(ctx, "  Created %s (%d jobs)\n", destPath, len(jobs))
+		run.Printf(ctx, "  Created %s (%d jobs)\n", destPath, len(jobs))
 	}
 
 	return nil

@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestContainsNotice(t *testing.T) {
@@ -17,25 +20,25 @@ func TestContainsNotice(t *testing.T) {
 		{
 			name:     "matches WARNING",
 			output:   "some WARNING: something bad",
-			patterns: DefaultNoticePatterns,
+			patterns: pkrun.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "matches deprecation",
 			output:   "DeprecationWarning: old API",
-			patterns: DefaultNoticePatterns,
+			patterns: pkrun.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "case insensitive",
 			output:   "NOTICE: update available",
-			patterns: DefaultNoticePatterns,
+			patterns: pkrun.DefaultNoticePatterns,
 			want:     true,
 		},
 		{
 			name:     "no match",
 			output:   "all good, no issues",
-			patterns: DefaultNoticePatterns,
+			patterns: pkrun.DefaultNoticePatterns,
 			want:     false,
 		},
 		{
@@ -47,7 +50,7 @@ func TestContainsNotice(t *testing.T) {
 		{
 			name:     "empty output",
 			output:   "",
-			patterns: DefaultNoticePatterns,
+			patterns: pkrun.DefaultNoticePatterns,
 			want:     false,
 		},
 		{
@@ -66,9 +69,9 @@ func TestContainsNotice(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := containsNotice(tc.output, tc.patterns)
+			got := pkrun.ContainsNotice(tc.output, tc.patterns)
 			if got != tc.want {
-				t.Errorf("containsNotice(%q, %v) = %v, want %v", tc.output, tc.patterns, got, tc.want)
+				t.Errorf("ContainsNotice(%q, %v) = %v, want %v", tc.output, tc.patterns, got, tc.want)
 			}
 		})
 	}
@@ -77,8 +80,8 @@ func TestContainsNotice(t *testing.T) {
 func TestApplyEnvConfig(t *testing.T) {
 	t.Run("NoChanges", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "PATH=/usr/bin"}
-		cfg := EnvConfig{}
-		got := applyEnvConfig(environ, cfg)
+		cfg := pkrun.EnvConfig{}
+		got := pkrun.ApplyEnvConfig(environ, cfg)
 		if !slices.Equal(got, environ) {
 			t.Errorf("expected unchanged environ, got %v", got)
 		}
@@ -86,8 +89,8 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("FilterPrefix", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "VIRTUAL_ENV=/venv", "VIRTUAL_ENV_PROMPT=(venv)", "PATH=/usr/bin"}
-		cfg := EnvConfig{Filter: []string{"VIRTUAL_ENV"}}
-		got := applyEnvConfig(environ, cfg)
+		cfg := pkrun.EnvConfig{Filter: []string{"VIRTUAL_ENV"}}
+		got := pkrun.ApplyEnvConfig(environ, cfg)
 		want := []string{"HOME=/home/user", "PATH=/usr/bin"}
 		if !slices.Equal(got, want) {
 			t.Errorf("got %v, want %v", got, want)
@@ -96,8 +99,8 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("SetReplacesExisting", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "FOO=old"}
-		cfg := EnvConfig{Set: map[string]string{"FOO": "new"}}
-		got := applyEnvConfig(environ, cfg)
+		cfg := pkrun.EnvConfig{Set: map[string]string{"FOO": "new"}}
+		got := pkrun.ApplyEnvConfig(environ, cfg)
 
 		// FOO=old should be removed and FOO=new should be appended.
 		if slices.Contains(got, "FOO=old") {
@@ -113,8 +116,8 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("SetAddsNew", func(t *testing.T) {
 		environ := []string{"HOME=/home/user"}
-		cfg := EnvConfig{Set: map[string]string{"NEW_VAR": "value"}}
-		got := applyEnvConfig(environ, cfg)
+		cfg := pkrun.EnvConfig{Set: map[string]string{"NEW_VAR": "value"}}
+		got := pkrun.ApplyEnvConfig(environ, cfg)
 		if !slices.Contains(got, "NEW_VAR=value") {
 			t.Errorf("expected NEW_VAR=value, got %v", got)
 		}
@@ -122,11 +125,11 @@ func TestApplyEnvConfig(t *testing.T) {
 
 	t.Run("FilterAndSet", func(t *testing.T) {
 		environ := []string{"HOME=/home/user", "PYENV_ROOT=/pyenv", "PYENV_VERSION=3.9"}
-		cfg := EnvConfig{
+		cfg := pkrun.EnvConfig{
 			Filter: []string{"PYENV_"},
 			Set:    map[string]string{"PYENV_VERSION": "3.10"},
 		}
-		got := applyEnvConfig(environ, cfg)
+		got := pkrun.ApplyEnvConfig(environ, cfg)
 
 		if slices.Contains(got, "PYENV_ROOT=/pyenv") {
 			t.Error("PYENV_ROOT should be filtered out")
@@ -146,7 +149,7 @@ func TestApplyEnvConfig(t *testing.T) {
 func TestLookPathInEnv(t *testing.T) {
 	t.Run("NameWithSeparator", func(t *testing.T) {
 		name := "." + string(filepath.Separator) + "mybin"
-		got := lookPathInEnv(name, nil)
+		got := pkrun.LookPathInEnv(name, nil)
 		if got != name {
 			t.Errorf("expected %q, got %q", name, got)
 		}
@@ -160,7 +163,7 @@ func TestLookPathInEnv(t *testing.T) {
 		}
 
 		env := []string{"PATH=" + tmpDir}
-		got := lookPathInEnv("mytool", env)
+		got := pkrun.LookPathInEnv("mytool", env)
 		if got != binPath {
 			t.Errorf("expected %q, got %q", binPath, got)
 		}
@@ -168,7 +171,7 @@ func TestLookPathInEnv(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		env := []string{"PATH=/nonexistent"}
-		got := lookPathInEnv("nosuchbin", env)
+		got := pkrun.LookPathInEnv("nosuchbin", env)
 		if got != "nosuchbin" {
 			t.Errorf("expected original name, got %q", got)
 		}
@@ -176,7 +179,7 @@ func TestLookPathInEnv(t *testing.T) {
 
 	t.Run("EmptyPATH", func(t *testing.T) {
 		env := []string{"HOME=/home/user"}
-		got := lookPathInEnv("mybin", env)
+		got := pkrun.LookPathInEnv("mybin", env)
 		if got != "mybin" {
 			t.Errorf("expected original name, got %q", got)
 		}
@@ -184,13 +187,12 @@ func TestLookPathInEnv(t *testing.T) {
 }
 
 func TestPrependBinToPath(t *testing.T) {
-	// Save and restore findGitRootFunc.
-	origFunc := findGitRootFunc
-	findGitRootFunc = func() string { return "/repo" }
-	defer func() { findGitRootFunc = origFunc }()
+	// Override git root for this test.
+	repopath.SetGitRootFunc(func() string { return "/repo" })
+	defer repopath.SetGitRootFunc(nil)
 
 	environ := []string{"HOME=/home/user", "PATH=/usr/bin:/usr/local/bin"}
-	got := prependBinToPath(environ)
+	got := pkrun.PrependBinToPath(environ)
 
 	var pathValue string
 	for _, e := range got {

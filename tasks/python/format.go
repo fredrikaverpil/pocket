@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -24,7 +25,7 @@ var Format = &pk.Task{
 
 func formatSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[FormatFlags](ctx)
+		f := run.GetFlags[FormatFlags](ctx)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: f.Python,
 			AllGroups:     true,
@@ -34,7 +35,7 @@ func formatSyncCmd() pk.Runnable {
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[FormatFlags](ctx)
+		f := run.GetFlags[FormatFlags](ctx)
 		return runFormat(ctx, f.Python)
 	})
 }
@@ -44,13 +45,13 @@ func runFormat(ctx context.Context, pythonVersion string) error {
 		"format",
 		"--exclude", ".pocket",
 	}
-	if pk.Verbose(ctx) {
+	if run.Verbose(ctx) {
 		args = append(args, "--verbose")
 	}
 	if pythonVersion != "" {
 		args = append(args, "--target-version", pythonVersionToRuff(pythonVersion))
 	}
-	args = append(args, pk.PathFromContext(ctx))
+	args = append(args, run.PathFromContext(ctx))
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }

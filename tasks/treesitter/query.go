@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	treesitterCLI "github.com/fredrikaverpil/pocket/tools/treesitter"
 	"github.com/fredrikaverpil/pocket/tools/tsqueryls"
 )
@@ -40,7 +42,7 @@ var QueryLint = &pk.Task{
 
 func queryFormatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[QueryFormatFlags](ctx)
+		f := run.GetFlags[QueryFormatFlags](ctx)
 		parsers := parseParsers(f.Parsers)
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
@@ -49,8 +51,8 @@ func queryFormatCmd() pk.Runnable {
 
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
-			if pk.Verbose(ctx) {
-				pk.Printf(ctx, "  no tree-sitter query directories found\n")
+			if run.Verbose(ctx) {
+				run.Printf(ctx, "  no tree-sitter query directories found\n")
 			}
 			return nil
 		}
@@ -61,7 +63,7 @@ func queryFormatCmd() pk.Runnable {
 			args = append(args, "format")
 			args = append(args, configArgs...)
 			args = append(args, dir)
-			if err := pk.Exec(ctx, tsqueryls.Name, args...); err != nil {
+			if err := run.Exec(ctx, tsqueryls.Name, args...); err != nil {
 				return err
 			}
 		}
@@ -71,7 +73,7 @@ func queryFormatCmd() pk.Runnable {
 
 func queryLintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[QueryLintFlags](ctx)
+		f := run.GetFlags[QueryLintFlags](ctx)
 		parsers := parseParsers(f.Parsers)
 		parserDir, err := ensureParsers(ctx, parsers)
 		if err != nil {
@@ -80,8 +82,8 @@ func queryLintCmd() pk.Runnable {
 
 		dirs := findQueryDirs(ctx)
 		if len(dirs) == 0 {
-			if pk.Verbose(ctx) {
-				pk.Printf(ctx, "  no tree-sitter query directories found\n")
+			if run.Verbose(ctx) {
+				run.Printf(ctx, "  no tree-sitter query directories found\n")
 			}
 			return nil
 		}
@@ -94,7 +96,7 @@ func queryLintCmd() pk.Runnable {
 			}
 			args = append(args, configArgs...)
 			args = append(args, dir)
-			if err := pk.Exec(ctx, tsqueryls.Name, args...); err != nil {
+			if err := run.Exec(ctx, tsqueryls.Name, args...); err != nil {
 				return err
 			}
 		}
@@ -105,7 +107,7 @@ func queryLintCmd() pk.Runnable {
 // findQueryDirs finds directories containing tree-sitter query files (.scm).
 // Looks in common locations: queries/, lua/*/queries/, etc.
 func findQueryDirs(ctx context.Context) []string {
-	root := pk.FromGitRoot(pk.PathFromContext(ctx))
+	root := repopath.FromGitRoot(run.PathFromContext(ctx))
 	seen := make(map[string]bool)
 	var dirs []string
 

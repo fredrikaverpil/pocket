@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,8 +70,10 @@ func (p *parallel) run(ctx context.Context) error {
 	}
 
 	// Multiple items: use errgroup and buffered output.
-	// Deduplication is handled by Task.run() - no pre-filtering needed.
-	parentOut := outputFromContext(ctx)
+	parentOut := pkrun.OutputFromContext(ctx)
+	if parentOut == nil {
+		parentOut = pkrun.StdOutput()
+	}
 	buffers := make([]*bufferedOutput, len(p.runnables))
 	for i := range p.runnables {
 		buffers[i] = newBufferedOutput(parentOut)
@@ -79,12 +83,12 @@ func (p *parallel) run(ctx context.Context) error {
 	g, gCtx := errgroup.WithContext(ctx)
 	for i, r := range p.runnables {
 		g.Go(func() error {
-			childCtx := context.WithValue(gCtx, outputKey{}, buffers[i].Output())
+			childCtx := context.WithValue(gCtx, ctxkey.Output{}, buffers[i].output())
 			err := r.run(childCtx)
 
 			// Flush immediately on completion (first-to-complete flushes first).
 			flushMu.Lock()
-			buffers[i].Flush()
+			buffers[i].flush()
 			flushMu.Unlock()
 
 			return err

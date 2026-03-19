@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 type testFlags struct {
@@ -154,7 +157,7 @@ func TestStructToMap(t *testing.T) {
 	}
 }
 
-func TestMapToStruct(t *testing.T) {
+func TestGetFlags_AllTypes(t *testing.T) {
 	m := map[string]any{
 		"name":    "world",
 		"verbose": false,
@@ -165,11 +168,9 @@ func TestMapToStruct(t *testing.T) {
 		"rate":    2.5,
 		"dur":     5 * time.Second,
 	}
+	ctx := context.WithValue(context.Background(), ctxkey.TaskFlags{}, m)
 
-	var result testFlags
-	if err := mapToStruct(m, &result); err != nil {
-		t.Fatal(err)
-	}
+	result := pkrun.GetFlags[testFlags](ctx)
 
 	if result.Name != "world" {
 		t.Errorf("expected name=world, got %q", result.Name)
@@ -232,9 +233,9 @@ func TestGetFlags(t *testing.T) {
 			"rate":    0.0,
 			"dur":     time.Duration(0),
 		}
-		ctx := withTaskFlags(context.Background(), m)
+		ctx := context.WithValue(context.Background(), ctxkey.TaskFlags{}, m)
 
-		flags := GetFlags[testFlags](ctx)
+		flags := pkrun.GetFlags[testFlags](ctx)
 		if flags.Name != "hello" {
 			t.Errorf("expected name=hello, got %q", flags.Name)
 		}
@@ -249,7 +250,7 @@ func TestGetFlags(t *testing.T) {
 	t.Run("NoFlagsInContextPanics", func(t *testing.T) {
 		ctx := context.Background()
 		assertFlagPanic(t, func() {
-			GetFlags[testFlags](ctx)
+			pkrun.GetFlags[testFlags](ctx)
 		}, "no flags in context")
 	})
 }
@@ -499,7 +500,7 @@ func TestStructToMap_PointerFields(t *testing.T) {
 	})
 }
 
-func TestMapToStruct_PointerFields(t *testing.T) {
+func TestGetFlags_PointerFields(t *testing.T) {
 	type flags struct {
 		Enable *bool   `flag:"enable"`
 		Name   *string `flag:"name"`
@@ -511,10 +512,10 @@ func TestMapToStruct_PointerFields(t *testing.T) {
 		"name":   "hello",
 		"count":  42,
 	}
-	var result flags
-	if err := mapToStruct(m, &result); err != nil {
-		t.Fatal(err)
-	}
+	ctx := context.WithValue(context.Background(), ctxkey.TaskFlags{}, m)
+
+	result := pkrun.GetFlags[flags](ctx)
+
 	if result.Enable == nil || *result.Enable != true {
 		t.Errorf("expected enable=true, got %v", result.Enable)
 	}

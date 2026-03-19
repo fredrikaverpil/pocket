@@ -3,17 +3,14 @@ package pk
 import (
 	"context"
 	"sync"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 )
 
-// trackerKey is the context key for the execution tracker.
-// Used internally for task deduplication.
-type trackerKey struct{}
-
 // taskID uniquely identifies a task execution for deduplication.
-// Used directly as a map key (Go structs with comparable fields are valid map keys).
 type taskID struct {
-	Name string // Effective name (may include suffix like "py-test:3.9")
-	Path string // Execution path relative to git root
+	Name string
+	Path string
 }
 
 // String implements fmt.Stringer for debugging and logging.
@@ -22,9 +19,7 @@ func (id taskID) String() string {
 }
 
 // executionTracker tracks which tasks have already executed.
-// It is safe for concurrent use. Deduplication is by taskID (effective name + path) -
-// the same task can run multiple times if configured for different paths or suffixes,
-// but will only run once per unique combination.
+// It is safe for concurrent use.
 type executionTracker struct {
 	mu          sync.Mutex
 	done        map[taskID]bool
@@ -44,10 +39,10 @@ func (t *executionTracker) markDone(id taskID) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.done[id] {
-		return true // already done, should skip
+		return true
 	}
 	t.done[id] = true
-	return false // first time
+	return false
 }
 
 // executedTaskPath represents a task that was executed at a specific path.
@@ -72,20 +67,19 @@ func (t *executionTracker) executed() []executedTaskPath {
 
 // withExecutionTracker returns a new context with the given tracker set.
 func withExecutionTracker(ctx context.Context, t *executionTracker) context.Context {
-	return context.WithValue(ctx, trackerKey{}, t)
+	return context.WithValue(ctx, ctxkey.Tracker{}, t)
 }
 
 // executionTrackerFromContext returns the execution tracker from the context.
 // Returns nil if no tracker is set.
 func executionTrackerFromContext(ctx context.Context) *executionTracker {
-	if t, ok := ctx.Value(trackerKey{}).(*executionTracker); ok {
-		return t
-	}
-	return nil
+	t, _ := ctx.Value(ctxkey.Tracker{}).(*executionTracker)
+	return t
 }
 
-// markWarning records that a warning was detected during execution.
-func (t *executionTracker) markWarning() {
+// MarkWarning records that a warning was detected during execution.
+// Satisfies the run.WarningMarker interface.
+func (t *executionTracker) MarkWarning() {
 	t.mu.Lock()
 	t.hadWarnings = true
 	t.mu.Unlock()

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Fix runs go fix to update code for newer Go versions.
@@ -12,10 +13,10 @@ var Fix = &pk.Task{
 	Usage: "update code for newer Go versions",
 	Body: pk.Do(func(ctx context.Context) error {
 		args := []string{"fix"}
-		if pk.Verbose(ctx) {
+		if run.Verbose(ctx) {
 			args = append(args, "-v")
 		}
 		args = append(args, "./...")
-		return pk.Exec(ctx, "go", args...)
+		return run.Exec(ctx, "go", args...)
 	}),
 }

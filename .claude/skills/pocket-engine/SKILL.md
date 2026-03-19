@@ -42,11 +42,8 @@ interleaving. Signals propagate via context cancellation.
 | `task.go`        | Task definition, flag system, execution, dedup      |
 | `composition.go` | Runnable interface, Serial, Parallel                |
 | `options.go`     | WithOptions, pathFilter, detection, flag overrides  |
-| `context.go`     | Context keys, path/verbose/env propagation          |
-| `exec.go`        | Command execution, PATH, output buffering, TTY      |
-| `exec_unix.go`   | Unix graceful shutdown (SIGINT)                     |
-| `exec_other.go`  | Non-Unix shutdown fallback                          |
-| `output.go`      | Output abstraction, buffered parallel output        |
+| `exec.go`        | `Do` helper (wraps function as Runnable)            |
+| `internal/engine/` | Shared implementations (context, exec, output, flags) |
 | `tracker.go`     | Deduplication tracking, warning tracking            |
 | `builtins.go`    | Built-in tasks (plan, shims, self-update, purge)    |
 | `paths.go`       | Git root, directory walking, path helpers           |
@@ -82,8 +79,8 @@ a runnable in a `pathFilter` with the given options.
 
 Context carries execution state through the composition tree:
 
-- **Path** (`PathFromContext`) — current directory, set by pathFilter
-- **Verbose** (`Verbose`) — from `-v` CLI flag
+- **Path** (`run.PathFromContext`) — current directory, set by pathFilter
+- **Verbose** (`run.Verbose`) — from `-v` CLI flag
 - **Env** — per-task environment overrides (set/filter)
 - **Name suffix** — accumulated from `WithNameSuffix`
 - **Auto-exec** — whether manual tasks should be skipped
@@ -91,7 +88,7 @@ Context carries execution state through the composition tree:
 
 ### Exec pipeline
 
-`pk.Exec` runs external commands with:
+`run.Exec` runs external commands with:
 
 1. `.pocket/bin` prepended to PATH (plus any registered dirs)
 2. Working directory from `PathFromContext`

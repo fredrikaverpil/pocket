@@ -1,7 +1,6 @@
 package pk
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -11,13 +10,6 @@ import (
 )
 
 // buildFlagSetFromStruct creates a *flag.FlagSet from a flags struct.
-// The struct's field values are used as defaults. The "flag" struct tag
-// provides the CLI flag name, and the "usage" tag provides help text.
-//
-// Supported field types: string, bool, int, int64, uint, uint64, float64,
-// time.Duration — matching the flag standard library.
-//
-// Returns an empty FlagSet if flags is nil.
 func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 	fs := flag.NewFlagSet(taskName, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -33,7 +25,6 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 		return nil, fmt.Errorf("task %q: Flags must be a struct, got %T", taskName, flags)
 	}
 
-	// Collect and sort field names for deterministic output.
 	type fieldInfo struct {
 		flagName string
 		usage    string
@@ -50,7 +41,7 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 
 		flagName := f.Tag.Get("flag")
 		if flagName == "" {
-			continue // programmatic-only field, skip CLI registration
+			continue
 		}
 
 		usage := f.Tag.Get("usage")
@@ -87,7 +78,6 @@ func buildFlagSetFromStruct(taskName string, flags any) (*flag.FlagSet, error) {
 		case reflect.Float64:
 			fs.Float64(fi.flagName, fi.value.Float(), fi.usage)
 		case reflect.Pointer:
-			// Pointer fields: dereference for CLI default, register underlying type.
 			elem := fi.value.Type().Elem()
 			var elemVal reflect.Value
 			if fi.value.IsNil() {
@@ -141,12 +131,12 @@ func structToMap(flags any) (map[string]any, error) {
 		}
 		key := f.Tag.Get("flag")
 		if key == "" {
-			key = f.Name // programmatic-only: use Go field name
+			key = f.Name
 		}
 		fieldVal := v.Field(i)
 		if fieldVal.Kind() == reflect.Pointer {
 			if fieldVal.IsNil() {
-				continue // nil pointer = not set, skip.
+				continue
 			}
 			m[key] = fieldVal.Elem().Interface()
 		} else {
@@ -156,47 +146,8 @@ func structToMap(flags any) (map[string]any, error) {
 	return m, nil
 }
 
-// mapToStruct populates a flags struct pointer from a map[string]any.
-func mapToStruct(m map[string]any, dst any) error {
-	v := reflect.ValueOf(dst)
-	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("dst must be a pointer to struct, got %T", dst)
-	}
-	v = v.Elem()
-	t := v.Type()
-
-	for i := range t.NumField() {
-		f := t.Field(i)
-		if !f.IsExported() {
-			continue
-		}
-		key := f.Tag.Get("flag")
-		if key == "" {
-			key = f.Name // programmatic-only: use Go field name
-		}
-		val, ok := m[key]
-		if !ok {
-			continue
-		}
-		field := v.Field(i)
-		rv := reflect.ValueOf(val)
-		if field.Kind() == reflect.Pointer {
-			// Create pointer and set dereferenced value.
-			ptr := reflect.New(field.Type().Elem())
-			if rv.Type().ConvertibleTo(field.Type().Elem()) {
-				ptr.Elem().Set(rv.Convert(field.Type().Elem()))
-			}
-			field.Set(ptr)
-		} else if rv.Type().ConvertibleTo(field.Type()) {
-			field.Set(rv.Convert(field.Type()))
-		}
-	}
-	return nil
-}
-
 // diffStructs compares two structs of the same type and returns a map of
-// flag names to values for fields that differ. Used by WithFlags to
-// detect which fields the user explicitly overrode vs left at defaults.
+// flag names to values for fields that differ.
 func diffStructs(defaults, overrides any) (map[string]any, error) {
 	dv := reflect.ValueOf(defaults)
 	ov := reflect.ValueOf(overrides)
@@ -217,45 +168,26 @@ func diffStructs(defaults, overrides any) (map[string]any, error) {
 		}
 		key := f.Tag.Get("flag")
 		if key == "" {
-			key = f.Name // programmatic-only: use Go field name
+			key = f.Name
 		}
 		oField := ov.Field(i)
 		dField := dv.Field(i)
 
 		if oField.Kind() == reflect.Pointer {
 			if oField.IsNil() {
-				continue // nil pointer in override = not set, skip.
+				continue
 			}
-			// Compare dereferenced values.
 			oVal := oField.Elem().Interface()
 			var dVal any
 			if !dField.IsNil() {
 				dVal = dField.Elem().Interface()
 			}
 			if !reflect.DeepEqual(dVal, oVal) {
-				diff[key] = oVal // Store dereferenced value in diff.
+				diff[key] = oVal
 			}
 		} else if !reflect.DeepEqual(dField.Interface(), oField.Interface()) {
 			diff[key] = oField.Interface()
 		}
 	}
 	return diff, nil
-}
-
-// GetFlags retrieves the resolved flags for a task from context.
-// It returns a struct of type T populated with the task's default values,
-// any overrides from [WithFlags], and CLI flag values (highest priority).
-//
-// Must be called from within a task's Do function. If no flags are available
-// in context, the task returns an error.
-func GetFlags[T any](ctx context.Context) T {
-	var zero T
-	m := taskFlagsFromContext(ctx)
-	if m == nil {
-		panic(flagError{fmt.Errorf("no flags in context")})
-	}
-	if err := mapToStruct(m, &zero); err != nil {
-		panic(flagError{err})
-	}
-	return zero
 }

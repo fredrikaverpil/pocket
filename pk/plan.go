@@ -5,22 +5,25 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-)
 
-// planKey is the context key for the execution plan.
-type planKey struct{}
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+)
 
 // PlanFromContext returns the Plan from the context.
 // Returns nil if no plan is set.
 func PlanFromContext(ctx context.Context) *Plan {
-	if p, ok := ctx.Value(planKey{}).(*Plan); ok {
-		return p
-	}
-	return nil
+	p, _ := ctx.Value(ctxkey.Plan{}).(*Plan)
+	return p
+}
+
+// planFromContext is an unexported typed wrapper for internal use.
+func planFromContext(ctx context.Context) *Plan {
+	return PlanFromContext(ctx)
 }
 
 // Plan represents the execution plan created from a [Config].
-// It is built once by [NewPlan], which analyzes both the composition tree
+// It is built once by newPublicPlan, which analyzes both the composition tree
 // and the filesystem, then reused throughout execution.
 //
 // Use [Plan.Tasks] to inspect what will execute, and [PlanFromContext]
@@ -76,11 +79,10 @@ type pathInfo struct {
 	resolvedPaths []string
 }
 
-// NewPlan creates an execution plan from a [Config].
-// It walks the composition tree to extract tasks, resolves path filters
-// against the filesystem (traversed once), and pre-computes flag overrides.
-func NewPlan(cfg *Config) (*Plan, error) {
-	gitRoot := findGitRoot()
+// newPublicPlan creates an execution plan from a Config by walking the
+// filesystem to discover directories, then delegating to newPlan.
+func newPublicPlan(cfg *Config) (*Plan, error) {
+	gitRoot := repopath.GitRoot()
 
 	// Resolve skip dirs: nil uses defaults, empty slice skips nothing
 	var skipDirs []string

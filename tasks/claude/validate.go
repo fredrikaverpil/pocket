@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/skillvalidator"
 )
 
@@ -22,7 +23,7 @@ var SkillValidator = &pk.Task{
 
 func skillValidatorCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[SkillValidatorFlags](ctx)
-		return pk.Exec(ctx, skillvalidator.Name, "check", f.Path)
+		f := run.GetFlags[SkillValidatorFlags](ctx)
+		return run.Exec(ctx, skillvalidator.Name, "check", f.Path)
 	})
 }

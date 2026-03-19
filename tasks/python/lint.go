@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/uv"
 )
 
@@ -25,7 +26,7 @@ var Lint = &pk.Task{
 
 func lintSyncCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[LintFlags](ctx)
+		f := run.GetFlags[LintFlags](ctx)
 		return uv.Sync(ctx, uv.SyncOptions{
 			PythonVersion: f.Python,
 			AllGroups:     true,
@@ -35,7 +36,7 @@ func lintSyncCmd() pk.Runnable {
 
 func lintCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[LintFlags](ctx)
+		f := run.GetFlags[LintFlags](ctx)
 		return runLint(ctx, f.Python, f.SkipFix)
 	})
 }
@@ -45,7 +46,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
 		"check",
 		"--exclude", ".pocket",
 	}
-	if pk.Verbose(ctx) {
+	if run.Verbose(ctx) {
 		args = append(args, "--verbose")
 	}
 	if !skipFix {
@@ -54,7 +55,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
 	if pythonVersion != "" {
 		args = append(args, "--target-version", pythonVersionToRuff(pythonVersion))
 	}
-	args = append(args, pk.PathFromContext(ctx))
+	args = append(args, run.PathFromContext(ctx))
 
 	return uv.Run(ctx, uv.RunOptions{PythonVersion: pythonVersion}, "ruff", args...)
 }

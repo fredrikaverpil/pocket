@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/zensical"
 )
 
@@ -24,7 +25,7 @@ var Zensical = &pk.Task{
 
 func zensicalCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[ZensicalFlags](ctx)
+		f := run.GetFlags[ZensicalFlags](ctx)
 
 		serve := f.Serve
 		build := f.Build

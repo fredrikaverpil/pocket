@@ -9,6 +9,8 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
 
 // Name is the binary name for stylua.
@@ -33,7 +35,7 @@ var configFileNames = []string{
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/stylua/
 // and returns its path. Safe to call multiple times.
 func EnsureDefaultConfig() string {
-	configPath := pk.FromToolsDir("stylua", DefaultConfigFile)
+	configPath := repopath.FromToolsDir("stylua", DefaultConfigFile)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		_ = os.MkdirAll(filepath.Dir(configPath), 0o755)
 		_ = os.WriteFile(configPath, defaultConfig, 0o644)
@@ -45,7 +47,7 @@ func EnsureDefaultConfig() string {
 // at the git root.
 func HasProjectConfig() bool {
 	for _, name := range configFileNames {
-		if _, err := os.Stat(pk.FromGitRoot(name)); err == nil {
+		if _, err := os.Stat(repopath.FromGitRoot(name)); err == nil {
 			return true
 		}
 	}
@@ -62,19 +64,19 @@ var Install = &pk.Task{
 }
 
 func installStylua() pk.Runnable {
-	binDir := pk.FromToolsDir("stylua", Version, "bin")
-	binaryName := pk.BinaryName("stylua")
+	binDir := repopath.FromToolsDir("stylua", Version, "bin")
+	binaryName := platform.BinaryName("stylua")
 	binaryPath := filepath.Join(binDir, binaryName)
 
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 
 	// StyLua uses different naming: darwin->macos, amd64->x86_64, arm64->aarch64
 	osName := hostOS
-	if hostOS == pk.Darwin {
+	if hostOS == platform.Darwin {
 		osName = "macos"
 	}
-	archName := pk.ArchToX8664(hostArch)
+	archName := platform.ArchToX8664(hostArch)
 
 	url := fmt.Sprintf(
 		"https://github.com/JohnnyMorganz/StyLua/releases/download/v%s/stylua-%s-%s.zip",

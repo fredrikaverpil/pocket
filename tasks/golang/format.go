@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fredrikaverpil/pocket/pk"
+	"github.com/fredrikaverpil/pocket/pk/run"
 	"github.com/fredrikaverpil/pocket/tools/golangcilint"
 )
 
@@ -22,7 +23,7 @@ var Format = &pk.Task{
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
-		f := pk.GetFlags[FormatFlags](ctx)
+		f := run.GetFlags[FormatFlags](ctx)
 		args := []string{"fmt"}
 
 		configPath := f.Config
@@ -34,6 +35,6 @@ func formatCmd() pk.Runnable {
 		}
 
 		args = append(args, "./...")
-		return pk.Exec(ctx, golangcilint.Name, args...)
+		return run.Exec(ctx, golangcilint.Name, args...)
 	})
 }

@@ -5,12 +5,15 @@ import (
 	"context"
 	"io"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestGitDiffTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = contextWithGitDiffEnabled(ctx, false)
-	ctx = context.WithValue(ctx, outputKey{}, &Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, false)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when git diff is disabled
 	if err := gitDiffTask.run(ctx); err != nil {
@@ -22,16 +25,16 @@ func TestGitDiffEnabledFromContext_Default(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false (git diff disabled)
-	if gitDiffEnabledFromContext(ctx) {
+	if gitDiffEnabled(ctx) {
 		t.Error("expected gitDiffEnabled to be false by default")
 	}
 }
 
 func TestGitDiffEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = contextWithGitDiffEnabled(ctx, true)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, true)
 
-	if !gitDiffEnabledFromContext(ctx) {
+	if !gitDiffEnabled(ctx) {
 		t.Error("expected gitDiffEnabled to be true after setting")
 	}
 }
@@ -62,8 +65,8 @@ func TestIsBuiltinName(t *testing.T) {
 
 func TestCommitsCheckTask_Disabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = contextWithCommitsCheckEnabled(ctx, false)
-	ctx = context.WithValue(ctx, outputKey{}, &Output{Stdout: io.Discard, Stderr: io.Discard})
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, false)
+	ctx = context.WithValue(ctx, ctxkey.Output{}, &pkrun.Output{Stdout: io.Discard, Stderr: io.Discard})
 
 	// Should return nil immediately when commits check is disabled.
 	if err := commitsCheckTask.run(ctx); err != nil {
@@ -75,16 +78,16 @@ func TestCommitsCheckEnabledFromContext_Default(t *testing.T) {
 	ctx := context.Background()
 
 	// Default should be false (commits check disabled).
-	if commitsCheckEnabledFromContext(ctx) {
+	if commitsCheckEnabled(ctx) {
 		t.Error("expected commitsCheckEnabled to be false by default")
 	}
 }
 
 func TestCommitsCheckEnabledFromContext_Enabled(t *testing.T) {
 	ctx := context.Background()
-	ctx = contextWithCommitsCheckEnabled(ctx, true)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, true)
 
-	if !commitsCheckEnabledFromContext(ctx) {
+	if !commitsCheckEnabled(ctx) {
 		t.Error("expected commitsCheckEnabled to be true after setting")
 	}
 }
@@ -181,9 +184,9 @@ func TestBuildJSONTree(t *testing.T) {
 
 		pf := WithOptions(task, WithNameSuffix("v2"))
 		result := buildJSONTree(pf, "", plan)
-		inner := result["inner"].(map[string]any)
-		if inner["name"] != "test:v2" {
-			t.Errorf("expected name=test:v2, got %v", inner["name"])
+		// No path options, so pathFilter wrapper is omitted; the inner task is returned directly.
+		if result["name"] != "test:v2" {
+			t.Errorf("expected name=test:v2, got %v", result["name"])
 		}
 	})
 }
@@ -201,8 +204,8 @@ func TestPrintTaskHelp(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTaskHelp(ctx, task)
 
@@ -222,8 +225,8 @@ func TestPrintTaskHelp_NoFlags(t *testing.T) {
 	_ = task.buildFlagSet()
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTaskHelp(ctx, task)
 
@@ -242,13 +245,13 @@ func TestPrintHelp(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printHelp(ctx, cfg, plan)
 
 	output := buf.String()
-	for _, want := range []string{"pocket", "Usage:", "Flags:", "lint", "run linters", "Builtin tasks:"} {
+	for _, want := range []string{"pocket", "Usage:", "Global flags:", "lint", "run linters", "Builtin tasks:"} {
 		if !bytes.Contains([]byte(output), []byte(want)) {
 			t.Errorf("expected output to contain %q, got:\n%s", want, output)
 		}
@@ -265,8 +268,8 @@ func TestPrintPlanJSON(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	if err := printPlanJSON(ctx, plan.tree, plan); err != nil {
 		t.Fatal(err)
@@ -290,8 +293,8 @@ func TestPrintTree(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	out := &Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
 	printTree(ctx, plan.tree, "", true, "", plan)
 

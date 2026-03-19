@@ -107,22 +107,22 @@ Naming conventions used in Pocket:
 
 ## Verbose handling
 
-Every task **must** handle `pk.Verbose(ctx)`. This controls whether progress
+Every task **must** handle `run.Verbose(ctx)`. This controls whether progress
 output is shown when running `./pok -v` or `./pok -v <task>`.
 
 Pass the tool's own verbose flag when available:
 
 ```go
-if pk.Verbose(ctx) {
+if run.Verbose(ctx) {
     args = append(args, "-v")        // or "--verbose", "-vv", etc.
 }
 ```
 
-When no tool flag exists, use `pk.Printf` for conditional output:
+When no tool flag exists, use `run.Printf` for conditional output:
 
 ```go
-if pk.Verbose(ctx) {
-    pk.Printf(ctx, "  skipping, no files found\n")
+if run.Verbose(ctx) {
+    run.Printf(ctx,"  skipping, no files found\n")
 }
 ```
 
@@ -142,7 +142,7 @@ type LintFlags struct {
 Flags: LintFlags{Fix: true},
 ```
 
-Access flags with `pk.GetFlags[LintFlags](ctx)`, then use struct fields directly.
+Access flags with `run.GetFlags[LintFlags](ctx)`, then use struct fields directly.
 
 Users override flags via CLI: `./pok go-lint -fix=false`
 
@@ -151,7 +151,7 @@ Config authors override defaults: `pk.WithFlags(golang.LintFlags{Fix: false})`
 ## Cross-platform
 
 Tasks must work on Linux, macOS, and Windows unless explicitly documented
-otherwise. Use `pk.FromGitRoot()` for absolute paths and `pk.PathFromContext()`
+otherwise. Use `pk.FromGitRoot()` for absolute paths and `run.PathFromContext()`
 for context-relative paths. Avoid shell-specific constructs.
 
 ## Wiring into config

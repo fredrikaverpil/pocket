@@ -8,6 +8,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestSerial_RunsInOrder(t *testing.T) {
@@ -76,7 +79,7 @@ func TestParallel_RunsConcurrently(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, outputKey{}, testOutput())
+	ctx = context.WithValue(ctx, ctxkey.Output{}, testOutput())
 
 	if err := p.run(ctx); err != nil {
 		t.Fatal(err)
@@ -109,7 +112,7 @@ func TestParallel_ReturnsError(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, outputKey{}, testOutput())
+	ctx = context.WithValue(ctx, ctxkey.Output{}, testOutput())
 
 	err := p.run(ctx)
 	if err == nil {
@@ -143,19 +146,25 @@ func TestParallel_SingleItemNoBuf(t *testing.T) {
 
 func TestParallel_OutputBuffering(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	out := &Output{Stdout: &stdout, Stderr: &stderr}
+	out := &pkrun.Output{Stdout: &stdout, Stderr: &stderr}
 
 	// Two tasks that write to output.
 	p := Parallel(
 		Do(func(ctx context.Context) error {
-			o := outputFromContext(ctx)
+			o := pkrun.OutputFromContext(ctx)
+			if o == nil {
+				o = pkrun.StdOutput()
+			}
 			for range 50 {
 				_, _ = o.Stdout.Write([]byte("A"))
 			}
 			return nil
 		}),
 		Do(func(ctx context.Context) error {
-			o := outputFromContext(ctx)
+			o := pkrun.OutputFromContext(ctx)
+			if o == nil {
+				o = pkrun.StdOutput()
+			}
 			for range 50 {
 				_, _ = o.Stdout.Write([]byte("B"))
 			}
@@ -163,7 +172,7 @@ func TestParallel_OutputBuffering(t *testing.T) {
 		}),
 	)
 
-	ctx := context.WithValue(context.Background(), outputKey{}, out)
+	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 	if err := p.run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +213,8 @@ func TestParallel_CancelledContext(t *testing.T) {
 }
 
 // testOutput returns an Output that discards all output.
-func testOutput() *Output {
-	return &Output{
+func testOutput() *pkrun.Output {
+	return &pkrun.Output{
 		Stdout: &bytes.Buffer{},
 		Stderr: &bytes.Buffer{},
 	}

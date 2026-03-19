@@ -36,6 +36,9 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Name is the binary name for uv.
@@ -59,20 +62,20 @@ var Install = &pk.Task{
 }
 
 func installUV() pk.Runnable {
-	binDir := pk.FromToolsDir("uv", Version, "bin")
-	binaryName := pk.BinaryName("uv")
+	binDir := repopath.FromToolsDir("uv", Version, "bin")
+	binaryName := platform.BinaryName("uv")
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
 		"https://github.com/astral-sh/uv/releases/download/%s/uv-%s.%s",
 		Version,
 		platformArch(),
-		pk.DefaultArchiveFormat(),
+		platform.DefaultArchiveFormat(),
 	)
 
 	return download.Download(url,
 		download.WithDestDir(binDir),
-		download.WithFormat(pk.DefaultArchiveFormat()),
+		download.WithFormat(platform.DefaultArchiveFormat()),
 		download.WithExtract(download.WithExtractFile(binaryName)),
 		download.WithSymlink(),
 		download.WithSkipIfExists(binaryPath),
@@ -81,17 +84,17 @@ func installUV() pk.Runnable {
 
 func platformArch() string {
 	switch runtime.GOOS {
-	case pk.Darwin:
-		if runtime.GOARCH == pk.ARM64 {
+	case platform.Darwin:
+		if runtime.GOARCH == platform.ARM64 {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case pk.Linux:
-		if runtime.GOARCH == pk.ARM64 {
+	case platform.Linux:
+		if runtime.GOARCH == platform.ARM64 {
 			return "aarch64-unknown-linux-gnu"
 		}
 		return "x86_64-unknown-linux-gnu"
-	case pk.Windows:
+	case platform.Windows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return fmt.Sprintf("%s-%s", runtime.GOARCH, runtime.GOOS)
@@ -105,17 +108,17 @@ func CreateVenv(ctx context.Context, venvPath, pythonVersion string) error {
 		pythonVersion = DefaultPythonVersion
 	}
 	args := []string{"venv", "--python", pythonVersion, venvPath}
-	return pk.Exec(ctx, Name, args...)
+	return run.Exec(ctx, Name, args...)
 }
 
 // PipInstall installs a package into a virtual environment.
 func PipInstall(ctx context.Context, venvPath, pkg string) error {
-	return pk.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
+	return run.Exec(ctx, Name, "pip", "install", "--python", venvPython(venvPath), pkg)
 }
 
 // venvPython returns the path to the Python executable in a venv.
 func venvPython(venvPath string) string {
-	if runtime.GOOS == pk.Windows {
+	if runtime.GOOS == platform.Windows {
 		return filepath.Join(venvPath, "Scripts", "python.exe")
 	}
 	return filepath.Join(venvPath, "bin", "python")
@@ -134,8 +137,8 @@ func removeStaleVenv(ctx context.Context, venvPath string) error {
 	if _, err := os.Stat(home); err == nil {
 		return nil // Base Python exists, venv is fine.
 	}
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Removing stale venv %s (Python home %s no longer exists)\n", venvPath, home)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Removing stale venv %s (Python home %s no longer exists)\n", venvPath, home)
 	}
 	return os.RemoveAll(venvPath)
 }
@@ -191,7 +194,7 @@ func EnsureInstalled(venvDir, name string, installFn func(ctx context.Context) e
 
 // BinaryPath returns the cross-platform path to a binary in a Python venv.
 func BinaryPath(venvDir, name string) string {
-	if runtime.GOOS == pk.Windows {
+	if runtime.GOOS == platform.Windows {
 		return filepath.Join(venvDir, "Scripts", name+".exe")
 	}
 	return filepath.Join(venvDir, "bin", name)
@@ -213,7 +216,7 @@ func ExecTool(ctx context.Context, venvDir, name string, args ...string) error {
 	python := venvPython(venvDir)
 	script := BinaryPath(venvDir, name)
 	execArgs := append([]string{script}, args...)
-	return pk.Exec(ctx, python, execArgs...)
+	return run.Exec(ctx, python, execArgs...)
 }
 
 // DefaultVenvPattern is the naming pattern for venvs. %s is replaced with the Python version.
@@ -261,9 +264,9 @@ func VenvPath(projectPath, pythonVersion string) string {
 	}
 	venvName := fmt.Sprintf(DefaultVenvPattern, pythonVersion)
 	if projectPath == "" || projectPath == "." {
-		return pk.FromPocketDir("venvs", venvName)
+		return repopath.FromPocketDir("venvs", venvName)
 	}
-	return pk.FromPocketDir("venvs", projectPath, venvName)
+	return repopath.FromPocketDir("venvs", projectPath, venvName)
 }
 
 // Sync runs uv sync to install project dependencies.
@@ -276,7 +279,7 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = run.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -288,8 +291,8 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		return fmt.Errorf("remove stale venv: %w", err)
 	}
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Syncing Python %s dependencies to %s\n", pythonVersion, venvPath)
 	}
 
 	args := []string{"sync", "--frozen", "--python", pythonVersion}
@@ -297,11 +300,11 @@ func Sync(ctx context.Context, opts SyncOptions) error {
 		args = append(args, "--all-groups")
 	}
 
-	ctx = pk.ContextWithPath(ctx, projectDir)
-	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = run.ContextWithPath(ctx, projectDir)
+	ctx = run.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = run.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	return pk.Exec(ctx, Name, args...)
+	return run.Exec(ctx, Name, args...)
 }
 
 // Run executes a command using uv run.
@@ -314,7 +317,7 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
-		projectDir = pk.PathFromContext(ctx)
+		projectDir = run.PathFromContext(ctx)
 	}
 
 	venvPath := opts.VenvPath
@@ -326,17 +329,17 @@ func Run(ctx context.Context, opts RunOptions, cmdName string, args ...string) e
 		return fmt.Errorf("remove stale venv: %w", err)
 	}
 
-	if pk.Verbose(ctx) {
-		pk.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
+	if run.Verbose(ctx) {
+		run.Printf(ctx, "Running %s from %s\n", cmdName, venvPath)
 	}
 
 	uvArgs := make([]string, 0, 5+len(args))
 	uvArgs = append(uvArgs, "run", "--frozen", "--python", pythonVersion, cmdName)
 	uvArgs = append(uvArgs, args...)
 
-	ctx = pk.ContextWithPath(ctx, projectDir)
-	ctx = pk.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
-	ctx = pk.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
+	ctx = run.ContextWithPath(ctx, projectDir)
+	ctx = run.ContextWithoutEnv(ctx, "VIRTUAL_ENV")
+	ctx = run.ContextWithEnv(ctx, "UV_PROJECT_ENVIRONMENT="+venvPath)
 
-	return pk.Exec(ctx, Name, uvArgs...)
+	return run.Exec(ctx, Name, uvArgs...)
 }

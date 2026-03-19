@@ -3,6 +3,9 @@ package pk
 import (
 	"context"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 func TestContextWithNameSuffix(t *testing.T) {
@@ -33,53 +36,55 @@ func TestContextWithNameSuffix(t *testing.T) {
 
 func TestContextWithEnv(t *testing.T) {
 	t.Run("ValidKeyValue", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "MY_VAR=hello")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithEnv(context.Background(), "MY_VAR=hello")
+		cfg := pkrun.EnvConfigFromContext(ctx)
 		if cfg.Set["MY_VAR"] != "hello" {
 			t.Errorf("expected MY_VAR=hello, got %v", cfg.Set)
 		}
 	})
 
 	t.Run("Accumulation", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "A=1")
-		ctx = ContextWithEnv(ctx, "B=2")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithEnv(context.Background(), "A=1")
+		ctx = pkrun.ContextWithEnv(ctx, "B=2")
+		cfg := pkrun.EnvConfigFromContext(ctx)
 		if cfg.Set["A"] != "1" || cfg.Set["B"] != "2" {
 			t.Errorf("expected A=1, B=2, got %v", cfg.Set)
 		}
 	})
 
 	t.Run("OverwriteSameKey", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "X=old")
-		ctx = ContextWithEnv(ctx, "X=new")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithEnv(context.Background(), "X=old")
+		ctx = pkrun.ContextWithEnv(ctx, "X=new")
+		cfg := pkrun.EnvConfigFromContext(ctx)
 		if cfg.Set["X"] != "new" {
 			t.Errorf("expected X=new, got %v", cfg.Set)
 		}
 	})
 
-	t.Run("InvalidFormat", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "NOEQUALSSIGN")
-		cfg := EnvConfigFromContext(ctx)
-		if len(cfg.Set) != 0 {
-			t.Errorf("expected empty set for invalid format, got %v", cfg.Set)
-		}
+	t.Run("InvalidFormatPanics", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected panic for invalid format")
+			}
+		}()
+		pkrun.ContextWithEnv(context.Background(), "NOEQUALSSIGN")
 	})
 }
 
 func TestContextWithoutEnv(t *testing.T) {
 	t.Run("SingleFilter", func(t *testing.T) {
-		ctx := ContextWithoutEnv(context.Background(), "VIRTUAL_ENV")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithoutEnv(context.Background(), "VIRTUAL_ENV")
+		cfg := pkrun.EnvConfigFromContext(ctx)
 		if len(cfg.Filter) != 1 || cfg.Filter[0] != "VIRTUAL_ENV" {
 			t.Errorf("expected [VIRTUAL_ENV], got %v", cfg.Filter)
 		}
 	})
 
 	t.Run("Accumulation", func(t *testing.T) {
-		ctx := ContextWithoutEnv(context.Background(), "A")
-		ctx = ContextWithoutEnv(ctx, "B")
-		cfg := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithoutEnv(context.Background(), "A")
+		ctx = pkrun.ContextWithoutEnv(ctx, "B")
+		cfg := pkrun.EnvConfigFromContext(ctx)
 		if len(cfg.Filter) != 2 {
 			t.Errorf("expected 2 filters, got %v", cfg.Filter)
 		}
@@ -88,7 +93,7 @@ func TestContextWithoutEnv(t *testing.T) {
 
 func TestEnvConfigFromContext(t *testing.T) {
 	t.Run("DefaultEmpty", func(t *testing.T) {
-		cfg := EnvConfigFromContext(context.Background())
+		cfg := pkrun.EnvConfigFromContext(context.Background())
 		if cfg.Set != nil {
 			t.Errorf("expected nil Set, got %v", cfg.Set)
 		}
@@ -98,9 +103,9 @@ func TestEnvConfigFromContext(t *testing.T) {
 	})
 
 	t.Run("DefensiveCopy", func(t *testing.T) {
-		ctx := ContextWithEnv(context.Background(), "A=1")
-		cfg1 := EnvConfigFromContext(ctx)
-		cfg2 := EnvConfigFromContext(ctx)
+		ctx := pkrun.ContextWithEnv(context.Background(), "A=1")
+		cfg1 := pkrun.EnvConfigFromContext(ctx)
+		cfg2 := pkrun.EnvConfigFromContext(ctx)
 
 		// Mutating cfg1 should not affect cfg2.
 		cfg1.Set["A"] = "mutated"
@@ -112,14 +117,14 @@ func TestEnvConfigFromContext(t *testing.T) {
 
 func TestVerbose(t *testing.T) {
 	t.Run("DefaultFalse", func(t *testing.T) {
-		if Verbose(context.Background()) {
+		if pkrun.Verbose(context.Background()) {
 			t.Error("expected false by default")
 		}
 	})
 
 	t.Run("SetTrue", func(t *testing.T) {
-		ctx := contextWithVerbose(context.Background(), true)
-		if !Verbose(ctx) {
+		ctx := context.WithValue(context.Background(), ctxkey.Verbose{}, true)
+		if !pkrun.Verbose(ctx) {
 			t.Error("expected true after setting")
 		}
 	})
@@ -133,7 +138,7 @@ func TestIsAutoExec(t *testing.T) {
 	})
 
 	t.Run("SetTrue", func(t *testing.T) {
-		ctx := contextWithAutoExec(context.Background())
+		ctx := context.WithValue(context.Background(), ctxkey.AutoExec{}, true)
 		if !isAutoExec(ctx) {
 			t.Error("expected true after setting")
 		}
@@ -142,14 +147,14 @@ func TestIsAutoExec(t *testing.T) {
 
 func TestPathFromContext(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		if got := PathFromContext(context.Background()); got != "." {
+		if got := pkrun.PathFromContext(context.Background()); got != "." {
 			t.Errorf("expected %q, got %q", ".", got)
 		}
 	})
 
 	t.Run("Set", func(t *testing.T) {
-		ctx := ContextWithPath(context.Background(), "services/api")
-		if got := PathFromContext(ctx); got != "services/api" {
+		ctx := pkrun.ContextWithPath(context.Background(), "services/api")
+		if got := pkrun.PathFromContext(ctx); got != "services/api" {
 			t.Errorf("expected %q, got %q", "services/api", got)
 		}
 	})

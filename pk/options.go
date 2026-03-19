@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
+	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Option configures execution behavior for a Runnable within a [WithOptions] scope.
@@ -210,7 +213,7 @@ type flagOverride struct {
 func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
 	if pf.forceRun {
-		ctx = withForceRun(ctx)
+		ctx = context.WithValue(ctx, ctxkey.ForceRun{}, true)
 	}
 
 	// Apply name suffix to context.
@@ -220,12 +223,12 @@ func (pf *pathFilter) run(ctx context.Context) error {
 
 	// Apply notice patterns to context (nil means use default, empty slice disables).
 	if pf.noticePatterns != nil {
-		ctx = context.WithValue(ctx, noticePatternsKey{}, pf.noticePatterns)
+		ctx = context.WithValue(ctx, ctxkey.NoticePatterns{}, pf.noticePatterns)
 	}
 
 	// Execute inner Runnable for each resolved path.
 	for _, path := range pf.resolvedPaths {
-		pathCtx := ContextWithPath(ctx, path)
+		pathCtx := pkrun.ContextWithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err
 		}

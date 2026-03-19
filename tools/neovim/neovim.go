@@ -9,6 +9,9 @@ import (
 
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/download"
+	"github.com/fredrikaverpil/pocket/pk/platform"
+	"github.com/fredrikaverpil/pocket/pk/repopath"
+	"github.com/fredrikaverpil/pocket/pk/run"
 )
 
 // Name is the binary name for neovim.
@@ -43,29 +46,29 @@ func BinaryPath(version string) string {
 		resolvedVersion = DefaultVersion
 	}
 
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 	nvimArch := hostArch
-	if hostArch == pk.AMD64 {
-		nvimArch = pk.X8664
+	if hostArch == platform.AMD64 {
+		nvimArch = platform.X8664
 	}
 
 	var plat string
 	switch hostOS {
-	case pk.Windows:
-		if hostArch == pk.ARM64 {
+	case platform.Windows:
+		if hostArch == platform.ARM64 {
 			plat = "win-arm64"
 		} else {
 			plat = "win64"
 		}
-	case pk.Darwin:
+	case platform.Darwin:
 		plat = fmt.Sprintf("macos-%s", nvimArch)
 	default:
 		plat = fmt.Sprintf("linux-%s", nvimArch)
 	}
 
-	installDir := pk.FromToolsDir("neovim", resolvedVersion)
-	binaryName := pk.BinaryName(Name)
+	installDir := repopath.FromToolsDir("neovim", resolvedVersion)
+	binaryName := platform.BinaryName(Name)
 	return filepath.Join(installDir, fmt.Sprintf("nvim-%s", plat), "bin", binaryName)
 }
 
@@ -101,10 +104,10 @@ func installNeovim(version string) pk.Runnable {
 
 	// Extract full distribution (includes bin/, lib/, share/ with runtime files)
 	// The tarball extracts to nvim-{platform}/ directory
-	installDir := pk.FromToolsDir("neovim", resolvedVersion)
+	installDir := repopath.FromToolsDir("neovim", resolvedVersion)
 	url, format, plat := buildDownloadURL(resolvedVersion)
 
-	binaryName := pk.BinaryName(Name)
+	binaryName := platform.BinaryName(Name)
 	// Binary is at: .pocket/tools/neovim/{version}/nvim-{platform}/bin/nvim
 	binaryPath := filepath.Join(installDir, fmt.Sprintf("nvim-%s", plat), "bin", binaryName)
 
@@ -126,39 +129,39 @@ func createSymlink(binaryPath, version string) pk.Runnable {
 
 		// On Windows, neovim can't be symlinked because it needs its runtime files
 		// relative to the executable. Register the bin directory in PATH instead.
-		if pk.HostOS() == pk.Windows {
-			pk.RegisterPATH(binDir)
+		if platform.HostOS() == platform.Windows {
+			run.RegisterPATH(binDir)
 			return nil
 		}
 
 		// On Unix, create version-specific symlink to avoid collisions
 		// when installing multiple versions in parallel.
-		symlinkName := pk.BinaryName(fmt.Sprintf("%s-%s", Name, version))
+		symlinkName := platform.BinaryName(fmt.Sprintf("%s-%s", Name, version))
 		_, err := download.CreateSymlinkAs(binaryPath, symlinkName)
 		return err
 	})
 }
 
 func buildDownloadURL(version string) (url, format, plat string) {
-	hostOS := pk.HostOS()
-	hostArch := pk.HostArch()
+	hostOS := platform.HostOS()
+	hostArch := platform.HostArch()
 
 	// Neovim uses x86_64 naming (not amd64), but keeps arm64 as-is
 	nvimArch := hostArch
-	if hostArch == pk.AMD64 {
-		nvimArch = pk.X8664
+	if hostArch == platform.AMD64 {
+		nvimArch = platform.X8664
 	}
 
 	// Build platform suffix
 	switch hostOS {
-	case pk.Windows:
-		if hostArch == pk.ARM64 {
+	case platform.Windows:
+		if hostArch == platform.ARM64 {
 			plat = "win-arm64"
 		} else {
 			plat = "win64"
 		}
 		format = "zip"
-	case pk.Darwin:
+	case platform.Darwin:
 		plat = fmt.Sprintf("macos-%s", nvimArch)
 		format = "tar.gz"
 	default: // Linux
@@ -168,7 +171,7 @@ func buildDownloadURL(version string) (url, format, plat string) {
 
 	// Build extension
 	ext := "tar.gz"
-	if hostOS == pk.Windows {
+	if hostOS == platform.Windows {
 		ext = "zip"
 	}
 
