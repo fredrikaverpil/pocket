@@ -38,21 +38,21 @@ func run(cfg *Config) (*executionTracker, error) {
 	}
 
 	// Parse command-line flags
-	fs := flag.NewFlagSet("pok", flag.ExitOnError)
+	globalFlags := flag.NewFlagSet("pok", flag.ExitOnError)
 
 	var verbose, gitDiff, commitsCheck, showHelp, showVersion bool
-	fs.BoolVar(&verbose, "v", false, "verbose mode")
-	fs.BoolVar(&verbose, "verbose", false, "verbose mode")
-	fs.BoolVar(&gitDiff, "g", false, "run git diff check after execution")
-	fs.BoolVar(&gitDiff, "gitdiff", false, "run git diff check after execution")
-	fs.BoolVar(&commitsCheck, "c", false, "validate conventional commits after execution")
-	fs.BoolVar(&commitsCheck, "commits", false, "validate conventional commits after execution")
-	fs.BoolVar(&showHelp, "h", false, "show help")
-	fs.BoolVar(&showHelp, "help", false, "show help")
-	fs.BoolVar(&showVersion, "version", false, "show version")
+	globalFlags.BoolVar(&verbose, "v", false, "verbose mode")
+	globalFlags.BoolVar(&verbose, "verbose", false, "verbose mode")
+	globalFlags.BoolVar(&gitDiff, "g", false, "run git diff check after execution")
+	globalFlags.BoolVar(&gitDiff, "gitdiff", false, "run git diff check after execution")
+	globalFlags.BoolVar(&commitsCheck, "c", false, "validate conventional commits after execution")
+	globalFlags.BoolVar(&commitsCheck, "commits", false, "validate conventional commits after execution")
+	globalFlags.BoolVar(&showHelp, "h", false, "show help")
+	globalFlags.BoolVar(&showHelp, "help", false, "show help")
+	globalFlags.BoolVar(&showVersion, "version", false, "show version")
 
 	// Parse flags
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	if err := globalFlags.Parse(os.Args[1:]); err != nil {
 		return nil, fmt.Errorf("parsing flags: %w", err)
 	}
 
@@ -84,12 +84,12 @@ func run(cfg *Config) (*executionTracker, error) {
 	}
 
 	// Get remaining arguments (task names)
-	args := fs.Args()
+	remaining := globalFlags.Args()
 
 	// Handle task execution (builtins + user tasks)
-	if len(args) > 0 {
-		taskName := args[0]
-		taskArgs := args[1:]
+	if len(remaining) > 0 {
+		taskName := remaining[0]
+		taskArgs := remaining[1:]
 
 		instance := findTask(plan, taskName)
 		if instance == nil {
