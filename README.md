@@ -178,13 +178,13 @@ var Config = &pk.Config{
 
 Wrap tasks with `WithOptions` to customize behavior:
 
-- **Auto-detection**: `WithDetect(golang.Detect())` finds all `go.mod`
-  directories
-- **Path filtering**: `WithPath("services/*")` runs only in matching paths
-- **Path exclusion**: `WithSkipPath("vendor")` skips specific directories
-- **Flag overrides**: `WithFlags(FlagsStruct{Field: value})` sets task-specific
-  flags
-- [and more...](./docs/reference.md)
+- **Path scoping**: `WithPath`, `WithSkipPath`, `WithDetect` — control which
+  directories tasks run in
+- **Task control**: `WithSkipTask`, `WithNameSuffix`, `WithForceRun` — skip,
+  rename, or force-rerun tasks
+- **Flag overrides**: `WithFlags` — override task-specific flag defaults
+- **Output**: `WithNoticePatterns` — customize warning detection patterns
+- [Full reference...](./docs/reference.md#task-options)
 
 ```go
 pk.WithOptions(
