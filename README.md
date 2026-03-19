@@ -30,6 +30,46 @@ provider. Your CI becomes portable.
   source of truth.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
 
+<details>
+<summary>Example: <code>./pok -h</code></summary>
+
+```sh
+pocket dev
+
+Usage:
+  pok [global-flags]
+  pok [global-flags] <task> [task-flags]
+
+Global flags:
+  -c, --commits     validate conventional commits after execution
+  -g, --gitdiff     run git diff check after execution
+  -h, --help        show help
+  -v, --verbose     verbose mode
+  --version         show version
+
+Auto tasks:
+  github-workflows  bootstrap GitHub workflow files
+  go-fix            update code for newer Go versions
+  go-format         format Go code
+  go-lint           run golangci-lint
+  go-test           run go tests
+  go-vulncheck      run govulncheck
+  md-format         format Markdown files
+
+Manual tasks:
+  go-pprof          launch pprof web UI for profile analysis
+
+Builtin tasks:
+  shims             regenerate shims in all directories
+  plan              show execution plan without running tasks
+  self-update       update Pocket and regenerate scaffolded files
+  purge             remove .pocket/tools, .pocket/bin, and .pocket/venvs
+
+Run 'pok <task> -h' for task-specific flags.
+```
+
+</details>
+
 ## Quickstart
 
 ### 1. Bootstrap your project
