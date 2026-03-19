@@ -251,7 +251,7 @@ func TestPrintHelp(t *testing.T) {
 	printHelp(ctx, cfg, plan)
 
 	output := buf.String()
-	for _, want := range []string{"pocket", "Usage:", "Flags:", "lint", "run linters", "Builtin tasks:"} {
+	for _, want := range []string{"pocket", "Usage:", "Global flags:", "lint", "run linters", "Builtin tasks:"} {
 		if !bytes.Contains([]byte(output), []byte(want)) {
 			t.Errorf("expected output to contain %q, got:\n%s", want, output)
 		}
