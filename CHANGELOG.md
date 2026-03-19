@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/fredrikaverpil/pocket/compare/v0.1.1...v0.2.0) (2026-03-19)
+
+
+### Features
+
+* **docs:** categorize WithOptions into distinct option types ([#23](https://github.com/fredrikaverpil/pocket/issues/23)) ([33ef72c](https://github.com/fredrikaverpil/pocket/commit/33ef72c8254243c1afec26bf5eb4c1ca2d0d5c57))
+* publish new api for tasks/tools ([#21](https://github.com/fredrikaverpil/pocket/issues/21)) ([73ca3b4](https://github.com/fredrikaverpil/pocket/commit/73ca3b4198846537db578744ff71195f47c828d8))
+
 ## [0.1.1](https://github.com/fredrikaverpil/pocket/compare/v0.1.0...v0.1.1) (2026-03-15)
 
 
