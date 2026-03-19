@@ -104,8 +104,8 @@ func WithForceRun() Option {
 //
 //	pk.WithOptions(
 //	    golang.Tasks(),
-//	    pk.WithSkipPath("vendor"), // Excludes vendor/ from the Go task scope
-//	    pk.WithFlags(golang.TestFlags{Race: true}),
+//	    pk.WithDetect(golang.Detect()),   // Discover Go module directories
+//	    pk.WithSkipPath("vendor"),        // Excludes vendor/ from the scope
 //	)
 func WithDetect(fn DetectFunc) Option {
 	return func(pf *pathFilter) {
@@ -139,9 +139,9 @@ func WithNameSuffix(suffix string) Option {
 	}
 }
 
-// WithOptions wraps a Runnable with path filtering options.
-// The wrapped Runnable will execute in directories determined by
-// include/exclude patterns resolved against the filesystem.
+// WithOptions wraps a Runnable with scoped execution options.
+// Options can control path filtering, flag overrides, task skipping,
+// deduplication, output patterns, and task naming within the scope.
 func WithOptions(r Runnable, opts ...Option) Runnable {
 	pf := &pathFilter{
 		inner:        r,

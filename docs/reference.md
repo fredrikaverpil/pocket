@@ -8,6 +8,10 @@ Technical reference for the `github.com/fredrikaverpil/pocket/pk` and
 - [Configuration](#configuration)
 - [Composition](#composition)
 - [Task Options](#task-options)
+  - [Path Scoping](#path-scoping)
+  - [Task Control](#task-control)
+  - [Flag Overrides](#flag-overrides)
+  - [Output](#output)
 - [Detection](#detection)
 - [Tasks](#tasks)
 - [Execution](#execution)
@@ -196,22 +200,36 @@ pk.WithOptions(Test, pk.WithPath("services"))
 
 ## Task Options
 
-Options passed to `WithOptions` to control where and how tasks execute.
+Options passed to `WithOptions` to control where and how tasks execute. Options
+fall into four categories:
 
-### Generic Options (pk.With\*)
+### Path Scoping
 
-These options work with any task:
+| Option         | Description                                           |
+| :------------- | :---------------------------------------------------- |
+| `WithPath`     | Run only in directories matching the regex patterns   |
+| `WithSkipPath` | Skip directories matching the regex patterns          |
+| `WithDetect`   | Dynamically discover paths using a detection function |
 
-| Option               | Description                                                 |
-| :------------------- | :---------------------------------------------------------- |
-| `WithPath`           | Run only in directories matching the regex patterns         |
-| `WithSkipPath`       | Skip directories matching the regex patterns                |
-| `WithSkipTask`       | Skip a task entirely, or from directories matching patterns |
-| `WithDetect`         | Dynamically discover paths using a detection function       |
-| `WithNameSuffix`     | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
-| `WithForceRun`       | Bypass task deduplication for the wrapped runnable          |
-| `WithFlags`          | Set flag overrides for a task in scope                      |
-| `WithNoticePatterns` | Override warning detection patterns for the scope           |
+### Task Control
+
+| Option           | Description                                                 |
+| :--------------- | :---------------------------------------------------------- |
+| `WithSkipTask`   | Skip a task entirely, or from directories matching patterns |
+| `WithNameSuffix` | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
+| `WithForceRun`   | Bypass task deduplication for the wrapped runnable          |
+
+### Flag Overrides
+
+| Option      | Description                            |
+| :---------- | :------------------------------------- |
+| `WithFlags` | Set flag overrides for a task in scope |
+
+### Output
+
+| Option               | Description                                   |
+| :------------------- | :-------------------------------------------- |
+| `WithNoticePatterns` | Override warning detection patterns for scope |
 
 ```go
 pk.WithOptions(
