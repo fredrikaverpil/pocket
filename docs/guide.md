@@ -845,37 +845,21 @@ pk.WithOptions(
 
 ## Options
 
-`pk.WithOptions` wraps a `Runnable` with scoped execution options. Options fall
-into four categories:
-
-**Path scoping** — control which directories tasks run in:
-
-| Option                         | Description                      |
-| :----------------------------- | :------------------------------- |
-| `pk.WithPath(patterns...)`     | Only run in matching directories |
-| `pk.WithSkipPath(patterns...)` | Skip matching directories        |
-| `pk.WithDetect(fn)`            | Auto-detect directories          |
-
-**Task control** — skip, rename, or force-rerun tasks:
+`pk.WithOptions` wraps a `Runnable` with scoped execution options:
 
 | Option                               | Description                            |
 | :----------------------------------- | :------------------------------------- |
+| `pk.WithPath(patterns...)`           | Only run in matching directories       |
+| `pk.WithSkipPath(patterns...)`       | Skip matching directories              |
 | `pk.WithSkipTask(task)`              | Remove a task from scope               |
 | `pk.WithSkipTask(task, patterns...)` | Skip a task in matching directories    |
+| `pk.WithDetect(fn)`                  | Auto-detect directories                |
 | `pk.WithNameSuffix(suffix)`          | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithFlags(flagsStruct)`          | Override a task's flags                |
 | `pk.WithForceRun()`                  | Disable deduplication                  |
+| `pk.WithNoticePatterns(...)`         | Override warning detection patterns    |
 
-**Flag overrides** — override task-specific flag defaults:
-
-| Option                      | Description             |
-| :-------------------------- | :---------------------- |
-| `pk.WithFlags(flagsStruct)` | Override a task's flags |
-
-**Output** — customize warning detection:
-
-| Option                       | Description                         |
-| :--------------------------- | :---------------------------------- |
-| `pk.WithNoticePatterns(...)` | Override warning detection patterns |
+Use `pk.WithFlags()` to set task flags explicitly:
 
 ```go
 pk.WithOptions(
