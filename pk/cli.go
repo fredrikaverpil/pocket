@@ -299,8 +299,8 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	pkrun.Printf(ctx, "pocket %s\n\n", version())
 	pkrun.Println(ctx, "Usage:")
-	pkrun.Println(ctx, "  pok [flags]")
-	pkrun.Println(ctx, "  pok <task> [flags]")
+	pkrun.Println(ctx, "  pok [global-flags]")
+	pkrun.Println(ctx, "  pok [global-flags] <task> [task-flags]")
 
 	var regularTasks []taskInstance
 	var manualTasks []taskInstance
@@ -342,7 +342,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	}
 
 	pkrun.Println(ctx)
-	pkrun.Println(ctx, "Flags:")
+	pkrun.Println(ctx, "Global flags:")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
@@ -359,6 +359,9 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 			pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, t.Name, t.Usage)
 		}
 	}
+
+	pkrun.Println(ctx)
+	pkrun.Println(ctx, "Run 'pok <task> -h' for task-specific flags.")
 }
 
 // printTaskSection prints a section of tasks with a header.
