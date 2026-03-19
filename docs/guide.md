@@ -31,6 +31,7 @@ defining your first task to building complex CI pipelines.
   - [Serial Execution](#serial-execution)
   - [Parallel Execution](#parallel-execution)
   - [Task Deduplication](#task-deduplication)
+- [Options](#options)
 - [Path Filtering](#path-filtering)
   - [Include and Exclude](#include-and-exclude)
   - [Auto-Detection](#auto-detection)
@@ -842,16 +843,9 @@ pk.WithOptions(
 
 ---
 
-## Path Filtering
+## Options
 
-In monorepos or multi-module projects, you often want to run tasks only in
-specific directories. All path patterns are **regular expressions**.
-
-### Option Types
-
-`pk.WithOptions` accepts two types of options:
-
-**Generic options (`pk.With*`)** work with any task:
+`pk.WithOptions` wraps a `Runnable` with scoped execution options:
 
 | Option                               | Description                            |
 | :----------------------------------- | :------------------------------------- |
@@ -890,6 +884,13 @@ func EnableFeature() pk.Option {
     return pk.WithFlags(MyFlags{Feature: true})
 }
 ```
+
+---
+
+## Path Filtering
+
+In monorepos or multi-module projects, you often want to run tasks only in
+specific directories. All path patterns are **regular expressions**.
 
 ### Include and Exclude
 
