@@ -31,7 +31,6 @@ defining your first task to building complex CI pipelines.
   - [Serial Execution](#serial-execution)
   - [Parallel Execution](#parallel-execution)
   - [Task Deduplication](#task-deduplication)
-- [Options](#options)
 - [Path Filtering](#path-filtering)
   - [Include and Exclude](#include-and-exclude)
   - [Auto-Detection](#auto-detection)
@@ -843,39 +842,30 @@ pk.WithOptions(
 
 ---
 
-## Options
+## Path Filtering
 
-`pk.WithOptions` wraps a `Runnable` with scoped execution options. Options fall
-into four categories:
+In monorepos or multi-module projects, you often want to run tasks only in
+specific directories. All path patterns are **regular expressions**.
 
-**Path scoping** — control which directories tasks run in:
+### Option Types
 
-| Option                         | Description                      |
-| :----------------------------- | :------------------------------- |
-| `pk.WithPath(patterns...)`     | Only run in matching directories |
-| `pk.WithSkipPath(patterns...)` | Skip matching directories        |
-| `pk.WithDetect(fn)`            | Auto-detect directories          |
+`pk.WithOptions` accepts two types of options:
 
-**Task control** — skip, rename, or force-rerun tasks:
+**Generic options (`pk.With*`)** work with any task:
 
 | Option                               | Description                            |
 | :----------------------------------- | :------------------------------------- |
+| `pk.WithPath(patterns...)`           | Only run in matching directories       |
+| `pk.WithSkipPath(patterns...)`       | Skip matching directories              |
 | `pk.WithSkipTask(task)`              | Remove a task from scope               |
 | `pk.WithSkipTask(task, patterns...)` | Skip a task in matching directories    |
+| `pk.WithDetect(fn)`                  | Auto-detect directories                |
 | `pk.WithNameSuffix(suffix)`          | Add suffix to task names (e.g., `:v2`) |
+| `pk.WithFlags(flagsStruct)`          | Override a task's flags                |
 | `pk.WithForceRun()`                  | Disable deduplication                  |
+| `pk.WithNoticePatterns(...)`         | Override warning detection patterns    |
 
-**Flag overrides** — override task-specific flag defaults:
-
-| Option                      | Description             |
-| :-------------------------- | :---------------------- |
-| `pk.WithFlags(flagsStruct)` | Override a task's flags |
-
-**Output** — customize warning detection:
-
-| Option                       | Description                         |
-| :--------------------------- | :---------------------------------- |
-| `pk.WithNoticePatterns(...)` | Override warning detection patterns |
+Use `pk.WithFlags()` to set task flags explicitly:
 
 ```go
 pk.WithOptions(
@@ -900,13 +890,6 @@ func EnableFeature() pk.Option {
     return pk.WithFlags(MyFlags{Feature: true})
 }
 ```
-
----
-
-## Path Filtering
-
-In monorepos or multi-module projects, you often want to run tasks only in
-specific directories. All path patterns are **regular expressions**.
 
 ### Include and Exclude
 
