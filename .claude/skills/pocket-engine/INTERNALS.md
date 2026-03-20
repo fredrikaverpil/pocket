@@ -124,10 +124,10 @@ task.run(ctx)
 
 ### Flag panic recovery
 
-`GetFlags[T]` panics with a `flagError` if no flags are in context or the
-struct mapping fails. `task.execute()` recovers this panic and converts it to a
-regular error. This provides a clean API without requiring error returns at
-every flag access.
+`GetFlags[T]` panics with a `flagError` if no flags are in context or the struct
+mapping fails. `task.execute()` recovers this panic and converts it to a regular
+error. This provides a clean API without requiring error returns at every flag
+access.
 
 ### Deduplication
 
@@ -138,8 +138,8 @@ type taskID struct {
 }
 ```
 
-The `executionTracker` is thread-safe (mutex-protected). `markDone` returns
-true if the task was already executed, signaling the caller to skip.
+The `executionTracker` is thread-safe (mutex-protected). `markDone` returns true
+if the task was already executed, signaling the caller to skip.
 
 ---
 
@@ -239,8 +239,8 @@ type bufferedOutput struct {
 }
 ```
 
-The flush mutex is shared among all goroutines in a single `Parallel` call.
-This ensures atomic output blocks — one task's output is never interleaved with
+The flush mutex is shared among all goroutines in a single `Parallel` call. This
+ensures atomic output blocks — one task's output is never interleaved with
 another's. The order is determined by completion time.
 
 ---
@@ -254,16 +254,16 @@ another's. The order is determined by completion time.
 3. **Detected paths** — each path from detection functions
 
 Only the declared/detected path gets a shim, not every resolved subdirectory.
-Example: `WithPath("internal")` generates `internal/pok`, even if
-`internal/` contains multiple subdirectories.
+Example: `WithPath("internal")` generates `internal/pok`, even if `internal/`
+contains multiple subdirectories.
 
 ### Shim variants
 
-| Variant     | File        | Platform          |
-|-------------|-------------|-------------------|
-| POSIX       | `pok`       | Linux, macOS      |
-| Batch       | `pok.cmd`   | Windows (cmd.exe) |
-| PowerShell  | `pok.ps1`   | Windows (pwsh)    |
+| Variant    | File      | Platform          |
+| ---------- | --------- | ----------------- |
+| POSIX      | `pok`     | Linux, macOS      |
+| Batch      | `pok.cmd` | Windows (cmd.exe) |
+| PowerShell | `pok.ps1` | Windows (pwsh)    |
 
 Configured via `ShimConfig` / `AllShimsConfig()`.
 
@@ -300,7 +300,7 @@ shims set `TASK_SCOPE="."`, making all tasks visible.
 ### Builtin tasks
 
 | Name          | Purpose                              | Hidden |
-|---------------|--------------------------------------|--------|
+| ------------- | ------------------------------------ | ------ |
 | `plan`        | Show execution plan (text or JSON)   | No     |
 | `shims`       | Regenerate shims                     | No     |
 | `self-update` | Update Pocket, regenerate files      | No     |
@@ -313,14 +313,14 @@ Builtins are checked before user tasks during name lookup.
 
 ## Concurrency safety
 
-| Resource           | Protection    | Location       |
-|--------------------|---------------|----------------|
-| `executionTracker` | `sync.Mutex`  | `tracker.go`   |
-| `extraPATHDirs`    | `sync.Mutex`  | `exec.go`      |
-| Regex cache        | `sync.RWMutex`| `paths.go`     |
-| Parallel output    | `sync.Mutex`  | `output.go`    |
-| `gitRoot` cache    | `sync.Once`   | `paths.go`     |
+| Resource           | Protection     | Location     |
+| ------------------ | -------------- | ------------ |
+| `executionTracker` | `sync.Mutex`   | `tracker.go` |
+| `extraPATHDirs`    | `sync.Mutex`   | `exec.go`    |
+| Regex cache        | `sync.RWMutex` | `paths.go`   |
+| Parallel output    | `sync.Mutex`   | `output.go`  |
+| `gitRoot` cache    | `sync.Once`    | `paths.go`   |
 
-No shared mutable state in goroutines beyond these synchronized structures.
-Each parallel goroutine operates on its own buffered output and receives an
-immutable context snapshot.
+No shared mutable state in goroutines beyond these synchronized structures. Each
+parallel goroutine operates on its own buffered output and receives an immutable
+context snapshot.
