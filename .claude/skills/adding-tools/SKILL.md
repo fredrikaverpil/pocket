@@ -2,9 +2,9 @@
 name: adding-tools
 description: >-
   Guide for adding new tools (binaries, linters, formatters) to Pocket. Covers
-  Go packages, GitHub release binaries, Python/uv tools, and Node/bun tools.
-  Use when creating a new tool package under tools/ or modifying an existing
-  tool's installation, versioning, or cross-platform support.
+  Go packages, GitHub release binaries, Python/uv tools, and Node/bun tools. Use
+  when creating a new tool package under tools/ or modifying an existing tool's
+  installation, versioning, or cross-platform support.
 ---
 
 # Adding tools to Pocket
@@ -128,8 +128,8 @@ error: No interpreter found for Python X.Y.Z in managed installations or search 
 ```
 
 It may appear to work locally if that Python version was previously downloaded
-by a newer uv. When updating either version, verify the other is compatible.
-Run `uv python list --only-downloads | grep <version>` to confirm the uv binary
+by a newer uv. When updating either version, verify the other is compatible. Run
+`uv python list --only-downloads | grep <version>` to confirm the uv binary
 knows about the target Python version.
 
 ## Cross-platform support
@@ -148,8 +148,8 @@ All tools must support Linux, macOS, and Windows. Key considerations:
 Two approaches depending on tool type:
 
 **Symlinked binaries** (native/Go tools): Use `download.WithSymlink()` or
-`download.CreateSymlink()`. The binary is symlinked into `.pocket/bin/` which
-is on PATH during task execution. Invoke with `run.Exec(ctx,Name, args...)`.
+`download.CreateSymlink()`. The binary is symlinked into `.pocket/bin/` which is
+on PATH during task execution. Invoke with `run.Exec(ctx,Name, args...)`.
 
 **Exec function** (Python/Node tools): No symlink. Expose a public
 `Exec(ctx, args...)` function that invokes the tool through its runtime.
@@ -189,8 +189,8 @@ bun.EnsureInstalled(installDir, name, func(ctx context.Context) error {
 ```
 
 `EnsureInstalled` wraps your install function with the correct idempotency
-check. Use it instead of manual `os.Stat` or `IsInstalled` checks — it makes
-the correct pattern impossible to forget.
+check. Use it instead of manual `os.Stat` or `IsInstalled` checks — it makes the
+correct pattern impossible to forget.
 
 For Python/uv tools, `EnsureInstalled` verifies both the tool binary and the
 venv's Python interpreter exist. This guards against stale CI caches where

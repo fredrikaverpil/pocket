@@ -25,7 +25,8 @@ tasks/<domain>/
 └── test.go          # Defines var Test = &pk.Task{...}
 ```
 
-The `Tasks()` factory function in `tasks.go` composes these task variables into an opinionated default that users can slot into their Pocket config.
+The `Tasks()` factory function in `tasks.go` composes these task variables into
+an opinionated default that users can slot into their Pocket config.
 
 ## Task definition
 
@@ -71,6 +72,7 @@ When composing tasks in `Tasks()`, decide carefully between `pk.Serial()` and
   testing, linting without fixes).
 
 Example:
+
 ```go
 // Safe to parallelize: these tasks don't mutate files
 return pk.Parallel(Typecheck, Test, Lint)
@@ -96,14 +98,14 @@ instead (see the Python tasks pattern in [PATTERNS.md](PATTERNS.md)).
 
 Naming conventions used in Pocket:
 
-| Domain     | Prefix       | Examples                              |
-|------------|--------------|---------------------------------------|
-| Go         | `go-`        | `go-lint`, `go-test`, `go-format`     |
-| Python     | `py-`        | `py-lint`, `py-test`, `py-typecheck`  |
-| Lua        | `lua-`       | `lua-format`                          |
-| Markdown   | `md-`        | `md-format`                           |
-| GitHub     | `github-`    | `github-workflows`                    |
-| Commits    | `commits-`   | `commits-validate`                    |
+| Domain   | Prefix     | Examples                             |
+| -------- | ---------- | ------------------------------------ |
+| Go       | `go-`      | `go-lint`, `go-test`, `go-format`    |
+| Python   | `py-`      | `py-lint`, `py-test`, `py-typecheck` |
+| Lua      | `lua-`     | `lua-format`                         |
+| Markdown | `md-`      | `md-format`                          |
+| GitHub   | `github-`  | `github-workflows`                   |
+| Commits  | `commits-` | `commits-validate`                   |
 
 ## Verbose handling
 
@@ -142,7 +144,8 @@ type LintFlags struct {
 Flags: LintFlags{Fix: true},
 ```
 
-Access flags with `run.GetFlags[LintFlags](ctx)`, then use struct fields directly.
+Access flags with `run.GetFlags[LintFlags](ctx)`, then use struct fields
+directly.
 
 Users override flags via CLI: `./pok go-lint -fix=false`
 

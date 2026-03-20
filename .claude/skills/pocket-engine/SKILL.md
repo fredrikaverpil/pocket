@@ -24,9 +24,9 @@ intact in the plan. Execution follows the same tree structure. This enables
 introspection (`./pok plan -json`) and CI integration without separate
 codepaths.
 
-**Context layering.** Each nesting level can add context (path, flags, env,
-name suffix). Values accumulate as composition nests. CLI flags override plan
-flags, which override task defaults.
+**Context layering.** Each nesting level can add context (path, flags, env, name
+suffix). Values accumulate as composition nests. CLI flags override plan flags,
+which override task defaults.
 
 **Cooperative concurrency.** Parallel tasks use `errgroup.WithContext` for
 fail-fast. Output is buffered per-goroutine and flushed atomically to prevent
@@ -34,27 +34,27 @@ interleaving. Signals propagate via context cancellation.
 
 ## File ownership
 
-| File             | Responsibility                                      |
-|------------------|-----------------------------------------------------|
-| `cli.go`         | Entry point, flag parsing, dispatch                 |
-| `config.go`      | Config struct, defaults, shim config                |
-| `plan.go`        | Plan building, path resolution, task collection     |
-| `task.go`        | Task definition, flag system, execution, dedup      |
-| `composition.go` | Runnable interface, Serial, Parallel                |
-| `options.go`     | WithOptions, pathFilter, detection, flag overrides  |
-| `exec.go`        | `Do` helper (wraps function as Runnable)            |
+| File               | Responsibility                                        |
+| ------------------ | ----------------------------------------------------- |
+| `cli.go`           | Entry point, flag parsing, dispatch                   |
+| `config.go`        | Config struct, defaults, shim config                  |
+| `plan.go`          | Plan building, path resolution, task collection       |
+| `task.go`          | Task definition, flag system, execution, dedup        |
+| `composition.go`   | Runnable interface, Serial, Parallel                  |
+| `options.go`       | WithOptions, pathFilter, detection, flag overrides    |
+| `exec.go`          | `Do` helper (wraps function as Runnable)              |
 | `internal/engine/` | Shared implementations (context, exec, output, flags) |
-| `tracker.go`     | Deduplication tracking, warning tracking            |
-| `builtins.go`    | Built-in tasks (plan, shims, self-update, purge)    |
-| `paths.go`       | Git root, directory walking, path helpers           |
-| `platform.go`    | OS/arch detection, naming helpers                   |
+| `tracker.go`       | Deduplication tracking, warning tracking              |
+| `builtins.go`      | Built-in tasks (plan, shims, self-update, purge)      |
+| `paths.go`         | Git root, directory walking, path helpers             |
+| `platform.go`      | OS/arch detection, naming helpers                     |
 
 ## Subsystem overview
 
 ### Plan building
 
-The plan is the bridge between user configuration and execution. It transforms
-a composition tree + filesystem into a flat, pre-computed execution plan.
+The plan is the bridge between user configuration and execution. It transforms a
+composition tree + filesystem into a flat, pre-computed execution plan.
 
 **Inputs:** `Config.Auto`, `Config.Manual`, filesystem walk, shim config.
 **Outputs:** `Plan` struct with task instances, path mappings, task index.
@@ -72,8 +72,8 @@ types implement it:
 - **parallel** — concurrent execution with buffered output
 - **pathFilter** — wraps a runnable, iterates over resolved paths
 
-`Serial()` and `Parallel()` are the public constructors. `WithOptions()` wraps
-a runnable in a `pathFilter` with the given options.
+`Serial()` and `Parallel()` are the public constructors. `WithOptions()` wraps a
+runnable in a `pathFilter` with the given options.
 
 ### Context propagation
 
@@ -100,15 +100,15 @@ Context carries execution state through the composition tree:
 
 ### Deduplication
 
-Tasks are deduplicated by `(effectiveName, path)` tuple. A task at the same
-path only runs once per invocation. Global tasks (`Global: true`) use a fixed
-path of `"."`, so they run at most once total. `WithForceRun()` bypasses this.
+Tasks are deduplicated by `(effectiveName, path)` tuple. A task at the same path
+only runs once per invocation. Global tasks (`Global: true`) use a fixed path of
+`"."`, so they run at most once total. `WithForceRun()` bypasses this.
 
 ### Parallel output buffering
 
-When multiple tasks run in parallel, each goroutine gets a `bufferedOutput`
-that captures all writes. On completion, the buffer is flushed to the parent
-output under a mutex. This prevents interleaved output while preserving
+When multiple tasks run in parallel, each goroutine gets a `bufferedOutput` that
+captures all writes. On completion, the buffer is flushed to the parent output
+under a mutex. This prevents interleaved output while preserving
 first-to-complete ordering. Single-item parallel runs skip buffering entirely.
 
 ### Shim generation

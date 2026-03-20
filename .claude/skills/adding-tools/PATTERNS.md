@@ -416,12 +416,12 @@ independently, `uv sync --python <version>` will fail on fresh CI environments
 
 ## Renovate datasource reference
 
-| Source          | Renovate comment                                                      |
-|-----------------|-----------------------------------------------------------------------|
-| Go module       | `// renovate: datasource=go depName=github.com/org/repo`             |
-| GitHub releases | `// renovate: datasource=github-releases depName=owner/repo`         |
-| PyPI            | Via `pyproject.toml` dependencies (automatic)                         |
-| npm             | Via `package.json` dependencies (automatic)                           |
+| Source          | Renovate comment                                             |
+| --------------- | ------------------------------------------------------------ |
+| Go module       | `// renovate: datasource=go depName=github.com/org/repo`     |
+| GitHub releases | `// renovate: datasource=github-releases depName=owner/repo` |
+| PyPI            | Via `pyproject.toml` dependencies (automatic)                |
+| npm             | Via `package.json` dependencies (automatic)                  |
 
 For GitHub releases with non-standard tag formats, use `extractVersion`:
 

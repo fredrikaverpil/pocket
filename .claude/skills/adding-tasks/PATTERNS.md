@@ -26,6 +26,7 @@ func vulncheckCmd() pk.Runnable {
 ```
 
 **Key points:**
+
 - `pk.Serial(tool.Install, cmd())` chains install then execute
 - `run.Verbose(ctx)` maps to the tool's own verbose flag
 - `run.Exec(ctx,name, args...)` runs the tool with `.pocket/bin` on PATH
@@ -102,8 +103,8 @@ var Fix = &pk.Task{
 
 ## Task using tool.Exec (Python/Node tools)
 
-Python and Node tools don't symlink into `.pocket/bin/`. Instead, they expose
-an `Exec()` function. Use that instead of `run.Exec`.
+Python and Node tools don't symlink into `.pocket/bin/`. Instead, they expose an
+`Exec()` function. Use that instead of `run.Exec`.
 
 **Example: md-format** (`tasks/markdown/format.go`)
 
@@ -149,7 +150,8 @@ func formatCmd() pk.Runnable {
 }
 ```
 
-**Key difference:** `prettier.Exec(ctx, args...)` instead of `run.Exec(ctx,...)`.
+**Key difference:** `prettier.Exec(ctx, args...)` instead of
+`run.Exec(ctx,...)`.
 
 ---
 
@@ -210,6 +212,7 @@ func runLint(ctx context.Context, pythonVersion string, skipFix bool) error {
 ```
 
 **Multi-stage pattern:**
+
 1. Sync dependencies (`uv.Sync`)
 2. Run tool (`uv.Run`)
 3. Implementation function handles args and verbose
@@ -359,8 +362,8 @@ var Docs = &pk.Task{
 ```
 
 The existing `tasks/python/` package follows this pattern — `py-lint`,
-`py-format`, `py-test`, `py-typecheck` all use `uv.Sync` + `uv.Run` against
-the project's own `pyproject.toml`.
+`py-format`, `py-test`, `py-typecheck` all use `uv.Sync` + `uv.Run` against the
+project's own `pyproject.toml`.
 
 ### Node (bun.InstallFromLockfile + bun.Run)
 
@@ -387,11 +390,11 @@ var Build = &pk.Task{
 
 ### Standalone vs project-managed
 
-| Aspect              | Standalone                     | Project-managed                    |
-|---------------------|--------------------------------|------------------------------------|
-| Version control     | Pocket (embedded in tool pkg)  | Project's lockfile                 |
-| Tool package needed | Yes (`tools/<name>/`)          | No — use `uv`/`bun` directly      |
-| Installation        | `tool.Install` task            | `uv.Sync` / `bun.InstallFromLockfile` |
+| Aspect              | Standalone                    | Project-managed                          |
+| ------------------- | ----------------------------- | ---------------------------------------- |
+| Version control     | Pocket (embedded in tool pkg) | Project's lockfile                       |
+| Tool package needed | Yes (`tools/<name>/`)         | No — use `uv`/`bun` directly             |
+| Installation        | `tool.Install` task           | `uv.Sync` / `bun.InstallFromLockfile`    |
 | Invocation          | `tool.Exec(ctx, ...)`         | `uv.Run(ctx, ...)` / `bun.Run(ctx, ...)` |
 
 Some tools (like zensical) can be used either way. Use **standalone** when
@@ -423,15 +426,15 @@ logic that would otherwise need shell features.
 Map `run.Verbose(ctx)` to the underlying tool's verbose flag. Each tool uses
 different flags:
 
-| Tool           | Verbose flag              |
-|----------------|---------------------------|
-| go             | `-v`                      |
-| golangci-lint  | `-v`                      |
-| govulncheck    | `-show verbose`           |
-| ruff           | `--verbose`               |
-| pytest         | `-vv`                     |
-| mypy           | `-v`                      |
-| stylua         | `--verbose`               |
+| Tool          | Verbose flag    |
+| ------------- | --------------- |
+| go            | `-v`            |
+| golangci-lint | `-v`            |
+| govulncheck   | `-show verbose` |
+| ruff          | `--verbose`     |
+| pytest        | `-vv`           |
+| mypy          | `-v`            |
+| stylua        | `--verbose`     |
 
 When no tool flag exists, use `run.Printf` for informational output:
 
