@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/fredrikaverpil/pocket/compare/v0.2.0...v0.2.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* **deps:** update dependency zensical to v0.0.28 ([#25](https://github.com/fredrikaverpil/pocket/issues/25)) ([f3ccfbb](https://github.com/fredrikaverpil/pocket/commit/f3ccfbb3892aacb402c9f94c675f3ae6a6f42de3))
+
 ## [0.2.0](https://github.com/fredrikaverpil/pocket/compare/v0.1.1...v0.2.0) (2026-03-19)
 
 
