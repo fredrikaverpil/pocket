@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/fredrikaverpil/pocket/compare/v0.3.1...v0.4.0) (2026-03-21)
+
+
+### Features
+
+* **pagefind:** add pagefind tool package ([#35](https://github.com/fredrikaverpil/pocket/issues/35)) ([cce23fc](https://github.com/fredrikaverpil/pocket/commit/cce23fc4c352ca834b58da44a52465c3bc161f97))
+
 ## [0.3.1](https://github.com/fredrikaverpil/pocket/compare/v0.3.0...v0.3.1) (2026-03-21)
 
 
