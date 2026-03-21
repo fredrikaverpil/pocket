@@ -86,6 +86,11 @@ type WorkflowFlags struct {
 	// Programmatic-only fields (no flag tag — set via pk.WithFlags, not CLI).
 	Platforms               []Platform
 	PerPocketTaskJobOptions map[string]PerPocketTaskJobOption
+
+	// ExternalWorkflows lists workflow filenames not managed by Pocket
+	// (e.g. "renovate.yml"). The task validates these files exist in
+	// .github/workflows/ and fails if any are missing.
+	ExternalWorkflows []string
 }
 
 // Workflows bootstraps GitHub workflow files into .github/workflows/.
@@ -230,6 +235,22 @@ func runWorkflows(ctx context.Context) error {
 			return fmt.Errorf("generate pocket-pertask workflow: %w", err)
 		}
 		copied++
+	}
+
+	// Validate that declared external workflows exist on disk.
+	for _, name := range f.ExternalWorkflows {
+		extPath := filepath.Join(workflowDir, name)
+		if _, err := os.Stat(extPath); err != nil {
+			return fmt.Errorf(
+				"external workflow %q not found in %s — remove it from ExternalWorkflows: %w",
+				name,
+				workflowDir,
+				err,
+			)
+		}
+		if verbose {
+			run.Printf(ctx, "  Verified external workflow: %s\n", name)
+		}
 	}
 
 	if verbose && copied > 0 {
