@@ -166,9 +166,19 @@ func runWorkflows(ctx context.Context) error {
 		allManagedFiles = append(allManagedFiles, wf.outFile)
 	}
 
+	// Build set of external workflows to skip during cleanup.
+	externalSet := make(map[string]struct{}, len(f.ExternalWorkflows))
+	for _, name := range f.ExternalWorkflows {
+		externalSet[name] = struct{}{}
+	}
+
 	// Clean up managed workflow files before generating.
 	// This ensures disabled workflows are removed.
+	// Files declared as external workflows are skipped.
 	for _, outFile := range allManagedFiles {
+		if _, external := externalSet[outFile]; external {
+			continue
+		}
 		destPath := filepath.Join(workflowDir, outFile)
 		if err := os.Remove(destPath); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove %s: %w", outFile, err)
@@ -178,6 +188,9 @@ func runWorkflows(ctx context.Context) error {
 	copied := 0
 	for _, wf := range workflowDefs {
 		if !wf.include {
+			continue
+		}
+		if _, external := externalSet[wf.outFile]; external {
 			continue
 		}
 
