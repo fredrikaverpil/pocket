@@ -190,6 +190,9 @@ func runWorkflows(ctx context.Context) error {
 		if !wf.include {
 			continue
 		}
+		if _, external := externalSet[wf.outFile]; external {
+			continue
+		}
 
 		destPath := filepath.Join(workflowDir, wf.outFile)
 
