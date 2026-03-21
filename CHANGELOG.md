@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/fredrikaverpil/pocket/compare/v0.3.0...v0.3.1) (2026-03-21)
+
+
+### Bug Fixes
+
+* **github:** skip external workflows during managed file cleanup ([#33](https://github.com/fredrikaverpil/pocket/issues/33)) ([7d83713](https://github.com/fredrikaverpil/pocket/commit/7d837133376ff660c75c63773e7a95cba01162d8))
+
 ## [0.3.0](https://github.com/fredrikaverpil/pocket/compare/v0.2.1...v0.3.0) (2026-03-21)
 
 
