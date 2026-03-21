@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/fredrikaverpil/pocket/compare/v0.4.0...v0.4.1) (2026-03-21)
+
+
+### Bug Fixes
+
+* **pagefind:** use non-extended release archive ([#37](https://github.com/fredrikaverpil/pocket/issues/37)) ([810054c](https://github.com/fredrikaverpil/pocket/commit/810054caacd3392447a16c49341504f8daf4e4aa))
+
 ## [0.4.0](https://github.com/fredrikaverpil/pocket/compare/v0.3.1...v0.4.0) (2026-03-21)
 
 
