@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/fredrikaverpil/pocket/compare/v0.2.1...v0.3.0) (2026-03-21)
+
+
+### Features
+
+* **renovate:** add 3-day minimum release age ([#30](https://github.com/fredrikaverpil/pocket/issues/30)) ([ca024f5](https://github.com/fredrikaverpil/pocket/commit/ca024f5cfe8bafc19cf7041ef474d9860d788d37))
+
 ## [0.2.1](https://github.com/fredrikaverpil/pocket/compare/v0.2.0...v0.2.1) (2026-03-20)
 
 
