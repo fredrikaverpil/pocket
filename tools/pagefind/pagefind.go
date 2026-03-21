@@ -19,7 +19,7 @@ const Name = "pagefind"
 // renovate: datasource=github-releases depName=CloudCannon/pagefind
 const Version = "1.4.0"
 
-// Install ensures pagefind (extended) is available.
+// Install ensures pagefind is available.
 var Install = &pk.Task{
 	Name:   "install:pagefind",
 	Usage:  "install pagefind",
@@ -34,7 +34,7 @@ func installPagefind() pk.Runnable {
 	binaryPath := filepath.Join(binDir, binaryName)
 
 	url := fmt.Sprintf(
-		"https://github.com/CloudCannon/pagefind/releases/download/v%s/pagefind_extended-v%s-%s.tar.gz",
+		"https://github.com/CloudCannon/pagefind/releases/download/v%s/pagefind-v%s-%s.tar.gz",
 		Version, Version, platformTarget(),
 	)
 
