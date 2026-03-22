@@ -143,6 +143,7 @@ across machines and CI environments. Everyone gets the exact same version.
 > - [claudeline](https://github.com/fredrikaverpil/claudeline/blob/main/.pocket/config.go)
 > - [creosote](https://github.com/fredrikaverpil/creosote/blob/main/.pocket/config.go)
 > - [dependabot-generate](https://github.com/fredrikaverpil/dependabot-generate/blob/main/.pocket/config.go)
+> - [fredrikaverpil.github.io](https://github.com/fredrikaverpil/fredrikaverpil.github.io/blob/main/.pocket/config.go)
 > - [go-playground](https://github.com/fredrikaverpil/go-playground/blob/main/.pocket/config.go)
 > - [multipr](https://github.com/fredrikaverpil/multipr/blob/main/.pocket/config.go)
 > - [neotest-golang](https://github.com/fredrikaverpil/neotest-golang/blob/main/.pocket/config.go)
