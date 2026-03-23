@@ -210,7 +210,6 @@ These options work with any task:
 | `WithDetect`         | Dynamically discover paths using a detection function       |
 | `WithNameSuffix`     | Create a named variant (e.g., `py-test` → `py-test:3.9`)    |
 | `WithForceRun`       | Bypass task deduplication for the wrapped runnable          |
-| `WithVerbose`        | Force verbose (streamed) output regardless of `-v` flag     |
 | `WithFlags`          | Set flag overrides for a task in scope                      |
 | `WithNoticePatterns` | Override warning detection patterns for the scope           |
 
@@ -303,13 +302,6 @@ var InstallUV = &pk.Task{
 
 ```go
 pk.WithOptions(CleanupTask, pk.WithForceRun())
-```
-
-**Force verbose output** with `WithVerbose()` to always stream output in
-real-time, regardless of the `-v` CLI flag:
-
-```go
-pk.WithOptions(DeployTask, pk.WithVerbose())
 ```
 
 ---

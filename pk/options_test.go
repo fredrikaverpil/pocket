@@ -166,46 +166,6 @@ func TestPathFilter_DeduplicationByTaskAndPath(t *testing.T) {
 	}
 }
 
-func TestWithVerbose(t *testing.T) {
-	t.Run("ForcesVerboseTrueInTaskContext", func(t *testing.T) {
-		var gotVerbose bool
-		task := &Task{Name: "verbose-task", Do: func(ctx context.Context) error {
-			gotVerbose = pkrun.Verbose(ctx)
-			return nil
-		}}
-
-		// Outer context has verbose=false (the default, no -v flag).
-		ctx := context.Background()
-
-		pf := WithOptions(task, WithVerbose()).(*pathFilter)
-		pf.resolvedPaths = []string{"."}
-
-		if err := pf.run(ctx); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !gotVerbose {
-			t.Error("expected task to see verbose=true when WithVerbose() is set")
-		}
-	})
-
-	t.Run("DoesNotAffectOuterContext", func(t *testing.T) {
-		task := &Task{Name: "verbose-task2", Do: func(_ context.Context) error { return nil }}
-
-		ctx := context.Background()
-
-		pf := WithOptions(task, WithVerbose()).(*pathFilter)
-		pf.resolvedPaths = []string{"."}
-
-		if err := pf.run(ctx); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Outer context should still have verbose=false.
-		if pkrun.Verbose(ctx) {
-			t.Error("expected outer context to remain verbose=false")
-		}
-	})
-}
-
 func TestDetectByFile(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
