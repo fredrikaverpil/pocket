@@ -186,6 +186,7 @@ type taskInstance struct {
 	name     string         // Effective name (may include suffix like "py-test:3.9")
 	flags    map[string]any // Pre-merged flag overrides for this task.
 	isManual bool           // Whether task is manual (from Config.Manual).
+	verbose  bool           // Force verbose mode (from WithVerbose).
 
 	// Execution context from path filter.
 	resolvedPaths []string // Directories where this task executes.
@@ -206,6 +207,7 @@ type taskCollector struct {
 	activeSkips      []string         // All skipped tasks in current scope.
 	activeNameSuffix string           // Current name suffix from WithNameSuffix.
 	activeFlags      []flagOverride   // All flag overrides in current scope.
+	activeVerbose    bool             // Force verbose mode in current scope.
 	inManualSection  bool             // True when walking Config.Manual tasks.
 }
 
@@ -374,6 +376,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 				name:          effectiveName,
 				flags:         mergedFlags,
 				isManual:      pc.inManualSection,
+				verbose:       pc.activeVerbose,
 				resolvedPaths: finalPaths,
 			})
 		}
@@ -428,6 +431,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		prevPath := pc.currentPath
 		prevNameSuffix := pc.activeNameSuffix
 		prevFlags := pc.activeFlags
+		prevVerbose := pc.activeVerbose
 
 		// Resolve type-based flag overrides against the inner runnable.
 		resolvedFlags, err := resolveTypedFlags(v.flags, v.inner)
@@ -441,6 +445,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
 		pc.activeFlags = append(pc.activeFlags, resolvedFlags...)
 		pc.currentPath = v
+		pc.activeVerbose = pc.activeVerbose || v.verbose
 
 		// Apply name suffix (cumulative: "3.9" + "foo" -> "3.9:foo").
 		if v.nameSuffix != "" {
@@ -463,6 +468,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.currentPath = prevPath
 		pc.activeNameSuffix = prevNameSuffix
 		pc.activeFlags = prevFlags
+		pc.activeVerbose = prevVerbose
 
 	default:
 		panic(fmt.Sprintf("pk: unknown Runnable type %T in walk", r))

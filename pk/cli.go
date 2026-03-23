@@ -253,6 +253,11 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 		ctx = contextWithNameSuffix(ctx, suffix)
 	}
 
+	// Apply verbose mode if set during planning (from WithVerbose).
+	if inst.verbose {
+		ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
+	}
+
 	// Determine execution paths.
 	paths := inst.resolvedPaths
 	if len(paths) == 0 {
