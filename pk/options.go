@@ -226,11 +226,6 @@ func (pf *pathFilter) run(ctx context.Context) error {
 		ctx = context.WithValue(ctx, ctxkey.ForceRun{}, true)
 	}
 
-	// If verbose is set, force verbose mode in context.
-	if pf.verbose {
-		ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
-	}
-
 	// Apply name suffix to context.
 	if pf.nameSuffix != "" {
 		ctx = contextWithNameSuffix(ctx, pf.nameSuffix)

@@ -966,3 +966,74 @@ func TestPlan_WithFlagsInferTask(t *testing.T) {
 		t.Errorf("expected mode=overridden, got %v", tasks[0].Flags["mode"])
 	}
 }
+
+func TestPlan_WithVerbosePropagatedToTaskInstance(t *testing.T) {
+	allDirs := []string{"."}
+
+	task := &Task{Name: "serve", Usage: "serve docs", Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Manual: []Runnable{
+			WithOptions(task, WithVerbose()),
+		},
+	}
+
+	plan, err := newPlan(cfg, "/tmp", allDirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance := plan.taskInstanceByName("serve")
+	if instance == nil {
+		t.Fatal("expected task instance 'serve' in plan")
+	}
+	if !instance.verbose {
+		t.Error("expected verbose=true on task instance when WithVerbose() is set")
+	}
+}
+
+func TestPlan_TaskVerbosePropagatedToTaskInstance(t *testing.T) {
+	allDirs := []string{"."}
+
+	task := &Task{Name: "deploy", Usage: "deploy app", Verbose: true, Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Manual: []Runnable{task},
+	}
+
+	plan, err := newPlan(cfg, "/tmp", allDirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance := plan.taskInstanceByName("deploy")
+	if instance == nil {
+		t.Fatal("expected task instance 'deploy' in plan")
+	}
+	if !instance.verbose {
+		t.Error("expected verbose=true on task instance when Task.Verbose is true")
+	}
+}
+
+func TestPlan_WithVerboseNotSetByDefault(t *testing.T) {
+	allDirs := []string{"."}
+
+	task := &Task{Name: "build", Usage: "build project", Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Manual: []Runnable{task},
+	}
+
+	plan, err := newPlan(cfg, "/tmp", allDirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance := plan.taskInstanceByName("build")
+	if instance == nil {
+		t.Fatal("expected task instance 'build' in plan")
+	}
+	if instance.verbose {
+		t.Error("expected verbose=false on task instance by default")
+	}
+}

@@ -841,8 +841,19 @@ pk.WithOptions(
 )
 ```
 
-Use `WithVerbose()` to force streamed output for specific tasks, regardless of
-whether the `-v` CLI flag was passed:
+Force streamed output for specific tasks, regardless of whether the `-v` CLI
+flag was passed. Set `Verbose: true` directly on the task:
+
+```go
+var Deploy = &pk.Task{
+    Name:    "deploy",
+    Usage:   "deploy application",
+    Verbose: true,  // Always stream output in real-time
+    Do:      func(ctx context.Context) error { ... },
+}
+```
+
+Or use `WithVerbose()` to force it via composition:
 
 ```go
 pk.WithOptions(

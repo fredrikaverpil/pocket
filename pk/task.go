@@ -54,6 +54,9 @@ type Task struct {
 	// Global makes the task deduplicate by name only, ignoring path.
 	// Use this for install tasks that should only run once regardless of path.
 	Global bool
+	// Verbose forces verbose (streamed) output for this task,
+	// regardless of the -v CLI flag. Can also be set via [WithVerbose].
+	Verbose bool
 
 	// flagSet is the internal FlagSet built from Flags by the engine.
 	flagSet *flag.FlagSet
@@ -82,12 +85,17 @@ func (t *Task) run(ctx context.Context) error {
 		effectiveName = t.Name + ":" + suffix
 	}
 
-	// Check manual status via Plan.
+	// Look up plan-level settings for this task (manual check, verbose, flag overrides).
+	var instance *taskInstance
 	if plan := planFromContext(ctx); plan != nil {
-		if instance := plan.taskInstanceByName(effectiveName); instance != nil {
-			if instance.isManual && isAutoExec(ctx) {
-				return nil
-			}
+		instance = plan.taskInstanceByName(effectiveName)
+	}
+	if instance != nil {
+		if instance.isManual && isAutoExec(ctx) {
+			return nil
+		}
+		if instance.verbose {
+			ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
 		}
 	}
 
@@ -99,13 +107,9 @@ func (t *Task) run(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("task %q: %w", t.Name, err)
 		}
-		// Apply plan-level overrides (from WithFlag).
-		if plan := planFromContext(ctx); plan != nil {
-			if instance := plan.taskInstanceByName(effectiveName); instance != nil {
-				maps.Copy(resolved, instance.flags)
-			}
+		if instance != nil {
+			maps.Copy(resolved, instance.flags)
 		}
-		// Apply CLI overrides (highest priority).
 		if cliFlags := cliFlagsFromContext(ctx); cliFlags != nil {
 			maps.Copy(resolved, cliFlags)
 		}
