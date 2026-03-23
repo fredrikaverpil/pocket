@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/fredrikaverpil/pocket/compare/v0.4.1...v0.5.0) (2026-03-23)
+
+
+### Features
+
+* **pk:** add WithVerbose option to force streamed output ([8d4693c](https://github.com/fredrikaverpil/pocket/commit/8d4693cc4a0d66116a4cbcbcf2452e50b321edd5))
+* **pk:** add WithVerbose option to force streamed output ([#40](https://github.com/fredrikaverpil/pocket/issues/40)) ([13a14c1](https://github.com/fredrikaverpil/pocket/commit/13a14c1036f0ccc76912d361b199ff37c57a018d))
+
 ## [0.4.1](https://github.com/fredrikaverpil/pocket/compare/v0.4.0...v0.4.1) (2026-03-21)
 
 
