@@ -122,6 +122,15 @@ func WithNoticePatterns(patterns ...string) Option {
 	}
 }
 
+// WithVerbose forces verbose mode for all tasks within the wrapped Runnable,
+// regardless of whether the -v CLI flag was passed.
+// Useful for manual tasks that always benefit from streamed output.
+func WithVerbose() Option {
+	return func(pf *pathFilter) {
+		pf.verbose = true
+	}
+}
+
 // WithNameSuffix creates a named variant of tasks within this scope.
 // The suffix is appended with a colon separator (e.g., "py-test" becomes "py-test:3.9").
 //
@@ -190,6 +199,7 @@ type pathFilter struct {
 	detectFunc     DetectFunc // Optional detection function for dynamic path discovery.
 	resolvedPaths  []string   // Cached resolved paths from plan building.
 	forceRun       bool       // Disable task deduplication for the wrapped Runnable.
+	verbose        bool       // Force verbose mode for the wrapped Runnable.
 	noticePatterns []string   // Custom notice detection patterns (nil = use default).
 }
 
@@ -214,6 +224,11 @@ func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
 	if pf.forceRun {
 		ctx = context.WithValue(ctx, ctxkey.ForceRun{}, true)
+	}
+
+	// If verbose is set, force verbose mode in context.
+	if pf.verbose {
+		ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
 	}
 
 	// Apply name suffix to context.
