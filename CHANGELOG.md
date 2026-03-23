@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/fredrikaverpil/pocket/compare/v0.5.0...v0.6.0) (2026-03-23)
+
+
+### Features
+
+* **pk:** add WithVerbose option with single propagation path ([#41](https://github.com/fredrikaverpil/pocket/issues/41)) ([fcdfdcd](https://github.com/fredrikaverpil/pocket/commit/fcdfdcd77e24aa3dc5f3eacbacd9c317f3330b1f))
+
 ## [0.5.0](https://github.com/fredrikaverpil/pocket/compare/v0.4.1...v0.5.0) (2026-03-23)
 
 
