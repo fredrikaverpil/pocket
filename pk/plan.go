@@ -376,7 +376,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 				name:          effectiveName,
 				flags:         mergedFlags,
 				isManual:      pc.inManualSection,
-				verbose:       pc.activeVerbose,
+				verbose:       v.Verbose || pc.activeVerbose,
 				resolvedPaths: finalPaths,
 			})
 		}

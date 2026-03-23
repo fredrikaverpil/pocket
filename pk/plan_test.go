@@ -992,6 +992,29 @@ func TestPlan_WithVerbosePropagatedToTaskInstance(t *testing.T) {
 	}
 }
 
+func TestPlan_TaskVerbosePropagatedToTaskInstance(t *testing.T) {
+	allDirs := []string{"."}
+
+	task := &Task{Name: "deploy", Usage: "deploy app", Verbose: true, Do: func(_ context.Context) error { return nil }}
+
+	cfg := &Config{
+		Manual: []Runnable{task},
+	}
+
+	plan, err := newPlan(cfg, "/tmp", allDirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	instance := plan.taskInstanceByName("deploy")
+	if instance == nil {
+		t.Fatal("expected task instance 'deploy' in plan")
+	}
+	if !instance.verbose {
+		t.Error("expected verbose=true on task instance when Task.Verbose is true")
+	}
+}
+
 func TestPlan_WithVerboseNotSetByDefault(t *testing.T) {
 	allDirs := []string{"."}
 

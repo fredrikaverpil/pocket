@@ -111,6 +111,7 @@ type Task struct {
     Hidden     bool                           // Hide from CLI listings
     HideHeader bool                           // Suppress ":: taskname" header
     Global     bool                           // Deduplicate by name only, ignoring path
+    Verbose    bool                           // Force verbose (streamed) output
 }
 ```
 
@@ -305,10 +306,14 @@ var InstallUV = &pk.Task{
 pk.WithOptions(CleanupTask, pk.WithForceRun())
 ```
 
-**Force verbose output** with `WithVerbose()` to always stream output in
-real-time, regardless of the `-v` CLI flag:
+**Force verbose output** to always stream output in real-time, regardless of the
+`-v` CLI flag. Set `Verbose: true` on the task, or use `WithVerbose()` in
+composition:
 
 ```go
+var Deploy = &pk.Task{Name: "deploy", Verbose: true, Do: deployFn}
+
+// Or via composition:
 pk.WithOptions(DeployTask, pk.WithVerbose())
 ```
 
