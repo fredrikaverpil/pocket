@@ -841,6 +841,16 @@ pk.WithOptions(
 )
 ```
 
+Use `WithVerbose()` to force streamed output for specific tasks, regardless of
+whether the `-v` CLI flag was passed:
+
+```go
+pk.WithOptions(
+    DeployTask,
+    pk.WithVerbose(),  // Always stream output in real-time
+)
+```
+
 ---
 
 ## Options
@@ -857,6 +867,7 @@ pk.WithOptions(
 | `pk.WithNameSuffix(suffix)`          | Add suffix to task names (e.g., `:v2`) |
 | `pk.WithFlags(flagsStruct)`          | Override a task's flags                |
 | `pk.WithForceRun()`                  | Disable deduplication                  |
+| `pk.WithVerbose()`                   | Force verbose (streamed) output        |
 | `pk.WithNoticePatterns(...)`         | Override warning detection patterns    |
 
 Use `pk.WithFlags()` to set task flags explicitly:
