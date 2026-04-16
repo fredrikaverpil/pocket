@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.0](https://github.com/fredrikaverpil/pocket/compare/v0.6.0...v0.7.0) (2026-04-16)
+
+
+### Features
+
+* **go:** bump to 1.26.2 ([#55](https://github.com/fredrikaverpil/pocket/issues/55)) ([513ecb9](https://github.com/fredrikaverpil/pocket/commit/513ecb913264a3ee80a76816f5a7dcb0f02eedf9))
+
+
+### Bug Fixes
+
+* **deps:** update dependency prettier to v3.8.2 ([#53](https://github.com/fredrikaverpil/pocket/issues/53)) ([b4eeaff](https://github.com/fredrikaverpil/pocket/commit/b4eeaff886d13cde27e34fdb7784d7690dc2a311))
+* **deps:** update dependency zensical to v0.0.32 ([#47](https://github.com/fredrikaverpil/pocket/issues/47)) ([ced574d](https://github.com/fredrikaverpil/pocket/commit/ced574d3099360f350d29c6e95bb5f365ff29dcb))
+
 ## [0.6.0](https://github.com/fredrikaverpil/pocket/compare/v0.5.0...v0.6.0) (2026-03-23)
 
 
