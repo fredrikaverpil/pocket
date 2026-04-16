@@ -10,7 +10,7 @@ import (
 const Name = "govulncheck"
 
 // renovate: datasource=go depName=golang.org/x/vuln
-const Version = "v1.1.4"
+const Version = "v1.2.0"
 
 // Install ensures govulncheck is available.
 var Install = &pk.Task{
