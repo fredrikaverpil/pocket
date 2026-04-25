@@ -1,0 +1,8 @@
+# Force LF for shim templates and their generated outputs.
+# These files are embedded via //go:embed and written verbatim to disk.
+# CRLF would break the bash shim on POSIX systems and silently leak into
+# generated files when shims are regenerated on Windows.
+internal/shim/templates/*.tmpl text eol=lf
+pok text eol=lf
+pok.cmd text eol=lf
+pok.ps1 text eol=lf
