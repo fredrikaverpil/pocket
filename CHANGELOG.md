@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/fredrikaverpil/pocket/compare/v0.7.3...v0.8.0) (2026-04-25)
+
+
+### Features
+
+* add -s/--serial flag to force sequential task execution ([#74](https://github.com/fredrikaverpil/pocket/issues/74)) ([3d9f363](https://github.com/fredrikaverpil/pocket/commit/3d9f363e81543fd8c4205e93d466c4fcdbd2b786))
+
 ## [0.7.3](https://github.com/fredrikaverpil/pocket/compare/v0.7.2...v0.7.3) (2026-04-25)
 
 
