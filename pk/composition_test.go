@@ -195,6 +195,51 @@ func TestParallel_OutputBuffering(t *testing.T) {
 	}
 }
 
+func TestParallel_SerialMode_RunsSequentially(t *testing.T) {
+	var order []int
+
+	p := Parallel(
+		Do(func(_ context.Context) error { order = append(order, 1); return nil }),
+		Do(func(_ context.Context) error { order = append(order, 2); return nil }),
+		Do(func(_ context.Context) error { order = append(order, 3); return nil }),
+	)
+
+	ctx := context.WithValue(context.Background(), ctxkey.Serial{}, true)
+	if err := p.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []int{1, 2, 3}
+	if len(order) != len(want) {
+		t.Fatalf("expected %v, got %v", want, order)
+	}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Errorf("position %d: expected %d, got %d", i, want[i], order[i])
+		}
+	}
+}
+
+func TestParallel_SerialMode_StopsOnError(t *testing.T) {
+	var ran []int
+	errBoom := errors.New("boom")
+
+	p := Parallel(
+		Do(func(_ context.Context) error { ran = append(ran, 1); return nil }),
+		Do(func(_ context.Context) error { ran = append(ran, 2); return errBoom }),
+		Do(func(_ context.Context) error { ran = append(ran, 3); return nil }),
+	)
+
+	ctx := context.WithValue(context.Background(), ctxkey.Serial{}, true)
+	err := p.run(ctx)
+	if !errors.Is(err, errBoom) {
+		t.Errorf("expected errBoom, got %v", err)
+	}
+	if len(ran) != 2 || ran[0] != 1 || ran[1] != 2 {
+		t.Errorf("expected [1 2], got %v", ran)
+	}
+}
+
 func TestParallel_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.

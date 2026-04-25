@@ -32,6 +32,11 @@ func forceRunFromContext(ctx context.Context) bool {
 	return v
 }
 
+func serialFromContext(ctx context.Context) bool {
+	v, _ := ctx.Value(ctxkey.Serial{}).(bool)
+	return v
+}
+
 func gitDiffEnabled(ctx context.Context) bool {
 	v, _ := ctx.Value(ctxkey.GitDiff{}).(bool)
 	return v
