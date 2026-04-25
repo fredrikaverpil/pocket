@@ -21,7 +21,7 @@ const Name = "goreleaser"
 
 // Version is the version of goreleaser to install.
 // renovate: datasource=github-releases depName=goreleaser/goreleaser
-const Version = "2.15.2"
+const Version = "2.15.4"
 
 // Install ensures goreleaser is available.
 var Install = &pk.Task{
