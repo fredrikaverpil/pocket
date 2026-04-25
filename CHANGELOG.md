@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/fredrikaverpil/pocket/compare/v0.8.0...v0.8.1) (2026-04-25)
+
+
+### Bug Fixes
+
+* **deps:** update dependency zensical to v0.0.34 ([#57](https://github.com/fredrikaverpil/pocket/issues/57)) ([6dc8e2f](https://github.com/fredrikaverpil/pocket/commit/6dc8e2f5d52bc8c0ede55153c77801ffa5476f50))
+* **self-update:** use GOPRIVATE to scope proxy and sum bypass to pocket ([#76](https://github.com/fredrikaverpil/pocket/issues/76)) ([059b8d9](https://github.com/fredrikaverpil/pocket/commit/059b8d9c26879bfd45f05600ccfa3521a6c375a6))
+
 ## [0.8.0](https://github.com/fredrikaverpil/pocket/compare/v0.7.3...v0.8.0) (2026-04-25)
 
 
