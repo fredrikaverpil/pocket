@@ -25,7 +25,7 @@ const (
 
 // DefaultVersion is the default version to install.
 // renovate: datasource=github-releases depName=neovim/neovim
-const DefaultVersion = "v0.11.5"
+const DefaultVersion = "v0.12.2"
 
 var (
 	// InstallStable installs stable Neovim (DefaultVersion).
