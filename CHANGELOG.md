@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/fredrikaverpil/pocket/compare/v0.7.0...v0.7.1) (2026-04-25)
+
+
+### Bug Fixes
+
+* **gha:** invalid field ([#61](https://github.com/fredrikaverpil/pocket/issues/61)) ([4e21496](https://github.com/fredrikaverpil/pocket/commit/4e2149616fc87637da142b3cdfdd8cac9c1c617f))
+
 ## [0.7.0](https://github.com/fredrikaverpil/pocket/compare/v0.6.0...v0.7.0) (2026-04-16)
 
 
