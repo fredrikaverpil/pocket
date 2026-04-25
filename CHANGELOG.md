@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.3](https://github.com/fredrikaverpil/pocket/compare/v0.7.2...v0.7.3) (2026-04-25)
+
+
+### Bug Fixes
+
+* **deps:** update dependency prettier to v3.8.3 ([#59](https://github.com/fredrikaverpil/pocket/issues/59)) ([3f808e6](https://github.com/fredrikaverpil/pocket/commit/3f808e6c811e9dd9ffd9189567dc1e1c8c387fe7))
+* **nvim:** bump stable to 0.12.2 ([#68](https://github.com/fredrikaverpil/pocket/issues/68)) ([471f809](https://github.com/fredrikaverpil/pocket/commit/471f809e2fde3d1dd9237a2b4c1725945984bbea))
+* **renovate:** find new neovim/python version ([#70](https://github.com/fredrikaverpil/pocket/issues/70)) ([555c41a](https://github.com/fredrikaverpil/pocket/commit/555c41ab73a63c51923e43cd5bc6687f2c8ac8a6))
+
 ## [0.7.2](https://github.com/fredrikaverpil/pocket/compare/v0.7.1...v0.7.2) (2026-04-25)
 
 
