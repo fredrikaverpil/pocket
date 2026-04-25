@@ -260,7 +260,7 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	}
 
 	// Check TASK_SCOPE environment variable (set by shim).
-	if taskScope := os.Getenv("TASK_SCOPE"); taskScope != "" && taskScope != "." {
+	if taskScope := taskScopeFromEnv(); taskScope != "" {
 		paths = []string{taskScope}
 	}
 

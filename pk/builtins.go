@@ -211,7 +211,6 @@ var commitsCheckTask = &Task{
 func resolveCommitRange(ctx context.Context) (string, error) {
 	gitRoot := repopath.GitRoot()
 
-	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
 	cmd := exec.CommandContext(ctx, "git", "log", "--oneline", "@{push}..HEAD")
 	cmd.Dir = gitRoot
 	var out bytes.Buffer
@@ -230,7 +229,6 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 	}
 
 	ref := "origin/" + defaultBranch + "..HEAD"
-	//nolint:gosec // ref is constructed from git output, not user input.
 	cmd = exec.CommandContext(ctx, "git", "log", "--oneline", ref)
 	cmd.Dir = gitRoot
 	out.Reset()
@@ -244,7 +242,6 @@ func resolveCommitRange(ctx context.Context) (string, error) {
 
 // resolveDefaultBranch returns the default branch name of the origin remote.
 func resolveDefaultBranch(ctx context.Context, gitRoot string) string {
-	//nolint:gosec // Arguments are fixed git commands, not user-supplied.
 	cmd := exec.CommandContext(ctx, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = gitRoot
 	var out bytes.Buffer

@@ -62,6 +62,24 @@ type ShimConfig struct {
 | :--------------- | :------------------------------------ |
 | `AllShimsConfig` | Returns config with all shims enabled |
 
+### Shim Scoping
+
+Pocket generates shims at the repository root and at path scopes derived from
+`WithPath` and `WithDetect`. Root shims set `TASK_SCOPE="."`, so bare `./pok`
+shows and executes the full auto task tree across all resolved paths.
+
+Subdirectory shims set `TASK_SCOPE` to the shim's path. In that mode:
+
+- Bare `./pok` shows and executes only tasks scoped to that path
+- `./pok <task>` executes the named task only for that path
+- Root-only tasks are hidden and skipped from subdirectory shims
+
+```bash
+./pok                       # root: run all auto tasks across all paths
+cd services/api && ./pok    # scoped: run only services/api tasks
+./pok go-test               # scoped: run go-test only in services/api
+```
+
 ### Git Diff Check
 
 Pocket can run `git diff --exit-code` after task execution to catch unintended

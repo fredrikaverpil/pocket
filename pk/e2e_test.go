@@ -12,6 +12,7 @@ import (
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	pkrun "github.com/fredrikaverpil/pocket/pk/run"
+	"gotest.tools/v3/assert"
 )
 
 // Flag struct types for test tasks.
@@ -560,4 +561,40 @@ func TestE2E_AutoExec_PathFilterWithDetect(t *testing.T) {
 	if !paths["svc-a"] || !paths["svc-b"] {
 		t.Errorf("expected paths svc-a and svc-b, got %v", paths)
 	}
+}
+
+func TestE2E_AutoExec_TaskScope(t *testing.T) {
+	tmpDir := e2eSetup(t)
+
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	rootTask := rec.task("root")
+	scopedTask := rec.task("scoped")
+
+	cfg := &Config{
+		Auto: Serial(
+			rootTask,
+			WithOptions(scopedTask, WithPath("svc-a", "svc-b")),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("TASK_SCOPE", "svc-a")
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []execRecord{{TaskName: "scoped", Path: "svc-a"}}
+	assert.DeepEqual(t, rec.records, want)
 }

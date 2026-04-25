@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"os"
 
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 )
@@ -46,4 +47,12 @@ func cliFlagsFromContext(ctx context.Context) map[string]any {
 		return flags
 	}
 	return nil
+}
+
+func taskScopeFromEnv() string {
+	scope := os.Getenv("TASK_SCOPE")
+	if scope == "" || scope == "." {
+		return ""
+	}
+	return scope
 }

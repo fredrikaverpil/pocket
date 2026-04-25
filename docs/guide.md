@@ -999,11 +999,15 @@ Pocket generates `./pok` shims in directories matched by `WithPath` or
 `WithDetect`.
 
 - Running `./pok` from **root** shows and executes all tasks
-- Running `./pok` from a **subdirectory** only shows tasks scoped to that path
+- Running `./pok` from a **subdirectory** only shows and executes tasks scoped
+  to that path
+- Running `./pok <task>` from a **subdirectory** executes that task only for the
+  shim's path
 
 ```bash
 ./pok                       # runs all tasks across all paths
 cd services/api && ./pok    # only runs tasks scoped to services/api
+./pok go-test               # runs go-test only in services/api
 ```
 
 ---

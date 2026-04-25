@@ -87,7 +87,8 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Look up plan-level settings for this task (manual check, verbose, flag overrides).
 	var instance *taskInstance
-	if plan := planFromContext(ctx); plan != nil {
+	plan := planFromContext(ctx)
+	if plan != nil {
 		instance = plan.taskInstanceByName(effectiveName)
 	}
 	if instance != nil {
@@ -96,6 +97,11 @@ func (t *Task) run(ctx context.Context) error {
 		}
 		if instance.verbose {
 			ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
+		}
+	}
+	if taskScope := taskScopeFromEnv(); isAutoExec(ctx) && taskScope != "" && plan != nil {
+		if !plan.taskRunsInPath(effectiveName, taskScope) {
+			return nil
 		}
 	}
 
@@ -134,7 +140,7 @@ func (t *Task) run(ctx context.Context) error {
 
 	// Check if this task should run at this path based on the Plan's pathMappings.
 	// This handles task-specific excludes (WithSkipTask with patterns).
-	if plan := planFromContext(ctx); plan != nil {
+	if plan != nil {
 		if info, ok := plan.pathMappings[effectiveName]; ok {
 			path := pkrun.PathFromContext(ctx)
 			if !slices.Contains(info.resolvedPaths, path) {
