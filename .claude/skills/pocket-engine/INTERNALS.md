@@ -278,8 +278,10 @@ Each shim sets:
 ### Task visibility scoping
 
 When `TASK_SCOPE` is set (by a subdirectory shim), only tasks whose resolved
-paths include that scope appear in help and are eligible for execution. Root
-shims set `TASK_SCOPE="."`, making all tasks visible.
+paths include that scope appear in help and are eligible for execution. Bare
+`./pok` auto execution is also narrowed to that scope, and direct task
+invocation runs the task only for that scope. Root shims set `TASK_SCOPE="."`,
+making all tasks visible and executable across all resolved paths.
 
 ---
 

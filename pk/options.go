@@ -236,8 +236,19 @@ func (pf *pathFilter) run(ctx context.Context) error {
 		ctx = context.WithValue(ctx, ctxkey.NoticePatterns{}, pf.noticePatterns)
 	}
 
+	paths := pf.resolvedPaths
+	if taskScope := taskScopeFromEnv(); isAutoExec(ctx) && taskScope != "" {
+		paths = nil
+		for _, path := range pf.resolvedPaths {
+			if path == taskScope {
+				paths = []string{path}
+				break
+			}
+		}
+	}
+
 	// Execute inner Runnable for each resolved path.
-	for _, path := range pf.resolvedPaths {
+	for _, path := range paths {
 		pathCtx := pkrun.ContextWithPath(ctx, path)
 		if err := pf.inner.run(pathCtx); err != nil {
 			return err

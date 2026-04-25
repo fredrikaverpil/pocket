@@ -212,7 +212,8 @@ bypass deduplication when needed.
 
 Pocket generates shims in each detected module directory (`pk.WithDetect`) and
 each path defined with `pk.WithPath`. The root shim runs everything, while
-subfolder shims only run tasks scoped to that path:
+subfolder shims set `TASK_SCOPE` so both bare `./pok` and direct task invocation
+only run work relevant to that path:
 
 ```bash
 ./pok                       # runs all tasks across all paths

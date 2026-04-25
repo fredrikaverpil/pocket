@@ -116,6 +116,6 @@ first-to-complete ordering. Single-item parallel runs skip buffering entirely.
 Shims are generated at the repo root and at each unique include/detect path.
 Three variants: POSIX (`pok`), Windows batch (`pok.cmd`), PowerShell
 (`pok.ps1`). Each shim computes a relative path back to `.pocket` and sets
-`TASK_SCOPE` for path-scoped task visibility.
+`TASK_SCOPE` for path-scoped task visibility and execution.
 
 See [INTERNALS.md](INTERNALS.md) for details on each subsystem.
