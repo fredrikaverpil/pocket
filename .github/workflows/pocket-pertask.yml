@@ -719,6 +719,45 @@ jobs:
             .pocket/venvs
           key: ${{ runner.os }}-pocket-md-format-windows-${{ hashFiles('**/go.sum') }}
 
+  renovate-validate-ubuntu:
+    name: renovate-validate (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: .pocket/go.mod
+          cache: false
+      - name: Restore cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            .pocket/bin
+            .pocket/tools
+            .pocket/venvs
+          key: ${{ runner.os }}-pocket-renovate-validate-ubuntu-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-pocket-renovate-validate-ubuntu-
+      - name: Run renovate-validate
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./pok -v -g -c renovate-validate
+      - name: Save cache
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            .pocket/bin
+            .pocket/tools
+            .pocket/venvs
+          key: ${{ runner.os }}-pocket-renovate-validate-ubuntu-${{ hashFiles('**/go.sum') }}
+
   github-workflows-ubuntu:
     name: github-workflows (ubuntu-latest)
     runs-on: ubuntu-latest
