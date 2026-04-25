@@ -274,11 +274,10 @@ var selfUpdateTask = &Task{
 			if pkrun.Verbose(ctx) {
 				pkrun.Printf(
 					ctx,
-					"  running: GOPROXY=direct GONOSUMDB=github.com/fredrikaverpil/pocket go get github.com/fredrikaverpil/pocket@latest\n",
+					"  running: GOPRIVATE=github.com/fredrikaverpil/pocket go get github.com/fredrikaverpil/pocket@latest\n",
 				)
 			}
-			forceCtx := pkrun.ContextWithEnv(ctx, "GOPROXY=direct")
-			forceCtx = pkrun.ContextWithEnv(forceCtx, "GONOSUMDB=github.com/fredrikaverpil/pocket")
+			forceCtx := pkrun.ContextWithEnv(ctx, "GOPRIVATE=github.com/fredrikaverpil/pocket")
 			if err := pkrun.Exec(forceCtx, "go", "get", "github.com/fredrikaverpil/pocket@latest"); err != nil {
 				return fmt.Errorf("updating pocket dependency: %w", err)
 			}
