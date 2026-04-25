@@ -5,6 +5,7 @@ type (
 	Path           struct{} // Current execution path.
 	ForceRun       struct{} // Forcing task execution.
 	Verbose        struct{} // Verbose mode.
+	Serial         struct{} // Force serial execution of parallel tasks.
 	GitDiff        struct{} // Git diff enabled flag.
 	CommitsCheck   struct{} // Commits check enabled flag.
 	Env            struct{} // Environment variable overrides.

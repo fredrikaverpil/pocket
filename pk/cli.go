@@ -40,9 +40,11 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Parse command-line flags
 	globalFlags := flag.NewFlagSet("pok", flag.ExitOnError)
 
-	var verbose, gitDiff, commitsCheck, showHelp, showVersion bool
+	var verbose, serial, gitDiff, commitsCheck, showHelp, showVersion bool
 	globalFlags.BoolVar(&verbose, "v", false, "verbose mode")
 	globalFlags.BoolVar(&verbose, "verbose", false, "verbose mode")
+	globalFlags.BoolVar(&serial, "s", false, "force serial execution (disables parallelism and output buffering)")
+	globalFlags.BoolVar(&serial, "serial", false, "force serial execution (disables parallelism and output buffering)")
 	globalFlags.BoolVar(&gitDiff, "g", false, "run git diff check after execution")
 	globalFlags.BoolVar(&gitDiff, "gitdiff", false, "run git diff check after execution")
 	globalFlags.BoolVar(&commitsCheck, "c", false, "validate conventional commits after execution")
@@ -60,6 +62,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx = context.WithValue(ctx, ctxkey.Verbose{}, verbose)
+	ctx = context.WithValue(ctx, ctxkey.Serial{}, serial)
 	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, gitDiff)
 	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, commitsCheck)
 	ctx = context.WithValue(ctx, ctxkey.Output{}, pkrun.StdOutput())
@@ -320,7 +323,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	}
 
 	allNames := []string{
-		"-c, --commits", "-g, --gitdiff", "-h, --help", "-v, --verbose", "--version",
+		"-c, --commits", "-g, --gitdiff", "-h, --help", "-s, --serial", "-v, --verbose", "--version",
 	}
 	for _, t := range builtins {
 		if !t.Hidden {
@@ -346,6 +349,13 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
+	pkrun.Printf(
+		ctx,
+		"  %-*s  %s\n",
+		maxWidth,
+		"-s, --serial",
+		"force serial execution (disables parallelism and output buffering)",
+	)
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-v, --verbose", "verbose mode")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "--version", "show version")
 

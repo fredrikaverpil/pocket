@@ -64,9 +64,14 @@ func (p *parallel) run(ctx context.Context) error {
 	default:
 	}
 
-	// Single item? Run directly without buffering.
-	if len(p.runnables) == 1 {
-		return p.runnables[0].run(ctx)
+	// Single item or serial mode: run sequentially without buffering.
+	if len(p.runnables) == 1 || serialFromContext(ctx) {
+		for _, r := range p.runnables {
+			if err := r.run(ctx); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	// Multiple items: use errgroup and buffered output.
