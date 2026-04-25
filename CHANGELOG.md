@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2](https://github.com/fredrikaverpil/pocket/compare/v0.7.1...v0.7.2) (2026-04-25)
+
+
+### Bug Fixes
+
+* **pk:** scope auto execution from subdirectory shims ([#67](https://github.com/fredrikaverpil/pocket/issues/67)) ([ac4238f](https://github.com/fredrikaverpil/pocket/commit/ac4238fdff41022e9cac667380aa731f3df7c2a8))
+* **shim:** add generated file headers ([#64](https://github.com/fredrikaverpil/pocket/issues/64)) ([cdc5b8f](https://github.com/fredrikaverpil/pocket/commit/cdc5b8f58ebc79a2ea8004a8bbe89a093c3f0c33))
+
 ## [0.7.1](https://github.com/fredrikaverpil/pocket/compare/v0.7.0...v0.7.1) (2026-04-25)
 
 
