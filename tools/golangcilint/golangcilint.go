@@ -16,7 +16,7 @@ const Name = "golangci-lint"
 
 // Version is the version of golangci-lint to install.
 // renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
-const Version = "v2.11.4"
+const Version = "v2.12.1"
 
 //go:embed golangci.yml
 var defaultConfig []byte
