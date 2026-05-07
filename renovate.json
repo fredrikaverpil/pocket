@@ -14,7 +14,13 @@
     },
     {
       "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["patch"],
       "semanticCommitType": "fix"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["minor", "major"],
+      "semanticCommitType": "feat"
     },
     {
       "matchManagers": ["gomod"],
