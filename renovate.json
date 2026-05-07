@@ -13,6 +13,10 @@
       "groupName": "github-actions"
     },
     {
+      "matchManagers": ["custom.regex"],
+      "semanticCommitType": "fix"
+    },
+    {
       "matchManagers": ["gomod"],
       "matchDepNames": ["github.com/fredrikaverpil/pocket"],
       "enabled": false,
