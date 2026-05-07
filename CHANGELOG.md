@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/fredrikaverpil/pocket/compare/v0.8.1...v0.8.2) (2026-05-07)
+
+
+### Bug Fixes
+
+* **deps:** update dependency zensical to v0.0.40 ([38ca703](https://github.com/fredrikaverpil/pocket/commit/38ca70328bed84324165396f01c87d8bb232c651))
+* **renovate:** use fix semantic commit type for custom regex deps ([#84](https://github.com/fredrikaverpil/pocket/issues/84)) ([afee651](https://github.com/fredrikaverpil/pocket/commit/afee65128d57180a6857d14081ef69d6ca985f90))
+
 ## [0.8.1](https://github.com/fredrikaverpil/pocket/compare/v0.8.0...v0.8.1) (2026-04-25)
 
 
