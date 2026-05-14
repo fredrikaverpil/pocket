@@ -28,7 +28,7 @@ linters:
     - gocritic
     - godot
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - govet
@@ -64,39 +64,38 @@ linters:
     gomoddirectives:
       replace-local: true
 
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/sirupsen/logrus:
-              recommendations:
-                - log/slog
-              reason: Use the standard library logging packages.
-          - github.com/rs/zerolog:
-              recommendations:
-                - log/slog
-              reason: Use the standard library logging packages.
-          - go.uber.org/zap:
-              recommendations:
-                - log/slog
-              reason: Use the standard library logging packages.
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
-                - fmt
-              reason: Use the standard library error packages.
-          - golang.org/x/xerrors:
-              recommendations:
-                - errors
-                - fmt
-              reason: Use the standard library error packages.
-          - github.com/golang/protobuf:
-              recommendations:
-                - google.golang.org/protobuf
-              reason: The protobuf v1 module is deprecated.
-          - github.com/stretchr/testify:
-              recommendations:
-                - gotest.tools/v3
-              reason: More reliably supports protobuf messages.
+        - module: github.com/sirupsen/logrus
+          recommendations:
+            - log/slog
+          reason: Use the standard library logging packages.
+        - module: github.com/rs/zerolog
+          recommendations:
+            - log/slog
+          reason: Use the standard library logging packages.
+        - module: go.uber.org/zap
+          recommendations:
+            - log/slog
+          reason: Use the standard library logging packages.
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
+            - fmt
+          reason: Use the standard library error packages.
+        - module: golang.org/x/xerrors
+          recommendations:
+            - errors
+            - fmt
+          reason: Use the standard library error packages.
+        - module: github.com/golang/protobuf
+          recommendations:
+            - google.golang.org/protobuf
+          reason: The protobuf v1 module is deprecated.
+        - module: github.com/stretchr/testify
+          recommendations:
+            - gotest.tools/v3
+          reason: More reliably supports protobuf messages.
 
     gosec:
       excludes:
