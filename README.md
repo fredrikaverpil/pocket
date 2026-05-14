@@ -44,6 +44,8 @@ Global flags:
   -c, --commits     validate conventional commits after execution
   -g, --gitdiff     run git diff check after execution
   -h, --help        show help
+  --json            emit task plan as JSON instead of executing
+  -s, --serial      force serial execution (disables parallelism and output buffering)
   -v, --verbose     verbose mode
   --version         show version
 
@@ -62,6 +64,7 @@ Manual tasks:
 Builtin tasks:
   shims             regenerate shims in all directories
   plan              show execution plan without running tasks
+  exec              execute a JSON task tree read from stdin
   self-update       update Pocket and regenerate scaffolded files
   purge             remove .pocket/tools, .pocket/bin, and .pocket/venvs
 
@@ -240,6 +243,24 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 ```bash
 ./pok plan
 ```
+
+## JSON Execution (for agents)
+
+Pocket can also be driven from a JSON document, primarily for LLMs and agents
+that compose task trees on-the-fly without writing Go code:
+
+```bash
+echo '{"version":1,"tree":{"serial":[
+  {"name":"lint","exec":["golangci-lint","run","./..."]},
+  {"name":"test","exec":["go","test","./..."]}
+]}}' | ./pok exec
+```
+
+The same engine drives both paths — composition, deduplication, and output
+buffering behave identically. Inspect an existing project's plan as JSON with
+`./pok -json [task]`, and print the v1 schema with `./pok exec --schema`. See
+the [JSON Execution](./docs/reference.md#json-execution) reference for full
+schema and rules.
 
 ### Programmatic Plan Access
 

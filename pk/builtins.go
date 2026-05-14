@@ -28,6 +28,7 @@ var errCommitsInvalid = errors.New("invalid commit messages")
 var builtins = []*Task{
 	shimsTask,
 	planTask,
+	execTask,
 	gitDiffTask,
 	commitsCheckTask,
 	selfUpdateTask,
@@ -128,6 +129,25 @@ var planTask = &Task{
 		pkrun.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 
 		return nil
+	},
+}
+
+// execFlags defines flags for the exec task.
+type execFlags struct {
+	Schema bool `flag:"schema" usage:"print the JSON Schema document and exit"`
+}
+
+// execTask reads a JSON task document from stdin and executes it.
+var execTask = &Task{
+	Name:       "exec",
+	Usage:      "execute a JSON task tree read from stdin",
+	HideHeader: true,
+	Flags:      execFlags{},
+	Do: func(ctx context.Context) error {
+		if pkrun.GetFlags[execFlags](ctx).Schema {
+			return printExecSchema(ctx)
+		}
+		return runExecJSON(ctx, os.Stdin)
 	},
 }
 

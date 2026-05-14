@@ -20,6 +20,7 @@ Technical reference for the `github.com/fredrikaverpil/pocket/pk` and
 - [Plan Introspection](#plan-introspection)
 - [Errors](#errors)
 - [CLI](#cli)
+- [JSON Execution](#json-execution)
 
 ---
 
@@ -672,13 +673,15 @@ if errors.Is(err, pk.ErrGitDiffUncommitted) {
 
 ### Flags
 
-| Flag              | Description                                   |
-| :---------------- | :-------------------------------------------- |
-| `-c`, `--commits` | Validate conventional commits after execution |
-| `-g`, `--gitdiff` | Run git diff check after execution            |
-| `-h`, `--help`    | Show help                                     |
-| `-v`, `--verbose` | Verbose mode                                  |
-| `--version`       | Show version                                  |
+| Flag              | Description                                                                                   |
+| :---------------- | :-------------------------------------------------------------------------------------------- |
+| `-c`, `--commits` | Validate conventional commits after execution                                                 |
+| `-g`, `--gitdiff` | Run git diff check after execution                                                            |
+| `-h`, `--help`    | Show help                                                                                     |
+| `--json`          | Emit the invocation plan as JSON instead of executing (see [JSON Execution](#json-execution)) |
+| `-s`, `--serial`  | Force serial execution (disables parallelism and output buffering)                            |
+| `-v`, `--verbose` | Verbose mode                                                                                  |
+| `--version`       | Show version                                                                                  |
 
 ### Functions
 
@@ -696,3 +699,129 @@ func main() {
 // ExecuteTask signature
 func ExecuteTask(ctx context.Context, name string, p *Plan) error
 ```
+
+---
+
+## JSON Execution
+
+Pocket can be driven from a JSON document instead of `.pocket/config.go`. This
+is primarily intended for **LLMs and agents** that need to compose ad-hoc task
+trees on-the-fly without writing Go code.
+
+Two CLI surfaces share the same schema:
+
+- **`./pok -json [task]`** emits the invocation plan as JSON to stdout (no
+  execution). Useful for inspecting an existing Pocket project.
+- **`./pok exec`** reads a JSON document from stdin and executes it through the
+  same engine as the typed-config path (same composition, deduplication, output
+  buffering, and post-actions).
+
+### Schema (v1)
+
+A versioned root with a single execution tree. Strict — unknown fields error.
+
+```json
+{
+  "version": 1,
+  "tree": {
+    "serial": [
+      {
+        "name": "lint",
+        "exec": ["golangci-lint", "run", "./..."],
+        "paths": ["."]
+      },
+      {
+        "parallel": [
+          { "name": "test", "exec": ["go", "test", "./..."] },
+          { "name": "vuln", "exec": ["govulncheck", "./..."] }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Each node has **exactly one** of these kind keys:
+
+| Kind key   | Type         | Description                                              |
+| :--------- | :----------- | :------------------------------------------------------- |
+| `exec`     | string array | Shell task. Element 0 is the command; the rest are args. |
+| `serial`   | node array   | Sequential composition. Stops on first error.            |
+| `parallel` | node array   | Concurrent composition with buffered output.             |
+
+Task-node fields (only valid alongside `exec`):
+
+| Field   | Type         | Required | Description                                                     |
+| :------ | :----------- | :------- | :-------------------------------------------------------------- |
+| `name`  | string       | yes      | Display name used for the `:: task` header and deduplication    |
+| `paths` | string array | no       | Literal directories (relative to git root). Defaults to `["."]` |
+
+### Validation rules (strict)
+
+- Unknown top-level or node-level fields error with the field path.
+- A node must have exactly one kind key set; zero or multiple kind keys error.
+- `exec`, `serial`, `parallel`, and `paths` arrays must be non-empty when
+  present (omit `paths` to default to root).
+- `name` is required on `exec` nodes; `name` and `paths` are not allowed on
+  `serial` or `parallel` nodes.
+- `version` must be `1`.
+
+### Errors
+
+Validation and parse errors are emitted to stderr as JSON, one object per error,
+so they can be parsed by an agent:
+
+```json
+{ "error": "tree.serial[0].exec: empty array" }
+```
+
+The CLI exits non-zero on any validation or execution error.
+
+### Global flags interact normally
+
+`-v`, `-s`, `-g`, and `-c` work with `exec` the same way they work with any
+other task — they apply through the same context machinery:
+
+```bash
+./pok -v exec < tree.json          # stream task output instead of buffering
+./pok -s exec < tree.json          # force serial execution of parallel nodes
+./pok -g exec < tree.json          # run git diff check after execution
+```
+
+### Inspecting a Go-defined project
+
+The global `-json` flag emits the composition tree of the current
+`.pocket/config.go` project:
+
+```bash
+./pok -json              # full Auto tree
+./pok -json go-test      # single-task slice
+```
+
+Emitted task nodes carry `name` and `paths` only — there is no `exec` field,
+because Go-defined task bodies are not introspectable as shell commands.
+Round-trip from `-json` to `exec` is therefore **not** supported in v1; the two
+surfaces share the envelope shape but the emitted form is not directly
+executable.
+
+### Schema document
+
+Print the JSON Schema (Draft-07) for v1:
+
+```bash
+./pok exec --schema
+```
+
+### Out of scope for v1
+
+The following are intentional deferrals; the schema may add new kind keys or
+fields in later versions:
+
+- **Named task references** (`ref` field): cannot reference Go-defined tasks
+  from JSON yet.
+- **Typed flag overrides** for referenced tasks.
+- **Path detection** (the equivalent of `WithDetect`): paths must be literal.
+  Agents are expected to pre-resolve filesystem patterns themselves.
+- **Scope-level options**: `WithForceRun`, `WithVerbose`, `WithNameSuffix`,
+  `WithNoticePatterns`.
+- **File-based input** for `exec`: stdin only.

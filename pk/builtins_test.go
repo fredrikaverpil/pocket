@@ -46,6 +46,7 @@ func TestIsBuiltinName(t *testing.T) {
 	}{
 		{"shims", true},
 		{"plan", true},
+		{"exec", true},
 		{"git-diff", true},
 		{"self-update", true},
 		{"purge", true},

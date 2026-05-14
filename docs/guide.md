@@ -49,6 +49,10 @@ defining your first task to building complex CI pipelines.
   - [Simple Workflow](#simple-workflow)
   - [Per-Task Workflow](#per-task-workflow)
   - [PerPocketTaskJobOption](#perpockettaskjoboption)
+- [JSON Execution](#json-execution)
+  - [Schema](#schema)
+  - [Executing JSON](#executing-json)
+  - [Inspecting a Go Project as JSON](#inspecting-a-go-project-as-json)
 
 ---
 
@@ -1348,3 +1352,90 @@ Use `github.AllPlatforms()` to get all platforms (returns `[]Platform`).
 | Parallel task execution          | No        | Yes      |
 | Fail-fast granularity            | All tasks | Per task |
 | Configuration complexity         | Low       | Medium   |
+
+---
+
+## JSON Execution
+
+In addition to the typed `.pocket/config.go` path, Pocket can be driven from a
+JSON document. This is aimed at **LLMs and agents** that need to compose ad-hoc
+task trees without scaffolding a Go project. The JSON path uses the exact same
+engine as the Go config path — same `Serial`/`Parallel` semantics, the same
+deduplication, the same output buffering, the same global flag behavior.
+
+### Schema
+
+A versioned root with a single execution tree. Each node has **exactly one**
+kind key: `exec`, `serial`, or `parallel`. Unknown fields error.
+
+```json
+{
+  "version": 1,
+  "tree": {
+    "serial": [
+      {
+        "name": "lint",
+        "exec": ["golangci-lint", "run", "./..."]
+      },
+      {
+        "parallel": [
+          { "name": "test", "exec": ["go", "test", "./..."] },
+          { "name": "vuln", "exec": ["govulncheck", "./..."] }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Task nodes (those with `exec`) accept an optional `paths` array of literal
+directories relative to the git root. Omit `paths` to run at the repository
+root. See the [JSON Execution](./reference.md#json-execution) reference for the
+full set of validation rules.
+
+### Executing JSON
+
+Pipe a document into the `exec` builtin:
+
+```bash
+echo '{"version":1,"tree":{"exec":["echo","hello"],"name":"greet"}}' \
+  | ./pok exec
+```
+
+Global flags work the same as for any other task:
+
+```bash
+./pok -v exec < tree.json    # stream task output instead of buffering
+./pok -s exec < tree.json    # force serial execution
+./pok -g exec < tree.json    # run git diff check after execution
+```
+
+Validation and parse errors are emitted to stderr as JSON objects, one per
+error, so agents can parse the failure:
+
+```json
+{ "error": "tree.serial[0].name: required for exec nodes" }
+```
+
+The CLI exits non-zero on any validation or execution error.
+
+Print the JSON Schema (Draft-07) for the v1 format with:
+
+```bash
+./pok exec --schema
+```
+
+### Inspecting a Go Project as JSON
+
+The global `-json` flag emits the composition tree of the current
+`.pocket/config.go` project, instead of executing it:
+
+```bash
+./pok -json              # emit the full Auto tree as JSON
+./pok -json go-test      # emit a single-task slice
+```
+
+Emitted task nodes carry `name` and `paths` only — there is no `exec` field,
+because Go-defined task bodies are not shell commands. This is intentionally
+**introspection-only** in v1; the emitted shape is not directly executable
+through `./pok exec`.
