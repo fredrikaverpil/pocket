@@ -3,10 +3,12 @@ package pk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	pkrun "github.com/fredrikaverpil/pocket/pk/run"
@@ -38,7 +40,7 @@ func parseExecJSON(r io.Reader) (*jsonRoot, error) {
 	dec.DisallowUnknownFields()
 	var root jsonRoot
 	if err := dec.Decode(&root); err != nil {
-		return nil, fmt.Errorf("decoding JSON: %w", err)
+		return nil, friendlyDecodeError(err)
 	}
 	if dec.More() {
 		return nil, fmt.Errorf("unexpected trailing content after root document")
@@ -53,6 +55,49 @@ func parseExecJSON(r io.Reader) (*jsonRoot, error) {
 		return nil, err
 	}
 	return &root, nil
+}
+
+// friendlyDecodeError rewrites Go's encoding/json errors into agent-friendly
+// messages: field paths instead of Go types, schema-oriented expected types,
+// and a stripped "json: " prefix.
+func friendlyDecodeError(err error) error {
+	if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
+		field := typeErr.Field
+		if field == "" {
+			field = "<root>"
+		}
+		return fmt.Errorf("%s: expected %s, got %s", field, expectedSchemaType(field), typeErr.Value)
+	}
+	if synErr, ok := errors.AsType[*json.SyntaxError](err); ok {
+		return fmt.Errorf("invalid JSON at byte offset %d: %s", synErr.Offset, synErr.Error())
+	}
+	// Unknown-field errors from DisallowUnknownFields are plain `error` values
+	// with message `json: unknown field "X"`. Strip the redundant prefix.
+	msg := strings.TrimPrefix(err.Error(), "json: ")
+	return errors.New(msg)
+}
+
+// expectedSchemaType returns the JSON-schema type expected for a field path
+// like "tree.serial.exec" or "version". Trailing segment determines the type.
+func expectedSchemaType(field string) string {
+	last := field
+	if idx := strings.LastIndex(field, "."); idx >= 0 {
+		last = field[idx+1:]
+	}
+	switch last {
+	case "version":
+		return "integer"
+	case "tree":
+		return "object"
+	case "exec", "paths":
+		return "array of strings"
+	case "serial", "parallel":
+		return "array of nodes"
+	case "name":
+		return "string"
+	default:
+		return "different type"
+	}
 }
 
 // validateNode enforces the v1 schema rules on a single node and its children.

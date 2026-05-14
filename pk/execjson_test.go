@@ -139,6 +139,36 @@ func TestParseExecJSON_Errors(t *testing.T) {
 			doc:  `{"version":1,"tree":{"serial":[{"exec":["x"],"name":"x","serial":[]}]}}`,
 			want: "expected exactly one of",
 		},
+		{
+			name: "exec as string instead of array",
+			doc:  `{"version":1,"tree":{"exec":"echo hi","name":"x"}}`,
+			want: "tree.exec: expected array of strings, got string",
+		},
+		{
+			name: "paths as string instead of array",
+			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x","paths":"."}}`,
+			want: "tree.paths: expected array of strings, got string",
+		},
+		{
+			name: "version as string instead of integer",
+			doc:  `{"version":"1","tree":{"exec":["x"],"name":"x"}}`,
+			want: "version: expected integer, got string",
+		},
+		{
+			name: "tree as string instead of object",
+			doc:  `{"version":1,"tree":"oops"}`,
+			want: "tree: expected object, got string",
+		},
+		{
+			name: "serial as object instead of array",
+			doc:  `{"version":1,"tree":{"serial":{}}}`,
+			want: "tree.serial: expected array of nodes, got object",
+		},
+		{
+			name: "syntax error",
+			doc:  `{"version":1,"tree":{"exec":["x"]`,
+			want: "unexpected EOF",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
