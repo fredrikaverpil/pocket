@@ -719,21 +719,28 @@ Two CLI surfaces share the same schema:
 ### Schema (v1)
 
 A versioned root with a single execution tree. Strict — unknown fields error.
+Each node has an explicit `type` discriminator.
 
 ```json
 {
   "version": 1,
   "tree": {
-    "serial": [
+    "type": "serial",
+    "children": [
       {
-        "name": "lint",
-        "exec": ["golangci-lint", "run", "./..."],
+        "type": "task",
+        "name": "go-format",
         "paths": ["."]
       },
       {
-        "parallel": [
-          { "name": "test", "exec": ["go", "test", "./..."] },
-          { "name": "vuln", "exec": ["govulncheck", "./..."] }
+        "type": "parallel",
+        "children": [
+          { "type": "task", "name": "go-test" },
+          {
+            "type": "command",
+            "name": "custom-vet",
+            "argv": ["go", "vet", "./..."]
+          }
         ]
       }
     ]
@@ -741,29 +748,39 @@ A versioned root with a single execution tree. Strict — unknown fields error.
 }
 ```
 
-Each node has **exactly one** of these kind keys:
+Node types:
 
-| Kind key   | Type         | Description                                              |
-| :--------- | :----------- | :------------------------------------------------------- |
-| `exec`     | string array | Shell task. Element 0 is the command; the rest are args. |
-| `serial`   | node array   | Sequential composition. Stops on first error.            |
-| `parallel` | node array   | Concurrent composition with buffered output.             |
+| Type       | Required fields      | Description                                             |
+| :--------- | :------------------- | :------------------------------------------------------ |
+| `task`     | `name`               | Reference an existing Pocket task by effective name     |
+| `command`  | `name`, `argv`       | Run a raw command; `argv[0]` is the executable          |
+| `serial`   | `children`           | Sequential composition. Stops on first error            |
+| `parallel` | `children`           | Concurrent composition with buffered output             |
 
-Task-node fields (only valid alongside `exec`):
+Task and command fields:
 
-| Field   | Type         | Required | Description                                                     |
-| :------ | :----------- | :------- | :-------------------------------------------------------------- |
-| `name`  | string       | yes      | Display name used for the `:: task` header and deduplication    |
-| `paths` | string array | no       | Literal directories (relative to git root). Defaults to `["."]` |
+| Field   | Type         | Required | Description                                                               |
+| :------ | :----------- | :------- | :------------------------------------------------------------------------ |
+| `name`  | string       | yes      | Display name for commands; effective Pocket task name for task refs       |
+| `argv`  | string array | command  | Raw argument vector. Only valid on `command` nodes                        |
+| `paths` | string array | no       | Literal directories relative to git root. Defaults to task paths or root  |
+
+Composition fields:
+
+| Field      | Type       | Required | Description                         |
+| :--------- | :--------- | :------- | :---------------------------------- |
+| `children` | node array | yes      | Child nodes for `serial`/`parallel` |
 
 ### Validation rules (strict)
 
 - Unknown top-level or node-level fields error with the field path.
-- A node must have exactly one kind key set; zero or multiple kind keys error.
-- `exec`, `serial`, `parallel`, and `paths` arrays must be non-empty when
-  present (omit `paths` to default to root).
-- `name` is required on `exec` nodes; `name` and `paths` are not allowed on
-  `serial` or `parallel` nodes.
+- Every node must have `type`: `task`, `command`, `serial`, or `parallel`.
+- `command` nodes require non-empty `argv` and `name`.
+- `task` nodes require `name` and must reference a task in the current Pocket
+  project when executed.
+- `serial` and `parallel` nodes require non-empty `children`.
+- `paths` is only valid on `task` and `command` nodes and must be non-empty when
+  present.
 - `version` must be `1`.
 
 ### Errors
@@ -772,7 +789,7 @@ Validation and parse errors are emitted to stderr as JSON, one object per error,
 so they can be parsed by an agent:
 
 ```json
-{ "error": "tree.serial[0].exec: empty array" }
+{ "error": "tree.children[0].argv: empty array" }
 ```
 
 The CLI exits non-zero on any validation or execution error.
@@ -790,19 +807,29 @@ other task — they apply through the same context machinery:
 
 ### Inspecting a Go-defined project
 
-The global `-json` flag emits the composition tree of the current
+The global `-json` flag emits the executable task tree of the current
 `.pocket/config.go` project:
 
 ```bash
 ./pok -json              # full Auto tree
-./pok -json go-test      # single-task slice
+./pok -json go-test      # single task reference
 ```
 
-Emitted task nodes carry `name` and `paths` only — there is no `exec` field,
-because Go-defined task bodies are not introspectable as shell commands.
-Round-trip from `-json` to `exec` is therefore **not** supported in v1; the two
-surfaces share the envelope shape but the emitted form is not directly
-executable.
+Go-defined task bodies are emitted as task references rather than raw commands:
+
+```json
+{
+  "version": 1,
+  "tree": {
+    "type": "task",
+    "name": "go-test",
+    "paths": ["."]
+  }
+}
+```
+
+The emitted output can be piped back into `./pok exec` in the same Pocket
+project.
 
 ### Schema document
 
@@ -814,11 +841,9 @@ Print the JSON Schema (Draft-07) for v1:
 
 ### Out of scope for v1
 
-The following are intentional deferrals; the schema may add new kind keys or
+The following are intentional deferrals; the schema may add new node types or
 fields in later versions:
 
-- **Named task references** (`ref` field): cannot reference Go-defined tasks
-  from JSON yet.
 - **Typed flag overrides** for referenced tasks.
 - **Path detection** (the equivalent of `WithDetect`): paths must be literal.
   Agents are expected to pre-resolve filesystem patterns themselves.

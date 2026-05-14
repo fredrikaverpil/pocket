@@ -28,6 +28,8 @@ provider. Your CI becomes portable.
   `./pok plan` before executing, or access the plan programmatically to generate
   CI matrices, documentation, or custom tooling. Your tasks become the single
   source of truth.
+- **LLM-Friendly**: Emit executable task trees as JSON and feed them back into
+  Pocket, e.g. `./pok -json go-test | ./pok exec` or `./pok exec < tree.json`.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
 
 <details>
@@ -250,17 +252,17 @@ Pocket can also be driven from a JSON document, primarily for LLMs and agents
 that compose task trees on-the-fly without writing Go code:
 
 ```bash
-echo '{"version":1,"tree":{"serial":[
-  {"name":"lint","exec":["golangci-lint","run","./..."]},
-  {"name":"test","exec":["go","test","./..."]}
+echo '{"version":1,"tree":{"type":"serial","children":[
+  {"type":"command","name":"lint","argv":["golangci-lint","run","./..."]},
+  {"type":"command","name":"test","argv":["go","test","./..."]}
 ]}}' | ./pok exec
 ```
 
 The same engine drives both paths — composition, deduplication, and output
-buffering behave identically. Inspect an existing project's plan as JSON with
-`./pok -json [task]`, and print the v1 schema with `./pok exec --schema`. See
-the [JSON Execution](./docs/reference.md#json-execution) reference for full
-schema and rules.
+buffering behave identically. Inspect an existing project's executable task tree
+as JSON with `./pok -json [task]`, and print the v1 schema with
+`./pok exec --schema`. See the [JSON Execution](./docs/reference.md#json-execution)
+reference for full schema and rules.
 
 ### Programmatic Plan Access
 

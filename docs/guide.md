@@ -1365,22 +1365,28 @@ deduplication, the same output buffering, the same global flag behavior.
 
 ### Schema
 
-A versioned root with a single execution tree. Each node has **exactly one**
-kind key: `exec`, `serial`, or `parallel`. Unknown fields error.
+A versioned root with a single execution tree. Each node has an explicit `type`:
+`task`, `command`, `serial`, or `parallel`. Unknown fields error.
 
 ```json
 {
   "version": 1,
   "tree": {
-    "serial": [
+    "type": "serial",
+    "children": [
       {
-        "name": "lint",
-        "exec": ["golangci-lint", "run", "./..."]
+        "type": "task",
+        "name": "go-format"
       },
       {
-        "parallel": [
-          { "name": "test", "exec": ["go", "test", "./..."] },
-          { "name": "vuln", "exec": ["govulncheck", "./..."] }
+        "type": "parallel",
+        "children": [
+          { "type": "task", "name": "go-test" },
+          {
+            "type": "command",
+            "name": "custom-vet",
+            "argv": ["go", "vet", "./..."]
+          }
         ]
       }
     ]
@@ -1388,17 +1394,20 @@ kind key: `exec`, `serial`, or `parallel`. Unknown fields error.
 }
 ```
 
-Task nodes (those with `exec`) accept an optional `paths` array of literal
-directories relative to the git root. Omit `paths` to run at the repository
-root. See the [JSON Execution](./reference.md#json-execution) reference for the
-full set of validation rules.
+`task` nodes reference existing Pocket tasks by name. `command` nodes run raw
+argument vectors; `argv[0]` is the executable and the rest are arguments. Task
+and command nodes accept an optional `paths` array of literal directories
+relative to the git root. Omit `paths` to use the referenced task's existing
+paths, or the repository root for raw commands. See the
+[JSON Execution](./reference.md#json-execution) reference for the full set of
+validation rules.
 
 ### Executing JSON
 
 Pipe a document into the `exec` builtin:
 
 ```bash
-echo '{"version":1,"tree":{"exec":["echo","hello"],"name":"greet"}}' \
+echo '{"version":1,"tree":{"type":"command","argv":["echo","hello"],"name":"greet"}}' \
   | ./pok exec
 ```
 
@@ -1414,7 +1423,7 @@ Validation and parse errors are emitted to stderr as JSON objects, one per
 error, so agents can parse the failure:
 
 ```json
-{ "error": "tree.serial[0].name: required for exec nodes" }
+{ "error": "tree.children[0].name: required for command nodes" }
 ```
 
 The CLI exits non-zero on any validation or execution error.
@@ -1427,15 +1436,14 @@ Print the JSON Schema (Draft-07) for the v1 format with:
 
 ### Inspecting a Go Project as JSON
 
-The global `-json` flag emits the composition tree of the current
+The global `-json` flag emits the executable task tree of the current
 `.pocket/config.go` project, instead of executing it:
 
 ```bash
 ./pok -json              # emit the full Auto tree as JSON
-./pok -json go-test      # emit a single-task slice
+./pok -json go-test      # emit a single task reference
 ```
 
-Emitted task nodes carry `name` and `paths` only — there is no `exec` field,
-because Go-defined task bodies are not shell commands. This is intentionally
-**introspection-only** in v1; the emitted shape is not directly executable
-through `./pok exec`.
+Because Go-defined task bodies are not shell commands, emitted task nodes use
+`{ "type": "task", "name": "..." }` references rather than raw `argv`
+commands. The output is accepted by `./pok exec` in the same Pocket project.

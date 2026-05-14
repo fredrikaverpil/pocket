@@ -32,11 +32,12 @@ func TestParseExecJSON_Valid(t *testing.T) {
 	doc := `{
 		"version": 1,
 		"tree": {
-			"serial": [
-				{"exec": ["echo", "a"], "name": "step-a"},
-				{"parallel": [
-					{"exec": ["echo", "b"], "name": "step-b"},
-					{"exec": ["echo", "c"], "name": "step-c"}
+			"type": "serial",
+			"children": [
+				{"type": "command", "argv": ["echo", "a"], "name": "step-a"},
+				{"type": "parallel", "children": [
+					{"type": "command", "argv": ["echo", "b"], "name": "step-b"},
+					{"type": "task", "name": "go-test"}
 				]}
 			]
 		}
@@ -48,7 +49,7 @@ func TestParseExecJSON_Valid(t *testing.T) {
 	if root.Version != 1 {
 		t.Errorf("version = %d, want 1", root.Version)
 	}
-	if root.Tree == nil || len(root.Tree.Serial) != 2 {
+	if root.Tree == nil || len(root.Tree.Children) != 2 {
 		t.Errorf("expected serial with 2 children, got %+v", root.Tree)
 	}
 }
@@ -61,12 +62,12 @@ func TestParseExecJSON_Errors(t *testing.T) {
 	}{
 		{
 			name: "unknown top-level field",
-			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x"},"extra":1}`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x"},"extra":1}`,
 			want: `unknown field "extra"`,
 		},
 		{
 			name: "unknown nested field",
-			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x","bogus":1}}`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x","bogus":1}}`,
 			want: `unknown field "bogus"`,
 		},
 		{
@@ -76,82 +77,92 @@ func TestParseExecJSON_Errors(t *testing.T) {
 		},
 		{
 			name: "unsupported version",
-			doc:  `{"version":2,"tree":{"exec":["x"],"name":"x"}}`,
+			doc:  `{"version":2,"tree":{"type":"command","argv":["x"],"name":"x"}}`,
 			want: "version: unsupported",
 		},
 		{
-			name: "version zero (absent)",
-			doc:  `{"tree":{"exec":["x"],"name":"x"}}`,
+			name: "version zero absent",
+			doc:  `{"tree":{"type":"command","argv":["x"],"name":"x"}}`,
 			want: "version: unsupported value 0",
 		},
 		{
-			name: "no kind key",
+			name: "missing type",
 			doc:  `{"version":1,"tree":{"name":"x"}}`,
-			want: "expected one of: exec, serial, parallel",
+			want: "tree.type: required",
 		},
 		{
-			name: "two kind keys",
-			doc:  `{"version":1,"tree":{"exec":["x"],"serial":[]}}`,
-			want: "expected exactly one of",
+			name: "unknown type",
+			doc:  `{"version":1,"tree":{"type":"shell","name":"x"}}`,
+			want: `tree.type: unsupported value "shell"`,
 		},
 		{
-			name: "exec empty",
-			doc:  `{"version":1,"tree":{"exec":[],"name":"x"}}`,
-			want: "exec: empty array",
+			name: "command argv empty",
+			doc:  `{"version":1,"tree":{"type":"command","argv":[],"name":"x"}}`,
+			want: "argv: empty array",
 		},
 		{
-			name: "exec missing name",
-			doc:  `{"version":1,"tree":{"exec":["x"]}}`,
-			want: "name: required",
+			name: "command missing name",
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"]}}`,
+			want: "name: required for command nodes",
+		},
+		{
+			name: "task missing name",
+			doc:  `{"version":1,"tree":{"type":"task"}}`,
+			want: "name: required for task nodes",
 		},
 		{
 			name: "serial empty",
-			doc:  `{"version":1,"tree":{"serial":[]}}`,
-			want: "serial: empty array",
+			doc:  `{"version":1,"tree":{"type":"serial","children":[]}}`,
+			want: "children: empty array",
 		},
 		{
 			name: "parallel empty",
-			doc:  `{"version":1,"tree":{"parallel":[]}}`,
-			want: "parallel: empty array",
+			doc:  `{"version":1,"tree":{"type":"parallel","children":[]}}`,
+			want: "children: empty array",
 		},
 		{
 			name: "name on composition",
-			doc:  `{"version":1,"tree":{"serial":[{"exec":["x"],"name":"x"}],"name":"oops"}}`,
-			want: "name: not allowed on serial composition",
+			doc:  `{"version":1,"tree":{"type":"serial","children":[{"type":"command","argv":["x"],"name":"x"}],"name":"oops"}}`,
+			want: "name: not allowed on serial nodes",
 		},
 		{
 			name: "paths on composition",
-			doc:  `{"version":1,"tree":{"parallel":[{"exec":["x"],"name":"x"}],"paths":["."]}}`,
-			want: "paths: not allowed on parallel composition",
+			doc:  `{"version":1,"tree":{"type":"parallel","children":[{"type":"command","argv":["x"],"name":"x"}],"paths":["."]}}`,
+			want: "paths: not allowed on parallel nodes",
+		},
+		{
+			name: "argv on task",
+			doc:  `{"version":1,"tree":{"type":"task","name":"x","argv":["x"]}}`,
+			want: "argv: not allowed on task nodes",
+		},
+		{
+			name: "children on command",
+			doc:  `{"version":1,"tree":{"type":"command","name":"x","argv":["x"],"children":[]}}`,
+			want: "children: not allowed on command nodes",
 		},
 		{
 			name: "paths empty array",
-			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x","paths":[]}}`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x","paths":[]}}`,
 			want: "paths: empty array",
 		},
 		{
 			name: "paths with empty entry",
-			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x","paths":[""]}}`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x","paths":[""]}}`,
 			want: "paths[0]: empty path",
 		},
 		{
-			name: "nested unknown kind not allowed",
-			doc:  `{"version":1,"tree":{"serial":[{"exec":["x"],"name":"x","serial":[]}]}}`,
-			want: "expected exactly one of",
-		},
-		{
-			name: "exec as string instead of array",
-			doc:  `{"version":1,"tree":{"exec":"echo hi","name":"x"}}`,
-			want: "tree.exec: expected array of strings, got string",
+			name: "argv as string instead of array",
+			doc:  `{"version":1,"tree":{"type":"command","argv":"echo hi","name":"x"}}`,
+			want: "tree.argv: expected array of strings, got string",
 		},
 		{
 			name: "paths as string instead of array",
-			doc:  `{"version":1,"tree":{"exec":["x"],"name":"x","paths":"."}}`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x","paths":"."}}`,
 			want: "tree.paths: expected array of strings, got string",
 		},
 		{
 			name: "version as string instead of integer",
-			doc:  `{"version":"1","tree":{"exec":["x"],"name":"x"}}`,
+			doc:  `{"version":"1","tree":{"type":"command","argv":["x"],"name":"x"}}`,
 			want: "version: expected integer, got string",
 		},
 		{
@@ -160,13 +171,13 @@ func TestParseExecJSON_Errors(t *testing.T) {
 			want: "tree: expected object, got string",
 		},
 		{
-			name: "serial as object instead of array",
-			doc:  `{"version":1,"tree":{"serial":{}}}`,
-			want: "tree.serial: expected array of nodes, got object",
+			name: "children as object instead of array",
+			doc:  `{"version":1,"tree":{"type":"serial","children":{}}}`,
+			want: "tree.children: expected array of nodes, got object",
 		},
 		{
 			name: "syntax error",
-			doc:  `{"version":1,"tree":{"exec":["x"]`,
+			doc:  `{"version":1,"tree":{"type":"command","argv":["x"]`,
 			want: "unexpected EOF",
 		},
 	}
@@ -190,10 +201,10 @@ func markerScript(t *testing.T, file, token string) []string {
 	if runtime.GOOS == "windows" {
 		return []string{"cmd", "/C", fmt.Sprintf(`echo %s >> %s`, token, file)}
 	}
-	return []string{"sh", "-c", fmt.Sprintf("printf '%%s\\n' %q >> %q", token, file)}
+	return []string{"sh", "-c", fmt.Sprintf("printf '%%s\n' %q >> %q", token, file)}
 }
 
-// readMarkers returns the lines from a marker file (or nil if it does not exist).
+// readMarkers returns the lines from a marker file, or nil if it does not exist.
 func readMarkers(t *testing.T, file string) []string {
 	t.Helper()
 	data, err := os.ReadFile(file)
@@ -220,10 +231,11 @@ func TestRunExecJSON_SerialOrder(t *testing.T) {
 	doc := fmt.Sprintf(`{
 		"version": 1,
 		"tree": {
-			"serial": [
-				{"exec": %s, "name": "a"},
-				{"exec": %s, "name": "b"},
-				{"exec": %s, "name": "c"}
+			"type": "serial",
+			"children": [
+				{"type": "command", "argv": %s, "name": "a"},
+				{"type": "command", "argv": %s, "name": "b"},
+				{"type": "command", "argv": %s, "name": "c"}
 			]
 		}
 	}`,
@@ -242,8 +254,6 @@ func TestRunExecJSON_SerialOrder(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("markers = %v, want %v\nstdout: %s", got, want, stdout.String())
 	}
-
-	// Headers should appear for each task in stdout.
 	for _, name := range want {
 		if !strings.Contains(stdout.String(), ":: "+name) {
 			t.Errorf("expected stdout to contain task header for %q, got:\n%s", name, stdout.String())
@@ -258,10 +268,11 @@ func TestRunExecJSON_ParallelRunsAll(t *testing.T) {
 	doc := fmt.Sprintf(`{
 		"version": 1,
 		"tree": {
-			"parallel": [
-				{"exec": %s, "name": "a"},
-				{"exec": %s, "name": "b"},
-				{"exec": %s, "name": "c"}
+			"type": "parallel",
+			"children": [
+				{"type": "command", "argv": %s, "name": "a"},
+				{"type": "command", "argv": %s, "name": "b"},
+				{"type": "command", "argv": %s, "name": "c"}
 			]
 		}
 	}`,
@@ -284,23 +295,9 @@ func TestRunExecJSON_ParallelRunsAll(t *testing.T) {
 }
 
 func TestRunExecJSON_TaskFailureReturnsError(t *testing.T) {
-	doc := `{
-		"version": 1,
-		"tree": {
-			"serial": [
-				{"exec": ["sh", "-c", "exit 1"], "name": "fail"}
-			]
-		}
-	}`
+	doc := `{"version":1,"tree":{"type":"command","argv":["sh","-c","exit 1"],"name":"fail"}}`
 	if runtime.GOOS == "windows" {
-		doc = `{
-			"version": 1,
-			"tree": {
-				"serial": [
-					{"exec": ["cmd", "/C", "exit 1"], "name": "fail"}
-				]
-			}
-		}`
+		doc = `{"version":1,"tree":{"type":"command","argv":["cmd","/C","exit 1"],"name":"fail"}}`
 	}
 	ctx, _, _ := execJSONTestCtx(t)
 	err := runExecJSON(ctx, strings.NewReader(doc))
@@ -326,16 +323,14 @@ func TestRunExecJSON_ValidationErrorEmitsJSONOnStderr(t *testing.T) {
 }
 
 func TestRunExecJSON_MultiPathHeaders(t *testing.T) {
-	// Use a no-op task that records the path it ran at via the context.
-	// We replace the closure post-build to avoid invoking real shells.
-	doc := `{"version":1,"tree":{"exec":["echo","x"],"name":"multi","paths":["a","b"]}}`
+	doc := `{"version":1,"tree":{"type":"command","argv":["echo","x"],"name":"multi","paths":["a","b"]}}`
 
 	root, err := parseExecJSON(strings.NewReader(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var nodes []taskNodeInfo
-	tree, err := buildRunnable(root.Tree, &nodes)
+	tree, err := buildRunnable(root.Tree, &nodes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,7 +342,7 @@ func TestRunExecJSON_MultiPathHeaders(t *testing.T) {
 		paths = append(paths, pkrun.PathFromContext(ctx))
 		return nil
 	}
-	plan := buildPlanFromJSON(tree, nodes)
+	plan := buildPlanFromJSON(tree, nodes, nil)
 
 	ctx, stdout, _ := execJSONTestCtx(t)
 	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
@@ -359,7 +354,6 @@ func TestRunExecJSON_MultiPathHeaders(t *testing.T) {
 	if !slices.Equal(paths, []string{"a", "b"}) {
 		t.Errorf("paths visited = %v, want [a b]", paths)
 	}
-	// Per-path headers should appear in stdout.
 	for _, p := range []string{"a", "b"} {
 		want := fmt.Sprintf(":: multi [%s]", p)
 		if !strings.Contains(stdout.String(), want) {
@@ -368,33 +362,33 @@ func TestRunExecJSON_MultiPathHeaders(t *testing.T) {
 	}
 }
 
-func TestBuildRunnable_SingleTaskAtRootIsBareTask(t *testing.T) {
-	doc := `{"version":1,"tree":{"exec":["echo","x"],"name":"x"}}`
+func TestBuildRunnable_SingleCommandAtRootIsBareTask(t *testing.T) {
+	doc := `{"version":1,"tree":{"type":"command","argv":["echo","x"],"name":"x"}}`
 	root, err := parseExecJSON(strings.NewReader(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var nodes []taskNodeInfo
-	r, err := buildRunnable(root.Tree, &nodes)
+	r, err := buildRunnable(root.Tree, &nodes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := r.(*Task); !ok {
-		t.Errorf("expected *Task for single-task root, got %T", r)
+		t.Errorf("expected *Task for single command at root, got %T", r)
 	}
 	if len(nodes) != 1 || nodes[0].name != "x" {
 		t.Errorf("unexpected taskNodes: %+v", nodes)
 	}
 }
 
-func TestBuildRunnable_MultiPathWrapsInPathFilter(t *testing.T) {
-	doc := `{"version":1,"tree":{"exec":["echo","x"],"name":"x","paths":["a","b"]}}`
+func TestBuildRunnable_MultiPathWrapsCommandInPathFilter(t *testing.T) {
+	doc := `{"version":1,"tree":{"type":"command","argv":["echo","x"],"name":"x","paths":["a","b"]}}`
 	root, err := parseExecJSON(strings.NewReader(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var nodes []taskNodeInfo
-	r, err := buildRunnable(root.Tree, &nodes)
+	r, err := buildRunnable(root.Tree, &nodes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,21 +401,67 @@ func TestBuildRunnable_MultiPathWrapsInPathFilter(t *testing.T) {
 	}
 }
 
+func TestRunExecJSON_TaskReference(t *testing.T) {
+	var ran []string
+	task := &Task{Name: "lint", Usage: "lint", Do: func(ctx context.Context) error {
+		ran = append(ran, pkrun.PathFromContext(ctx))
+		return nil
+	}}
+	basePlan, err := newPlan(&Config{Auto: Serial(task)}, "/tmp", []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"version":1,"tree":{"type":"task","name":"lint","paths":["api"]}}`
+	ctx, stdout, _ := execJSONTestCtx(t)
+	ctx = context.WithValue(ctx, ctxkey.Plan{}, basePlan)
+	if err := runExecJSON(ctx, strings.NewReader(doc)); err != nil {
+		t.Fatalf("runExecJSON: %v", err)
+	}
+	if !slices.Equal(ran, []string{"api"}) {
+		t.Errorf("paths visited = %v, want [api]", ran)
+	}
+	if !strings.Contains(stdout.String(), ":: lint [api]") {
+		t.Errorf("expected task header for path, got:\n%s", stdout.String())
+	}
+}
+
+func TestBuildPlanFromJSON_TaskReferencePathsOverrideBasePlan(t *testing.T) {
+	task := &Task{Name: "lint", Usage: "lint", Do: func(_ context.Context) error { return nil }}
+	basePlan, err := newPlan(&Config{Auto: Serial(task)}, "/tmp", []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"version":1,"tree":{"type":"task","name":"lint","paths":["api"]}}`
+	root, err := parseExecJSON(strings.NewReader(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var nodes []taskNodeInfo
+	tree, err := buildRunnable(root.Tree, &nodes, basePlan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := buildPlanFromJSON(tree, nodes, basePlan)
+	if got := plan.pathMappings["lint"].resolvedPaths; !slices.Equal(got, []string{"api"}) {
+		t.Errorf("lint paths = %v, want [api]", got)
+	}
+}
+
 func TestBuildPlanFromJSON_PopulatesPathMappings(t *testing.T) {
-	doc := `{"version":1,"tree":{"serial":[
-		{"exec":["echo","a"],"name":"a","paths":["x"]},
-		{"exec":["echo","b"],"name":"b"}
+	doc := `{"version":1,"tree":{"type":"serial","children":[
+		{"type":"command","argv":["echo","a"],"name":"a","paths":["x"]},
+		{"type":"command","argv":["echo","b"],"name":"b"}
 	]}}`
 	root, err := parseExecJSON(strings.NewReader(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var nodes []taskNodeInfo
-	tree, err := buildRunnable(root.Tree, &nodes)
+	tree, err := buildRunnable(root.Tree, &nodes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := buildPlanFromJSON(tree, nodes)
+	plan := buildPlanFromJSON(tree, nodes, nil)
 	if got := plan.pathMappings["a"].resolvedPaths; !slices.Equal(got, []string{"x"}) {
 		t.Errorf("a paths = %v, want [x]", got)
 	}
@@ -457,8 +497,11 @@ func TestEmitInvocationJSON_FullTree(t *testing.T) {
 	if tree == nil {
 		t.Fatalf("missing tree: %s", buf.String())
 	}
-	if _, ok := tree["serial"]; !ok {
-		t.Errorf("expected serial kind key in tree, got %v", tree)
+	if tree["type"] != "serial" {
+		t.Errorf("expected serial type in tree, got %v", tree)
+	}
+	if _, ok := tree["children"]; !ok {
+		t.Errorf("expected children in tree, got %v", tree)
 	}
 }
 
@@ -479,6 +522,9 @@ func TestEmitInvocationJSON_SingleTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	tree, _ := doc["tree"].(map[string]any)
+	if tree["type"] != "task" {
+		t.Errorf("type = %v, want task", tree["type"])
+	}
 	if tree["name"] != "lint" {
 		t.Errorf("name = %v, want lint", tree["name"])
 	}
@@ -516,9 +562,10 @@ func TestRunExecJSON_DuplicateNameDeduplicatesAtSamePath(t *testing.T) {
 	doc := fmt.Sprintf(`{
 		"version": 1,
 		"tree": {
-			"serial": [
-				{"exec": %s, "name": "same"},
-				{"exec": %s, "name": "same"}
+			"type": "serial",
+			"children": [
+				{"type": "command", "argv": %s, "name": "same"},
+				{"type": "command", "argv": %s, "name": "same"}
 			]
 		}
 	}`,
