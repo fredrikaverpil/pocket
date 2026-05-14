@@ -116,82 +116,6 @@ func TestFormatPaths(t *testing.T) {
 	}
 }
 
-func TestBuildJSONTree(t *testing.T) {
-	task := &Task{Name: "test", Usage: "test", Do: func(_ context.Context) error { return nil }}
-	_ = task.buildFlagSet()
-
-	plan := &Plan{
-		taskIndex: map[string]*taskInstance{
-			"test": {task: task, name: "test"},
-		},
-		pathMappings: map[string]pathInfo{
-			"test": {resolvedPaths: []string{"."}},
-		},
-	}
-
-	t.Run("SingleTask", func(t *testing.T) {
-		result := buildJSONTree(task, "", plan)
-		if result["type"] != "task" {
-			t.Errorf("expected type=task, got %v", result["type"])
-		}
-		if result["name"] != "test" {
-			t.Errorf("expected name=test, got %v", result["name"])
-		}
-	})
-
-	t.Run("Serial", func(t *testing.T) {
-		s := Serial(task)
-		result := buildJSONTree(s, "", plan)
-		if result["type"] != "serial" {
-			t.Errorf("expected type=serial, got %v", result["type"])
-		}
-		children := result["children"].([]map[string]any)
-		if len(children) != 1 {
-			t.Errorf("expected 1 child, got %d", len(children))
-		}
-	})
-
-	t.Run("Parallel", func(t *testing.T) {
-		p := Parallel(task)
-		result := buildJSONTree(p, "", plan)
-		if result["type"] != "parallel" {
-			t.Errorf("expected type=parallel, got %v", result["type"])
-		}
-	})
-
-	t.Run("Nil", func(t *testing.T) {
-		result := buildJSONTree(nil, "", plan)
-		if result != nil {
-			t.Errorf("expected nil, got %v", result)
-		}
-	})
-
-	t.Run("WithOptions", func(t *testing.T) {
-		pf := WithOptions(task, WithPath("services"))
-		result := buildJSONTree(pf, "", plan)
-		if result["type"] != "pathFilter" {
-			t.Errorf("expected type=pathFilter, got %v", result["type"])
-		}
-		include := result["include"].([]string)
-		if len(include) != 1 || include[0] != "services" {
-			t.Errorf("expected include=[services], got %v", include)
-		}
-	})
-
-	t.Run("WithNameSuffix", func(t *testing.T) {
-		// Update plan to include suffixed task.
-		plan.taskIndex["test:v2"] = &taskInstance{task: task, name: "test:v2"}
-		plan.pathMappings["test:v2"] = pathInfo{resolvedPaths: []string{"."}}
-
-		pf := WithOptions(task, WithNameSuffix("v2"))
-		result := buildJSONTree(pf, "", plan)
-		// No path options, so pathFilter wrapper is omitted; the inner task is returned directly.
-		if result["name"] != "test:v2" {
-			t.Errorf("expected name=test:v2, got %v", result["name"])
-		}
-	})
-}
-
 type lintHelpFlags struct {
 	Fix bool `flag:"fix" usage:"apply fixes"`
 }
@@ -259,28 +183,25 @@ func TestPrintHelp(t *testing.T) {
 	}
 }
 
-func TestPrintPlanJSON(t *testing.T) {
+func TestBuildPlanFromJSONBytes(t *testing.T) {
 	task := &Task{Name: "test", Usage: "test", Do: func(_ context.Context) error { return nil }}
 	_ = task.buildFlagSet()
 	cfg := &Config{Auto: Serial(task)}
-	plan, err := newPlan(cfg, "/tmp", []string{"."})
+	basePlan, err := newPlan(cfg, "/tmp", []string{"."})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var buf bytes.Buffer
-	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
-	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
-
-	if err := printPlanJSON(ctx, plan.tree, plan); err != nil {
+	data := []byte(`{"version":1,"tree":{"type":"task","name":"test"}}`)
+	plan, err := buildPlanFromJSONBytes(data, basePlan)
+	if err != nil {
 		t.Fatal(err)
 	}
-
-	output := buf.String()
-	for _, want := range []string{`"version"`, `"tree"`, `"tasks"`, `"serial"`, `"test"`} {
-		if !bytes.Contains([]byte(output), []byte(want)) {
-			t.Errorf("expected JSON to contain %q, got:\n%s", want, output)
-		}
+	if plan.tree == nil {
+		t.Fatal("expected JSON plan tree")
+	}
+	if inst := plan.taskInstanceByName("test"); inst == nil {
+		t.Fatal("expected task instance from JSON plan")
 	}
 }
 

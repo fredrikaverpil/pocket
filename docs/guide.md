@@ -1136,7 +1136,9 @@ Both flags can be combined: `./pok -g -c`.
 ## Plan Introspection
 
 Pocket builds an execution plan before running tasks. This plan is accessible at
-runtime for advanced use cases like CI workflow generation.
+runtime for advanced use cases like CI workflow generation. For human inspection,
+`./pok plan` prints the configured tree, and `./pok plan < tree.json` or
+`./pok plan tree.json` prints a JSON task tree without executing it.
 
 ### Accessing the Plan
 

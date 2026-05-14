@@ -121,6 +121,7 @@ func run(cfg *Config) (*executionTracker, error) {
 				}
 				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
+			ctx = context.WithValue(ctx, ctxkey.TaskArgs{}, instance.task.flagSet.Args())
 			// Extract only explicitly-set CLI flags (not defaults) for
 			// highest-priority override in task.run().
 			cliFlags := make(map[string]any)

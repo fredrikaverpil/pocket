@@ -708,10 +708,12 @@ Pocket can be driven from a JSON document instead of `.pocket/config.go`. This
 is primarily intended for **LLMs and agents** that need to compose ad-hoc task
 trees on-the-fly without writing Go code.
 
-Two CLI surfaces share the same schema:
+Three CLI surfaces share the same schema:
 
 - **`./pok -json [task]`** emits the invocation plan as JSON to stdout (no
   execution). Useful for inspecting an existing Pocket project.
+- **`./pok plan < tree.json`** or **`./pok plan tree.json`** renders a JSON tree
+  as the human-readable plan view without executing it.
 - **`./pok exec`** reads a JSON document from stdin and executes it through the
   same engine as the typed-config path (same composition, deduplication, output
   buffering, and post-actions).

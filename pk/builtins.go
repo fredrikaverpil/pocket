@@ -3,9 +3,9 @@ package pk
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +14,7 @@ import (
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
 	"github.com/fredrikaverpil/pocket/internal/shim"
 	"github.com/fredrikaverpil/pocket/pk/conventionalcommits"
+	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	pkrun "github.com/fredrikaverpil/pocket/pk/run"
 )
@@ -85,49 +86,25 @@ var shimsTask = &Task{
 	},
 }
 
-// planFlags defines flags for the plan task.
-type planFlags struct {
-	JSON bool `flag:"json" usage:"output as JSON"`
-}
-
 // planTask displays the execution plan.
 var planTask = &Task{
 	Name:       "plan",
 	Usage:      "show execution plan without running tasks",
 	HideHeader: true,
-	Flags:      planFlags{},
 	Do: func(ctx context.Context) error {
 		p := planFromContext(ctx)
 		if p == nil {
 			return fmt.Errorf("plan not found in context")
 		}
 
-		if pkrun.GetFlags[planFlags](ctx).JSON {
-			return printPlanJSON(ctx, p.tree, p)
+		plan := p
+		if jsonPlan, ok, err := planFromJSONInput(ctx, p); err != nil {
+			return err
+		} else if ok {
+			plan = jsonPlan
 		}
 
-		// Text output.
-		pkrun.Printf(ctx, "Execution Plan\n")
-		pkrun.Printf(ctx, "==============\n\n")
-
-		if len(p.moduleDirectories) > 0 {
-			pkrun.Printf(ctx, "Shim Generation:\n")
-			for _, dir := range p.moduleDirectories {
-				if dir == "." {
-					pkrun.Printf(ctx, "  • root\n")
-				} else {
-					pkrun.Printf(ctx, "  • %s\n", dir)
-				}
-			}
-			pkrun.Println(ctx)
-		}
-
-		pkrun.Printf(ctx, "Composition Tree:\n")
-		printTree(ctx, p.tree, "", true, "", p)
-
-		pkrun.Println(ctx)
-		pkrun.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
-
+		printPlanText(ctx, plan)
 		return nil
 	},
 }
@@ -357,107 +334,79 @@ var purgeTask = &Task{
 
 // --- Plan Helpers ---
 
-// printPlanJSON outputs the plan as JSON.
-func printPlanJSON(ctx context.Context, tree Runnable, p *Plan) error {
-	output := map[string]any{
-		"version":           version(),
-		"moduleDirectories": p.moduleDirectories,
-		"tree":              buildJSONTree(tree, "", p),
-		"tasks":             p.Tasks(),
+// taskArgsFromContext returns positional task args remaining after task flag parsing.
+func taskArgsFromContext(ctx context.Context) []string {
+	if args, ok := ctx.Value(ctxkey.TaskArgs{}).([]string); ok {
+		return args
 	}
-
-	out := pkrun.OutputFromContext(ctx)
-	if out == nil {
-		out = pkrun.StdOutput()
-	}
-	encoder := json.NewEncoder(out.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(output)
+	return nil
 }
 
-// buildJSONTree recursively builds a JSON representation of the composition tree.
-func buildJSONTree(r Runnable, nameSuffix string, p *Plan) map[string]any {
-	if r == nil {
-		return nil
+// planFromJSONInput returns a plan built from JSON supplied by a positional file
+// argument or stdin. The boolean return value is false when no JSON input was supplied.
+func planFromJSONInput(ctx context.Context, basePlan *Plan) (*Plan, bool, error) {
+	args := taskArgsFromContext(ctx)
+	if len(args) > 1 {
+		return nil, false, fmt.Errorf("plan accepts at most one JSON file argument")
 	}
+	if len(args) == 1 {
+		data, err := os.ReadFile(args[0])
+		if err != nil {
+			return nil, false, fmt.Errorf("reading JSON plan %s: %w", args[0], err)
+		}
+		plan, err := buildPlanFromJSONBytes(data, basePlan)
+		return plan, true, err
+	}
+	if pkrun.IsTerminal(os.Stdin) {
+		return nil, false, nil
+	}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return nil, false, fmt.Errorf("reading JSON plan from stdin: %w", err)
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return nil, false, nil
+	}
+	plan, err := buildPlanFromJSONBytes(data, basePlan)
+	return plan, true, err
+}
 
-	switch v := r.(type) {
-	case *Task:
-		effectiveName := v.Name
-		if nameSuffix != "" {
-			effectiveName = v.Name + ":" + nameSuffix
-		}
+// buildPlanFromJSONBytes parses a JSON task tree and converts it to a Plan.
+func buildPlanFromJSONBytes(data []byte, basePlan *Plan) (*Plan, error) {
+	root, err := parseExecJSON(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	var taskNodes []taskNodeInfo
+	tree, err := buildRunnable(root.Tree, &taskNodes, basePlan)
+	if err != nil {
+		return nil, err
+	}
+	return buildPlanFromJSON(tree, taskNodes, basePlan), nil
+}
 
-		paths := []string{"."}
-		if info, ok := p.pathMappings[effectiveName]; ok {
-			paths = info.resolvedPaths
-		}
+// printPlanText prints the human-readable execution plan.
+func printPlanText(ctx context.Context, p *Plan) {
+	pkrun.Printf(ctx, "Execution Plan\n")
+	pkrun.Printf(ctx, "==============\n\n")
 
-		manual := false
-		if instance := p.taskInstanceByName(effectiveName); instance != nil {
-			manual = instance.isManual
-		}
-
-		return map[string]any{
-			"type":   "task",
-			"name":   effectiveName,
-			"hidden": v.Hidden,
-			"manual": manual,
-			"paths":  paths,
-		}
-
-	case *serial:
-		children := make([]map[string]any, 0, len(v.runnables))
-		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, nameSuffix, p); childJSON != nil {
-				children = append(children, childJSON)
-			}
-		}
-		return map[string]any{
-			"type":     "serial",
-			"children": children,
-		}
-
-	case *parallel:
-		children := make([]map[string]any, 0, len(v.runnables))
-		for _, child := range v.runnables {
-			if childJSON := buildJSONTree(child, nameSuffix, p); childJSON != nil {
-				children = append(children, childJSON)
-			}
-		}
-		return map[string]any{
-			"type":     "parallel",
-			"children": children,
-		}
-
-	case *pathFilter:
-		childSuffix := nameSuffix
-		if v.nameSuffix != "" {
-			if nameSuffix != "" {
-				childSuffix = nameSuffix + ":" + v.nameSuffix
+	if len(p.moduleDirectories) > 0 {
+		pkrun.Printf(ctx, "Shim Generation:\n")
+		for _, dir := range p.moduleDirectories {
+			if dir == "." {
+				pkrun.Printf(ctx, "  • root\n")
 			} else {
-				childSuffix = v.nameSuffix
+				pkrun.Printf(ctx, "  • %s\n", dir)
 			}
 		}
-
-		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
-			v.detectFunc != nil
-		if !hasPathOptions {
-			return buildJSONTree(v.inner, childSuffix, p)
-		}
-
-		node := map[string]any{
-			"type":    "pathFilter",
-			"include": v.includePaths,
-			"exclude": v.excludePaths,
-			"inner":   buildJSONTree(v.inner, childSuffix, p),
-		}
-		return node
+		pkrun.Println(ctx)
 	}
 
-	return map[string]any{
-		"type": "unknown",
-	}
+	pkrun.Printf(ctx, "Composition Tree:\n")
+	printTree(ctx, p.tree, "", true, "", p)
+
+	pkrun.Println(ctx)
+	pkrun.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
 }
 
 // printTree recursively prints the composition tree structure.
@@ -510,6 +459,29 @@ func printTree(
 
 		pkrun.Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
 
+		continuation := "│   "
+		if isLast {
+			continuation = "    "
+		}
+		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
+
+	case *jsonTaskRef:
+		markers := []string{"task ref"}
+		if v.task.Hidden {
+			markers = append(markers, "hidden")
+		}
+		if instance := p.taskInstanceByName(v.name); instance != nil && instance.isManual {
+			markers = append(markers, "manual")
+		}
+		paths := "[root]"
+		if info, ok := p.pathMappings[v.name]; ok {
+			if len(info.resolvedPaths) > 0 {
+				paths = formatPaths(info.resolvedPaths)
+			} else {
+				paths = "[skipped]"
+			}
+		}
+		pkrun.Printf(ctx, "%s%s%s [%s]\n", prefix, branch, v.name, strings.Join(markers, ", "))
 		continuation := "│   "
 		if isLast {
 			continuation = "    "

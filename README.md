@@ -246,6 +246,13 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 ./pok plan
 ```
 
+It can also visualize executable JSON trees without running them:
+
+```bash
+./pok -json go-test | ./pok plan
+./pok plan tree.json
+```
+
 ## JSON Execution (for agents)
 
 Pocket can also be driven from a JSON document, primarily for LLMs and agents

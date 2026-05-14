@@ -13,6 +13,7 @@ type (
 	AutoExec       struct{} // Auto execution mode.
 	TaskFlags      struct{} // Resolved task flag values.
 	CLIFlags       struct{} // CLI-provided flag overrides.
+	TaskArgs       struct{} // Positional args remaining after task flag parsing.
 	NoticePatterns struct{} // Custom notice patterns.
 	Plan           struct{} // Execution plan.
 	Tracker        struct{} // Execution tracker.
