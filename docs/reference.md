@@ -678,7 +678,7 @@ if errors.Is(err, pk.ErrGitDiffUncommitted) {
 | `-c`, `--commits` | Validate conventional commits after execution                                                 |
 | `-g`, `--gitdiff` | Run git diff check after execution                                                            |
 | `-h`, `--help`    | Show help                                                                                     |
-| `--json`          | Emit the invocation plan as JSON instead of executing (see [JSON Execution](#json-execution)) |
+| `-j`, `--json`    | Emit the invocation plan as JSON instead of executing (see [JSON Execution](#json-execution)) |
 | `-s`, `--serial`  | Force serial execution (disables parallelism and output buffering)                            |
 | `-v`, `--verbose` | Verbose mode                                                                                  |
 | `--version`       | Show version                                                                                  |
@@ -710,7 +710,7 @@ trees on-the-fly without writing Go code.
 
 Three CLI surfaces share the same schema:
 
-- **`./pok -json [task]`** emits the invocation plan as JSON to stdout (no
+- **`./pok --json [task]`** emits the invocation plan as JSON to stdout (no
   execution). Useful for inspecting an existing Pocket project.
 - **`./pok plan < tree.json`** or **`./pok plan tree.json`** renders a JSON tree
   as the human-readable plan view without executing it.
@@ -826,12 +826,12 @@ other task — they apply through the same context machinery:
 
 ### Inspecting a Go-defined project
 
-The global `-json` flag emits the executable task tree of the current
+The global `--json` flag emits the executable task tree of the current
 `.pocket/config.go` project:
 
 ```bash
-./pok -json              # full Auto tree
-./pok -json go-test      # single task reference
+./pok --json             # full Auto tree
+./pok --json go-test     # single task reference
 ```
 
 Go-defined task bodies are emitted as task references rather than raw commands:
@@ -849,7 +849,7 @@ Go-defined task bodies are emitted as task references rather than raw commands:
 
 The emitted output can be piped back into `./pok exec` in the same Pocket
 project. Global execution flags are serialized as `options`, so
-`./pok -json -g go-test | ./pok exec` preserves the git-diff post-action.
+`./pok --json -g go-test | ./pok exec` preserves the git-diff post-action.
 
 ### Schema document
 

@@ -52,6 +52,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	globalFlags.BoolVar(&showHelp, "h", false, "show help")
 	globalFlags.BoolVar(&showHelp, "help", false, "show help")
 	globalFlags.BoolVar(&showVersion, "version", false, "show version")
+	globalFlags.BoolVar(&jsonOut, "j", false, "emit task plan as JSON instead of executing")
 	globalFlags.BoolVar(&jsonOut, "json", false, "emit task plan as JSON instead of executing")
 
 	// Parse flags
@@ -340,7 +341,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	}
 
 	allNames := []string{
-		"-c, --commits", "-g, --gitdiff", "-h, --help", "--json",
+		"-c, --commits", "-g, --gitdiff", "-h, --help", "-j, --json",
 		"-s, --serial", "-v, --verbose", "--version",
 	}
 	for _, t := range builtins {
@@ -367,7 +368,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
-	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "--json", "emit task plan as JSON instead of executing")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-j, --json", "emit task plan as JSON instead of executing")
 	pkrun.Printf(
 		ctx,
 		"  %-*s  %s\n",

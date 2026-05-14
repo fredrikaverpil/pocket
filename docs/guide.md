@@ -1444,13 +1444,13 @@ Print the JSON Schema (Draft-07) for the v1 format with:
 
 ### Inspecting a Go Project as JSON
 
-The global `-json` flag emits the executable task tree of the current
+The global `--json` flag emits the executable task tree of the current
 `.pocket/config.go` project, instead of executing it:
 
 ```bash
-./pok -json              # emit the full Auto tree as JSON
-./pok -json go-test      # emit a single task reference
-./pok -json -g go-test   # include the git-diff post-action as JSON options
+./pok --json                 # emit the full Auto tree as JSON
+./pok --json go-test         # emit a single task reference
+./pok --json -g go-test      # include the git-diff post-action as JSON options
 ```
 
 Because Go-defined task bodies are not shell commands, emitted task nodes use

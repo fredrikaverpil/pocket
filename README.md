@@ -29,7 +29,7 @@ provider. Your CI becomes portable.
   CI matrices, documentation, or custom tooling. Your tasks become the single
   source of truth.
 - **LLM-Friendly**: Emit executable task trees and global execution options as
-  JSON, e.g. `./pok -json -g go-test | ./pok exec` or `./pok exec < tree.json`.
+  JSON, e.g. `./pok --json -g go-test | ./pok exec` or `./pok exec < tree.json`.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
 
 <details>
@@ -46,7 +46,7 @@ Global flags:
   -c, --commits     validate conventional commits after execution
   -g, --gitdiff     run git diff check after execution
   -h, --help        show help
-  --json            emit task plan as JSON instead of executing
+  -j, --json        emit task plan as JSON instead of executing
   -s, --serial      force serial execution (disables parallelism and output buffering)
   -v, --verbose     verbose mode
   --version         show version
@@ -249,7 +249,7 @@ Pocket provides a built-in `plan` command to visualize your execution tree:
 It can also visualize executable JSON trees without running them:
 
 ```bash
-./pok -json go-test | ./pok plan
+./pok --json go-test | ./pok plan
 ./pok plan tree.json
 ```
 
@@ -267,7 +267,7 @@ echo '{"version":1,"tree":{"type":"serial","children":[
 
 The same engine drives both paths — composition, deduplication, and output
 buffering behave identically. Inspect an existing project's executable task tree
-as JSON with `./pok -json [task]`, and print the v1 schema with
+as JSON with `./pok --json [task]`, and print the v1 schema with
 `./pok exec --schema`. See the
 [JSON Execution](./docs/reference.md#json-execution) reference for full schema
 and rules.
