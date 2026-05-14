@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0](https://github.com/fredrikaverpil/pocket/compare/v0.8.2...v0.9.0) (2026-05-14)
+
+
+### Features
+
+* **pk:** add JSON-driven task execution for agents ([#90](https://github.com/fredrikaverpil/pocket/issues/90)) ([986d0e5](https://github.com/fredrikaverpil/pocket/commit/986d0e592f4d9110fb6a7d7832cfa4be054632d5))
+
+
+### Bug Fixes
+
+* **deps:** update dependency astral-sh/uv to v0.11.13 ([#86](https://github.com/fredrikaverpil/pocket/issues/86)) ([7a12f2e](https://github.com/fredrikaverpil/pocket/commit/7a12f2e37b4930e501d75b5f39eeaa816c4a2cfa))
+* **deps:** update dependency zensical to v0.0.41 ([#89](https://github.com/fredrikaverpil/pocket/issues/89)) ([61f93ba](https://github.com/fredrikaverpil/pocket/commit/61f93ba9f4ba037544e6cd9c9d97efda67e8e7e5))
+* **deps:** update module github.com/golangci/golangci-lint/v2 to v2.12.2 ([#87](https://github.com/fredrikaverpil/pocket/issues/87)) ([c41bf78](https://github.com/fredrikaverpil/pocket/commit/c41bf781f879e62aa0dc00c80664601944e6e805))
+* **deps:** update module golang.org/x/term to v0.43.0 ([#88](https://github.com/fredrikaverpil/pocket/issues/88)) ([db4386c](https://github.com/fredrikaverpil/pocket/commit/db4386ce6e7ce6a8f5058ed2a1d2b2a3442b153c))
+
 ## [0.8.2](https://github.com/fredrikaverpil/pocket/compare/v0.8.1...v0.8.2) (2026-05-07)
 
 
