@@ -264,7 +264,9 @@ func TestRunExecJSON_SerialOrder(t *testing.T) {
 
 func TestRunExecJSON_ParallelRunsAll(t *testing.T) {
 	dir := t.TempDir()
-	marker := filepath.Join(dir, "out.txt")
+	markerA := filepath.Join(dir, "a.txt")
+	markerB := filepath.Join(dir, "b.txt")
+	markerC := filepath.Join(dir, "c.txt")
 
 	doc := fmt.Sprintf(`{
 		"version": 1,
@@ -277,9 +279,9 @@ func TestRunExecJSON_ParallelRunsAll(t *testing.T) {
 			]
 		}
 	}`,
-		mustJSON(t, markerScript(t, marker, "a")),
-		mustJSON(t, markerScript(t, marker, "b")),
-		mustJSON(t, markerScript(t, marker, "c")),
+		mustJSON(t, markerScript(t, markerA, "a")),
+		mustJSON(t, markerScript(t, markerB, "b")),
+		mustJSON(t, markerScript(t, markerC, "c")),
 	)
 
 	ctx, _, _ := execJSONTestCtx(t)
@@ -287,7 +289,8 @@ func TestRunExecJSON_ParallelRunsAll(t *testing.T) {
 		t.Fatalf("runExecJSON: %v", err)
 	}
 
-	got := readMarkers(t, marker)
+	got := append(readMarkers(t, markerA), readMarkers(t, markerB)...)
+	got = append(got, readMarkers(t, markerC)...)
 	sort.Strings(got)
 	want := []string{"a", "b", "c"}
 	if !slices.Equal(got, want) {
