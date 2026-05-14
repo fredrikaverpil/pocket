@@ -20,6 +20,7 @@ Technical reference for the `github.com/fredrikaverpil/pocket/pk` and
 - [Plan Introspection](#plan-introspection)
 - [Errors](#errors)
 - [CLI](#cli)
+- [JSON Execution](#json-execution)
 
 ---
 
@@ -672,13 +673,15 @@ if errors.Is(err, pk.ErrGitDiffUncommitted) {
 
 ### Flags
 
-| Flag              | Description                                   |
-| :---------------- | :-------------------------------------------- |
-| `-c`, `--commits` | Validate conventional commits after execution |
-| `-g`, `--gitdiff` | Run git diff check after execution            |
-| `-h`, `--help`    | Show help                                     |
-| `-v`, `--verbose` | Verbose mode                                  |
-| `--version`       | Show version                                  |
+| Flag              | Description                                                                                   |
+| :---------------- | :-------------------------------------------------------------------------------------------- |
+| `-c`, `--commits` | Validate conventional commits after execution                                                 |
+| `-g`, `--gitdiff` | Run git diff check after execution                                                            |
+| `-h`, `--help`    | Show help                                                                                     |
+| `-j`, `--json`    | Emit the invocation plan as JSON instead of executing (see [JSON Execution](#json-execution)) |
+| `-s`, `--serial`  | Force serial execution (disables parallelism and output buffering)                            |
+| `-v`, `--verbose` | Verbose mode                                                                                  |
+| `--version`       | Show version                                                                                  |
 
 ### Functions
 
@@ -696,3 +699,174 @@ func main() {
 // ExecuteTask signature
 func ExecuteTask(ctx context.Context, name string, p *Plan) error
 ```
+
+---
+
+## JSON Execution
+
+Pocket can be driven from a JSON document instead of `.pocket/config.go`. This
+is primarily intended for **LLMs and agents** that need to compose ad-hoc task
+trees on-the-fly without writing Go code.
+
+Three CLI surfaces share the same schema:
+
+- **`./pok --json [task]`** emits the invocation plan as JSON to stdout (no
+  execution). Useful for inspecting an existing Pocket project.
+- **`./pok plan < tree.json`** or **`./pok plan tree.json`** renders a JSON tree
+  as the human-readable plan view without executing it.
+- **`./pok exec`** reads a JSON document from stdin and executes it through the
+  same engine as the typed-config path (same composition, deduplication, output
+  buffering, and post-actions).
+
+### Schema (v1)
+
+A versioned root with optional global execution options and a single execution
+tree. Strict — unknown fields error. Each node has an explicit `type`
+discriminator.
+
+```json
+{
+  "version": 1,
+  "options": {
+    "gitdiff": true,
+    "serial": true
+  },
+  "tree": {
+    "type": "serial",
+    "children": [
+      {
+        "type": "task",
+        "name": "go-format",
+        "paths": ["."]
+      },
+      {
+        "type": "parallel",
+        "children": [
+          { "type": "task", "name": "go-test" },
+          {
+            "type": "command",
+            "name": "custom-vet",
+            "argv": ["go", "vet", "./..."]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Global options map to Pocket's global CLI flags and are applied when the JSON is
+executed:
+
+| Option    | Equivalent flag   | Description                                   |
+| :-------- | :---------------- | :-------------------------------------------- |
+| `verbose` | `-v`, `--verbose` | Stream command output                         |
+| `serial`  | `-s`, `--serial`  | Force serial execution                        |
+| `gitdiff` | `-g`, `--gitdiff` | Run git diff check after execution            |
+| `commits` | `-c`, `--commits` | Validate conventional commits after execution |
+
+Node types:
+
+| Type       | Required fields | Description                                         |
+| :--------- | :-------------- | :-------------------------------------------------- |
+| `task`     | `name`          | Reference an existing Pocket task by effective name |
+| `command`  | `name`, `argv`  | Run a raw command; `argv[0]` is the executable      |
+| `serial`   | `children`      | Sequential composition. Stops on first error        |
+| `parallel` | `children`      | Concurrent composition with buffered output         |
+
+Task and command fields:
+
+| Field   | Type         | Required | Description                                                              |
+| :------ | :----------- | :------- | :----------------------------------------------------------------------- |
+| `name`  | string       | yes      | Display name for commands; effective Pocket task name for task refs      |
+| `argv`  | string array | command  | Raw argument vector. Only valid on `command` nodes                       |
+| `paths` | string array | no       | Literal directories relative to git root. Defaults to task paths or root |
+
+Composition fields:
+
+| Field      | Type       | Required | Description                         |
+| :--------- | :--------- | :------- | :---------------------------------- |
+| `children` | node array | yes      | Child nodes for `serial`/`parallel` |
+
+### Validation rules (strict)
+
+- Unknown top-level or node-level fields error with the field path.
+- Every node must have `type`: `task`, `command`, `serial`, or `parallel`.
+- `command` nodes require non-empty `argv` and `name`.
+- `task` nodes require `name` and must reference a task in the current Pocket
+  project when executed.
+- `serial` and `parallel` nodes require non-empty `children`.
+- `paths` is only valid on `task` and `command` nodes and must be non-empty when
+  present.
+- `options`, when present, may contain `verbose`, `serial`, `gitdiff`, and
+  `commits` booleans.
+- `version` must be `1`.
+
+### Errors
+
+Validation and parse errors are emitted to stderr as JSON, one object per error,
+so they can be parsed by an agent:
+
+```json
+{ "error": "tree.children[0].argv: empty array" }
+```
+
+The CLI exits non-zero on any validation or execution error.
+
+### Global flags interact normally
+
+`-v`, `-s`, `-g`, and `-c` work with `exec` the same way they work with any
+other task — they apply through the same context machinery:
+
+```bash
+./pok -v exec < tree.json          # stream task output instead of buffering
+./pok -s exec < tree.json          # force serial execution of parallel nodes
+./pok -g exec < tree.json          # run git diff check after execution
+```
+
+### Inspecting a Go-defined project
+
+The global `--json` flag emits the executable task tree of the current
+`.pocket/config.go` project:
+
+```bash
+./pok --json             # full Auto tree
+./pok --json go-test     # single task reference
+```
+
+Go-defined task bodies are emitted as task references rather than raw commands:
+
+```json
+{
+  "version": 1,
+  "tree": {
+    "type": "task",
+    "name": "go-test",
+    "paths": ["."]
+  }
+}
+```
+
+The emitted output can be piped back into `./pok exec` in the same Pocket
+project. Global execution flags are serialized as `options`, so
+`./pok --json -g go-test | ./pok exec` preserves the git-diff post-action.
+
+### Schema document
+
+Print the JSON Schema (Draft-07) for v1:
+
+```bash
+./pok exec --schema
+```
+
+### Out of scope for v1
+
+The following are intentional deferrals; the schema may add new node types or
+fields in later versions:
+
+- **Typed flag overrides** for referenced tasks.
+- **Path detection** (the equivalent of `WithDetect`): paths must be literal.
+  Agents are expected to pre-resolve filesystem patterns themselves.
+- **Scope-level options**: `WithForceRun`, `WithVerbose`, `WithNameSuffix`,
+  `WithNoticePatterns`.
+- **File-based input** for `exec`: stdin only.

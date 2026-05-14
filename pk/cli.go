@@ -40,7 +40,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Parse command-line flags
 	globalFlags := flag.NewFlagSet("pok", flag.ExitOnError)
 
-	var verbose, serial, gitDiff, commitsCheck, showHelp, showVersion bool
+	var verbose, serial, gitDiff, commitsCheck, showHelp, showVersion, jsonOut bool
 	globalFlags.BoolVar(&verbose, "v", false, "verbose mode")
 	globalFlags.BoolVar(&verbose, "verbose", false, "verbose mode")
 	globalFlags.BoolVar(&serial, "s", false, "force serial execution (disables parallelism and output buffering)")
@@ -52,6 +52,8 @@ func run(cfg *Config) (*executionTracker, error) {
 	globalFlags.BoolVar(&showHelp, "h", false, "show help")
 	globalFlags.BoolVar(&showHelp, "help", false, "show help")
 	globalFlags.BoolVar(&showVersion, "version", false, "show version")
+	globalFlags.BoolVar(&jsonOut, "j", false, "emit task plan as JSON instead of executing")
+	globalFlags.BoolVar(&jsonOut, "json", false, "emit task plan as JSON instead of executing")
 
 	// Parse flags
 	if err := globalFlags.Parse(os.Args[1:]); err != nil {
@@ -89,6 +91,18 @@ func run(cfg *Config) (*executionTracker, error) {
 	// Get remaining arguments (task names)
 	remaining := globalFlags.Args()
 
+	// Handle -json: emit instead of executing.
+	if jsonOut {
+		var taskName string
+		if len(remaining) > 0 {
+			taskName = remaining[0]
+		}
+		if err := emitInvocationJSON(ctx, plan, taskName, stdoutFromContext(ctx)); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	// Handle task execution (builtins + user tasks)
 	if len(remaining) > 0 {
 		taskName := remaining[0]
@@ -108,6 +122,7 @@ func run(cfg *Config) (*executionTracker, error) {
 				}
 				return nil, fmt.Errorf("parsing flags for task %q: %w", taskName, err)
 			}
+			ctx = context.WithValue(ctx, ctxkey.TaskArgs{}, instance.task.flagSet.Args())
 			// Extract only explicitly-set CLI flags (not defaults) for
 			// highest-priority override in task.run().
 			cliFlags := make(map[string]any)
@@ -126,6 +141,9 @@ func run(cfg *Config) (*executionTracker, error) {
 			// Builtins run directly without path context.
 			if err := instance.task.run(ctx); err != nil {
 				return nil, err
+			}
+			if instance.task.Name == execTask.Name {
+				return nil, nil
 			}
 			return nil, runPostActions(ctx)
 		}
@@ -323,7 +341,8 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	}
 
 	allNames := []string{
-		"-c, --commits", "-g, --gitdiff", "-h, --help", "-s, --serial", "-v, --verbose", "--version",
+		"-c, --commits", "-g, --gitdiff", "-h, --help", "-j, --json",
+		"-s, --serial", "-v, --verbose", "--version",
 	}
 	for _, t := range builtins {
 		if !t.Hidden {
@@ -349,6 +368,7 @@ func printHelp(ctx context.Context, _ *Config, plan *Plan) {
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-c, --commits", "validate conventional commits after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-g, --gitdiff", "run git diff check after execution")
 	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-h, --help", "show help")
+	pkrun.Printf(ctx, "  %-*s  %s\n", maxWidth, "-j, --json", "emit task plan as JSON instead of executing")
 	pkrun.Printf(
 		ctx,
 		"  %-*s  %s\n",

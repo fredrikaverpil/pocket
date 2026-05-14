@@ -49,6 +49,10 @@ defining your first task to building complex CI pipelines.
   - [Simple Workflow](#simple-workflow)
   - [Per-Task Workflow](#per-task-workflow)
   - [PerPocketTaskJobOption](#perpockettaskjoboption)
+- [JSON Execution](#json-execution)
+  - [Schema](#schema)
+  - [Executing JSON](#executing-json)
+  - [Inspecting a Go Project as JSON](#inspecting-a-go-project-as-json)
 
 ---
 
@@ -1132,7 +1136,10 @@ Both flags can be combined: `./pok -g -c`.
 ## Plan Introspection
 
 Pocket builds an execution plan before running tasks. This plan is accessible at
-runtime for advanced use cases like CI workflow generation.
+runtime for advanced use cases like CI workflow generation. For human
+inspection, `./pok plan` prints the configured tree, and
+`./pok plan < tree.json` or `./pok plan tree.json` prints a JSON task tree
+without executing it.
 
 ### Accessing the Plan
 
@@ -1348,3 +1355,104 @@ Use `github.AllPlatforms()` to get all platforms (returns `[]Platform`).
 | Parallel task execution          | No        | Yes      |
 | Fail-fast granularity            | All tasks | Per task |
 | Configuration complexity         | Low       | Medium   |
+
+---
+
+## JSON Execution
+
+In addition to the typed `.pocket/config.go` path, Pocket can be driven from a
+JSON document. This is aimed at **LLMs and agents** that need to compose ad-hoc
+task trees without scaffolding a Go project. The JSON path uses the exact same
+engine as the Go config path — same `Serial`/`Parallel` semantics, the same
+deduplication, the same output buffering, the same global flag behavior.
+
+### Schema
+
+A versioned root with optional global execution options and a single execution
+tree. Each node has an explicit `type`: `task`, `command`, `serial`, or
+`parallel`. Unknown fields error.
+
+```json
+{
+  "version": 1,
+  "options": {
+    "gitdiff": true
+  },
+  "tree": {
+    "type": "serial",
+    "children": [
+      {
+        "type": "task",
+        "name": "go-format"
+      },
+      {
+        "type": "parallel",
+        "children": [
+          { "type": "task", "name": "go-test" },
+          {
+            "type": "command",
+            "name": "custom-vet",
+            "argv": ["go", "vet", "./..."]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`options` mirrors global execution flags such as `-g`, `-s`, `-v`, and `-c`.
+`task` nodes reference existing Pocket tasks by name. `command` nodes run raw
+argument vectors; `argv[0]` is the executable and the rest are arguments. Task
+and command nodes accept an optional `paths` array of literal directories
+relative to the git root. Omit `paths` to use the referenced task's existing
+paths, or the repository root for raw commands. See the
+[JSON Execution](./reference.md#json-execution) reference for the full set of
+validation rules.
+
+### Executing JSON
+
+Pipe a document into the `exec` builtin:
+
+```bash
+echo '{"version":1,"tree":{"type":"command","argv":["echo","hello"],"name":"greet"}}' \
+  | ./pok exec
+```
+
+Global flags work the same as for any other task:
+
+```bash
+./pok -v exec < tree.json    # stream task output instead of buffering
+./pok -s exec < tree.json    # force serial execution
+./pok -g exec < tree.json    # run git diff check after execution
+```
+
+Validation and parse errors are emitted to stderr as JSON objects, one per
+error, so agents can parse the failure:
+
+```json
+{ "error": "tree.children[0].name: required for command nodes" }
+```
+
+The CLI exits non-zero on any validation or execution error.
+
+Print the JSON Schema (Draft-07) for the v1 format with:
+
+```bash
+./pok exec --schema
+```
+
+### Inspecting a Go Project as JSON
+
+The global `--json` flag emits the executable task tree of the current
+`.pocket/config.go` project, instead of executing it:
+
+```bash
+./pok --json                 # emit the full Auto tree as JSON
+./pok --json go-test         # emit a single task reference
+./pok --json -g go-test      # include the git-diff post-action as JSON options
+```
+
+Because Go-defined task bodies are not shell commands, emitted task nodes use
+`{ "type": "task", "name": "..." }` references rather than raw `argv` commands.
+The output is accepted by `./pok exec` in the same Pocket project.
