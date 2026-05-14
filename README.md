@@ -28,8 +28,8 @@ provider. Your CI becomes portable.
   `./pok plan` before executing, or access the plan programmatically to generate
   CI matrices, documentation, or custom tooling. Your tasks become the single
   source of truth.
-- **LLM-Friendly**: Emit executable task trees as JSON and feed them back into
-  Pocket, e.g. `./pok -json go-test | ./pok exec` or `./pok exec < tree.json`.
+- **LLM-Friendly**: Emit executable task trees and global execution options as
+  JSON, e.g. `./pok -json -g go-test | ./pok exec` or `./pok exec < tree.json`.
 - **Cross-Platform**: Built for macOS, Linux, and Windows.
 
 <details>

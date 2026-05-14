@@ -26,8 +26,17 @@ const (
 
 // jsonRoot is the root document for JSON-driven task execution.
 type jsonRoot struct {
-	Version int       `json:"version"`
-	Tree    *jsonNode `json:"tree"`
+	Version int          `json:"version"`
+	Options *jsonOptions `json:"options,omitempty"`
+	Tree    *jsonNode    `json:"tree"`
+}
+
+// jsonOptions are global Pocket execution options serialized with JSON trees.
+type jsonOptions struct {
+	Verbose bool `json:"verbose,omitempty"`
+	Serial  bool `json:"serial,omitempty"`
+	GitDiff bool `json:"gitdiff,omitempty"`
+	Commits bool `json:"commits,omitempty"`
 }
 
 // jsonNode is a single node in the JSON execution tree.
@@ -95,8 +104,10 @@ func expectedSchemaType(field string) string {
 	switch last {
 	case "version":
 		return "integer"
-	case "tree":
+	case "tree", "options":
 		return "object"
+	case "verbose", "serial", "gitdiff", "commits":
+		return "boolean"
 	case "type", "name":
 		return "string"
 	case "argv", "paths":
@@ -376,6 +387,7 @@ func runExecJSON(ctx context.Context, r io.Reader) error {
 		emitJSONError(ctx, err)
 		return err
 	}
+	ctx = contextWithJSONOptions(ctx, root.Options)
 	basePlan := planFromContext(ctx)
 	var taskNodes []taskNodeInfo
 	tree, err := buildRunnable(root.Tree, &taskNodes, basePlan)
@@ -387,7 +399,10 @@ func runExecJSON(ctx context.Context, r io.Reader) error {
 
 	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
 	ctx = withExecutionTracker(ctx, newExecutionTracker())
-	return tree.run(ctx)
+	if err := tree.run(ctx); err != nil {
+		return err
+	}
+	return runPostActions(ctx)
 }
 
 // emitJSONError writes a JSON error object to stderr.
@@ -420,10 +435,45 @@ func stdoutFromContext(ctx context.Context) io.Writer {
 	return os.Stdout
 }
 
+// contextWithJSONOptions applies JSON options to ctx. Existing true values win,
+// so CLI flags on the receiving process override or add to serialized options.
+func contextWithJSONOptions(ctx context.Context, opts *jsonOptions) context.Context {
+	if opts == nil {
+		return ctx
+	}
+	if opts.Verbose && !pkrun.Verbose(ctx) {
+		ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
+	}
+	if opts.Serial && !serialFromContext(ctx) {
+		ctx = context.WithValue(ctx, ctxkey.Serial{}, true)
+	}
+	if opts.GitDiff && !gitDiffEnabled(ctx) {
+		ctx = context.WithValue(ctx, ctxkey.GitDiff{}, true)
+	}
+	if opts.Commits && !commitsCheckEnabled(ctx) {
+		ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, true)
+	}
+	return ctx
+}
+
+// jsonOptionsFromContext returns the JSON options represented by ctx.
+func jsonOptionsFromContext(ctx context.Context) *jsonOptions {
+	opts := &jsonOptions{
+		Verbose: pkrun.Verbose(ctx),
+		Serial:  serialFromContext(ctx),
+		GitDiff: gitDiffEnabled(ctx),
+		Commits: commitsCheckEnabled(ctx),
+	}
+	if !opts.Verbose && !opts.Serial && !opts.GitDiff && !opts.Commits {
+		return nil
+	}
+	return opts
+}
+
 // emitInvocationJSON writes the JSON representation of a Plan invocation.
 // If taskName is empty the whole Auto tree is emitted; otherwise only the
 // named task slice. Returns an error if the named task does not exist.
-func emitInvocationJSON(p *Plan, taskName string, w io.Writer) error {
+func emitInvocationJSON(ctx context.Context, p *Plan, taskName string, w io.Writer) error {
 	if p == nil {
 		return fmt.Errorf("plan is nil")
 	}
@@ -452,6 +502,9 @@ func emitInvocationJSON(p *Plan, taskName string, w io.Writer) error {
 	doc := map[string]any{
 		"version": execJSONVersion,
 		"tree":    tree,
+	}
+	if opts := jsonOptionsFromContext(ctx); opts != nil {
+		doc["options"] = opts
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -510,9 +563,20 @@ const execJSONSchema = `{
   "required": ["version", "tree"],
   "properties": {
     "version": {"type": "integer", "const": 1},
+    "options": {"$ref": "#/definitions/options"},
     "tree": {"$ref": "#/definitions/node"}
   },
   "definitions": {
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verbose": {"type": "boolean"},
+        "serial": {"type": "boolean"},
+        "gitdiff": {"type": "boolean"},
+        "commits": {"type": "boolean"}
+      }
+    },
     "node": {
       "type": "object",
       "additionalProperties": false,

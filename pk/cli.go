@@ -96,7 +96,7 @@ func run(cfg *Config) (*executionTracker, error) {
 		if len(remaining) > 0 {
 			taskName = remaining[0]
 		}
-		if err := emitInvocationJSON(plan, taskName, stdoutFromContext(ctx)); err != nil {
+		if err := emitInvocationJSON(ctx, plan, taskName, stdoutFromContext(ctx)); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -140,6 +140,9 @@ func run(cfg *Config) (*executionTracker, error) {
 			// Builtins run directly without path context.
 			if err := instance.task.run(ctx); err != nil {
 				return nil, err
+			}
+			if instance.task.Name == execTask.Name {
+				return nil, nil
 			}
 			return nil, runPostActions(ctx)
 		}

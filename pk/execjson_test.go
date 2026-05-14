@@ -482,7 +482,8 @@ func TestEmitInvocationJSON_FullTree(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := emitInvocationJSON(plan, "", &buf); err != nil {
+	ctx := context.Background()
+	if err := emitInvocationJSON(ctx, plan, "", &buf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -514,7 +515,8 @@ func TestEmitInvocationJSON_SingleTask(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := emitInvocationJSON(plan, "lint", &buf); err != nil {
+	ctx := context.Background()
+	if err := emitInvocationJSON(ctx, plan, "lint", &buf); err != nil {
 		t.Fatal(err)
 	}
 	var doc map[string]any
@@ -540,8 +542,48 @@ func TestEmitInvocationJSON_UnknownTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	if err := emitInvocationJSON(plan, "missing", &buf); err == nil {
+	ctx := context.Background()
+	if err := emitInvocationJSON(ctx, plan, "missing", &buf); err == nil {
 		t.Error("expected error for unknown task")
+	}
+}
+
+func TestEmitInvocationJSON_IncludesGlobalOptions(t *testing.T) {
+	task := &Task{Name: "lint", Usage: "lint", Do: func(_ context.Context) error { return nil }}
+	plan, err := newPlan(&Config{Auto: Serial(task)}, "/tmp", []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, ctxkey.Verbose{}, true)
+	ctx = context.WithValue(ctx, ctxkey.Serial{}, true)
+	ctx = context.WithValue(ctx, ctxkey.GitDiff{}, true)
+	ctx = context.WithValue(ctx, ctxkey.CommitsCheck{}, true)
+
+	var buf bytes.Buffer
+	if err := emitInvocationJSON(ctx, plan, "lint", &buf); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Options jsonOptions `json:"options"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Options.Verbose || !doc.Options.Serial || !doc.Options.GitDiff || !doc.Options.Commits {
+		t.Errorf("options = %+v, want all true", doc.Options)
+	}
+}
+
+func TestRunExecJSON_AppliesGlobalOptions(t *testing.T) {
+	doc := `{"version":1,"options":{"verbose":true,"serial":true,"gitdiff":true,"commits":true},"tree":{"type":"command","argv":["echo","x"],"name":"x"}}`
+	root, err := parseExecJSON(strings.NewReader(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := contextWithJSONOptions(context.Background(), root.Options)
+	if !pkrun.Verbose(ctx) || !serialFromContext(ctx) || !gitDiffEnabled(ctx) || !commitsCheckEnabled(ctx) {
+		t.Fatal("expected JSON options to be applied to context")
 	}
 }
 

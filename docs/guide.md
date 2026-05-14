@@ -1367,12 +1367,16 @@ deduplication, the same output buffering, the same global flag behavior.
 
 ### Schema
 
-A versioned root with a single execution tree. Each node has an explicit `type`:
-`task`, `command`, `serial`, or `parallel`. Unknown fields error.
+A versioned root with optional global execution options and a single execution
+tree. Each node has an explicit `type`: `task`, `command`, `serial`, or
+`parallel`. Unknown fields error.
 
 ```json
 {
   "version": 1,
+  "options": {
+    "gitdiff": true
+  },
   "tree": {
     "type": "serial",
     "children": [
@@ -1396,6 +1400,7 @@ A versioned root with a single execution tree. Each node has an explicit `type`:
 }
 ```
 
+`options` mirrors global execution flags such as `-g`, `-s`, `-v`, and `-c`.
 `task` nodes reference existing Pocket tasks by name. `command` nodes run raw
 argument vectors; `argv[0]` is the executable and the rest are arguments. Task
 and command nodes accept an optional `paths` array of literal directories
@@ -1444,6 +1449,7 @@ The global `-json` flag emits the executable task tree of the current
 ```bash
 ./pok -json              # emit the full Auto tree as JSON
 ./pok -json go-test      # emit a single task reference
+./pok -json -g go-test   # include the git-diff post-action as JSON options
 ```
 
 Because Go-defined task bodies are not shell commands, emitted task nodes use

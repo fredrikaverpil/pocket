@@ -720,12 +720,17 @@ Three CLI surfaces share the same schema:
 
 ### Schema (v1)
 
-A versioned root with a single execution tree. Strict — unknown fields error.
-Each node has an explicit `type` discriminator.
+A versioned root with optional global execution options and a single execution
+tree. Strict — unknown fields error. Each node has an explicit `type`
+discriminator.
 
 ```json
 {
   "version": 1,
+  "options": {
+    "gitdiff": true,
+    "serial": true
+  },
   "tree": {
     "type": "serial",
     "children": [
@@ -749,6 +754,16 @@ Each node has an explicit `type` discriminator.
   }
 }
 ```
+
+Global options map to Pocket's global CLI flags and are applied when the JSON is
+executed:
+
+| Option    | Equivalent flag    | Description                                                |
+| :-------- | :----------------- | :--------------------------------------------------------- |
+| `verbose` | `-v`, `--verbose`  | Stream command output                                      |
+| `serial`  | `-s`, `--serial`   | Force serial execution                                     |
+| `gitdiff` | `-g`, `--gitdiff`  | Run git diff check after execution                         |
+| `commits` | `-c`, `--commits`  | Validate conventional commits after execution              |
 
 Node types:
 
@@ -783,6 +798,8 @@ Composition fields:
 - `serial` and `parallel` nodes require non-empty `children`.
 - `paths` is only valid on `task` and `command` nodes and must be non-empty when
   present.
+- `options`, when present, may contain `verbose`, `serial`, `gitdiff`, and
+  `commits` booleans.
 - `version` must be `1`.
 
 ### Errors
@@ -831,7 +848,8 @@ Go-defined task bodies are emitted as task references rather than raw commands:
 ```
 
 The emitted output can be piped back into `./pok exec` in the same Pocket
-project.
+project. Global execution flags are serialized as `options`, so
+`./pok -json -g go-test | ./pok exec` preserves the git-diff post-action.
 
 ### Schema document
 
