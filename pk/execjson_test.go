@@ -127,7 +127,8 @@ func TestParseExecJSON_Errors(t *testing.T) {
 		},
 		{
 			name: "paths on composition",
-			doc:  `{"version":1,"tree":{"type":"parallel","children":[{"type":"command","argv":["x"],"name":"x"}],"paths":["."]}}`,
+			doc: `{"version":1,"tree":{"type":"parallel",` +
+				`"children":[{"type":"command","argv":["x"],"name":"x"}],"paths":["."]}}`,
 			want: "paths: not allowed on parallel nodes",
 		},
 		{
@@ -576,7 +577,8 @@ func TestEmitInvocationJSON_IncludesGlobalOptions(t *testing.T) {
 }
 
 func TestRunExecJSON_AppliesGlobalOptions(t *testing.T) {
-	doc := `{"version":1,"options":{"verbose":true,"serial":true,"gitdiff":true,"commits":true},"tree":{"type":"command","argv":["echo","x"],"name":"x"}}`
+	doc := `{"version":1,"options":{"verbose":true,"serial":true,"gitdiff":true,"commits":true},` +
+		`"tree":{"type":"command","argv":["echo","x"],"name":"x"}}`
 	root, err := parseExecJSON(strings.NewReader(doc))
 	if err != nil {
 		t.Fatal(err)

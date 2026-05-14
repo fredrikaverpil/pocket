@@ -268,8 +268,9 @@ echo '{"version":1,"tree":{"type":"serial","children":[
 The same engine drives both paths — composition, deduplication, and output
 buffering behave identically. Inspect an existing project's executable task tree
 as JSON with `./pok -json [task]`, and print the v1 schema with
-`./pok exec --schema`. See the [JSON Execution](./docs/reference.md#json-execution)
-reference for full schema and rules.
+`./pok exec --schema`. See the
+[JSON Execution](./docs/reference.md#json-execution) reference for full schema
+and rules.
 
 ### Programmatic Plan Access
 

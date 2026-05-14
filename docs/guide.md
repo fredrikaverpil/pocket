@@ -1136,9 +1136,10 @@ Both flags can be combined: `./pok -g -c`.
 ## Plan Introspection
 
 Pocket builds an execution plan before running tasks. This plan is accessible at
-runtime for advanced use cases like CI workflow generation. For human inspection,
-`./pok plan` prints the configured tree, and `./pok plan < tree.json` or
-`./pok plan tree.json` prints a JSON task tree without executing it.
+runtime for advanced use cases like CI workflow generation. For human
+inspection, `./pok plan` prints the configured tree, and
+`./pok plan < tree.json` or `./pok plan tree.json` prints a JSON task tree
+without executing it.
 
 ### Accessing the Plan
 
@@ -1453,5 +1454,5 @@ The global `-json` flag emits the executable task tree of the current
 ```
 
 Because Go-defined task bodies are not shell commands, emitted task nodes use
-`{ "type": "task", "name": "..." }` references rather than raw `argv`
-commands. The output is accepted by `./pok exec` in the same Pocket project.
+`{ "type": "task", "name": "..." }` references rather than raw `argv` commands.
+The output is accepted by `./pok exec` in the same Pocket project.

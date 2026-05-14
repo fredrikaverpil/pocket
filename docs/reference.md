@@ -758,29 +758,29 @@ discriminator.
 Global options map to Pocket's global CLI flags and are applied when the JSON is
 executed:
 
-| Option    | Equivalent flag    | Description                                                |
-| :-------- | :----------------- | :--------------------------------------------------------- |
-| `verbose` | `-v`, `--verbose`  | Stream command output                                      |
-| `serial`  | `-s`, `--serial`   | Force serial execution                                     |
-| `gitdiff` | `-g`, `--gitdiff`  | Run git diff check after execution                         |
-| `commits` | `-c`, `--commits`  | Validate conventional commits after execution              |
+| Option    | Equivalent flag   | Description                                   |
+| :-------- | :---------------- | :-------------------------------------------- |
+| `verbose` | `-v`, `--verbose` | Stream command output                         |
+| `serial`  | `-s`, `--serial`  | Force serial execution                        |
+| `gitdiff` | `-g`, `--gitdiff` | Run git diff check after execution            |
+| `commits` | `-c`, `--commits` | Validate conventional commits after execution |
 
 Node types:
 
-| Type       | Required fields      | Description                                             |
-| :--------- | :------------------- | :------------------------------------------------------ |
-| `task`     | `name`               | Reference an existing Pocket task by effective name     |
-| `command`  | `name`, `argv`       | Run a raw command; `argv[0]` is the executable          |
-| `serial`   | `children`           | Sequential composition. Stops on first error            |
-| `parallel` | `children`           | Concurrent composition with buffered output             |
+| Type       | Required fields | Description                                         |
+| :--------- | :-------------- | :-------------------------------------------------- |
+| `task`     | `name`          | Reference an existing Pocket task by effective name |
+| `command`  | `name`, `argv`  | Run a raw command; `argv[0]` is the executable      |
+| `serial`   | `children`      | Sequential composition. Stops on first error        |
+| `parallel` | `children`      | Concurrent composition with buffered output         |
 
 Task and command fields:
 
-| Field   | Type         | Required | Description                                                               |
-| :------ | :----------- | :------- | :------------------------------------------------------------------------ |
-| `name`  | string       | yes      | Display name for commands; effective Pocket task name for task refs       |
-| `argv`  | string array | command  | Raw argument vector. Only valid on `command` nodes                        |
-| `paths` | string array | no       | Literal directories relative to git root. Defaults to task paths or root  |
+| Field   | Type         | Required | Description                                                              |
+| :------ | :----------- | :------- | :----------------------------------------------------------------------- |
+| `name`  | string       | yes      | Display name for commands; effective Pocket task name for task refs      |
+| `argv`  | string array | command  | Raw argument vector. Only valid on `command` nodes                       |
+| `paths` | string array | no       | Literal directories relative to git root. Defaults to task paths or root |
 
 Composition fields:
 

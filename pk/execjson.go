@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -322,9 +323,7 @@ func buildPlanFromJSON(tree Runnable, taskNodes []taskNodeInfo, basePlan *Plan) 
 	if basePlan != nil {
 		taskInstances = slices.Clone(basePlan.taskInstances)
 		pathMappings = make(map[string]pathInfo, len(basePlan.pathMappings)+len(taskNodes))
-		for name, info := range basePlan.pathMappings {
-			pathMappings[name] = info
-		}
+		maps.Copy(pathMappings, basePlan.pathMappings)
 		moduleDirectories = slices.Clone(basePlan.moduleDirectories)
 	}
 
