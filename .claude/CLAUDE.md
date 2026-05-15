@@ -75,7 +75,7 @@ making itself available. Three patterns exist:
 ### Task packages (`tasks/`)
 
 Pre-built opinionated tasks that wrap tools: `golang`, `python`, `markdown`,
-`github`, `lua`, `treesitter`, `docs`, `claude`. Each exposes a `Tasks()`
+`github`, `renovate`, `lua`, `treesitter`, `docs`, `claude`. Each exposes a `Tasks()`
 function returning composed runnables, plus individual task variables.
 
 ### Execution model
@@ -94,7 +94,7 @@ function returning composed runnables, plus individual task variables.
 ### Key files in this repo's own config
 
 - `.pocket/config.go` — This project's Pocket configuration (uses
-  `golang.Tasks()`, `markdown.Format`, `github.Tasks()`)
+  `golang.Tasks()`, `markdown.Format`, `renovate.Tasks()`, `github.Tasks()`)
 - `.pocket/main.go` — Entry point that calls `pk.RunMain(Config)`
 - `cmd/pocket/main.go` — The `pocket init` bootstrapper CLI
 
