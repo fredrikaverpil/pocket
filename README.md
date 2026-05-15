@@ -272,7 +272,7 @@ as JSON with `./pok --json [task]`, and print the v1 schema with
 [JSON Execution](./docs/reference.md#json-execution) reference for full schema
 and rules.
 
-### Programmatic Plan Access
+## Programmatic Plan Access
 
 Tasks can access the full execution plan at runtime via
 `run.PlanFromContext(ctx)`. This enables powerful workflows like **automatic CI
