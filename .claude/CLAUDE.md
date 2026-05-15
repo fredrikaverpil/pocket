@@ -20,6 +20,17 @@ everything—no pre-installed dependencies beyond a shell.
 ./pok go-lint            # run golangci-lint
 ./pok plan               # show execution plan without running
 ./pok -h                 # list all available tasks
+./pok --json go-test     # emit task tree as JSON instead of executing
+./pok exec < tree.json   # execute a JSON task tree from stdin
+./pok exec --schema      # print the v1 JSON execution schema
+```
+
+Compose and execute ad-hoc task trees via JSON:
+
+```bash
+echo '{"version":1,"tree":{"type":"serial","children":[
+  {"type":"command","name":"test","argv":["go","test","./..."]}
+]}}' | ./pok exec
 ```
 
 Run Go tests directly (useful during development):
