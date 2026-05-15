@@ -46,7 +46,7 @@ const Name = "uv"
 
 // Version is the version of uv to install.
 // renovate: datasource=github-releases depName=astral-sh/uv
-const Version = "0.11.13"
+const Version = "0.11.14"
 
 // DefaultPythonVersion is the Python version used when none is specified.
 // renovate: datasource=github-releases depName=python/cpython
