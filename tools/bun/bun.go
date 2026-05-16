@@ -22,7 +22,7 @@ const Name = "bun"
 
 // Version is the version of bun to install.
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.*)$
-const Version = "1.3.13"
+const Version = "1.3.14"
 
 // Install ensures bun is available.
 var Install = &pk.Task{
