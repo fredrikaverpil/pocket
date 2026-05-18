@@ -75,8 +75,8 @@ making itself available. Three patterns exist:
 ### Task packages (`tasks/`)
 
 Pre-built opinionated tasks that wrap tools: `golang`, `python`, `markdown`,
-`github`, `renovate`, `lua`, `treesitter`, `docs`, `claude`. Each exposes a `Tasks()`
-function returning composed runnables, plus individual task variables.
+`github`, `renovate`, `lua`, `treesitter`, `docs`, `claude`. Each exposes a
+`Tasks()` function returning composed runnables, plus individual task variables.
 
 ### Execution model
 
