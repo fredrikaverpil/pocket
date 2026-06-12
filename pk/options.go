@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
 	pkrun "github.com/fredrikaverpil/pocket/pk/run"
@@ -237,13 +238,23 @@ func (pf *pathFilter) run(ctx context.Context) error {
 	}
 
 	paths := pf.resolvedPaths
+
+	// An enclosing pathFilter has already selected a directory for this pass.
+	// Nested scopes refine outer scopes, so narrow to that directory instead of
+	// re-iterating all resolved paths, which would multiply executions of the
+	// inner runnable (visible with WithForceRun, wasteful otherwise).
+	if outerPath, ok := ctx.Value(ctxkey.Path{}).(string); ok {
+		if !slices.Contains(paths, outerPath) {
+			return nil
+		}
+		paths = []string{outerPath}
+	}
+
 	if taskScope := taskScopeFromEnv(); isAutoExec(ctx) && taskScope != "" {
-		paths = nil
-		for _, path := range pf.resolvedPaths {
-			if path == taskScope {
-				paths = []string{path}
-				break
-			}
+		if slices.Contains(paths, taskScope) {
+			paths = []string{taskScope}
+		} else {
+			paths = nil
 		}
 	}
 

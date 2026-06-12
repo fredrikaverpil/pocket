@@ -713,3 +713,85 @@ func TestE2E_AutoExec_GlobalTaskExcludedPathStillRunsElsewhere(t *testing.T) {
 	want := []execRecord{{TaskName: "global-install", Path: "svc-b"}}
 	assert.DeepEqual(t, rec.records, want)
 }
+
+func TestE2E_AutoExec_NestedScopesWithForceRun(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	task := rec.task("nested")
+
+	cfg := &Config{
+		Auto: WithOptions(
+			WithOptions(task, WithPath("svc-.*"), WithForceRun()),
+			WithPath("svc-.*"),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// The inner scope must narrow to the outer scope's current directory
+	// instead of re-iterating all of its paths; without that, WithForceRun
+	// exposes the multiplication by running the task 2x2 = 4 times.
+	want := []execRecord{
+		{TaskName: "nested", Path: "svc-a"},
+		{TaskName: "nested", Path: "svc-b"},
+	}
+	assert.DeepEqual(t, rec.records, want)
+}
+
+func TestE2E_AutoExec_NestedScopeFollowsOuterIteration(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	wide := rec.task("wide")
+	narrow := rec.task("narrow")
+
+	cfg := &Config{
+		Auto: WithOptions(
+			Serial(
+				wide,
+				WithOptions(narrow, WithPath("svc-.*")),
+			),
+			WithPath("svc-.*"),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Each pass of the outer scope runs the inner scope only at the outer's
+	// current directory: narrow must not visit svc-b while the outer scope is
+	// still iterating svc-a.
+	want := []execRecord{
+		{TaskName: "wide", Path: "svc-a"},
+		{TaskName: "narrow", Path: "svc-a"},
+		{TaskName: "wide", Path: "svc-b"},
+		{TaskName: "narrow", Path: "svc-b"},
+	}
+	assert.DeepEqual(t, rec.records, want)
+}
