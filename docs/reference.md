@@ -260,6 +260,12 @@ pk.WithOptions(python.Test, pk.WithNameSuffix("3.10"), pk.WithFlags(python.TestF
 Each variant has an **effective name** (base name + suffix). Variants are
 deduplicated separately, so `py-test:3.9` and `py-test:3.10` both run.
 
+A task (or variant) referenced from multiple scopes becomes a single instance
+that runs in the union of all scopes' paths. All scopes must agree on the task's
+flag overrides — conflicting `WithFlags` values (including an override in one
+scope but not another) fail plan building. Use `WithNameSuffix` to create
+distinct variants instead.
+
 ### Default Execution Path
 
 Tasks run at the repository root (`.`) by default. Use `WithPath` or
@@ -303,6 +309,8 @@ This means:
 
 - Same task at the same path runs only once
 - Same task at different paths runs once per path
+- Same task referenced from multiple scopes runs in the union of the scopes'
+  paths
 - Different variants (via `WithNameSuffix`) run separately
 
 **Global tasks** deduplicate by `baseName@.` only, ignoring the execution path.

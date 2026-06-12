@@ -836,6 +836,17 @@ pk.Serial(
 // Install runs once, not three times
 ```
 
+Referencing the same task under multiple path scopes runs it in the union of all
+scopes' paths, deduplicated per path:
+
+```go
+pk.Serial(
+    pk.WithOptions(Lint, pk.WithPath("svc-a")),
+    pk.WithOptions(Lint, pk.WithPath("svc-b")),
+)
+// Lint runs in svc-a and svc-b
+```
+
 Use `WithForceRun()` to bypass deduplication when needed:
 
 ```go
@@ -897,6 +908,13 @@ pk.WithOptions(
     pk.WithDetect(python.Detect()),
 )
 ```
+
+> [!NOTE]
+>
+> A task referenced from multiple scopes must resolve to the same flag overrides
+> in all of them — conflicting `WithFlags` values (including an override in one
+> scope but not another) fail plan building. Use `pk.WithNameSuffix` to create
+> distinct variants instead.
 
 **Creating custom options:** When building your own task packages, use
 `pk.WithFlags` to set task flags:
