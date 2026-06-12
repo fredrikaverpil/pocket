@@ -122,6 +122,19 @@ func (t *Task) run(ctx context.Context) error {
 		ctx = context.WithValue(ctx, ctxkey.TaskFlags{}, resolved)
 	}
 
+	// Check if this task should run at this path based on the Plan's pathMappings.
+	// This handles task-specific excludes (WithSkipTask with patterns).
+	// This must happen before deduplication: global tasks deduplicate by name
+	// only, so marking an excluded path as done would skip the task everywhere.
+	if plan != nil {
+		if info, ok := plan.pathMappings[effectiveName]; ok {
+			path := pkrun.PathFromContext(ctx)
+			if !slices.Contains(info.resolvedPaths, path) {
+				return nil // Task is excluded from this path.
+			}
+		}
+	}
+
 	// Check deduplication unless forceRun is set in context.
 	// Deduplication uses taskID (effective name + path), or base name + "." for global tasks.
 	// Global tasks use base name only (ignoring suffix) to ensure install tasks run once.
@@ -134,17 +147,6 @@ func (t *Task) run(ctx context.Context) error {
 			}
 			if alreadyDone := tracker.markDone(id); alreadyDone {
 				return nil // Silent skip.
-			}
-		}
-	}
-
-	// Check if this task should run at this path based on the Plan's pathMappings.
-	// This handles task-specific excludes (WithSkipTask with patterns).
-	if plan != nil {
-		if info, ok := plan.pathMappings[effectiveName]; ok {
-			path := pkrun.PathFromContext(ctx)
-			if !slices.Contains(info.resolvedPaths, path) {
-				return nil // Task is excluded from this path.
 			}
 		}
 	}

@@ -56,6 +56,50 @@ func TestTask_Run_Deduplication(t *testing.T) {
 	}
 }
 
+func TestTask_Run_ExcludedPathDoesNotMarkDone(t *testing.T) {
+	var runCount atomic.Int32
+
+	task := &Task{Name: "global-task", Usage: "test task", Global: true, Do: func(_ context.Context) error {
+		runCount.Add(1)
+		return nil
+	}}
+
+	cfg := &Config{
+		Auto: WithOptions(
+			task,
+			WithPath("svc-a", "svc-b"),
+			WithSkipTask(task, "svc-a"),
+		),
+	}
+	plan, err := newPlan(cfg, "/tmp", []string{".", "svc-a", "svc-b"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	tracker := newExecutionTracker()
+	ctx := context.WithValue(context.Background(), ctxkey.Plan{}, plan)
+	ctx = withExecutionTracker(ctx, tracker)
+
+	// Run at the excluded path: must not execute and must not record dedup state.
+	if err := task.run(pkrun.ContextWithPath(ctx, "svc-a")); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 0 {
+		t.Errorf("expected runCount=0 after excluded path, got %d", got)
+	}
+	if executed := tracker.executed(); len(executed) != 0 {
+		t.Errorf("expected no dedup entries after excluded path, got %v", executed)
+	}
+
+	// Run at an allowed path: the global task must still execute.
+	if err := task.run(pkrun.ContextWithPath(ctx, "svc-b")); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := runCount.Load(); got != 1 {
+		t.Errorf("expected runCount=1 after allowed path, got %d", got)
+	}
+}
+
 func TestTask_Run_ForceRun(t *testing.T) {
 	var runCount atomic.Int32
 
