@@ -173,6 +173,14 @@ Wraps an inner runnable with path/option configuration:
    - Set path in context via `ContextWithPath`
    - Execute inner runnable
 
+When pathFilters nest, the inner filter does not re-iterate its own resolved
+paths. If the context already carries a path (set by an enclosing pathFilter),
+the inner filter narrows to that directory — executing once if the directory is
+in its resolved set, not at all otherwise. Nested scopes refine outer scopes
+(inner paths are always a subset of the outer's), so this yields each directory
+exactly once per pass instead of an N×M cross product, which would otherwise
+surface as duplicate runs under `WithForceRun`.
+
 ---
 
 ## Exec pipeline
