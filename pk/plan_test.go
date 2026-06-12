@@ -1037,3 +1037,136 @@ func TestPlan_WithVerboseNotSetByDefault(t *testing.T) {
 		t.Error("expected verbose=false on task instance by default")
 	}
 }
+
+func TestNewPlan_TaskInMultipleScopes(t *testing.T) {
+	allDirs := []string{".", "svc-a", "svc-b"}
+
+	type multiScopeFlags struct {
+		Mode string `flag:"mode" usage:"mode flag"`
+	}
+
+	newTask := func() *Task {
+		return &Task{Name: "lint", Usage: "lint code", Do: func(_ context.Context) error { return nil }}
+	}
+
+	t.Run("UnionsPaths", func(t *testing.T) {
+		task := newTask()
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithPath("svc-a")),
+				WithOptions(task, WithPath("svc-b")),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		wantPaths := []string{"svc-a", "svc-b"}
+		instance := plan.taskInstanceByName("lint")
+		if instance == nil {
+			t.Fatal("expected task instance 'lint' in plan")
+		}
+		if !slices.Equal(instance.resolvedPaths, wantPaths) {
+			t.Errorf("instance paths: expected %v, got %v", wantPaths, instance.resolvedPaths)
+		}
+		mapping, ok := plan.pathMappings["lint"]
+		if !ok {
+			t.Fatal("expected path mapping for 'lint'")
+		}
+		if !slices.Equal(mapping.resolvedPaths, wantPaths) {
+			t.Errorf("mapping resolved paths: expected %v, got %v", wantPaths, mapping.resolvedPaths)
+		}
+		if !slices.Equal(mapping.includePaths, wantPaths) {
+			t.Errorf("mapping include paths: expected %v, got %v", wantPaths, mapping.includePaths)
+		}
+	})
+
+	t.Run("IdenticalFlagOverridesAllowed", func(t *testing.T) {
+		task := newTask()
+		task.Flags = multiScopeFlags{Mode: "default"}
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithPath("svc-a"), WithFlags(multiScopeFlags{Mode: "fast"})),
+				WithOptions(task, WithPath("svc-b"), WithFlags(multiScopeFlags{Mode: "fast"})),
+			),
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		instance := plan.taskInstanceByName("lint")
+		if instance == nil {
+			t.Fatal("expected task instance 'lint' in plan")
+		}
+		if instance.flags["mode"] != "fast" {
+			t.Errorf("expected mode=%q, got %v", "fast", instance.flags["mode"])
+		}
+		wantPaths := []string{"svc-a", "svc-b"}
+		if !slices.Equal(instance.resolvedPaths, wantPaths) {
+			t.Errorf("instance paths: expected %v, got %v", wantPaths, instance.resolvedPaths)
+		}
+	})
+
+	t.Run("ConflictingFlagOverridesError", func(t *testing.T) {
+		task := newTask()
+		task.Flags = multiScopeFlags{Mode: "default"}
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithPath("svc-a"), WithFlags(multiScopeFlags{Mode: "fast"})),
+				WithOptions(task, WithPath("svc-b"), WithFlags(multiScopeFlags{Mode: "slow"})),
+			),
+		}
+
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err == nil {
+			t.Fatal("expected error for conflicting flag overrides across scopes")
+		}
+		if !strings.Contains(err.Error(), "conflicting flag overrides") {
+			t.Errorf("expected 'conflicting flag overrides' in error, got %q", err.Error())
+		}
+	})
+
+	t.Run("OverrideVsNoOverrideError", func(t *testing.T) {
+		task := newTask()
+		task.Flags = multiScopeFlags{Mode: "default"}
+		cfg := &Config{
+			Auto: Serial(
+				WithOptions(task, WithPath("svc-a"), WithFlags(multiScopeFlags{Mode: "fast"})),
+				WithOptions(task, WithPath("svc-b")),
+			),
+		}
+
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err == nil {
+			t.Fatal("expected error when one scope overrides flags and another does not")
+		}
+		if !strings.Contains(err.Error(), "conflicting flag overrides") {
+			t.Errorf("expected 'conflicting flag overrides' in error, got %q", err.Error())
+		}
+	})
+
+	t.Run("AutoAndManualStaysAuto", func(t *testing.T) {
+		task := newTask()
+		cfg := &Config{
+			Auto:   WithOptions(task, WithPath("svc-a")),
+			Manual: []Runnable{task},
+		}
+
+		plan, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		instance := plan.taskInstanceByName("lint")
+		if instance == nil {
+			t.Fatal("expected task instance 'lint' in plan")
+		}
+		if instance.isManual {
+			t.Error("task referenced in both Auto and Manual should stay auto")
+		}
+	})
+}

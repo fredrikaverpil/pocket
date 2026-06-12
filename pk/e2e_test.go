@@ -598,3 +598,82 @@ func TestE2E_AutoExec_TaskScope(t *testing.T) {
 	want := []execRecord{{TaskName: "scoped", Path: "svc-a"}}
 	assert.DeepEqual(t, rec.records, want)
 }
+
+func TestE2E_AutoExec_TaskInMultipleScopes(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	task := rec.task("multi")
+
+	cfg := &Config{
+		Auto: Serial(
+			WithOptions(task, WithPath("svc-a")),
+			WithOptions(task, WithPath("svc-b")),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rec.records) != 2 {
+		t.Fatalf("expected 2 records, got %d: %+v", len(rec.records), rec.records)
+	}
+	paths := map[string]bool{}
+	for _, r := range rec.records {
+		paths[r.Path] = true
+	}
+	if !paths["svc-a"] || !paths["svc-b"] {
+		t.Errorf("expected task to run in svc-a and svc-b, got %v", paths)
+	}
+}
+
+func TestE2E_ExecuteTask_MultipleScopes(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	task := rec.task("multi")
+
+	cfg := &Config{
+		Auto: Serial(
+			WithOptions(task, WithPath("svc-a")),
+			WithOptions(task, WithPath("svc-b")),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := e2eCtx(t, plan)
+	if err := ExecuteTask(ctx, "multi", plan); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rec.records) != 2 {
+		t.Fatalf("expected 2 records, got %d: %+v", len(rec.records), rec.records)
+	}
+	paths := map[string]bool{}
+	for _, r := range rec.records {
+		paths[r.Path] = true
+	}
+	if !paths["svc-a"] || !paths["svc-b"] {
+		t.Errorf("expected task to run in svc-a and svc-b, got %v", paths)
+	}
+}
