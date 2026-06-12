@@ -33,7 +33,11 @@ type taskInstance struct {
 2. **Collect tasks** — `taskCollector` traverses the composition tree. For each
    `pathFilter` encountered, it pushes scope (include/exclude patterns, flags,
    context values, name suffix) onto a stack. For each `Task`, it creates a
-   `taskInstance` with the accumulated scope.
+   `taskInstance` with the accumulated scope. Repeat occurrences of the same
+   (task, suffix) pair merge into the existing instance: resolved paths are
+   unioned (in `taskInstances` and `pathMappings` alike, so auto execution and
+   direct invocation agree), and conflicting flag overrides across scopes fail
+   plan building.
 
 3. **Resolve paths** — For each task instance, paths are resolved against the
    cached directory list:

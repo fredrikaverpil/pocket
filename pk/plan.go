@@ -3,6 +3,7 @@ package pk
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"sort"
 
@@ -133,7 +134,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 
 	collector := &taskCollector{
 		taskInstances: make([]taskInstance, 0),
-		seenTasks:     make(map[taskKey]bool),
+		seenTasks:     make(map[taskKey]int),
 		pathMappings:  make(map[string]pathInfo),
 		currentPath:   nil,
 		gitRoot:       gitRoot,
@@ -194,8 +195,8 @@ type taskInstance struct {
 
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
-	taskInstances []taskInstance   // Tasks with their effective names.
-	seenTasks     map[taskKey]bool // Track seen (task, suffix) pairs for deduplication.
+	taskInstances []taskInstance  // Tasks with their effective names.
+	seenTasks     map[taskKey]int // Maps seen (task, suffix) pairs to their taskInstances index.
 	pathMappings  map[string]pathInfo
 	currentPath   *pathFilter // Current path context during tree walk.
 	gitRoot       string      // Git repository root.
@@ -357,20 +358,35 @@ func (pc *taskCollector) walk(r Runnable) error {
 			}
 		}
 
-		// Only collect unique (task, suffix) pairs for the flat tasks list.
-		key := taskKey{task: v, suffix: pc.activeNameSuffix}
-		if !pc.seenTasks[key] {
-			pc.seenTasks[key] = true
-			// Pre-merge flags for this task from all active scopes.
-			var mergedFlags map[string]any
-			for _, f := range pc.activeFlags {
-				if f.taskName == v.Name {
-					if mergedFlags == nil {
-						mergedFlags = make(map[string]any)
-					}
-					mergedFlags[f.flagName] = f.value
+		// Pre-merge flags for this task from all active scopes.
+		var mergedFlags map[string]any
+		for _, f := range pc.activeFlags {
+			if f.taskName == v.Name {
+				if mergedFlags == nil {
+					mergedFlags = make(map[string]any)
 				}
+				mergedFlags[f.flagName] = f.value
 			}
+		}
+
+		// Collect the task instance. A task may be referenced from multiple
+		// scopes (e.g., under different path filters); occurrences after the
+		// first merge their resolved paths into the existing instance so that
+		// auto execution and direct invocation agree on the union of paths.
+		key := taskKey{task: v, suffix: pc.activeNameSuffix}
+		if idx, seen := pc.seenTasks[key]; seen {
+			instance := &pc.taskInstances[idx]
+			if !reflect.DeepEqual(instance.flags, mergedFlags) {
+				return fmt.Errorf(
+					"task %q: conflicting flag overrides across scopes (%v vs %v); "+
+						"use WithNameSuffix to create distinct variants",
+					effectiveName, instance.flags, mergedFlags)
+			}
+			instance.resolvedPaths = unionPaths(instance.resolvedPaths, finalPaths)
+			instance.isManual = instance.isManual && pc.inManualSection
+			instance.verbose = instance.verbose || v.Verbose || pc.activeVerbose
+		} else {
+			pc.seenTasks[key] = len(pc.taskInstances)
 			pc.taskInstances = append(pc.taskInstances, taskInstance{
 				task:          v,
 				name:          effectiveName,
@@ -397,6 +413,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 			allIncludes = []string{"."}
 		}
 
+		// Union with any mapping recorded by a previous occurrence of this task.
+		if existing, seen := pc.pathMappings[effectiveName]; seen {
+			allIncludes = unionPaths(existing.includePaths, allIncludes)
+			finalPaths = unionPaths(existing.resolvedPaths, finalPaths)
+		}
 		pc.pathMappings[effectiveName] = pathInfo{
 			includePaths:  allIncludes,
 			resolvedPaths: finalPaths,
@@ -475,6 +496,18 @@ func (pc *taskCollector) walk(r Runnable) error {
 	}
 
 	return nil
+}
+
+// unionPaths returns base with any paths from extra appended that are not
+// already present, preserving order. base is never mutated.
+func unionPaths(base, extra []string) []string {
+	result := slices.Clone(base)
+	for _, p := range extra {
+		if !slices.Contains(result, p) {
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 // excludeByPatterns filters out directories matching any of the patterns.

@@ -210,8 +210,9 @@ pk.WithOptions(
 
 The same task at the same path only runs once per invocation, even if referenced
 multiple times in your composition tree. This makes it safe to compose shared
-dependencies without worrying about redundant work. Use `WithForceRun()` to
-bypass deduplication when needed.
+dependencies without worrying about redundant work. Referencing the same task
+under multiple path scopes runs it in the union of all scopes' paths. Use
+`WithForceRun()` to bypass deduplication when needed.
 
 ### Shim Scoping
 
