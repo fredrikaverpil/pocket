@@ -191,17 +191,20 @@ func DetectByFile(filenames ...string) DetectFunc {
 // It determines which directories to execute in based on include/exclude patterns
 // and optional detection functions.
 type pathFilter struct {
-	inner          Runnable
-	includePaths   []string
-	excludePaths   []excludePattern
-	skippedTasks   []string
-	flags          []flagOverride
-	nameSuffix     string     // Suffix to append to task names (e.g., ":3.9").
-	detectFunc     DetectFunc // Optional detection function for dynamic path discovery.
-	resolvedPaths  []string   // Cached resolved paths from plan building.
-	forceRun       bool       // Disable task deduplication for the wrapped Runnable.
-	verbose        bool       // Force verbose mode for the wrapped Runnable.
-	noticePatterns []string   // Custom notice detection patterns (nil = use default).
+	inner        Runnable
+	includePaths []string
+	excludePaths []excludePattern
+	skippedTasks []string
+	flags        []flagOverride
+	nameSuffix   string     // Suffix to append to task names (e.g., ":3.9").
+	detectFunc   DetectFunc // Optional detection function for dynamic path discovery.
+	// resolvedPaths holds resolved paths for engine-constructed filters (e.g.
+	// JSON commands). Walked filters use Plan.pfResolved instead.
+	resolvedPaths []string
+
+	forceRun       bool     // Disable task deduplication for the wrapped Runnable.
+	verbose        bool     // Force verbose mode for the wrapped Runnable.
+	noticePatterns []string // Custom notice detection patterns (nil = use default).
 }
 
 type excludePattern struct {
@@ -219,7 +222,8 @@ type flagOverride struct {
 
 // run implements the Runnable interface.
 // It executes the inner Runnable for each resolved path.
-// Paths are resolved during plan building and cached in resolvedPaths.
+// Paths are resolved during plan building and recorded in Plan.pfResolved
+// (engine-constructed filters fall back to the resolvedPaths field).
 // Flag overrides are pre-computed during planning and read from Plan.taskInstanceByName().
 func (pf *pathFilter) run(ctx context.Context) error {
 	// If forceRun is set, propagate it to the context.
@@ -237,7 +241,15 @@ func (pf *pathFilter) run(ctx context.Context) error {
 		ctx = context.WithValue(ctx, ctxkey.NoticePatterns{}, pf.noticePatterns)
 	}
 
+	// Walked filters read their resolved paths from the Plan (keyed by this
+	// pathFilter), so plan building never mutates the shared composition node.
+	// Engine-constructed filters (e.g. JSON commands) carry their own field.
 	paths := pf.resolvedPaths
+	if p := planFromContext(ctx); p != nil {
+		if walked, ok := p.pfResolved[pf]; ok {
+			paths = walked
+		}
+	}
 
 	// An enclosing pathFilter has already selected a directory for this pass.
 	// Nested scopes refine outer scopes, so narrow to that directory instead of

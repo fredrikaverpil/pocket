@@ -54,6 +54,14 @@ type Plan struct {
 
 	// shimConfig holds the shim generation configuration from Config.
 	shimConfig *ShimConfig
+
+	// pfResolved maps each pathFilter in the composition tree to the directories
+	// it executes in. Resolution results are stored here rather than on the
+	// pathFilter itself so that plan building never mutates the user's shared
+	// composition nodes: the same WithOptions value referenced from multiple tree
+	// positions accumulates (unions) its paths here instead of overwriting a
+	// field. Read at execution time by pathFilter.run via the Plan in context.
+	pfResolved map[*pathFilter][]string
 }
 
 // ShimConfig returns the resolved shim configuration from the [Config].
@@ -136,6 +144,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		taskInstances: make([]taskInstance, 0),
 		seenTasks:     make(map[taskKey]int),
 		pathMappings:  make(map[string]pathInfo),
+		pfResolved:    make(map[*pathFilter][]string),
 		currentPath:   nil,
 		gitRoot:       gitRoot,
 		allDirs:       allDirs,
@@ -177,6 +186,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
 		shimConfig:        shimConfig,
+		pfResolved:        collector.pfResolved,
 	}, nil
 }
 
@@ -195,15 +205,17 @@ type taskInstance struct {
 
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
-	taskInstances []taskInstance  // Tasks with their effective names.
-	seenTasks     map[taskKey]int // Maps seen (task, suffix) pairs to their taskInstances index.
-	pathMappings  map[string]pathInfo
-	currentPath   *pathFilter // Current path context during tree walk.
-	gitRoot       string      // Git repository root.
-	allDirs       []string    // Cached directory list from filesystem walk.
+	taskInstances []taskInstance           // Tasks with their effective names.
+	seenTasks     map[taskKey]int          // Maps seen (task, suffix) pairs to their taskInstances index.
+	pathMappings  map[string]pathInfo      // Per-task execution paths by effective name.
+	pfResolved    map[*pathFilter][]string // Resolved paths per pathFilter (unioned across occurrences).
+	currentPath   *pathFilter              // Current path context during tree walk.
+	gitRoot       string                   // Git repository root.
+	allDirs       []string                 // Cached directory list from filesystem walk.
 
 	// Cumulative state
 	candidates       []string         // Current allowed directories.
+	currentResolved  []string         // Resolved paths of the innermost enclosing pathFilter.
 	activeExcludes   []excludePattern // All excludes in current scope.
 	activeSkips      []string         // All skipped tasks in current scope.
 	activeNameSuffix string           // Current name suffix from WithNameSuffix.
@@ -404,7 +416,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		var allIncludes []string
 		if pc.currentPath != nil {
 			if pc.currentPath.detectFunc != nil && len(pc.currentPath.includePaths) == 0 {
-				allIncludes = pc.currentPath.resolvedPaths
+				allIncludes = pc.currentResolved
 			} else {
 				allIncludes = pc.currentPath.includePaths
 			}
@@ -439,14 +451,21 @@ func (pc *taskCollector) walk(r Runnable) error {
 
 	case *pathFilter:
 		// 1. Resolve paths for this filter based on current candidates.
+		// Store the result in the Plan (keyed by this pathFilter) rather than on
+		// the node itself: the same WithOptions value may appear at multiple tree
+		// positions, so occurrences union their paths here instead of the last
+		// walk overwriting a shared field. The union is a correct superset at
+		// execution time — pathFilter.run iterates it at the top level and narrows
+		// to a single enclosing directory when nested.
 		resolved, err := pc.filterPaths(v)
 		if err != nil {
 			return err
 		}
-		v.resolvedPaths = resolved
+		pc.pfResolved[v] = unionPaths(pc.pfResolved[v], resolved)
 
 		// 2. Save state for nesting.
 		prevCandidates := pc.candidates
+		prevResolved := pc.currentResolved
 		prevExcludes := pc.activeExcludes
 		prevSkips := pc.activeSkips
 		prevPath := pc.currentPath
@@ -461,7 +480,8 @@ func (pc *taskCollector) walk(r Runnable) error {
 		}
 
 		// 3. Update state with new constraints.
-		pc.candidates = v.resolvedPaths
+		pc.candidates = resolved
+		pc.currentResolved = resolved
 		pc.activeExcludes = append(pc.activeExcludes, v.excludePaths...)
 		pc.activeSkips = append(pc.activeSkips, v.skippedTasks...)
 		pc.activeFlags = append(pc.activeFlags, resolvedFlags...)
@@ -484,6 +504,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 
 		// 5. Restore state.
 		pc.candidates = prevCandidates
+		pc.currentResolved = prevResolved
 		pc.activeExcludes = prevExcludes
 		pc.activeSkips = prevSkips
 		pc.currentPath = prevPath

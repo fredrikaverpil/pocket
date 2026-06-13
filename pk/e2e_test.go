@@ -795,3 +795,98 @@ func TestE2E_AutoExec_NestedScopeFollowsOuterIteration(t *testing.T) {
 	}
 	assert.DeepEqual(t, rec.records, want)
 }
+
+func TestE2E_AutoExec_ReusedScopeKeepsAllPaths(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	task := rec.task("reused")
+
+	// The same WithOptions value appears twice: first standalone (resolving to
+	// svc-a and svc-b), then narrowed to svc-a by an enclosing scope.
+	shared := WithOptions(task, WithPath("svc-.*"))
+	cfg := &Config{
+		Auto: Serial(
+			shared,
+			WithOptions(shared, WithPath("svc-a")),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Plan building must not let the narrowed occurrence overwrite the shared
+	// node's paths; the standalone occurrence still runs in both directories
+	// (the narrowed second occurrence is then deduplicated at svc-a).
+	want := []execRecord{
+		{TaskName: "reused", Path: "svc-a"},
+		{TaskName: "reused", Path: "svc-b"},
+	}
+	assert.DeepEqual(t, rec.records, want)
+}
+
+func TestE2E_AutoExec_ReusedDetectScopeKeepsAllPaths(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	for _, d := range []string{"svc-a", "svc-b"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(tmpDir, d, "go.mod"),
+			[]byte("module "+d),
+			0o644,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := newRecorder()
+	task := rec.task("detected")
+
+	// A detect-based scope reused at two tree positions: first standalone
+	// (detecting svc-a and svc-b), then narrowed to svc-a by an enclosing scope.
+	// Detect filters record includePaths from the resolution of the enclosing
+	// pathFilter, so this also exercises that the per-occurrence resolution is
+	// not clobbered when the node is shared.
+	shared := WithOptions(task, WithDetect(DetectByFile("go.mod")))
+	cfg := &Config{
+		Auto: Serial(
+			shared,
+			WithOptions(shared, WithPath("svc-a")),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The shared detect node keeps both detected directories as includePaths
+	// (unioned across occurrences), not just the last occurrence's narrowing.
+	assert.DeepEqual(t, plan.pathMappings["detected"].includePaths, []string{"svc-a", "svc-b"})
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := cfg.Auto.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// The standalone occurrence runs in both detected directories; the narrowed
+	// second occurrence is deduplicated at svc-a.
+	want := []execRecord{
+		{TaskName: "detected", Path: "svc-a"},
+		{TaskName: "detected", Path: "svc-b"},
+	}
+	assert.DeepEqual(t, rec.records, want)
+}
