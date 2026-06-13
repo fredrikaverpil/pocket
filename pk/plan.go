@@ -307,6 +307,11 @@ func (pc *taskCollector) walk(r Runnable) error {
 		if v.Do != nil && v.Body != nil {
 			return fmt.Errorf("task %q: Do and Body are mutually exclusive", v.Name)
 		}
+		if v.Body != nil {
+			if err := validateBodyComposition(v.Name, v.Body); err != nil {
+				return err
+			}
+		}
 		// Build internal flagSet if not already built.
 		if v.flagSet == nil {
 			if err := v.buildFlagSet(); err != nil {
@@ -516,6 +521,40 @@ func (pc *taskCollector) walk(r Runnable) error {
 		panic(fmt.Sprintf("pk: unknown Runnable type %T in walk", r))
 	}
 
+	return nil
+}
+
+// validateBodyComposition rejects pathFilters anywhere inside a Task.Body. A
+// pathFilter (pk.WithPath/WithDetect/WithOptions) depends on plan-time path
+// resolution that only happens for the top-level composition tree; inside a Body
+// it stays unresolved and silently iterates zero paths at runtime. The check
+// recurses through Serial/Parallel and into nested Task bodies, which are equally
+// subject to the rule. Do and command runnables are valid leaves.
+func validateBodyComposition(taskName string, r Runnable) error {
+	switch v := r.(type) {
+	case *pathFilter:
+		return fmt.Errorf("task %q: pk.WithPath/WithDetect/WithOptions is not allowed "+
+			"inside Task.Body; apply path scopes at the composition level instead "+
+			"(Body may contain Do, Task, Serial, Parallel)", taskName)
+	case *serial:
+		for _, child := range v.runnables {
+			if err := validateBodyComposition(taskName, child); err != nil {
+				return err
+			}
+		}
+	case *parallel:
+		for _, child := range v.runnables {
+			if err := validateBodyComposition(taskName, child); err != nil {
+				return err
+			}
+		}
+	case *Task:
+		// A nested task's own Body is equally subject to the rule; report it under
+		// its own name.
+		if v.Body != nil {
+			return validateBodyComposition(v.Name, v.Body)
+		}
+	}
 	return nil
 }
 
