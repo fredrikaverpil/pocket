@@ -2,6 +2,7 @@ package pk
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -573,6 +574,77 @@ func TestNewPlan_DuplicateTaskName(t *testing.T) {
 		_, err := newPlan(cfg, "/tmp", allDirs)
 		if err != nil {
 			t.Errorf("unexpected error for different suffixes: %v", err)
+		}
+	})
+}
+
+func TestNewPlan_PathFilterInBodyRejected(t *testing.T) {
+	allDirs := []string{".", "svc-a", "svc-b"}
+	leaf := &Task{Name: "leaf", Usage: "leaf", Do: func(_ context.Context) error { return nil }}
+
+	// A pathFilter inside a Body never gets resolved by the plan walk and would
+	// silently iterate zero paths at runtime, so plan building must reject it.
+	t.Run("Rejected", func(t *testing.T) {
+		tests := []struct {
+			name string
+			body Runnable
+			// wantTask is the task name the error should blame. A pathFilter in a
+			// nested task's body is reported under that nested task, not the outer.
+			wantTask string
+		}{
+			{
+				name:     "Direct",
+				body:     WithOptions(leaf, WithPath("svc-a")),
+				wantTask: "outer",
+			},
+			{
+				name:     "InsideSerial",
+				body:     Serial(leaf, WithOptions(leaf, WithPath("svc-a"))),
+				wantTask: "outer",
+			},
+			{
+				name: "InsideParallel",
+				body: Parallel(
+					WithOptions(leaf, WithDetect(func(dirs []string, _ string) []string { return dirs })),
+				),
+				wantTask: "outer",
+			},
+			{
+				name: "InsideNestedTaskBody",
+				body: Serial(&Task{
+					Name: "inner",
+					Body: WithOptions(leaf, WithPath("svc-a")),
+				}),
+				wantTask: "inner",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cfg := &Config{Auto: &Task{Name: "outer", Usage: "outer", Body: tt.body}}
+				_, err := newPlan(cfg, "/tmp", allDirs)
+				if err == nil {
+					t.Fatal("expected error for pathFilter inside Task.Body, got nil")
+				}
+				if !strings.Contains(err.Error(), "not allowed inside Task.Body") {
+					t.Errorf("expected 'not allowed inside Task.Body' error, got: %v", err)
+				}
+				if want := fmt.Sprintf("task %q", tt.wantTask); !strings.Contains(err.Error(), want) {
+					t.Errorf("expected error to blame %s, got: %v", want, err)
+				}
+			})
+		}
+	})
+
+	// A Body composed only of Do/Task/Serial/Parallel is valid.
+	t.Run("Allowed", func(t *testing.T) {
+		cfg := &Config{Auto: &Task{
+			Name:  "outer",
+			Usage: "outer",
+			Body:  Serial(leaf, Do(func(_ context.Context) error { return nil })),
+		}}
+		_, err := newPlan(cfg, "/tmp", allDirs)
+		if err != nil {
+			t.Errorf("unexpected error for pathFilter-free Body: %v", err)
 		}
 	})
 }
