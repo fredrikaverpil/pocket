@@ -132,7 +132,7 @@ func run(cfg *Config) (*executionTracker, error) {
 				}
 			})
 			if len(cliFlags) > 0 {
-				ctx = context.WithValue(ctx, ctxkey.CLIFlags{}, cliFlags)
+				ctx = withCLIFlags(ctx, taskName, cliFlags)
 			}
 		}
 

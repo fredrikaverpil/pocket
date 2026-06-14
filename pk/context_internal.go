@@ -47,11 +47,27 @@ func commitsCheckEnabled(ctx context.Context) bool {
 	return v
 }
 
-func cliFlagsFromContext(ctx context.Context) map[string]any {
-	if flags, ok := ctx.Value(ctxkey.CLIFlags{}).(map[string]any); ok {
-		return flags
+// cliFlagOverrides carries CLI-provided flag overrides together with the name
+// of the task they were aimed at. Scoping by target prevents the overrides from
+// leaking into subtasks composed within the invoked task's body that happen to
+// declare same-named flags.
+type cliFlagOverrides struct {
+	target string
+	flags  map[string]any
+}
+
+func withCLIFlags(ctx context.Context, target string, flags map[string]any) context.Context {
+	return context.WithValue(ctx, ctxkey.CLIFlags{}, cliFlagOverrides{target: target, flags: flags})
+}
+
+// cliFlagsForTask returns the CLI flag overrides only if they were aimed at
+// effectiveName, otherwise nil.
+func cliFlagsForTask(ctx context.Context, effectiveName string) map[string]any {
+	o, ok := ctx.Value(ctxkey.CLIFlags{}).(cliFlagOverrides)
+	if !ok || o.target != effectiveName {
+		return nil
 	}
-	return nil
+	return o.flags
 }
 
 func taskScopeFromEnv() string {

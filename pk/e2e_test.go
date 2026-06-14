@@ -232,7 +232,7 @@ func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	// CLI flags have highest priority.
-	ctx = context.WithValue(ctx, ctxkey.CLIFlags{}, map[string]any{"mode": "cli-value"})
+	ctx = withCLIFlags(ctx, "cli-flagged", map[string]any{"mode": "cli-value"})
 
 	if err := ExecuteTask(ctx, "cli-flagged", plan); err != nil {
 		t.Fatal(err)
@@ -243,6 +243,52 @@ func TestE2E_ExecuteTask_CLIFlags(t *testing.T) {
 	}
 	if rec.records[0].Flags["mode"] != "cli-value" {
 		t.Errorf("expected mode=%q, got %q", "cli-value", rec.records[0].Flags["mode"])
+	}
+}
+
+// TestE2E_ExecuteTask_CLIFlagsScopedToTarget verifies that CLI flag overrides
+// apply only to the task named on the command line, not to subtasks composed in
+// its body that declare same-named flags (REVIEW.md finding 6).
+func TestE2E_ExecuteTask_CLIFlagsScopedToTarget(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   string         // task the CLI flags were aimed at
+		wantFlag map[string]any // flags the child subtask should observe
+	}{
+		{
+			name:     "aimed at parent does not leak to child",
+			target:   "parent",
+			wantFlag: map[string]any{"mode": "child-default"},
+		},
+		{
+			name:     "aimed at child still routes to child",
+			target:   "child",
+			wantFlag: map[string]any{"mode": "cli-value"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e2eSetup(t)
+			rec := newRecorder()
+			child := rec.taskWithFlags("child", cliFlaggedFlags{Mode: "child-default"})
+			parent := &Task{
+				Name:  "parent",
+				Usage: "parent",
+				Flags: cliFlaggedFlags{Mode: "parent-default"},
+				Body:  child,
+			}
+
+			plan, err := newPublicPlan(&Config{Auto: parent})
+			assert.NilError(t, err)
+
+			ctx := e2eCtx(t, plan)
+			ctx = withCLIFlags(ctx, tt.target, map[string]any{"mode": "cli-value"})
+
+			assert.NilError(t, ExecuteTask(ctx, "parent", plan))
+
+			assert.Equal(t, len(rec.records), 1)
+			assert.DeepEqual(t, rec.records[0].Flags, tt.wantFlag)
+		})
 	}
 }
 
