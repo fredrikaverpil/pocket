@@ -116,7 +116,7 @@ func (t *Task) run(ctx context.Context) error {
 		if instance != nil {
 			maps.Copy(resolved, instance.flags)
 		}
-		if cliFlags := cliFlagsFromContext(ctx); cliFlags != nil {
+		if cliFlags := cliFlagsForTask(ctx, effectiveName); cliFlags != nil {
 			maps.Copy(resolved, cliFlags)
 		}
 		ctx = context.WithValue(ctx, ctxkey.TaskFlags{}, resolved)
