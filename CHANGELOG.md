@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.1](https://github.com/fredrikaverpil/pocket/compare/v0.9.0...v0.9.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **pk:** check path exclusion before marking task as executed ([#105](https://github.com/fredrikaverpil/pocket/issues/105)) ([8842308](https://github.com/fredrikaverpil/pocket/commit/884230819efb46d6a1a52f4e5dfbba2e14f323a8))
+* **pk:** error on non-convertible flag values in mapToStruct ([#111](https://github.com/fredrikaverpil/pocket/issues/111)) ([5d25f5b](https://github.com/fredrikaverpil/pocket/commit/5d25f5b4f8f5717fb62a81b9f4ed8ddef9edf263))
+* **pk:** narrow nested path scopes to the enclosing scope's directory ([#106](https://github.com/fredrikaverpil/pocket/issues/106)) ([763f3ed](https://github.com/fredrikaverpil/pocket/commit/763f3ed16aab290b7ecce71533a86ed5875f9104))
+* **pk:** reject pathFilter inside Task.Body at plan time ([#108](https://github.com/fredrikaverpil/pocket/issues/108)) ([7421423](https://github.com/fredrikaverpil/pocket/commit/74214237790357a9bf1dd77cd9a882f35c16a349))
+* **pk:** scope CLI flag overrides to the invoked task ([#110](https://github.com/fredrikaverpil/pocket/issues/110)) ([3a1c190](https://github.com/fredrikaverpil/pocket/commit/3a1c190cc9d5d96bea0cd646fcb5ef371200aebf))
+* **pk:** store pathFilter resolution off shared composition nodes ([#107](https://github.com/fredrikaverpil/pocket/issues/107)) ([0a2c48c](https://github.com/fredrikaverpil/pocket/commit/0a2c48c59c91d2130ade5e6ebb1b8c26c215b524))
+* **pk:** union paths when a task is referenced in multiple scopes ([#103](https://github.com/fredrikaverpil/pocket/issues/103)) ([15794d0](https://github.com/fredrikaverpil/pocket/commit/15794d0bb283b7d06e431721e2dee7a50693ef39))
+* **pk:** use per-occurrence path filter resolutions ([#113](https://github.com/fredrikaverpil/pocket/issues/113)) ([39c2046](https://github.com/fredrikaverpil/pocket/commit/39c204694622c8831315144299fbe42c6cd5fe37))
+
 ## [0.9.0](https://github.com/fredrikaverpil/pocket/compare/v0.8.2...v0.9.0) (2026-05-14)
 
 
