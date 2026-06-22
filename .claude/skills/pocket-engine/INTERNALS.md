@@ -119,9 +119,10 @@ pattern.
 task.run(ctx)
     │
     ├── Check manual status (skip if auto-exec and task is manual)
+    ├── Apply TASK_SCOPE visibility filtering for auto-exec
     ├── Build resolved flags (defaults + plan + CLI)
+    ├── Check path mappings and task-specific path exclusions
     ├── Check deduplication (tracker.markDone)
-    ├── Check task-specific path exclusions
     ├── Print header (":: taskname @ path")
     └── Execute (Do function or Body runnable)
 ```
