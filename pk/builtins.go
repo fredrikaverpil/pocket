@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/internal/scaffold"
@@ -403,7 +404,7 @@ func printPlanText(ctx context.Context, p *Plan) {
 	}
 
 	pkrun.Printf(ctx, "Composition Tree:\n")
-	printTree(ctx, p.tree, "", true, "", p)
+	printTree(ctx, p.tree, "", true, "", nil, p)
 
 	pkrun.Println(ctx)
 	pkrun.Printf(ctx, "Legend: [→] = Serial, [⚡] = Parallel\n")
@@ -416,6 +417,7 @@ func printTree(
 	prefix string,
 	isLast bool,
 	nameSuffix string,
+	activePaths []string,
 	p *Plan,
 ) {
 	if r == nil {
@@ -448,13 +450,10 @@ func printTree(
 			marker = " [" + strings.Join(markers, ", ") + "]"
 		}
 
-		paths := "[root]"
-		if info, ok := p.pathMappings[effectiveName]; ok {
-			if len(info.resolvedPaths) > 0 {
-				paths = formatPaths(info.resolvedPaths)
-			} else {
-				paths = "[skipped]"
-			}
+		paths := pathsForTreeNode(activePaths, effectiveName, p)
+		pathLabel := "[skipped]"
+		if paths != nil {
+			pathLabel = formatPaths(paths)
 		}
 
 		pkrun.Printf(ctx, "%s%s%s%s\n", prefix, branch, effectiveName, marker)
@@ -463,7 +462,7 @@ func printTree(
 		if isLast {
 			continuation = "    "
 		}
-		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
+		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, pathLabel)
 
 	case *jsonTaskRef:
 		markers := []string{"task ref"}
@@ -473,20 +472,17 @@ func printTree(
 		if instance := p.taskInstanceByName(v.name); instance != nil && instance.isManual {
 			markers = append(markers, "manual")
 		}
-		paths := "[root]"
-		if info, ok := p.pathMappings[v.name]; ok {
-			if len(info.resolvedPaths) > 0 {
-				paths = formatPaths(info.resolvedPaths)
-			} else {
-				paths = "[skipped]"
-			}
+		paths := pathsForTreeNode(activePaths, v.name, p)
+		pathLabel := "[skipped]"
+		if paths != nil {
+			pathLabel = formatPaths(paths)
 		}
 		pkrun.Printf(ctx, "%s%s%s [%s]\n", prefix, branch, v.name, strings.Join(markers, ", "))
 		continuation := "│   "
 		if isLast {
 			continuation = "    "
 		}
-		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, paths)
+		pkrun.Printf(ctx, "%s%s    paths: %s\n", prefix, continuation, pathLabel)
 
 	case *serial:
 		pkrun.Printf(ctx, "%s%s[→] Serial\n", prefix, branch)
@@ -497,7 +493,7 @@ func printTree(
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, p)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, activePaths, p)
 		}
 
 	case *parallel:
@@ -509,7 +505,7 @@ func printTree(
 			childPrefix += "│   "
 		}
 		for i, child := range v.runnables {
-			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, p)
+			printTree(ctx, child, childPrefix, i == len(v.runnables)-1, nameSuffix, activePaths, p)
 		}
 
 	case *pathFilter:
@@ -520,6 +516,11 @@ func printTree(
 			} else {
 				childSuffix = v.nameSuffix
 			}
+		}
+
+		paths := slices.Clone(v.resolvedPaths)
+		if activePaths != nil {
+			paths = intersectPaths(activePaths, paths)
 		}
 
 		hasPathOptions := len(v.includePaths) > 0 || len(v.excludePaths) > 0 ||
@@ -538,11 +539,25 @@ func printTree(
 			if len(v.excludePaths) > 0 {
 				pkrun.Printf(ctx, "%s    exclude: %v\n", childPrefix, v.excludePaths)
 			}
-			printTree(ctx, v.inner, childPrefix, true, childSuffix, p)
+			printTree(ctx, v.inner, childPrefix, true, childSuffix, paths, p)
 		} else {
-			printTree(ctx, v.inner, prefix, isLast, childSuffix, p)
+			printTree(ctx, v.inner, prefix, isLast, childSuffix, paths, p)
 		}
 	}
+}
+
+func pathsForTreeNode(activePaths []string, taskName string, p *Plan) []string {
+	paths := []string{"."}
+	if activePaths != nil {
+		paths = slices.Clone(activePaths)
+	}
+	if info, ok := p.pathMappings[taskName]; ok {
+		if len(info.resolvedPaths) == 0 {
+			return nil
+		}
+		paths = intersectPaths(paths, info.resolvedPaths)
+	}
+	return paths
 }
 
 // formatPaths formats a path list for display.

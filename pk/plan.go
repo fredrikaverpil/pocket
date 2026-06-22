@@ -30,8 +30,9 @@ func planFromContext(ctx context.Context) *Plan {
 // Use [Plan.Tasks] to inspect what will execute, and [PlanFromContext]
 // to access the plan from within a task's Do function.
 type Plan struct {
-	// tree is the composition tree that preserves dependencies and structure.
-	// Execution walks this tree, respecting Serial/Parallel composition.
+	// tree is the planned execution tree that preserves dependencies and structure.
+	// It clones pathFilter nodes with per-occurrence resolved paths so execution
+	// does not mutate or depend on user-owned composition nodes.
 	// This is exposed as a Runnable, but the concrete types are internal.
 	tree Runnable
 
@@ -54,14 +55,6 @@ type Plan struct {
 
 	// shimConfig holds the shim generation configuration from Config.
 	shimConfig *ShimConfig
-
-	// pfResolved maps each pathFilter in the composition tree to the directories
-	// it executes in. Resolution results are stored here rather than on the
-	// pathFilter itself so that plan building never mutates the user's shared
-	// composition nodes: the same WithOptions value referenced from multiple tree
-	// positions accumulates (unions) its paths here instead of overwriting a
-	// field. Read at execution time by pathFilter.run via the Plan in context.
-	pfResolved map[*pathFilter][]string
 }
 
 // ShimConfig returns the resolved shim configuration from the [Config].
@@ -144,15 +137,18 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 		taskInstances: make([]taskInstance, 0),
 		seenTasks:     make(map[taskKey]int),
 		pathMappings:  make(map[string]pathInfo),
-		pfResolved:    make(map[*pathFilter][]string),
 		currentPath:   nil,
 		gitRoot:       gitRoot,
 		allDirs:       allDirs,
 	}
 
-	// Walk the Auto tree
+	// Walk the Auto tree and build a planned execution tree with per-occurrence
+	// pathFilter resolutions.
+	var tree Runnable
 	if cfg.Auto != nil {
-		if err := collector.walk(cfg.Auto); err != nil {
+		var err error
+		tree, err = collector.walk(cfg.Auto)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -160,7 +156,7 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	// Walk manual tasks - tasks in Config.Manual are automatically marked manual.
 	collector.inManualSection = true
 	for _, r := range cfg.Manual {
-		if err := collector.walk(r); err != nil {
+		if _, err := collector.walk(r); err != nil {
 			return nil, err
 		}
 	}
@@ -180,13 +176,12 @@ func newPlan(cfg *Config, gitRoot string, allDirs []string) (*Plan, error) {
 	}
 
 	return &Plan{
-		tree:              cfg.Auto, // Preserve the composition tree!
+		tree:              tree,
 		taskInstances:     collector.taskInstances,
 		taskIndex:         taskIndex,
 		pathMappings:      collector.pathMappings,
 		moduleDirectories: moduleDirectories,
 		shimConfig:        shimConfig,
-		pfResolved:        collector.pfResolved,
 	}, nil
 }
 
@@ -205,13 +200,12 @@ type taskInstance struct {
 
 // taskCollector is the internal state for walking the tree.
 type taskCollector struct {
-	taskInstances []taskInstance           // Tasks with their effective names.
-	seenTasks     map[taskKey]int          // Maps seen (task, suffix) pairs to their taskInstances index.
-	pathMappings  map[string]pathInfo      // Per-task execution paths by effective name.
-	pfResolved    map[*pathFilter][]string // Resolved paths per pathFilter (unioned across occurrences).
-	currentPath   *pathFilter              // Current path context during tree walk.
-	gitRoot       string                   // Git repository root.
-	allDirs       []string                 // Cached directory list from filesystem walk.
+	taskInstances []taskInstance      // Tasks with their effective names.
+	seenTasks     map[taskKey]int     // Maps seen (task, suffix) pairs to their taskInstances index.
+	pathMappings  map[string]pathInfo // Per-task execution paths by effective name.
+	currentPath   *pathFilter         // Current path context during tree walk.
+	gitRoot       string              // Git repository root.
+	allDirs       []string            // Cached directory list from filesystem walk.
 
 	// Cumulative state
 	candidates       []string         // Current allowed directories.
@@ -283,10 +277,12 @@ func (pc *taskCollector) filterPaths(pf *pathFilter) ([]string, error) {
 	return results, nil
 }
 
-// walk recursively traverses the Runnable tree.
-func (pc *taskCollector) walk(r Runnable) error {
+// walk recursively traverses the Runnable tree and returns the planned
+// execution tree for the same occurrence. The returned tree reuses task nodes
+// but clones composition nodes so pathFilter resolutions are per occurrence.
+func (pc *taskCollector) walk(r Runnable) (Runnable, error) {
 	if r == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Initialize candidates if this is the root call.
@@ -299,29 +295,29 @@ func (pc *taskCollector) walk(r Runnable) error {
 	case *Task:
 		// Validate task during plan building.
 		if v.Name == "" {
-			return fmt.Errorf("task has empty Name")
+			return nil, fmt.Errorf("task has empty Name")
 		}
 		if v.Do == nil && v.Body == nil {
-			return fmt.Errorf("task %q: must set either Do or Body", v.Name)
+			return nil, fmt.Errorf("task %q: must set either Do or Body", v.Name)
 		}
 		if v.Do != nil && v.Body != nil {
-			return fmt.Errorf("task %q: Do and Body are mutually exclusive", v.Name)
+			return nil, fmt.Errorf("task %q: Do and Body are mutually exclusive", v.Name)
 		}
 		if v.Body != nil {
 			if err := validateBodyComposition(v.Name, v.Body); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		// Build internal flagSet if not already built.
 		if v.flagSet == nil {
 			if err := v.buildFlagSet(); err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		// Check if task is skipped in current scope.
 		if slices.Contains(pc.activeSkips, v.Name) {
-			return nil
+			return nil, nil
 		}
 
 		// Build effective name with suffix (e.g., "py-test:3.9").
@@ -348,7 +344,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 					var err error
 					finalPaths, err = excludeByPatterns(finalPaths, []string{ex.pattern})
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 			}
@@ -357,7 +353,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 			// This likely indicates a misconfiguration where the user is running tasks
 			// but excluding all directories that would match.
 			if len(finalPaths) == 0 && len(pc.candidates) > 0 {
-				return fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
+				return nil, fmt.Errorf("task %q: excludes removed all %d detected path(s); "+
 					"either adjust excludes or use WithSkipTask to remove this task entirely",
 					effectiveName, len(pc.candidates))
 			}
@@ -369,7 +365,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 					var err error
 					finalPaths, err = excludeByPatterns(finalPaths, []string{ex.pattern})
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 			}
@@ -394,7 +390,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		if idx, seen := pc.seenTasks[key]; seen {
 			instance := &pc.taskInstances[idx]
 			if !reflect.DeepEqual(instance.flags, mergedFlags) {
-				return fmt.Errorf(
+				return nil, fmt.Errorf(
 					"task %q: conflicting flag overrides across scopes (%v vs %v); "+
 						"use WithNameSuffix to create distinct variants",
 					effectiveName, instance.flags, mergedFlags)
@@ -440,33 +436,42 @@ func (pc *taskCollector) walk(r Runnable) error {
 			resolvedPaths: finalPaths,
 		}
 
+		return v, nil
+
 	case *serial:
+		children := make([]Runnable, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if err := pc.walk(child); err != nil {
-				return err
+			plannedChild, err := pc.walk(child)
+			if err != nil {
+				return nil, err
+			}
+			if plannedChild != nil {
+				children = append(children, plannedChild)
 			}
 		}
+		return &serial{runnables: children}, nil
 
 	case *parallel:
+		children := make([]Runnable, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			if err := pc.walk(child); err != nil {
-				return err
+			plannedChild, err := pc.walk(child)
+			if err != nil {
+				return nil, err
+			}
+			if plannedChild != nil {
+				children = append(children, plannedChild)
 			}
 		}
+		return &parallel{runnables: children}, nil
 
 	case *pathFilter:
-		// 1. Resolve paths for this filter based on current candidates.
-		// Store the result in the Plan (keyed by this pathFilter) rather than on
-		// the node itself: the same WithOptions value may appear at multiple tree
-		// positions, so occurrences union their paths here instead of the last
-		// walk overwriting a shared field. The union is a correct superset at
-		// execution time — pathFilter.run iterates it at the top level and narrows
-		// to a single enclosing directory when nested.
+		// 1. Resolve paths for this occurrence based on current candidates. The
+		// user-owned pathFilter is not mutated; a cloned filter carrying this
+		// occurrence's resolution is returned for the planned execution tree.
 		resolved, err := pc.filterPaths(v)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		pc.pfResolved[v] = unionPaths(pc.pfResolved[v], resolved)
 
 		// 2. Save state for nesting.
 		prevCandidates := pc.candidates
@@ -481,7 +486,7 @@ func (pc *taskCollector) walk(r Runnable) error {
 		// Resolve type-based flag overrides against the inner runnable.
 		resolvedFlags, err := resolveTypedFlags(v.flags, v.inner)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// 3. Update state with new constraints.
@@ -503,8 +508,9 @@ func (pc *taskCollector) walk(r Runnable) error {
 		}
 
 		// 4. Walk inner with cumulative state.
-		if err := pc.walk(v.inner); err != nil {
-			return err
+		plannedInner, err := pc.walk(v.inner)
+		if err != nil {
+			return nil, err
 		}
 
 		// 5. Restore state.
@@ -517,11 +523,17 @@ func (pc *taskCollector) walk(r Runnable) error {
 		pc.activeFlags = prevFlags
 		pc.activeVerbose = prevVerbose
 
+		if plannedInner == nil {
+			return nil, nil
+		}
+		plannedFilter := *v
+		plannedFilter.inner = plannedInner
+		plannedFilter.resolvedPaths = resolved
+		return &plannedFilter, nil
+
 	default:
 		panic(fmt.Sprintf("pk: unknown Runnable type %T in walk", r))
 	}
-
-	return nil
 }
 
 // validateBodyComposition rejects pathFilters anywhere inside a Task.Body. A
@@ -565,6 +577,18 @@ func unionPaths(base, extra []string) []string {
 	for _, p := range extra {
 		if !slices.Contains(result, p) {
 			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// intersectPaths returns paths from base that are present in allowed, preserving
+// base order.
+func intersectPaths(base, allowed []string) []string {
+	result := make([]string, 0, len(base))
+	for _, path := range base {
+		if slices.Contains(allowed, path) {
+			result = append(result, path)
 		}
 	}
 	return result

@@ -39,7 +39,7 @@ func TestIntegration_SerialOrder(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -80,7 +80,7 @@ func TestIntegration_MixedComposition(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -124,7 +124,7 @@ func TestIntegration_PathFilterWithDetect(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,7 +149,7 @@ func TestIntegration_DeduplicationAcrossComposition(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -196,7 +196,7 @@ func TestIntegration_WithNameSuffix_MultiVersion(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -235,7 +235,7 @@ func TestIntegration_WithSkipTaskPattern(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -254,9 +254,10 @@ func TestIntegration_WithSkipTaskPattern(t *testing.T) {
 }
 
 func TestIntegration_WithSkipTask(t *testing.T) {
-	a := &Task{Name: "a", Usage: "a", Do: func(_ context.Context) error { return nil }}
-	b := &Task{Name: "b", Usage: "b", Do: func(_ context.Context) error { return nil }}
-	c := &Task{Name: "c", Usage: "c", Do: func(_ context.Context) error { return nil }}
+	var ran []string
+	a := &Task{Name: "a", Usage: "a", Do: func(_ context.Context) error { ran = append(ran, "a"); return nil }}
+	b := &Task{Name: "b", Usage: "b", Do: func(_ context.Context) error { ran = append(ran, "b"); return nil }}
+	c := &Task{Name: "c", Usage: "c", Do: func(_ context.Context) error { ran = append(ran, "c"); return nil }}
 
 	cfg := &Config{
 		Auto: WithOptions(
@@ -285,6 +286,14 @@ func TestIntegration_WithSkipTask(t *testing.T) {
 	}
 	if !names["a"] || !names["c"] {
 		t.Errorf("expected a and c in plan, got %v", names)
+	}
+
+	ctx, _ := integrationCtx(t, plan)
+	if err := plan.tree.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(ran) != 2 || ran[0] != "a" || ran[1] != "c" {
+		t.Errorf("expected only a and c to run, got %v", ran)
 	}
 }
 
@@ -315,7 +324,7 @@ func TestIntegration_ManualTaskSkippedInAutoExec(t *testing.T) {
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 
 	// Run auto tree.
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -358,7 +367,7 @@ func TestIntegration_FlagOverrideViaWithFlag(t *testing.T) {
 	}
 
 	ctx, _ := integrationCtx(t, plan)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 

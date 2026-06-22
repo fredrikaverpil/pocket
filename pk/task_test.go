@@ -650,7 +650,7 @@ func TestTask_Parallel_WithNameSuffix_FlagRace(t *testing.T) {
 	ctx = context.WithValue(ctx, ctxkey.Plan{}, plan)
 	ctx = context.WithValue(ctx, ctxkey.Output{}, pkrun.StdOutput())
 
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 

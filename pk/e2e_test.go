@@ -383,7 +383,7 @@ func TestE2E_AutoExec_SerialOrder(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -410,7 +410,7 @@ func TestE2E_AutoExec_ParallelAll(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -441,7 +441,7 @@ func TestE2E_AutoExec_MixedComposition(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -477,7 +477,7 @@ func TestE2E_AutoExec_SerialStopsOnError(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	err = cfg.Auto.run(ctx)
+	err = plan.tree.run(ctx)
 	if err == nil {
 		t.Fatal("expected error from failing task")
 	}
@@ -517,7 +517,7 @@ func TestE2E_AutoExec_ManualSkipped(t *testing.T) {
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
 
 	// Run auto tree.
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 	// Attempt to run manual task in auto-exec context.
@@ -551,7 +551,7 @@ func TestE2E_AutoExec_Deduplication(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -593,7 +593,7 @@ func TestE2E_AutoExec_PathFilterWithDetect(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -637,7 +637,7 @@ func TestE2E_AutoExec_TaskScope(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -669,7 +669,7 @@ func TestE2E_AutoExec_TaskInMultipleScopes(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -750,7 +750,7 @@ func TestE2E_AutoExec_GlobalTaskExcludedPathStillRunsElsewhere(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -784,7 +784,7 @@ func TestE2E_AutoExec_NestedScopesWithForceRun(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -826,7 +826,7 @@ func TestE2E_AutoExec_NestedScopeFollowsOuterIteration(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -869,7 +869,7 @@ func TestE2E_AutoExec_ReusedScopeKeepsAllPaths(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -879,6 +879,53 @@ func TestE2E_AutoExec_ReusedScopeKeepsAllPaths(t *testing.T) {
 	want := []execRecord{
 		{TaskName: "reused", Path: "svc-a"},
 		{TaskName: "reused", Path: "svc-b"},
+	}
+	assert.DeepEqual(t, rec.records, want)
+}
+
+func TestE2E_AutoExec_ReusedScopeResolutionIsPerOccurrence(t *testing.T) {
+	tmpDir := e2eSetup(t)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "svc-a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := newRecorder()
+	test := rec.task("test")
+	install := rec.task("install")
+
+	// The same WithOptions value appears first at the top level (root-only),
+	// then under a svc-a scope. The top-level occurrence must not inherit the
+	// nested occurrence's path, or it would run test@svc-a before install@svc-a.
+	shared := WithOptions(test)
+	cfg := &Config{
+		Auto: Serial(
+			shared,
+			WithOptions(
+				Serial(install, shared),
+				WithPath("svc-a"),
+			),
+		),
+	}
+	plan, err := newPublicPlan(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Plan building must not write resolution data onto the user-owned node.
+	if got := shared.(*pathFilter).resolvedPaths; got != nil {
+		t.Fatalf("shared resolvedPaths = %v, want nil", got)
+	}
+
+	ctx := e2eCtx(t, plan)
+	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
+	if err := plan.tree.run(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []execRecord{
+		{TaskName: "test", Path: "."},
+		{TaskName: "install", Path: "svc-a"},
+		{TaskName: "test", Path: "svc-a"},
 	}
 	assert.DeepEqual(t, rec.records, want)
 }
@@ -924,7 +971,7 @@ func TestE2E_AutoExec_ReusedDetectScopeKeepsAllPaths(t *testing.T) {
 
 	ctx := e2eCtx(t, plan)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := cfg.Auto.run(ctx); err != nil {
+	if err := plan.tree.run(ctx); err != nil {
 		t.Fatal(err)
 	}
 
