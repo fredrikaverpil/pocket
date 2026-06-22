@@ -152,7 +152,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	}
 
 	// Execute the full configuration with pre-built Plan.
-	return executeAll(ctx, *cfg, plan)
+	return executeAll(ctx, plan)
 }
 
 // findTask looks up a task by name, checking builtins first then user tasks.
@@ -295,8 +295,8 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 	return nil
 }
 
-func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, error) {
-	if c.Auto == nil || p == nil {
+func executeAll(ctx context.Context, p *Plan) (*executionTracker, error) {
+	if p == nil || p.tree == nil {
 		return nil, nil
 	}
 
@@ -309,7 +309,7 @@ func executeAll(ctx context.Context, c Config, p *Plan) (*executionTracker, erro
 	tracker := newExecutionTracker()
 	ctx = withExecutionTracker(ctx, tracker)
 	ctx = context.WithValue(ctx, ctxkey.AutoExec{}, true)
-	if err := c.Auto.run(ctx); err != nil {
+	if err := p.tree.run(ctx); err != nil {
 		return tracker, err
 	}
 

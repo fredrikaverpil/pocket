@@ -510,6 +510,61 @@ func TestEmitInvocationJSON_FullTree(t *testing.T) {
 	}
 }
 
+func TestEmitInvocationJSON_ReusedScopeUsesOccurrencePaths(t *testing.T) {
+	test := &Task{Name: "test", Usage: "test", Do: func(_ context.Context) error { return nil }}
+	install := &Task{Name: "install", Usage: "install", Do: func(_ context.Context) error { return nil }}
+	shared := WithOptions(test)
+	cfg := &Config{
+		Auto: Serial(
+			shared,
+			WithOptions(
+				Serial(install, shared),
+				WithPath("svc-a"),
+			),
+		),
+	}
+	plan, err := newPlan(cfg, "/tmp", []string{".", "svc-a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := emitInvocationJSON(context.Background(), plan, "", &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	var doc map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("emitted JSON does not parse: %v\n%s", err, buf.String())
+	}
+	root := doc["tree"].(map[string]any)
+	children := root["children"].([]any)
+	firstTest := children[0].(map[string]any)
+	if got := jsonStringSlice(firstTest["paths"]); !slices.Equal(got, []string{"."}) {
+		t.Fatalf("first test paths = %v, want [.]", got)
+	}
+
+	nested := children[1].(map[string]any)
+	nestedChildren := nested["children"].([]any)
+	nestedInstall := nestedChildren[0].(map[string]any)
+	if got := jsonStringSlice(nestedInstall["paths"]); !slices.Equal(got, []string{"svc-a"}) {
+		t.Fatalf("nested install paths = %v, want [svc-a]", got)
+	}
+	nestedTest := nestedChildren[1].(map[string]any)
+	if got := jsonStringSlice(nestedTest["paths"]); !slices.Equal(got, []string{"svc-a"}) {
+		t.Fatalf("nested test paths = %v, want [svc-a]", got)
+	}
+}
+
+func jsonStringSlice(v any) []string {
+	values := v.([]any)
+	result := make([]string, len(values))
+	for i, value := range values {
+		result[i] = value.(string)
+	}
+	return result
+}
+
 func TestEmitInvocationJSON_SingleTask(t *testing.T) {
 	task := &Task{Name: "lint", Usage: "lint", Do: func(_ context.Context) error { return nil }}
 	cfg := &Config{Auto: Serial(task)}

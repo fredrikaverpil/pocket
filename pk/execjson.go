@@ -481,7 +481,7 @@ func emitInvocationJSON(ctx context.Context, p *Plan, taskName string, w io.Writ
 		if p.tree == nil {
 			tree = map[string]any{"type": jsonNodeTypeSerial, "children": []map[string]any{}}
 		} else {
-			tree = emitJSONNode(p.tree, "", p)
+			tree = emitJSONNode(p.tree, "", nil, p)
 		}
 	} else {
 		inst := p.taskInstanceByName(taskName)
@@ -511,7 +511,7 @@ func emitInvocationJSON(ctx context.Context, p *Plan, taskName string, w io.Writ
 }
 
 // emitJSONNode converts a Runnable to its JSON representation.
-func emitJSONNode(r Runnable, nameSuffix string, p *Plan) map[string]any {
+func emitJSONNode(r Runnable, nameSuffix string, activePaths []string, p *Plan) map[string]any {
 	switch v := r.(type) {
 	case *Task:
 		effectiveName := v.Name
@@ -519,8 +519,11 @@ func emitJSONNode(r Runnable, nameSuffix string, p *Plan) map[string]any {
 			effectiveName = v.Name + ":" + nameSuffix
 		}
 		paths := []string{"."}
+		if activePaths != nil {
+			paths = slices.Clone(activePaths)
+		}
 		if info, ok := p.pathMappings[effectiveName]; ok && len(info.resolvedPaths) > 0 {
-			paths = info.resolvedPaths
+			paths = intersectPaths(paths, info.resolvedPaths)
 		}
 		return map[string]any{
 			"type":  jsonNodeTypeTask,
@@ -530,13 +533,13 @@ func emitJSONNode(r Runnable, nameSuffix string, p *Plan) map[string]any {
 	case *serial:
 		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			children = append(children, emitJSONNode(child, nameSuffix, p))
+			children = append(children, emitJSONNode(child, nameSuffix, activePaths, p))
 		}
 		return map[string]any{"type": jsonNodeTypeSerial, "children": children}
 	case *parallel:
 		children := make([]map[string]any, 0, len(v.runnables))
 		for _, child := range v.runnables {
-			children = append(children, emitJSONNode(child, nameSuffix, p))
+			children = append(children, emitJSONNode(child, nameSuffix, activePaths, p))
 		}
 		return map[string]any{"type": jsonNodeTypeParallel, "children": children}
 	case *pathFilter:
@@ -548,7 +551,11 @@ func emitJSONNode(r Runnable, nameSuffix string, p *Plan) map[string]any {
 				childSuffix = v.nameSuffix
 			}
 		}
-		return emitJSONNode(v.inner, childSuffix, p)
+		paths := slices.Clone(v.resolvedPaths)
+		if activePaths != nil {
+			paths = intersectPaths(activePaths, paths)
+		}
+		return emitJSONNode(v.inner, childSuffix, paths, p)
 	}
 	return map[string]any{}
 }

@@ -218,7 +218,7 @@ func TestPrintTree(t *testing.T) {
 	out := &pkrun.Output{Stdout: &buf, Stderr: &buf}
 	ctx := context.WithValue(context.Background(), ctxkey.Output{}, out)
 
-	printTree(ctx, plan.tree, "", true, "", plan)
+	printTree(ctx, plan.tree, "", true, "", nil, plan)
 
 	output := buf.String()
 	if !bytes.Contains([]byte(output), []byte("test")) {

@@ -6,7 +6,7 @@
 
 ```go
 type Plan struct {
-    tree              Runnable           // Original composition tree
+    tree              Runnable           // Planned execution tree
     taskInstances     []taskInstance     // Flat list of all tasks
     taskIndex         map[string]*taskInstance  // Lookup by effective name
     pathMappings      map[string]pathInfo       // Task → execution paths
@@ -30,14 +30,16 @@ type taskInstance struct {
 1. **Walk filesystem** — `walkDirectories()` from git root, skipping
    `DefaultSkipDirs` (vendor, node_modules, etc.). Result is cached.
 
-2. **Collect tasks** — `taskCollector` traverses the composition tree. For each
-   `pathFilter` encountered, it pushes scope (include/exclude patterns, flags,
-   context values, name suffix) onto a stack. For each `Task`, it creates a
-   `taskInstance` with the accumulated scope. Repeat occurrences of the same
-   (task, suffix) pair merge into the existing instance: resolved paths are
-   unioned (in `taskInstances` and `pathMappings` alike, so auto execution and
-   direct invocation agree), and conflicting flag overrides across scopes fail
-   plan building.
+2. **Collect tasks and plan execution** — `taskCollector` traverses the
+   composition tree. For each `pathFilter` occurrence, it pushes scope
+   (include/exclude patterns, flags, context values, name suffix) onto a stack
+   and returns a cloned `pathFilter` with that occurrence's resolved paths for
+   the planned execution tree. User-owned composition nodes are never mutated.
+   For each `Task`, it creates a `taskInstance` with the accumulated scope.
+   Repeat occurrences of the same (task, suffix) pair merge into the existing
+   instance: resolved paths are unioned (in `taskInstances` and `pathMappings`
+   alike, so auto execution and direct invocation agree), and conflicting flag
+   overrides across scopes fail plan building.
 
 3. **Resolve paths** — For each task instance, paths are resolved against the
    cached directory list:
