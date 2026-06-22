@@ -27,6 +27,10 @@ func GetFlags[T any](ctx context.Context) T {
 }
 
 // mapToStruct populates a flags struct pointer from a map[string]any.
+// A field is left untouched when its flag key is absent from the map; pointer
+// fields therefore stay nil ("not set"). A present value that is not convertible
+// to the field's type returns an error rather than silently dropping the value
+// or setting a zero-value pointer.
 func mapToStruct(m map[string]any, dst any) error {
 	v := reflect.ValueOf(dst)
 	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
@@ -50,14 +54,23 @@ func mapToStruct(m map[string]any, dst any) error {
 		}
 		field := v.Field(i)
 		rv := reflect.ValueOf(val)
-		if field.Kind() == reflect.Pointer {
-			ptr := reflect.New(field.Type().Elem())
-			if rv.Type().ConvertibleTo(field.Type().Elem()) {
-				ptr.Elem().Set(rv.Convert(field.Type().Elem()))
-			}
+
+		// The conversion target is the element type for pointer fields.
+		isPtr := field.Kind() == reflect.Pointer
+		target := field.Type()
+		if isPtr {
+			target = target.Elem()
+		}
+		if !rv.Type().ConvertibleTo(target) {
+			return fmt.Errorf("flag %q: cannot convert %T to %s", key, val, target)
+		}
+		converted := rv.Convert(target)
+		if isPtr {
+			ptr := reflect.New(target)
+			ptr.Elem().Set(converted)
 			field.Set(ptr)
-		} else if rv.Type().ConvertibleTo(field.Type()) {
-			field.Set(rv.Convert(field.Type()))
+		} else {
+			field.Set(converted)
 		}
 	}
 	return nil
