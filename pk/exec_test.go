@@ -3,6 +3,7 @@ package pk
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -162,7 +163,22 @@ func TestLookPathInEnv(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		env := []string{"PATH=" + tmpDir}
+		env := []string{pathEnvKeyForTest() + "=" + tmpDir}
+		got := pkrun.LookPathInEnv("mytool", env)
+		if got != binPath {
+			t.Errorf("expected %q, got %q", binPath, got)
+		}
+	})
+
+	t.Run("DuplicatePATHUsesLast", func(t *testing.T) {
+		firstDir := t.TempDir()
+		secondDir := t.TempDir()
+		binPath := filepath.Join(secondDir, "mytool")
+		if err := os.WriteFile(binPath, []byte("#!/bin/sh"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		env := []string{pathEnvKeyForTest() + "=" + firstDir, "PATH=" + secondDir}
 		got := pkrun.LookPathInEnv("mytool", env)
 		if got != binPath {
 			t.Errorf("expected %q, got %q", binPath, got)
@@ -191,22 +207,30 @@ func TestPrependBinToPath(t *testing.T) {
 	repopath.SetGitRootFunc(func() string { return "/repo" })
 	defer repopath.SetGitRootFunc(nil)
 
-	environ := []string{"HOME=/home/user", "PATH=/usr/bin:/usr/local/bin"}
-	got := pkrun.PrependBinToPath(environ)
+	got := pkrun.PrependBinToPath([]string{"HOME=/home/user", pathEnvKeyForTest() + "=/usr/bin:/usr/local/bin"})
 
-	var pathValue string
-	for _, e := range got {
-		if len(e) > 5 && e[:5] == "PATH=" {
-			pathValue = e[5:]
-			break
-		}
+	want := pathEnvKeyForTest() + "=" + filepath.Join("/repo", ".pocket", "bin") +
+		string(filepath.ListSeparator) + "/usr/bin:/usr/local/bin"
+	if got[1] != want {
+		t.Errorf("expected PATH entry %q, got %q", want, got[1])
 	}
+}
 
-	binDir := filepath.Join("/repo", ".pocket", "bin")
-	if pathValue == "" {
-		t.Fatal("PATH not found in result")
+func TestPrependBinToPath_AddsPathWhenMissing(t *testing.T) {
+	repopath.SetGitRootFunc(func() string { return "/repo" })
+	defer repopath.SetGitRootFunc(nil)
+
+	got := pkrun.PrependBinToPath([]string{"HOME=/home/user"})
+
+	want := "PATH=" + filepath.Join("/repo", ".pocket", "bin")
+	if got[len(got)-1] != want {
+		t.Errorf("expected PATH entry %q, got %q", want, got[len(got)-1])
 	}
-	if pathValue[:len(binDir)] != binDir {
-		t.Errorf("expected PATH to start with %q, got %q", binDir, pathValue)
+}
+
+func pathEnvKeyForTest() string {
+	if runtime.GOOS == "windows" {
+		return "Path"
 	}
+	return "PATH"
 }
