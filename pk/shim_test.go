@@ -3,6 +3,7 @@ package pk
 import (
 	"context"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -252,7 +253,7 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 		}
 	})
 
-	// Test 3: TASK_SCOPE="." should behave like root (all paths)
+	// Test 3: TASK_SCOPE="." should behave like root (all paths).
 	t.Run("root context explicit", func(t *testing.T) {
 		runCount.Store(0)
 		executedPaths = nil
@@ -268,6 +269,24 @@ func TestTaskExecution_ScopedToPathContext(t *testing.T) {
 
 		if got := runCount.Load(); got != 2 {
 			t.Errorf("expected 2 executions with TASK_SCOPE=., got %d", got)
+		}
+	})
+
+	t.Run("out of scope errors", func(t *testing.T) {
+		runCount.Store(0)
+		executedPaths = nil
+
+		t.Setenv("TASK_SCOPE", "vendor")
+
+		err := ExecuteTask(context.Background(), "scoped-task", p)
+		if err == nil {
+			t.Fatal("expected error for out-of-scope task invocation")
+		}
+		if !strings.Contains(err.Error(), `task "scoped-task" is not scoped to "vendor"`) {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if got := runCount.Load(); got != 0 {
+			t.Errorf("expected task not to execute, got %d executions", got)
 		}
 	})
 }

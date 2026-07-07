@@ -1,0 +1,75 @@
+package repopath
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestFindGitRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	nested := filepath.Join(root, "services", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdir(t, nested)
+	SetGitRootFunc(nil)
+
+	want, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatalf("evaluate root symlinks: %v", err)
+	}
+
+	got, err := FindGitRoot()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != want {
+		t.Errorf("expected git root %q, got %q", want, got)
+	}
+}
+
+func TestFindGitRoot_NotFound(t *testing.T) {
+	chdir(t, t.TempDir())
+	SetGitRootFunc(nil)
+
+	got, err := FindGitRoot()
+	if !errors.Is(err, ErrGitRootNotFound) {
+		t.Fatalf("expected ErrGitRootNotFound, got %v", err)
+	}
+	if got != "" {
+		t.Errorf("expected empty root, got %q", got)
+	}
+}
+
+func TestGitRoot_NotFoundFallback(t *testing.T) {
+	chdir(t, t.TempDir())
+	SetGitRootFunc(nil)
+
+	if got := GitRoot(); got != "." {
+		t.Errorf("expected fallback root '.', got %q", got)
+	}
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+		SetGitRootFunc(nil)
+	})
+}

@@ -2,8 +2,37 @@ package pk
 
 import (
 	"context"
+	"errors"
+	"os"
+	"strings"
 	"testing"
+
+	"github.com/fredrikaverpil/pocket/pk/repopath"
 )
+
+func TestRun_ErrorsOutsideGitRepo(t *testing.T) {
+	withArgs(t, "pok")
+	withWorkingDir(t, t.TempDir())
+	repopath.SetGitRootFunc(nil)
+
+	_, err := run(&Config{})
+	if !errors.Is(err, repopath.ErrGitRootNotFound) {
+		t.Fatalf("expected ErrGitRootNotFound, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "finding git root") {
+		t.Errorf("expected git root context, got %v", err)
+	}
+}
+
+func TestRun_VersionDoesNotRequireGitRepo(t *testing.T) {
+	withArgs(t, "pok", "--version")
+	withWorkingDir(t, t.TempDir())
+	repopath.SetGitRootFunc(nil)
+
+	if _, err := run(&Config{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
 
 func TestFindTask_Builtin(t *testing.T) {
 	// findTask should return builtins even with nil plan.
@@ -104,4 +133,32 @@ func TestFindTaskByName_WithSuffix(t *testing.T) {
 	if instance != nil {
 		t.Error("expected nil for base name without suffix")
 	}
+}
+
+func withArgs(t *testing.T, args ...string) {
+	t.Helper()
+
+	oldArgs := os.Args
+	os.Args = args
+	t.Cleanup(func() {
+		os.Args = oldArgs
+	})
+}
+
+func withWorkingDir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+		repopath.SetGitRootFunc(nil)
+	})
 }

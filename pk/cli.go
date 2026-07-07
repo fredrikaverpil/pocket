@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"syscall"
 
@@ -30,13 +31,6 @@ func RunMain(cfg *Config) {
 }
 
 func run(cfg *Config) (*executionTracker, error) {
-	// Ensure tools/go.mod exists to prevent go mod tidy from scanning downloaded tools.
-	gitRoot := repopath.GitRoot()
-	pocketDir := filepath.Join(gitRoot, ".pocket")
-	if err := scaffold.EnsureToolsGomod(pocketDir); err != nil {
-		return nil, fmt.Errorf("ensuring tools/go.mod: %w", err)
-	}
-
 	// Parse command-line flags
 	globalFlags := flag.NewFlagSet("pok", flag.ExitOnError)
 
@@ -73,6 +67,16 @@ func run(cfg *Config) (*executionTracker, error) {
 	if showVersion {
 		pkrun.Printf(ctx, "pocket %s\n", version())
 		return nil, nil
+	}
+
+	// Ensure tools/go.mod exists to prevent go mod tidy from scanning downloaded tools.
+	gitRoot, err := repopath.FindGitRoot()
+	if err != nil {
+		return nil, fmt.Errorf("finding git root: %w", err)
+	}
+	pocketDir := filepath.Join(gitRoot, ".pocket")
+	if err := scaffold.EnsureToolsGomod(pocketDir); err != nil {
+		return nil, fmt.Errorf("ensuring tools/go.mod: %w", err)
 	}
 
 	// Build Plan
@@ -282,6 +286,9 @@ func (inst *taskInstance) execute(ctx context.Context) error {
 
 	// Check TASK_SCOPE environment variable (set by shim).
 	if taskScope := taskScopeFromEnv(); taskScope != "" {
+		if !slices.Contains(paths, taskScope) {
+			return fmt.Errorf("task %q is not scoped to %q (available paths: %v)", inst.name, taskScope, paths)
+		}
 		paths = []string{taskScope}
 	}
 
