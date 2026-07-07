@@ -224,7 +224,6 @@ func LookPathInEnv(name string, env []string) string {
 		key, value, found := strings.Cut(envEntry, "=")
 		if found && isPathEnvKey(key) {
 			pathEnv = value
-			break
 		}
 	}
 

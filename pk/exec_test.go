@@ -170,6 +170,21 @@ func TestLookPathInEnv(t *testing.T) {
 		}
 	})
 
+	t.Run("DuplicatePATHUsesLast", func(t *testing.T) {
+		firstDir := t.TempDir()
+		secondDir := t.TempDir()
+		binPath := filepath.Join(secondDir, "mytool")
+		if err := os.WriteFile(binPath, []byte("#!/bin/sh"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		env := []string{pathEnvKeyForTest() + "=" + firstDir, "PATH=" + secondDir}
+		got := pkrun.LookPathInEnv("mytool", env)
+		if got != binPath {
+			t.Errorf("expected %q, got %q", binPath, got)
+		}
+	})
+
 	t.Run("NotFound", func(t *testing.T) {
 		env := []string{"PATH=/nonexistent"}
 		got := pkrun.LookPathInEnv("nosuchbin", env)
