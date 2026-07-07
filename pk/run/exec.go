@@ -150,15 +150,37 @@ func PrependBinToPath(environ []string) []string {
 
 	prefix := strings.Join(dirs, string(filepath.ListSeparator))
 
-	result := make([]string, 0, len(environ))
-	for _, env := range environ {
-		if path, found := strings.CutPrefix(env, "PATH="); found {
-			result = append(result, fmt.Sprintf("PATH=%s%c%s", prefix, filepath.ListSeparator, path))
-		} else {
-			result = append(result, env)
+	result := make([]string, 0, len(environ)+1)
+	foundPath := false
+	for _, envEntry := range environ {
+		key, path, found := strings.Cut(envEntry, "=")
+		if found && isPathEnvKey(key) {
+			result = append(result, key+"="+prependPathValue(prefix, path))
+			foundPath = true
+			continue
 		}
+		result = append(result, envEntry)
+	}
+	if !foundPath {
+		result = append(result, "PATH="+prefix)
 	}
 	return result
+}
+
+// prependPathValue prepends prefix to an existing PATH value.
+func prependPathValue(prefix, path string) string {
+	if path == "" {
+		return prefix
+	}
+	return fmt.Sprintf("%s%c%s", prefix, filepath.ListSeparator, path)
+}
+
+// isPathEnvKey reports whether key names the process PATH variable.
+func isPathEnvKey(key string) bool {
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(key, "PATH")
+	}
+	return key == "PATH"
 }
 
 // ApplyEnvConfig applies environment variable overrides from the config.
@@ -203,9 +225,10 @@ func LookPathInEnv(name string, env []string) string {
 	}
 
 	var pathEnv string
-	for _, e := range env {
-		if path, found := strings.CutPrefix(e, "PATH="); found {
-			pathEnv = path
+	for _, envEntry := range env {
+		key, value, found := strings.Cut(envEntry, "=")
+		if found && isPathEnvKey(key) {
+			pathEnv = value
 			break
 		}
 	}

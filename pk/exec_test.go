@@ -3,7 +3,9 @@ package pk
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/fredrikaverpil/pocket/pk/repopath"
@@ -162,7 +164,7 @@ func TestLookPathInEnv(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		env := []string{"PATH=" + tmpDir}
+		env := []string{pathEnvKeyForTest() + "=" + tmpDir}
 		got := pkrun.LookPathInEnv("mytool", env)
 		if got != binPath {
 			t.Errorf("expected %q, got %q", binPath, got)
@@ -191,22 +193,56 @@ func TestPrependBinToPath(t *testing.T) {
 	repopath.SetGitRootFunc(func() string { return "/repo" })
 	defer repopath.SetGitRootFunc(nil)
 
-	environ := []string{"HOME=/home/user", "PATH=/usr/bin:/usr/local/bin"}
+	environ := []string{"HOME=/home/user", pathEnvKeyForTest() + "=/usr/bin:/usr/local/bin"}
 	got := pkrun.PrependBinToPath(environ)
 
-	var pathValue string
-	for _, e := range got {
-		if len(e) > 5 && e[:5] == "PATH=" {
-			pathValue = e[5:]
-			break
-		}
+	pathValue, ok := pathValueFromEnvForTest(got)
+	if !ok {
+		t.Fatal("PATH not found in result")
 	}
 
 	binDir := filepath.Join("/repo", ".pocket", "bin")
-	if pathValue == "" {
-		t.Fatal("PATH not found in result")
-	}
-	if pathValue[:len(binDir)] != binDir {
+	if !strings.HasPrefix(pathValue, binDir) {
 		t.Errorf("expected PATH to start with %q, got %q", binDir, pathValue)
 	}
+}
+
+func TestPrependBinToPath_AddsPathWhenMissing(t *testing.T) {
+	repopath.SetGitRootFunc(func() string { return "/repo" })
+	defer repopath.SetGitRootFunc(nil)
+
+	got := pkrun.PrependBinToPath([]string{"HOME=/home/user"})
+
+	pathValue, ok := pathValueFromEnvForTest(got)
+	if !ok {
+		t.Fatal("PATH not found in result")
+	}
+
+	want := filepath.Join("/repo", ".pocket", "bin")
+	if pathValue != want {
+		t.Errorf("expected PATH %q, got %q", want, pathValue)
+	}
+}
+
+func pathEnvKeyForTest() string {
+	if runtime.GOOS == "windows" {
+		return "Path"
+	}
+	return "PATH"
+}
+
+func pathValueFromEnvForTest(environ []string) (string, bool) {
+	for _, envEntry := range environ {
+		key, value, ok := strings.Cut(envEntry, "=")
+		if !ok {
+			continue
+		}
+		if runtime.GOOS == "windows" && strings.EqualFold(key, "PATH") {
+			return value, true
+		}
+		if key == "PATH" {
+			return value, true
+		}
+	}
+	return "", false
 }
