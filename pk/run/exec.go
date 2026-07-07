@@ -155,7 +155,10 @@ func PrependBinToPath(environ []string) []string {
 	for _, envEntry := range environ {
 		key, path, found := strings.Cut(envEntry, "=")
 		if found && isPathEnvKey(key) {
-			result = append(result, key+"="+prependPathValue(prefix, path))
+			if path != "" {
+				path = string(filepath.ListSeparator) + path
+			}
+			result = append(result, key+"="+prefix+path)
 			foundPath = true
 			continue
 		}
@@ -165,14 +168,6 @@ func PrependBinToPath(environ []string) []string {
 		result = append(result, "PATH="+prefix)
 	}
 	return result
-}
-
-// prependPathValue prepends prefix to an existing PATH value.
-func prependPathValue(prefix, path string) string {
-	if path == "" {
-		return prefix
-	}
-	return fmt.Sprintf("%s%c%s", prefix, filepath.ListSeparator, path)
 }
 
 // isPathEnvKey reports whether key names the process PATH variable.

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/fredrikaverpil/pocket/pk/repopath"
@@ -193,17 +192,12 @@ func TestPrependBinToPath(t *testing.T) {
 	repopath.SetGitRootFunc(func() string { return "/repo" })
 	defer repopath.SetGitRootFunc(nil)
 
-	environ := []string{"HOME=/home/user", pathEnvKeyForTest() + "=/usr/bin:/usr/local/bin"}
-	got := pkrun.PrependBinToPath(environ)
+	got := pkrun.PrependBinToPath([]string{"HOME=/home/user", pathEnvKeyForTest() + "=/usr/bin:/usr/local/bin"})
 
-	pathValue, ok := pathValueFromEnvForTest(got)
-	if !ok {
-		t.Fatal("PATH not found in result")
-	}
-
-	binDir := filepath.Join("/repo", ".pocket", "bin")
-	if !strings.HasPrefix(pathValue, binDir) {
-		t.Errorf("expected PATH to start with %q, got %q", binDir, pathValue)
+	want := pathEnvKeyForTest() + "=" + filepath.Join("/repo", ".pocket", "bin") +
+		string(filepath.ListSeparator) + "/usr/bin:/usr/local/bin"
+	if got[1] != want {
+		t.Errorf("expected PATH entry %q, got %q", want, got[1])
 	}
 }
 
@@ -213,14 +207,9 @@ func TestPrependBinToPath_AddsPathWhenMissing(t *testing.T) {
 
 	got := pkrun.PrependBinToPath([]string{"HOME=/home/user"})
 
-	pathValue, ok := pathValueFromEnvForTest(got)
-	if !ok {
-		t.Fatal("PATH not found in result")
-	}
-
-	want := filepath.Join("/repo", ".pocket", "bin")
-	if pathValue != want {
-		t.Errorf("expected PATH %q, got %q", want, pathValue)
+	want := "PATH=" + filepath.Join("/repo", ".pocket", "bin")
+	if got[len(got)-1] != want {
+		t.Errorf("expected PATH entry %q, got %q", want, got[len(got)-1])
 	}
 }
 
@@ -229,20 +218,4 @@ func pathEnvKeyForTest() string {
 		return "Path"
 	}
 	return "PATH"
-}
-
-func pathValueFromEnvForTest(environ []string) (string, bool) {
-	for _, envEntry := range environ {
-		key, value, ok := strings.Cut(envEntry, "=")
-		if !ok {
-			continue
-		}
-		if runtime.GOOS == "windows" && strings.EqualFold(key, "PATH") {
-			return value, true
-		}
-		if key == "PATH" {
-			return value, true
-		}
-	}
-	return "", false
 }
