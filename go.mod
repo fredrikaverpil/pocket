@@ -3,7 +3,7 @@ module github.com/fredrikaverpil/pocket
 go 1.26.5
 
 require (
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
 	gotest.tools/v3 v3.5.2
 )
