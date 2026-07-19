@@ -1,0 +1,48 @@
+# Renovate runs `go mod tidy` only in the module whose go.mod it updated
+# (postUpdateOptions: gomodTidy in renovate.json). The .pocket module dogfoods
+# pocket via a `replace => ../` directive, so root go.mod bumps leave
+# .pocket/go.mod and .pocket/go.sum stale and CI fails with "updates to
+# go.mod needed". This workflow tidies both modules on Renovate branches and
+# pushes a fixup commit when they drift.
+
+name: renovate-tidy
+
+on:
+  push:
+    branches:
+      - "renovate/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-mod-tidy:
+    name: go mod tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: .pocket/go.mod
+          cache: false
+      - name: Run go mod tidy
+        run: |
+          go mod tidy
+          cd .pocket
+          go mod tidy
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet; then
+            echo "go.mod/go.sum files are tidy, nothing to do"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add go.mod go.sum .pocket/go.mod .pocket/go.sum
+          git commit -m "chore: run go mod tidy"
+          git push
