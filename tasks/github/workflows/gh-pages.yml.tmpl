@@ -25,16 +25,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: .pocket/go.mod
           cache: false
       - name: Restore cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cache/go-build
@@ -50,7 +50,7 @@ jobs:
         run: ./pok -v docs -build
       - name: Save cache
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cache/go-build
