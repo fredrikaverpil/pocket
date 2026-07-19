@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/fredrikaverpil/pocket/compare/v0.10.0...v0.10.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* **pk:** report scoped no-ops and missing git root ([#117](https://github.com/fredrikaverpil/pocket/issues/117)) ([94de509](https://github.com/fredrikaverpil/pocket/commit/94de509dcbaaf184e05a06b0198daefd334547ca))
+
 ## [0.10.0](https://github.com/fredrikaverpil/pocket/compare/v0.9.1...v0.10.0) (2026-07-19)
 
 
