@@ -6,51 +6,51 @@ import (
 	"github.com/fredrikaverpil/pocket/pk"
 	"github.com/fredrikaverpil/pocket/pk/repopath"
 	"github.com/fredrikaverpil/pocket/pk/run"
-	"github.com/fredrikaverpil/pocket/tools/prettier"
+	"github.com/fredrikaverpil/pocket/tools/rumdl"
 )
 
 // FormatFlags holds flags for the Format task.
 type FormatFlags struct {
 	Check  bool   `flag:"check"  usage:"check only, don't write"`
-	Config string `flag:"config" usage:"path to prettier config file"`
+	Config string `flag:"config" usage:"path to rumdl config file"`
 }
 
-// Format formats Markdown files using prettier.
+// Format formats Markdown files using rumdl.
 var Format = &pk.Task{
 	Name:  "md-format",
 	Usage: "format Markdown files",
 	Flags: FormatFlags{},
-	Body:  pk.Serial(prettier.Install, formatCmd()),
+	Body:  pk.Serial(rumdl.Install, formatCmd()),
 }
 
 func formatCmd() pk.Runnable {
 	return pk.Do(func(ctx context.Context) error {
 		f := run.GetFlags[FormatFlags](ctx)
-		configPath := f.Config
-		if configPath == "" && !prettier.HasProjectConfig() {
-			configPath = prettier.EnsureDefaultConfig()
-		}
 
-		args := []string{}
+		args := []string{"fmt"}
 		if f.Check {
 			args = append(args, "--check")
-		} else {
-			args = append(args, "--write")
+		}
+		if run.Verbose(ctx) {
+			args = append(args, "--verbose")
 		}
 
+		// Fall back to the bundled config when the project has no rumdl
+		// config of its own.
+		configPath := f.Config
+		if configPath == "" && !rumdl.HasProjectConfig() {
+			configPath = rumdl.EnsureDefaultConfig()
+		}
 		if configPath != "" {
 			args = append(args, "--config", configPath)
 		}
 
-		// Add ignore file if available.
-		if ignorePath, err := prettier.EnsureIgnoreFile(); err == nil {
-			args = append(args, "--ignore-path", ignorePath)
-		}
+		// Keep rumdl's cache inside .pocket to avoid polluting the repo.
+		args = append(args, "--cache-dir", repopath.FromToolsDir("rumdl", "cache"))
 
-		// Use absolute path pattern since prettier runs from install directory.
-		pattern := repopath.FromGitRoot("**/*.md")
-		args = append(args, pattern)
+		// Scan the whole repo from the git root; rumdl respects .gitignore.
+		args = append(args, repopath.FromGitRoot("."))
 
-		return prettier.Exec(ctx, args...)
+		return run.Exec(ctx, rumdl.Name, args...)
 	})
 }
