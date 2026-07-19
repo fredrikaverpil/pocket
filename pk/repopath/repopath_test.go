@@ -25,9 +25,17 @@ func TestGitRoot(t *testing.T) {
 		t.Fatalf("evaluate root symlinks: %v", err)
 	}
 
-	got, err := GitRoot()
+	gitRoot, err := GitRoot()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Resolve the discovered root too: on Windows the working directory may
+	// use 8.3 short path names (e.g. RUNNER~1) while EvalSymlinks returns
+	// the long form.
+	got, err := filepath.EvalSymlinks(gitRoot)
+	if err != nil {
+		t.Fatalf("evaluate discovered root symlinks: %v", err)
 	}
 	if got != want {
 		t.Errorf("expected git root %q, got %q", want, got)
