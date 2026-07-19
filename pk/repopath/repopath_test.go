@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFindGitRoot(t *testing.T) {
+func TestGitRoot(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
@@ -25,7 +25,7 @@ func TestFindGitRoot(t *testing.T) {
 		t.Fatalf("evaluate root symlinks: %v", err)
 	}
 
-	got, err := FindGitRoot()
+	got, err := GitRoot()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,11 +34,11 @@ func TestFindGitRoot(t *testing.T) {
 	}
 }
 
-func TestFindGitRoot_NotFound(t *testing.T) {
+func TestGitRoot_NotFound(t *testing.T) {
 	chdir(t, t.TempDir())
 	SetGitRootFunc(nil)
 
-	got, err := FindGitRoot()
+	got, err := GitRoot()
 	if !errors.Is(err, ErrGitRootNotFound) {
 		t.Fatalf("expected ErrGitRootNotFound, got %v", err)
 	}
@@ -47,12 +47,12 @@ func TestFindGitRoot_NotFound(t *testing.T) {
 	}
 }
 
-func TestGitRoot_NotFoundFallback(t *testing.T) {
+func TestFromGitRoot_NotFoundFallback(t *testing.T) {
 	chdir(t, t.TempDir())
 	SetGitRootFunc(nil)
 
-	if got := GitRoot(); got != "." {
-		t.Errorf("expected fallback root '.', got %q", got)
+	if got := FromGitRoot("pkg"); got != "pkg" {
+		t.Errorf("expected fallback path %q, got %q", "pkg", got)
 	}
 }
 

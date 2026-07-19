@@ -53,7 +53,10 @@ var shimsTask = &Task{
 	Usage:      "regenerate shims in all directories",
 	HideHeader: true,
 	Do: func(ctx context.Context) error {
-		gitRoot := repopath.GitRoot()
+		gitRoot, err := repopath.GitRoot()
+		if err != nil {
+			return fmt.Errorf("finding git root: %w", err)
+		}
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		p := planFromContext(ctx)
@@ -169,8 +172,13 @@ var commitsCheckTask = &Task{
 			return nil
 		}
 
+		gitRoot, err := repopath.GitRoot()
+		if err != nil {
+			return fmt.Errorf("finding git root: %w", err)
+		}
+
 		cmd := exec.CommandContext(ctx, "git", "log", "--format=%H %s", commitRange)
-		cmd.Dir = repopath.GitRoot()
+		cmd.Dir = gitRoot
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -207,7 +215,10 @@ var commitsCheckTask = &Task{
 
 // resolveCommitRange determines the git log range for commit validation.
 func resolveCommitRange(ctx context.Context) (string, error) {
-	gitRoot := repopath.GitRoot()
+	gitRoot, err := repopath.GitRoot()
+	if err != nil {
+		return "", fmt.Errorf("finding git root: %w", err)
+	}
 
 	cmd := exec.CommandContext(ctx, "git", "log", "--oneline", "@{push}..HEAD")
 	cmd.Dir = gitRoot
@@ -263,7 +274,10 @@ var selfUpdateTask = &Task{
 	Usage: "update Pocket and regenerate scaffolded files",
 	Flags: selfUpdateFlags{},
 	Do: func(ctx context.Context) error {
-		gitRoot := repopath.GitRoot()
+		gitRoot, err := repopath.GitRoot()
+		if err != nil {
+			return fmt.Errorf("finding git root: %w", err)
+		}
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		ctx = pkrun.ContextWithPath(ctx, pocketDir)
@@ -311,7 +325,10 @@ var purgeTask = &Task{
 	Name:  "purge",
 	Usage: "remove .pocket/tools, .pocket/bin, and .pocket/venvs",
 	Do: func(ctx context.Context) error {
-		gitRoot := repopath.GitRoot()
+		gitRoot, err := repopath.GitRoot()
+		if err != nil {
+			return fmt.Errorf("finding git root: %w", err)
+		}
 		pocketDir := filepath.Join(gitRoot, ".pocket")
 
 		dirsToRemove := []string{

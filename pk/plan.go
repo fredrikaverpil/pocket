@@ -84,7 +84,7 @@ type pathInfo struct {
 // newPublicPlan creates an execution plan from a Config by walking the
 // filesystem to discover directories, then delegating to newPlan.
 func newPublicPlan(cfg *Config) (*Plan, error) {
-	gitRoot, err := repopath.FindGitRoot()
+	gitRoot, err := repopath.GitRoot()
 	if err != nil {
 		return nil, fmt.Errorf("finding git root: %w", err)
 	}

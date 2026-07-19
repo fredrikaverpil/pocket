@@ -70,7 +70,7 @@ func run(cfg *Config) (*executionTracker, error) {
 	}
 
 	// Ensure tools/go.mod exists to prevent go mod tidy from scanning downloaded tools.
-	gitRoot, err := repopath.FindGitRoot()
+	gitRoot, err := repopath.GitRoot()
 	if err != nil {
 		return nil, fmt.Errorf("finding git root: %w", err)
 	}
