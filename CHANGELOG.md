@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.10.0](https://github.com/fredrikaverpil/pocket/compare/v0.9.1...v0.10.0) (2026-07-19)
+
+
+### Features
+
+* **deps:** update dependency goreleaser/goreleaser to v2.17.0 ([#99](https://github.com/fredrikaverpil/pocket/issues/99)) ([3b72e98](https://github.com/fredrikaverpil/pocket/commit/3b72e985c7ca9db7865a573b4446ab8c32b80bb5))
+* **deps:** update dependency johnnymorganz/stylua to v2.5.2 ([#96](https://github.com/fredrikaverpil/pocket/issues/96)) ([7ffbfc0](https://github.com/fredrikaverpil/pocket/commit/7ffbfc0191cac65420dc587b494a8ee83822b6ba))
+* **deps:** update module golang.org/x/vuln to v1.6.0 ([#115](https://github.com/fredrikaverpil/pocket/issues/115)) ([1172b09](https://github.com/fredrikaverpil/pocket/commit/1172b0933561761afc82825f2933d1262f7bb22d))
+* use rumdl as markdown formatter ([#118](https://github.com/fredrikaverpil/pocket/issues/118)) ([36addd4](https://github.com/fredrikaverpil/pocket/commit/36addd4af21d8de77c39366975a3f0bef0ea6eac))
+
+
+### Bug Fixes
+
+* **deps:** update dependency astral-sh/uv to v0.11.29 ([#93](https://github.com/fredrikaverpil/pocket/issues/93)) ([3f7ec20](https://github.com/fredrikaverpil/pocket/commit/3f7ec2086b4e5b9e02b506c98c4398a0a936b07c))
+* **deps:** update dependency neovim/neovim to v0.12.3 ([#109](https://github.com/fredrikaverpil/pocket/issues/109)) ([2987d73](https://github.com/fredrikaverpil/pocket/commit/2987d73e254773c1b4669c92f9f26f272dbc6307))
+* **deps:** update dependency neovim/neovim to v0.12.4 ([#121](https://github.com/fredrikaverpil/pocket/issues/121)) ([c965f45](https://github.com/fredrikaverpil/pocket/commit/c965f4566571ff106dda0d820481e6a6ca254c6a))
+* **deps:** update dependency oven-sh/bun to v1.3.14 ([#94](https://github.com/fredrikaverpil/pocket/issues/94)) ([fae800f](https://github.com/fredrikaverpil/pocket/commit/fae800f3a2f4def50a129fe37ca618ee96e2027b))
+* **deps:** update dependency prettier to v3.9.5 ([#102](https://github.com/fredrikaverpil/pocket/issues/102)) ([68ca0ad](https://github.com/fredrikaverpil/pocket/commit/68ca0ad7cbd56fa0f098626bc2711bb9705e8fda))
+* **deps:** update dependency tree-sitter/tree-sitter to v0.26.11 ([#98](https://github.com/fredrikaverpil/pocket/issues/98)) ([ca804f6](https://github.com/fredrikaverpil/pocket/commit/ca804f685e163e64c0186f31e9621d106f21f5b7))
+* **deps:** update dependency zensical to v0.0.50 ([#95](https://github.com/fredrikaverpil/pocket/issues/95)) ([4625ab8](https://github.com/fredrikaverpil/pocket/commit/4625ab8cfc6df6b5ab1e2eef0a3836389c9ad790))
+* **deps:** update module golang.org/x/sync to v0.22.0 ([#100](https://github.com/fredrikaverpil/pocket/issues/100)) ([69406ec](https://github.com/fredrikaverpil/pocket/commit/69406ece29a28d5d1ed62c909828f4380d3b20a2))
+* **deps:** update module golang.org/x/sync to v0.22.0 ([#124](https://github.com/fredrikaverpil/pocket/issues/124)) ([037865c](https://github.com/fredrikaverpil/pocket/commit/037865ce10fc64020cd70b0bf900288c4f63c559))
+* **deps:** update module golang.org/x/term to v0.45.0 ([#101](https://github.com/fredrikaverpil/pocket/issues/101)) ([3ace0bc](https://github.com/fredrikaverpil/pocket/commit/3ace0bc767c7d37f3785f6fe892fae8de9715afb))
+* **run:** handle Windows Path environment variable ([#116](https://github.com/fredrikaverpil/pocket/issues/116)) ([28321d2](https://github.com/fredrikaverpil/pocket/commit/28321d2885f59b0844018839af90b60c345cb08a))
+
 ## [0.9.1](https://github.com/fredrikaverpil/pocket/compare/v0.9.0...v0.9.1) (2026-06-22)
 
 
