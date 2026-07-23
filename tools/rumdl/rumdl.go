@@ -18,7 +18,7 @@ const Name = "rumdl"
 
 // Version is the version of rumdl to install.
 // renovate: datasource=github-releases depName=rvben/rumdl
-const Version = "0.2.36"
+const Version = "0.2.38"
 
 //go:embed rumdl.toml
 var defaultConfig []byte
