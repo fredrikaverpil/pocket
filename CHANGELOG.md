@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/fredrikaverpil/pocket/compare/v0.10.2...v0.11.0) (2026-08-06)
+
+
+### Features
+
+* **deps:** update dependency astral-sh/uv to v0.12.1 ([#130](https://github.com/fredrikaverpil/pocket/issues/130)) ([5a4fa64](https://github.com/fredrikaverpil/pocket/commit/5a4fa647c01759179fb0d955cb624cb03eed6650))
+* **deps:** update module github.com/dacharyc/skill-validator to v1.6.0 ([#142](https://github.com/fredrikaverpil/pocket/issues/142)) ([b573436](https://github.com/fredrikaverpil/pocket/commit/b573436bd16844197f5bc76700665caf48b7271d))
+
+
+### Bug Fixes
+
+* **ci:** bump github-workflows ([2faabcb](https://github.com/fredrikaverpil/pocket/commit/2faabcb1071559b53f254308669364280d830cb4))
+* **ci:** use latest stale ([db09c8b](https://github.com/fredrikaverpil/pocket/commit/db09c8b8d05dbfd1fe74099a8599943475eda71e))
+* **deps:** update dependency astral-sh/uv to v0.12.2 ([#139](https://github.com/fredrikaverpil/pocket/issues/139)) ([4bcd3a0](https://github.com/fredrikaverpil/pocket/commit/4bcd3a0e87160df0453aced6bff472944ca20bb8))
+* **deps:** update dependency goreleaser/goreleaser to v2.17.1 ([#132](https://github.com/fredrikaverpil/pocket/issues/132)) ([6643992](https://github.com/fredrikaverpil/pocket/commit/6643992698ebd94bb9f4cac5a842c6a3e6337ddc))
+* **deps:** update dependency prettier to v3.9.6 ([#131](https://github.com/fredrikaverpil/pocket/issues/131)) ([d3af6fd](https://github.com/fredrikaverpil/pocket/commit/d3af6fdfbaeae92ffa53ed049ae200e5db29f361))
+* **deps:** update dependency rvben/rumdl to v0.2.49 ([#129](https://github.com/fredrikaverpil/pocket/issues/129)) ([d2fbf14](https://github.com/fredrikaverpil/pocket/commit/d2fbf1465f25255b3120497552b81504a6100f84))
+* **deps:** update dependency rvben/rumdl to v0.2.52 ([#140](https://github.com/fredrikaverpil/pocket/issues/140)) ([a8c02c3](https://github.com/fredrikaverpil/pocket/commit/a8c02c352cc170b5a75a84632ec3202a834335ad))
+* **deps:** update dependency zensical to v0.0.52 ([#128](https://github.com/fredrikaverpil/pocket/issues/128)) ([f5adbc1](https://github.com/fredrikaverpil/pocket/commit/f5adbc18f398da64ac8092bab21187d7449b0865))
+* **deps:** update dependency zensical to v0.0.53 ([#141](https://github.com/fredrikaverpil/pocket/issues/141)) ([f5b0b9d](https://github.com/fredrikaverpil/pocket/commit/f5b0b9d35f8eafe2da516f2112a1bc4bfdd0a747))
+* **renovate:** validate renovate.json as repo config ([#138](https://github.com/fredrikaverpil/pocket/issues/138)) ([982373e](https://github.com/fredrikaverpil/pocket/commit/982373e1507dab89c52ac3fe917cb8658cb7c04c))
+
 ## [0.10.2](https://github.com/fredrikaverpil/pocket/compare/v0.10.1...v0.10.2) (2026-08-06)
 
 
