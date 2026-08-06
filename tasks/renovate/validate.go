@@ -22,8 +22,10 @@ func validateCmd() pk.Runnable {
 			"x",
 			"--package",
 			"renovate",
+			// No file argument: explicitly passed files are validated as
+			// global config, while auto-discovery validates them as repo
+			// config, which is how Renovate actually reads them.
 			"renovate-config-validator",
-			"renovate.json",
 		)
 	})
 }
