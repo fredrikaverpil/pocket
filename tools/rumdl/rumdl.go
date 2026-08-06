@@ -38,6 +38,11 @@ var configFileNames = []string{
 // EnsureDefaultConfig writes the bundled config to .pocket/tools/rumdl/
 // and returns its path. The file is rewritten on every call so it stays in
 // sync with the embedded config. Safe to call multiple times.
+//
+// It is written whether or not the project has a config of its own, so that a
+// project config can inherit these defaults with rumdl's `extends`:
+//
+//	extends = ".pocket/tools/rumdl/rumdl.toml"
 func EnsureDefaultConfig() string {
 	configPath := repopath.FromToolsDir("rumdl", DefaultConfigFile)
 	_ = os.MkdirAll(filepath.Dir(configPath), 0o755)
