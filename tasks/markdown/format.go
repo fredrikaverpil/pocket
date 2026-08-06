@@ -35,11 +35,13 @@ func formatCmd() pk.Runnable {
 			args = append(args, "--verbose")
 		}
 
-		// Fall back to the bundled config when the project has no rumdl
-		// config of its own.
+		// Always write the bundled config so a project config can inherit
+		// from it via rumdl's `extends`, then fall back to it only when the
+		// project has no rumdl config of its own.
+		defaultConfig := rumdl.EnsureDefaultConfig()
 		configPath := f.Config
 		if configPath == "" && !rumdl.HasProjectConfig() {
-			configPath = rumdl.EnsureDefaultConfig()
+			configPath = defaultConfig
 		}
 		if configPath != "" {
 			args = append(args, "--config", configPath)

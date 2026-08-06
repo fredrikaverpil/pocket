@@ -1,5 +1,13 @@
 # Default rumdl configuration.
 # Used when the project has no rumdl config of its own at the git root.
+#
+# To keep these defaults while adding project-specific settings, inherit from
+# this file in a rumdl.toml at the git root:
+#
+#   extends = ".pocket/tools/rumdl/rumdl.toml"
+#
+#   [per-file-flavor]
+#   "docs/**/*.md" = "mkdocs"  # MkDocs/zensical admonitions, content tabs, ...
 
 [global]
 # MD034: leave bare URLs/emails untouched (no <...> wrapping).
