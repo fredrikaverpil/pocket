@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/fredrikaverpil/pocket/compare/v0.10.1...v0.10.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* **markdown:** always write bundled rumdl config so projects can extend it ([#134](https://github.com/fredrikaverpil/pocket/issues/134)) ([72d491f](https://github.com/fredrikaverpil/pocket/commit/72d491f82322ad136bbb36b6cce067c5200d36f5))
+
 ## [0.10.1](https://github.com/fredrikaverpil/pocket/compare/v0.10.0...v0.10.1) (2026-07-19)
 
 
