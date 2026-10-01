@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/fredrikaverpil/pocket/compare/v0.11.0...v0.11.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **go:** bump Go to 1.27.1, update Go tools and use json/v2 ([#153](https://github.com/fredrikaverpil/pocket/issues/153)) ([8086649](https://github.com/fredrikaverpil/pocket/commit/8086649955e0a3229d05dd236049809bcc9e17e7))
+
 ## [0.11.0](https://github.com/fredrikaverpil/pocket/compare/v0.10.2...v0.11.0) (2026-08-06)
 
 
