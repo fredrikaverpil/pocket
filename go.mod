@@ -1,6 +1,6 @@
 module github.com/fredrikaverpil/pocket
 
-go 1.26.5
+go 1.27.1
 
 require (
 	golang.org/x/sync v0.22.0

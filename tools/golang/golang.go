@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk"
@@ -115,9 +116,9 @@ func binaryName(pkg string) string {
 		return parts[len(parts)-1]
 	}
 	// Otherwise use last non-version component.
-	for i := len(parts) - 1; i >= 0; i-- {
-		if !strings.HasPrefix(parts[i], "v") || !isVersion(parts[i]) {
-			return parts[i]
+	for _, part := range slices.Backward(parts) {
+		if !strings.HasPrefix(part, "v") || !isVersion(part) {
+			return part
 		}
 	}
 	return parts[len(parts)-1]
