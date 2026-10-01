@@ -1,6 +1,6 @@
 module pocket
 
-go 1.26.5
+go 1.27.1
 
 require github.com/fredrikaverpil/pocket v0.6.0
 
