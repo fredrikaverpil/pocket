@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/fredrikaverpil/pocket/compare/v0.11.1...v0.11.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* **shim:** use env to locate bash in shebang ([#157](https://github.com/fredrikaverpil/pocket/issues/157)) ([63a0ea8](https://github.com/fredrikaverpil/pocket/commit/63a0ea8c3dcb15810f87d28c5dfd61aad0447775))
+
 ## [0.11.1](https://github.com/fredrikaverpil/pocket/compare/v0.11.0...v0.11.1) (2026-10-01)
 
 
