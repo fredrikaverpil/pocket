@@ -2,7 +2,7 @@ package shim
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 )
@@ -44,7 +44,7 @@ func fetchGoChecksums(ctx context.Context, version string) (GoChecksums, error) 
 	}
 
 	var releases []goRelease
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+	if err := json.UnmarshalRead(resp.Body, &releases); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 

@@ -3,7 +3,7 @@ package pk
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -63,12 +63,12 @@ func TestParseExecJSON_Errors(t *testing.T) {
 		{
 			name: "unknown top-level field",
 			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x"},"extra":1}`,
-			want: `unknown field "extra"`,
+			want: `unknown object member name "extra"`,
 		},
 		{
 			name: "unknown nested field",
 			doc:  `{"version":1,"tree":{"type":"command","argv":["x"],"name":"x","bogus":1}}`,
-			want: `unknown field "bogus"`,
+			want: `unknown object member name "bogus"`,
 		},
 		{
 			name: "missing tree",

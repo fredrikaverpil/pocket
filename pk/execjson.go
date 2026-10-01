@@ -2,13 +2,15 @@ package pk
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/fredrikaverpil/pocket/pk/internal/ctxkey"
@@ -52,18 +54,9 @@ type jsonNode struct {
 // parseExecJSON reads and validates a JSON execution document from r.
 // Unknown fields and malformed shapes return an error.
 func parseExecJSON(r io.Reader) (*jsonRoot, error) {
-	dec := json.NewDecoder(r)
-	dec.DisallowUnknownFields()
 	var root jsonRoot
-	if err := dec.Decode(&root); err != nil {
+	if err := json.UnmarshalRead(r, &root, json.RejectUnknownMembers(true)); err != nil {
 		return nil, friendlyDecodeError(err)
-	}
-	var trailing struct{}
-	if err := dec.Decode(&trailing); err != io.EOF {
-		if err != nil {
-			return nil, friendlyDecodeError(err)
-		}
-		return nil, fmt.Errorf("unexpected trailing content after root document")
 	}
 	if root.Version != execJSONVersion {
 		return nil, fmt.Errorf("version: unsupported value %d (expected %d)", root.Version, execJSONVersion)
@@ -81,18 +74,50 @@ func parseExecJSON(r io.Reader) (*jsonRoot, error) {
 // messages: field paths instead of Go types, schema-oriented expected types,
 // and a stripped "json: " prefix.
 func friendlyDecodeError(err error) error {
-	if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
-		field := typeErr.Field
-		if field == "" {
-			field = "<root>"
-		}
-		return fmt.Errorf("%s: expected %s, got %s", field, expectedSchemaType(field), typeErr.Value)
+	if semErr, ok := errors.AsType[*json.SemanticError](err); ok && semErr.Err == nil && semErr.JSONKind != 0 {
+		field := pointerToFieldPath(string(semErr.JSONPointer))
+		return fmt.Errorf("%s: expected %s, got %s", field, expectedSchemaType(field), jsonKindName(semErr.JSONKind))
 	}
-	if synErr, ok := errors.AsType[*json.SyntaxError](err); ok {
-		return fmt.Errorf("invalid JSON at byte offset %d: %s", synErr.Offset, synErr.Error())
+	if synErr, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+		return fmt.Errorf("invalid JSON at byte offset %d: %s", synErr.ByteOffset, synErr.Error())
 	}
 	msg := strings.TrimPrefix(err.Error(), "json: ")
 	return errors.New(msg)
+}
+
+// jsonKindName returns the JSON type name for k.
+func jsonKindName(k jsontext.Kind) string {
+	switch k {
+	case 'n':
+		return "null"
+	case 't', 'f':
+		return "boolean"
+	case '"':
+		return "string"
+	case '0':
+		return "number"
+	case '{':
+		return "object"
+	case '[':
+		return "array"
+	default:
+		return "unknown"
+	}
+}
+
+// pointerToFieldPath converts a JSON pointer like "/tree/children/0/argv" into
+// a dotted field path like "tree.children.argv".
+func pointerToFieldPath(ptr string) string {
+	var parts []string
+	for part := range strings.SplitSeq(strings.TrimPrefix(ptr, "/"), "/") {
+		if _, err := strconv.Atoi(part); err != nil && part != "" {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) == 0 {
+		return "<root>"
+	}
+	return strings.Join(parts, ".")
 }
 
 // expectedSchemaType returns the JSON-schema type expected for a field path
@@ -505,9 +530,11 @@ func emitInvocationJSON(ctx context.Context, p *Plan, taskName string, w io.Writ
 	if opts := jsonOptionsFromContext(ctx); opts != nil {
 		doc["options"] = opts
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(doc)
+	if err := json.MarshalWrite(w, doc, jsontext.WithIndent("  ")); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(w)
+	return err
 }
 
 // emitJSONNode converts a Runnable to its JSON representation.
