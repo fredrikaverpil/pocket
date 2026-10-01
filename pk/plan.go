@@ -396,7 +396,8 @@ func (pc *taskCollector) walk(r Runnable) (Runnable, error) {
 				return nil, fmt.Errorf(
 					"task %q: conflicting flag overrides across scopes (%v vs %v); "+
 						"use WithNameSuffix to create distinct variants",
-					effectiveName, instance.flags, mergedFlags)
+					effectiveName, instance.flags, mergedFlags,
+				)
 			}
 			instance.resolvedPaths = unionPaths(instance.resolvedPaths, finalPaths)
 			instance.isManual = instance.isManual && pc.inManualSection
